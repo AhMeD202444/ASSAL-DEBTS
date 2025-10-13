@@ -1303,7 +1303,8 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
     </div>
 
     <!-- 5) السعر -->
-    <input id="price" class="field" type="number" step="1" inputmode="numeric" placeholder="السعر (دينار)"/>
+   <input id="price" class="field" type="text" inputmode="numeric" placeholder="السعر (دينار)"/>
+
 
     <!-- 6) العدد -->
     <input id="qty" class="field" type="number" min="1" step="1" placeholder="العدد"/>
@@ -1574,7 +1575,7 @@ function tryFillPrice(){
   const priceEl = document.getElementById('price');
   if(!priceEl) return;
   const p = findPrice(cat, name);
-  if(p !== '') priceEl.value = p;
+  if(p !== '') priceEl.value = formatIQD(p);  // 12,500
 }
 
 
@@ -1638,8 +1639,9 @@ function renderItemSuggestions(){
   // تعبئة السعر تلقائياً
   const priceEl = document.getElementById('price');
   if(priceEl){
-    const p = findPrice(cat, name || '');
-    if(p !== '') priceEl.value = p;
+   const p = findPrice(cat, name || '');
+if(p !== '') priceEl.value = formatIQD(p);
+
   }
 
   document.getElementById('qty')?.focus();
@@ -1947,7 +1949,11 @@ function showToast(type, message, timeout=2200){
 document.getElementById('btnAdd').onclick = () => {
   const customer = (document.getElementById('cust').value || '').trim();
   const item     = (document.getElementById('item').value || '').trim();
-  const priceVal = String(document.getElementById('price').value || '').trim();
+ 
+ const priceVal = parseIQD(document.getElementById('price').value); // يحذف الفوارز ويرجّع أرقام بس
+
+ 
+ 
   let   qty      = String(document.getElementById('qty').value || '1').trim();
   const cat      = (document.getElementById('cat').value || '').trim();
   const type     = (document.getElementById('type').value || 'بيع').trim(); // بيع / راجع
@@ -2175,6 +2181,27 @@ const price = CE('div','iprice'); price.textContent = ln.price ? formatIQD(ln.pr
 const qty   = CE('div','iqty');   qty.textContent  = `× ${ln.qty}`;
 const note  = CE('div','inote');  note.textContent = (ln.note && ln.note.trim()) ? ln.note : '—';
 const time  = CE('div','itime');  time.textContent = arTime(ln.at);
+
+
+
+// بعد تعريف الدوال، مثلاً مع باقي Listeners
+const priceInput = document.getElementById('price');
+
+priceInput?.addEventListener('focus', ()=>{
+  priceInput.select?.();
+});
+
+priceInput?.addEventListener('input', ()=>{
+  // اسمح بالأرقام فقط
+  priceInput.value = priceInput.value.replace(/[^\d]/g,'');
+});
+
+priceInput?.addEventListener('blur', ()=>{
+  // نسّقه بفوارز عند الخروج
+  if(priceInput.value) priceInput.value = formatIQD(priceInput.value);
+});
+
+
      
      
       const del   = CE('button','btn-mini btn-del'); 
