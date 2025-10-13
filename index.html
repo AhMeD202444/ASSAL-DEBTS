@@ -1138,6 +1138,42 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
 
 
 
+/* قائمة اقتراحات الزبائن */
+#custSuggestions{ padding:6px 0; }
+
+/* العنصر */
+#custSuggestions .sugg-item{
+  position: relative;
+  padding: 12px 12px;          /* مساحة علوية تكفي فوق الخط */
+  line-height: 1.5;            /* ارتفاع سطر مريح */
+  white-space: normal;          /* يسمح باللف */
+  word-break: break-word;       /* يكسر الكلمات الطويلة */
+  display: block;               /* يضمن امتداد العرض بالكامل */
+  cursor: pointer;
+}
+
+/* الفاصل بين العناصر — صار pseudo-element حتى ما يلمس النص */
+#custSuggestions .sugg-item + .sugg-item::before{
+  content: "";
+  position: absolute;
+  inset-inline: 12px;           /* يبعد عن الحواف */
+  top: 0;                       /* أعلى العنصر */
+  height: 1px;
+  background: linear-gradient(90deg,
+    rgba(255,255,255,.06),
+    rgba(255,255,255,.12),
+    rgba(255,255,255,.06)
+  );
+  pointer-events: none;
+}
+
+/* لون التحويم */
+#custSuggestions .sugg-item:hover{
+  background:#0e1b36;
+}
+
+
+
 
    
     
@@ -2886,26 +2922,28 @@ function renderCustSuggestions(){
   const q = String(inp.value||'').trim().toLowerCase();
   const all = getAllCustomers();
 
-  // فلترة بسيطة بالـ contains
-  const data = q ? all.filter(n => n.toLowerCase().includes(q)) : all;
+  // ماكو كتابة → لا تعرض شي
+  if(!q){
+    host.innerHTML = '';
+    host.style.display = 'none';
+    __custIdx = -1;
+    return;
+  }
+
+  // فلترة بسيطة
+  const data = all.filter(n => n.toLowerCase().includes(q));
 
   host.innerHTML = '';
   __custIdx = -1;
 
-  // ما نقتطع النتائج؛ نخلي الـ UL يتكفّل بالتمرير
   data.forEach(name=>{
     const li = document.createElement('li');
+    li.className = 'sugg-item';
     li.textContent = name;
-    li.style.cssText = `
-      padding:8px 12px; height:36px; display:flex; align-items:center; cursor:pointer;
-      border-bottom:1px dashed rgba(255,255,255,.06);
-    `;
-    li.onmouseenter = ()=> li.style.background = '#0e1b36';
-    li.onmouseleave = ()=> li.style.background = 'transparent';
     li.onclick = ()=>{
       inp.value = name;
       hideCustSuggestions();
-      // بعد الاختيار: روّح على نوع الفاتورة مثل ما كان
+      // بعد الاختيار: روّح على نوع الفاتورة
       const target = document.getElementById('type');
       target && (target.focus(), typeof target.showPicker==='function' && target.showPicker());
     };
@@ -2914,6 +2952,7 @@ function renderCustSuggestions(){
 
   host.style.display = data.length ? 'block' : 'none';
 }
+
 
 function hideCustSuggestions(){
   const host = document.getElementById('custSuggestions');
@@ -2935,8 +2974,6 @@ function highlightCustItem(){
 
 // فتح أثناء الكتابة/الفوكس/الضغط
 document.getElementById('cust')?.addEventListener('input',  renderCustSuggestions);
-document.getElementById('cust')?.addEventListener('focus',  renderCustSuggestions);
-document.getElementById('cust')?.addEventListener('click',  renderCustSuggestions);
 document.getElementById('btnExportDay').onclick = exportDayPDF_Vector;
 
 
@@ -2944,17 +2981,32 @@ document.getElementById('btnExportDay').onclick = exportDayPDF_Vector;
 // تنقّل الكيبورد داخل قائمة الزبائن
 document.getElementById('cust')?.addEventListener('keydown', (e)=>{
   const host = document.getElementById('custSuggestions');
+  const inp  = document.getElementById('cust');
   const visible = host && host.style.display === 'block';
+  const hasQuery = !!String(inp.value||'').trim();
 
-  // افتح بالقوسلة إذا مو ظاهرة
-  if(!visible && (e.key==='Enter' || e.key==='ArrowDown' || e.key==='ArrowUp')){
-    e.preventDefault();
-    renderCustSuggestions();
+  // إذا الاقتراحات مو ظاهرة:
+  if(!visible){
+    // إذا ضغط Enter بدون كتابة → امشِ على "نوع الفاتورة" مباشرة
+    if(e.key === 'Enter' && !hasQuery){
+      e.preventDefault();
+      const target = document.getElementById('type');
+      if(target){
+        target.focus();
+        if(typeof target.showPicker==='function') target.showPicker();
+      }
+      return;
+    }
+
+    // إذا Down/Up/Enter ومعك كتابة → افتح الاقتراحات
+    if((e.key==='ArrowDown' || e.key==='ArrowUp' || e.key==='Enter') && hasQuery){
+      e.preventDefault();
+      renderCustSuggestions();
+    }
     return;
   }
 
-  if(!visible) return;
-
+  // الاقتراحات ظاهرة: تنقل واختيار
   const items = getCustLis();
   if(!items.length) return;
 
@@ -2974,6 +3026,7 @@ document.getElementById('cust')?.addEventListener('keydown', (e)=>{
     hideCustSuggestions();
   }
 });
+
 
 // إغلاق إذا نقرّت برّه
 document.addEventListener('click', (ev)=>{
