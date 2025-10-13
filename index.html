@@ -1117,6 +1117,28 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
 
 
 
+/* ===== Notes block (للطباعة) ===== */
+.notes{ margin-top:8px; border:1px solid var(--stroke); border-radius:10px; }
+.notes__head{
+  display:flex; align-items:center; justify-content:space-between;
+  background:#f5f5f5; padding:6px 10px; border-bottom:1px solid var(--stroke);
+  font-weight:900;
+}
+.notes__list{ padding:8px 10px; display:flex; flex-direction:column; gap:6px; }
+.note{
+  display:flex; align-items:center; gap:8px;
+  border:1px solid var(--stroke); border-radius:10px; padding:6px 10px;
+}
+.note__idx{
+  font-weight:900; font-size:12px; min-width:28px; text-align:center;
+  border:1px solid var(--stroke); border-radius:999px; padding:2px 6px; background:#fff;
+}
+.note__text{ flex:1; }
+.note__time{ font-size:11px; color:#6b7280; white-space:nowrap; }
+
+
+
+
    
     
   </style>
@@ -2421,21 +2443,58 @@ function focusNewCard(card){
     
     
     
-    function addCardNote(card, text){
-  if(!card || !text) return false;
-  card.notes ||= [];
-  card.notes.push({ id: Date.now() + Math.random(), text, at: new Date().toISOString() });
+   // (جديد) رجّع الكارت الأصلي المخزَّن داخل days اعتمادًا على __day + id
+function getMutableCard(viewCard){
+  if(!viewCard) return null;
+  const dayKey = viewCard.__day || selectedDay;
+  const arr = days[dayKey] || [];
+  const idx = arr.findIndex(c => c.id === viewCard.id);
+  return idx >= 0 ? arr[idx] : null;
+}
+
+function addCardNote(viewCard, text){
+  if(!viewCard || !text) return false;
+
+  // اشتغل على الأصل داخل days (حتى ينحفظ فعليًا)
+  const real = getMutableCard(viewCard);
+  if(!real) return false;
+
+  real.notes ||= [];
+  // وحّد المرجع مع الكارت المعروض حتى تتحدّث الواجهة فورًا
+  viewCard.notes = real.notes;
+
+  real.notes.push({
+    id: Date.now() + Math.random(),
+    text,
+    at: new Date().toISOString()
+  });
+
+  // حدّث آخر نشاط (يفيد بالفرز حسب updatedAt إن موجود)
+  real.updatedAt = new Date().toISOString();
+
   save();
   return true;
 }
-function deleteCardNote(card, id){
-  if(!card || !Array.isArray(card.notes)) return false;
-  const i = card.notes.findIndex(n=> n.id === id);
+
+function deleteCardNote(viewCard, noteId){
+  if(!viewCard) return false;
+
+  const real = getMutableCard(viewCard);
+  if(!real || !Array.isArray(real.notes)) return false;
+
+  const i = real.notes.findIndex(n => n.id === noteId);
   if(i === -1) return false;
-  card.notes.splice(i,1);
+
+  real.notes.splice(i, 1);
+
+  // وحّد المرجع مع الكارت المعروض
+  viewCard.notes = real.notes;
+
+  real.updatedAt = new Date().toISOString();
   save();
   return true;
 }
+
 
  
  
@@ -2870,6 +2929,25 @@ function exportDayPDF_Vector(){
           box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
         }
 
+        /* ===== Notes block (للطباعة) ===== */
+        .notes{ margin-top:8px; border:1px solid var(--stroke); border-radius:10px; }
+        .notes__head{
+          display:flex; align-items:center; justify-content:space-between;
+          background:#f5f5f5; padding:6px 10px; border-bottom:1px solid var(--stroke);
+          font-weight:900;
+        }
+        .notes__list{ padding:8px 10px; display:flex; flex-direction:column; gap:6px; }
+        .note{
+          display:flex; align-items:center; gap:8px;
+          border:1px solid var(--stroke); border-radius:10px; padding:6px 10px;
+        }
+        .note__idx{
+          font-weight:900; font-size:12px; min-width:28px; text-align:center;
+          border:1px solid var(--stroke); border-radius:999px; padding:2px 6px; background:#fff;
+        }
+        .note__text{ flex:1; }
+        .note__time{ font-size:11px; color:#6b7280; white-space:nowrap; }
+
         @media print{ .card{ break-inside: avoid; } }
       </style>
     </head>
@@ -2969,6 +3047,51 @@ function exportDayPDF_Vector(){
             });
 
             box.appendChild(tbl);
+
+            // ===== Notes (إن وُجدت) =====
+            (function(){
+              const arr = Array.isArray(card.notes) ? [...card.notes] : [];
+              if(!arr.length) return;
+
+              // الأحدث أولاً
+              arr.sort((a,b)=> new Date(b.at) - new Date(a.at));
+
+              const notes = document.createElement('div');
+              notes.className = 'notes';
+
+              const head = document.createElement('div');
+              head.className = 'notes__head';
+              head.innerHTML = \`<span>الملاحظات</span><span>\${arr.length}</span>\`;
+
+              const list = document.createElement('div');
+              list.className = 'notes__list';
+
+              const tinyTime = (d)=> new Date(d).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+
+              arr.forEach((n, i)=>{
+                const row = document.createElement('div');
+                row.className = 'note';
+
+                const idx = document.createElement('div');
+                idx.className = 'note__idx';
+                idx.textContent = \`#\${i+1}\`;
+
+                const text = document.createElement('div');
+                text.className = 'note__text';
+                text.textContent = n.text || '';
+
+                const when = document.createElement('div');
+                when.className = 'note__time';
+                when.textContent = tinyTime(n.at || Date.now());
+
+                row.append(idx, text, when);
+                list.appendChild(row);
+              });
+
+              notes.append(head, list);
+              box.appendChild(notes);
+            })();
+
             host.appendChild(box);
           });
 
@@ -2981,6 +3104,7 @@ function exportDayPDF_Vector(){
   w.document.close();
   showToast('success','جاهز للطباعة — اختر "حفظ كـ PDF"');
 }
+
 
 
 
@@ -3054,6 +3178,25 @@ function exportCardPDF_Vector(card, dayKey){
           color:#fecaca;
           box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
         }
+
+        /* ===== Notes block (للطباعة) ===== */
+        .notes{ margin-top:8px; border:1px solid var(--stroke); border-radius:10px; }
+        .notes__head{
+          display:flex; align-items:center; justify-content:space-between;
+          background:#f5f5f5; padding:6px 10px; border-bottom:1px solid var(--stroke);
+          font-weight:900;
+        }
+        .notes__list{ padding:8px 10px; display:flex; flex-direction:column; gap:6px; }
+        .note{
+          display:flex; align-items:center; gap:8px;
+          border:1px solid var(--stroke); border-radius:10px; padding:6px 10px;
+        }
+        .note__idx{
+          font-weight:900; font-size:12px; min-width:28px; text-align:center;
+          border:1px solid var(--stroke); border-radius:999px; padding:2px 6px; background:#fff;
+        }
+        .note__text{ flex:1; }
+        .note__time{ font-size:11px; color:#6b7280; white-space:nowrap; }
 
         @media print{ .card{ break-inside: avoid; } }
       </style>
@@ -3151,6 +3294,51 @@ function exportCardPDF_Vector(card, dayKey){
           });
 
           box.appendChild(tbl);
+
+          // ===== Notes (إن وُجدت) =====
+          (function(){
+            const arr = Array.isArray(card.notes) ? [...card.notes] : [];
+            if(!arr.length) return;
+
+            // الأحدث أولاً
+            arr.sort((a,b)=> new Date(b.at) - new Date(a.at));
+
+            const notes = document.createElement('div');
+            notes.className = 'notes';
+
+            const head = document.createElement('div');
+            head.className = 'notes__head';
+            head.innerHTML = \`<span>الملاحظات</span><span>\${arr.length}</span>\`;
+
+            const list = document.createElement('div');
+            list.className = 'notes__list';
+
+            const tinyTime = (d)=> new Date(d).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+
+            arr.forEach((n, i)=>{
+              const row = document.createElement('div');
+              row.className = 'note';
+
+              const idx = document.createElement('div');
+              idx.className = 'note__idx';
+              idx.textContent = \`#\${i+1}\`;
+
+              const text = document.createElement('div');
+              text.className = 'note__text';
+              text.textContent = n.text || '';
+
+              const when = document.createElement('div');
+              when.className = 'note__time';
+              when.textContent = tinyTime(n.at || Date.now());
+
+              row.append(idx, text, when);
+              list.appendChild(row);
+            });
+
+            notes.append(head, list);
+            box.appendChild(notes);
+          })();
+
           host.appendChild(box);
 
           setTimeout(function(){ window.focus(); window.print(); }, 200);
@@ -3162,6 +3350,7 @@ function exportCardPDF_Vector(card, dayKey){
   w.document.close();
   showToast('success','جاهز لطباعة البطاقة — اختر "حفظ كـ PDF"');
 }
+
 
 
 
