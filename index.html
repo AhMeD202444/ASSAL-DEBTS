@@ -1,0 +1,3307 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>ASSAL • فواتير ديون يومية مكتب عسل</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  
+
+  <style>
+  
+  /* فكّ حماية أيقونات Font Awesome من Cairo وتحديد الوزن الصحيح */
+.fa-solid, .fas{
+  font-family: "Font Awesome 6 Free" !important;
+  font-weight: 900 !important;   /* مهم للـ solid */
+}
+.fa-regular, .far{
+  font-family: "Font Awesome 6 Free" !important;
+  font-weight: 400 !important;
+}
+.fa-brands, .fab{
+  font-family: "Font Awesome 6 Brands" !important;
+  font-weight: 400 !important;
+}
+
+  
+  
+  /* 1) خط Cairo على كل الواجهة (يشمل الأزرار والنوافذ والمدخلات) */
+:root{ --ui-font: "Cairo", system-ui; }
+
+/* غطّي كل العناصر المرئية في الصفحة */
+:where(html, body, button, input, select, textarea, .btn, .field,
+       .ribbon, .ribbon *, .layout, .rail, .rail *,
+       .board, .board *, .masonry, .card, .card *,
+       .insights, .insights *, .dock, .dock *,
+       .footer, .footer *, .modal, .modal *){
+  font-family: var(--ui-font) !important;
+}
+
+/* 2) حماية أيقونات Font Awesome حتى لا يتغيّر خطّها */
+i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
+.fa, .fa-solid, .fa-regular, .fa-brands{
+  font-family: var(--fa-style-family, "Font Awesome 6 Free") !important;
+  font-weight: inherit;
+}
+
+  
+  
+  
+  
+    /* =================== لوحة ألوان عصرية =================== */
+    :root{
+      /* أساسيات */
+      --bg:#0b1220;                /* خلفية داكنة أنيقة */
+      --bg-2:#121a2b;              /* أغمق قليلاً لمناطق ثانوية */
+      --paper:#0f172a;             /* لوحات وبطاقات داكنة ناعمة */
+      --rail:#0f172a;              /* سايدبار */
+      --ink:#e5e7eb;               /* نص رئيسي فاتح */
+      --muted:#9aa4b2;             /* نص ثانوي */
+      --stroke:#1f2a44;            /* حدود رفيعة */
+
+      /* ألوان العلامة (تدرّج عصري) */
+      --brand:#12d1b4;             /* فيروزي */
+      --brand-2:#7c3aed;           /* بنفسجي */
+      --brand-3:#0ea5e9;           /* أزرق سماوي للتفاصيل */
+
+      /* دلالية */
+      --good:#16a34a;
+      --warn:#f59e0b;
+      --danger:#ef4444;
+
+      /* مؤثرات */
+      --radius:16px;
+      --shadow:0 18px 50px rgba(0,0,0,.35);
+
+      /* قياسات */
+      --footer-h:44px;
+      --dock-gap:68px;
+      --hdr-h:54px;
+
+      /* أسطح فاتحة داخل الداكن */
+      --surface:#111a2f;
+      --surface-2:#0e1630;
+      --chip:#0f1a33;
+    }
+
+    /* خلفية بنمط شعاعي لطيف */
+    body{
+      margin:0;
+      height:100%;
+      color:var(--ink);
+      font-family:"Cairo",system-ui;
+      background:
+        radial-gradient(1000px 600px at 80% -10%, rgba(124,58,237,.18), transparent 60%),
+        radial-gradient(900px 500px at -10% 10%, rgba(18,209,180,.12), transparent 60%),
+        linear-gradient(180deg, var(--bg), var(--bg-2));
+      overflow-x:hidden;
+    }
+    *{ box-sizing:border-box }
+    html,body{ height:100% }
+
+    /* =================== Header (عنوان بالمنتصف + زجاجي) =================== */
+    .ribbon{
+      position:sticky; top:0; z-index:70;
+      background:linear-gradient(180deg, rgba(17,24,39,.7), rgba(17,24,39,.5));
+      border-bottom:1px solid rgba(124,58,237,.25);
+      backdrop-filter:blur(10px);
+    }
+    .ribbon-wrap{
+      height:var(--hdr-h);
+      max-width:1480px;
+      margin:auto;
+      padding:0 14px;
+      display:grid;
+      grid-template-columns: 1fr auto 1fr; /* يسار | مركز | يمين */
+      align-items:center;
+      gap:10px;
+    }
+    .r-left{display:flex;align-items:center;gap:8px}
+    .r-center{justify-self:center}
+    .r-right{justify-self:end;display:flex;gap:6px}
+
+    .brand{display:flex;align-items:center;gap:10px;font-weight:900}
+    .brand .dot{
+      width:26px;height:26px;border-radius:8px;
+      display:grid;place-items:center;
+      background:linear-gradient(135deg,var(--brand),var(--brand-2));
+      color:#fff;font-size:13px;font-weight:800;
+      box-shadow:0 8px 22px rgba(124,58,237,.35);
+    }
+    .brand .name{
+      font-size:15px;letter-spacing:.1px;color:#fff;
+      text-shadow:0 1px 0 rgba(0,0,0,.25);
+    }
+    .pill{
+      border:1px solid rgba(124,58,237,.25);
+      border-radius:999px;
+      padding:4px 10px;
+      color:#cbd5e1;
+      background:linear-gradient(180deg, #0b1220, #0d1527);
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.03);
+      font-size:12px;
+    }
+    .icon{
+      width:34px;height:34px;border:1px solid var(--stroke);
+      background:linear-gradient(180deg,#0c1426,#0e1830);
+      border-radius:10px;display:grid;place-items:center;cursor:pointer;
+      color:#e2e8f0;
+    }
+    .icon:hover{
+      border-color:rgba(124,58,237,.55);
+      box-shadow:0 8px 24px rgba(124,58,237,.25);
+      transform:translateY(-1px);
+      transition:.18s ease;
+    }
+
+    /* =================== Layout =================== */
+    .layout{
+      max-width:1480px;margin:14px auto;padding:0 14px;
+      display:grid;grid-template-columns: 280px 1fr 320px;gap:14px
+    }
+    @media (max-width:1280px){ .layout{grid-template-columns: 240px 1fr 280px} }
+    @media (max-width:980px){ .layout{grid-template-columns: 1fr; grid-auto-rows:min-content} }
+
+    /* =================== Rail =================== */
+    .rail{
+      background:var(--surface);
+      border:1px solid var(--stroke);
+      border-radius:18px;
+      box-shadow:var(--shadow);
+      padding:12px;
+      position:sticky;
+      top:calc(var(--hdr-h) + 8px);
+      height:calc(100vh - var(--hdr-h) - 24px);
+      display:flex;flex-direction:column
+    }
+    .rail h3{margin:0 0 6px 0;font-size:14px;font-weight:900;color:#e2e8f0}
+    .rail .search{margin:6px 0}
+    .input{
+      width:100%;height:34px;padding:8px 10px;
+      border:1px solid var(--stroke);border-radius:10px;background:#0c1325;color:#e5e7eb;
+      font-family:"Cairo",system-ui;
+      outline:none;
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.02);
+    }
+    .input:focus{
+      border-color:rgba(18,209,180,.6);
+      box-shadow:0 0 0 3px rgba(18,209,180,.14);
+    }
+
+    /* شهور + أيام */
+    .month{
+      margin:10px 0 8px 0;
+      padding:8px;
+      border:1px dashed rgba(124,58,237,.35);
+      border-radius:12px;
+      background:linear-gradient(180deg, #0e1730, #0c1427);
+    }
+    .month-title{
+      font-weight:900;color:#e5e7eb;margin-bottom:6px;
+      display:flex;align-items:center;gap:8px;
+    }
+    .month-title .mchip{
+      font-size:11px;border:1px solid var(--stroke);border-radius:999px;padding:2px 8px;
+      background:#0a1020;color:#a0aec0
+    }
+
+    .day{
+      position:relative;margin:8px 0;padding:8px 10px;border:1px solid var(--stroke);
+      border-radius:10px;cursor:pointer;background:#0b1327;
+      display:flex;align-items:center;justify-content:space-between
+    }
+    .day .title{font-weight:800;font-size:13px;color:#e2e8f0}
+    .day .meta{font-size:11px;color:#9aa4b2}
+    .day:hover{border-color:rgba(124,58,237,.45)}
+    .day.active{outline:2px solid rgba(124,58,237,.35)}
+
+    /* =================== Board =================== */
+    .board{min-height:60vh;padding-bottom:calc(var(--dock-gap) + var(--footer-h) + 18px)}
+ 
+ 
+   /* استبدل تعريف .board-head الحالي بهذا */
+.board-head{
+  position: sticky;
+  top: calc(var(--hdr-h) + 10px);  /* تحت الشريط العلوي */
+  z-index: 60;
+
+  display: grid;
+  grid-template-columns: auto 1fr auto; /* يسار | وسط (بحث) | يمين */
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+
+  padding: 10px;
+  background: linear-gradient(135deg, rgba(20,30,55,.85), rgba(17,25,45,.85));
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(124,58,237,.28);
+  border-radius: 14px;
+  box-shadow: 0 12px 28px rgba(0,0,0,.35);
+}
+
+/* تأكد حقل البحث ياخذ العرض كامل في الوسط */
+.board-search .input{ width:100%; height:34px; }
+
+
+
+
+
+.board-head .chip input[type="checkbox"]{
+  transform: translateY(1px);
+}
+
+
+ 
+ 
+    .chips{display:flex;gap:6px;flex-wrap:wrap}
+    .chip{
+      border:1px solid var(--stroke);border-radius:999px;padding:6px 10px;
+      background:#0b1327;color:#cbd5e1;font-size:12px
+    }
+
+    .masonry{
+  display: grid;
+  grid-template-columns: 1fr; /* كولمن واحد */
+  gap: 12px;                  /* المسافة بين الكروت */
+}
+
+
+    .card{
+      background:linear-gradient(180deg, #0f1a33, #0d172d);
+      border:1px solid var(--stroke);
+      border-radius:16px;
+      box-shadow:var(--shadow);
+      padding:10px;display:flex;flex-direction:column;gap:10px
+    }
+    .card-head{display:flex;align-items:center;justify-content:space-between}
+    .cust{font-weight:900;display:flex;align-items:center;gap:8px;color:#e7eef9}
+    .bill-badge{
+      font-size:11px;padding:2px 8px;border-radius:999px;
+      background:linear-gradient(180deg,#0f5132,#0b3d25);
+      color:#b7f7d6;border:1px solid rgba(34,197,94,.35)
+    }
+    .tag{
+      font-size:11px;border:1px solid var(--stroke);border-radius:999px;padding:2px 8px;
+      color:#c6d0e1;background:#0a1020
+    }
+
+
+    /* =================== Rows =================== */
+    .items{display:flex;flex-direction:column;gap:6px}
+    .item{
+       display:grid;
+  grid-template-columns: auto auto 1fr 1fr 1fr 1fr auto auto; 
+     gap:8px;align-items:center;border:1px solid var(--stroke);
+  border-radius:12px;padding:10px;background:#0c1529;transition:background .2s ease, opacity .2s ease
+    }
+    .btn-mini{
+      width:28px;height:28px;border:1px solid var(--stroke);
+      background:linear-gradient(180deg,#0d172d,#0b1426);
+      border-radius:8px;display:grid;place-items:center;cursor:pointer;color:#e5e7eb
+    }
+    .btn-mini:hover{border-color:rgba(18,209,180,.5)}
+    .btn-return:hover{box-shadow:0 0 0 3px rgba(245,158,11,.18)}
+    .btn-pay:hover{box-shadow:0 0 0 3px rgba(18,209,180,.18)}
+    .btn-del:hover{box-shadow:0 0 0 3px rgba(239,68,68,.18)}
+
+    .iname{font-weight:800;font-size:13px;color:#e8eef8}
+    .icat{font-size:11px;color:#9aa4b2}
+    .iqty{font-weight:800;color:#e8eef8}
+
+    
+    
+    .ichip{
+  font-size:12px;color:#c7d2e1;
+  padding:4px 10px;border-radius:999px;background:#0a1122;border:1px solid var(--stroke);
+  max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  text-align:center;
+}
+.inote{
+  font-size:12px;color:#c7d2e1;
+  padding:2px 8px;  /* تقلل العرض بصريًا */
+  border-radius:999px;background:#0a1122;border:1px solid var(--stroke);
+  max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.iqty {font-weight:800;color:#e8eef8;text-align:center}
+
+    
+    
+    .itime{font-size:11px;color:#97a3b8}
+    .badge{
+      font-size:10px;padding:2px 6px;border-radius:999px;border:1px solid var(--stroke);
+      background:#0a1020;color:#a5b0c2;margin-inline-start:6px
+    }
+    .item.returned .iname,.item.returned .icat{ text-decoration: line-through; color:#e3b860 }
+    .item.paid .iname,.item.paid .icat{ text-decoration: line-through; color:#4ade80 }
+    .item.returned{background:#261a06}
+    .item.paid{background:#0b2617}
+
+    /* =================== Foot actions =================== */
+    .card-foot{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .foot-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+    .i-btn{
+      height:32px;min-width:32px;padding:0 10px;border:1px solid var(--stroke);
+      background:linear-gradient(180deg,#0c1426,#0e1830);
+      border-radius:10px;display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#e2e8f0
+    }
+    .i-btn .fa-solid,.i-btn .fa-regular{font-size:13px}
+    .i-btn.primary{
+      background:linear-gradient(135deg,var(--brand),var(--brand-2));
+      color:#fff;border-color:transparent;box-shadow:0 10px 28px rgba(124,58,237,.35)
+    }
+    .i-btn.ghost{background:#0b1327;border:1px solid var(--stroke);color:#cbd5e1}
+    .i-btn:hover{transform:translateY(-1px);transition:.18s ease}
+
+    /* =================== Insights =================== */
+    .insights{
+      background:linear-gradient(180deg,#0f1a33,#0d172d);
+      border:1px solid var(--stroke);border-radius:18px;box-shadow:var(--shadow);padding:12px;
+      position:sticky;top:calc(var(--hdr-h) + 8px);height:calc(100vh - var(--hdr-h) - 24px);
+      display:flex;flex-direction:column;gap:10px
+    }
+    .stat{
+      display:flex;align-items:center;justify-content:space-between;
+      border:1px solid var(--stroke);border-radius:12px;padding:8px;background:#0c1529;color:#e5e7eb
+    }
+
+    /* =================== Dock =================== */
+    .dock{
+  position:fixed;
+  inset-inline:50%;
+  transform:translateX(50%); /* خليه مثل ما هو حتى يبقى بمحاذاة RTL */
+  bottom:var(--dock-gap);
+    bottom: calc(var(--footer-h) + 5px); /* 10px فوق الفوتر */
+  z-index:80;
+
+  /* كبّر العرض */
+  max-width: 1380px;            /* كان 1020px */
+  width: calc(100vw - 96px);    /* كان calc(100vw - 260px) */
+}
+@media (max-width:980px){
+  .dock{ width: calc(100vw - 24px); } /* كانت -36px */
+}
+
+.dock-inner{
+  display:grid;
+  /*       cust   type   cat    item         price  qty   note              */
+  grid-template-columns: 160px 120px 150px 3.4fr   110px 80px minmax(260px, 1fr);
+  gap:8px;
+  background:linear-gradient(135deg, rgba(20,30,55,.85), rgba(17,25,45,.85));
+  backdrop-filter:blur(12px);
+  border:1px solid rgba(124,58,237,.35);
+  border-radius:14px;
+  box-shadow:0 18px 40px rgba(0,0,0,.45);
+  padding:8px;
+  z-index:0; 
+  position:relative;
+}
+
+
+/* 3) (اختياري بس مفيد) امنع أي عنصر يدفش الشبكة خارج الحاوية */
+.dock-inner > *{
+  min-width: 0;
+}
+
+
+
+/* تغليف الملاحظات مع زر الإضافة داخلها */
+/* 1) صغّر الملاحظات وكبّر زر الإضافة داخل .note-wrap */
+.note-wrap{
+  display: grid;
+  grid-template-columns: minmax(120px, .7fr) 130px; /* كان 160px */
+  gap: 8px;
+  min-width: 0;
+}
+
+
+.note-field{
+  height: 36px;        /* نفس الارتفاع */
+  min-width: 0;        /* يمنع التمدد الزايد */
+}
+
+.note-add{
+  height: 36px;
+  padding: 0 10px;   /* كان 16px */
+  font-weight: 800;
+  justify-content: center;
+  white-space: nowrap;
+  gap: 6px;          /* يقلّل المسافة بين الأيقونة والنص */
+}
+
+
+
+
+    
+    .dock-inner::before{
+  content:"";
+  position:absolute;
+
+  /* يمين في RTL + يغطي ارتفاع الدوك */
+  inset-inline-start: 8px;
+  inset-block: 8px;            /* أعلى وأسفل */
+
+  width:5px;
+  border-radius:999px;
+  background:linear-gradient(180deg,var(--brand),var(--brand-2));
+  box-shadow:0 0 18px rgba(124,58,237,.45);
+
+  z-index:3;                   /* أهم سطر: فوق عناصر الـgrid */
+  pointer-events:none;         /* لا يعطّل النقر على الحقول */
+}
+    
+    
+    .field, .btn{ font-family:"Cairo",system-ui }
+
+.field{
+  height:36px;
+  padding:8px 10px;
+  border:1px solid var(--stroke);
+  border-radius:10px;
+  background:#0b1327;
+  color:#e8eef8;
+  outline:none;
+  width:100%;              /* <-- جديد: يخلي كل input/select يملأ العمود */
+}
+
+
+
+
+    .field:focus{
+      border-color:rgba(14,165,233,.6);
+      box-shadow:0 0 0 3px rgba(14,165,233,.16);
+    }
+  
+  
+  .btn{height:36px;padding:0 12px;border:none;border-radius:10px;cursor:pointer;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+
+  
+  
+    .primary{
+      background:linear-gradient(135deg,var(--brand),var(--brand-2));
+      color:#fff;box-shadow:0 12px 28px rgba(124,58,237,.35)
+    }
+    .primary:hover{transform:translateY(-1px)}
+    .ghost{background:#0b1327;border:1px solid var(--stroke);color:#e2e8f0}
+
+    /* =================== Footer =================== */
+    .footer{
+      position:fixed;bottom:0;inset-inline:0;height:var(--footer-h);z-index:75;
+      background:linear-gradient(180deg, rgba(17,24,39,.7), rgba(17,24,39,.55));
+      border-top:1px solid rgba(124,58,237,.25);
+      display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:12px;
+      backdrop-filter:blur(8px);
+    }
+
+    /* =================== Modal =================== */
+    .modal-backdrop{
+      position:fixed;inset:0;z-index:1000;
+      background:rgba(2,6,23,.6);
+      display:none;
+      backdrop-filter:blur(2px);
+    }
+    .modal-backdrop.active{ display:block }
+    .modal{
+      position:fixed;inset:0;z-index:1001;
+      display:none;align-items:center;justify-content:center;
+    }
+    .modal.active{ display:flex }
+    
+    
+    .modal-card{
+  width:min(480px, calc(100vw - 48px));
+  background:linear-gradient(180deg,#0f1a33,#0d172d);
+  border:1px solid var(--stroke);border-radius:16px;box-shadow:var(--shadow);
+  padding:16px;display:flex;flex-direction:column;gap:12px;color:#e7eef9;
+  align-items:center;   /* توسيط أفقي */
+  text-align:center;    /* توسيط النص */
+}
+.modal-actions{
+  display:flex;
+  gap:8px;
+  justify-content:center;  /* توسيط الأزرار */
+  width:100%;
+}
+
+    
+    
+    
+    .modal-head{font-weight:900;font-size:16px}
+    .modal-body{color:#cbd5e1;font-size:14px}
+   
+  
+   
+   
+    .modal-btn{
+      height:36px;padding:0 12px;border-radius:10px;border:1px solid var(--stroke);
+      background:#0b1327;cursor:pointer;color:#e5e7eb
+    }
+    .modal-btn.danger{
+      background:linear-gradient(135deg,#ef4444,#f97316);
+      color:#fff;border-color:transparent;box-shadow:0 10px 26px rgba(249,115,22,.3)
+    }
+    .modal-btn.ghost{background:#0b1327}
+    
+    
+    
+    /* بادج نوع الفاتورة جنب اسم الزبون */
+.badge-type{
+  font-size:11px;
+  padding:2px 8px;
+  border-radius:999px;
+  border:1px solid var(--stroke);
+  background:#0a1020;
+  margin-inline-start:6px;
+}
+.badge-type.sell{
+  color:#a7f3d0;                 /* أخضر فاتح */
+  background:linear-gradient(180deg,#064e3b,#052e2a);
+  border-color:rgba(16,185,129,.35);
+}
+.badge-type.return{
+  color:#fecaca;                 /* أحمر فاتح */
+  background:linear-gradient(180deg,#7f1d1d,#4c0b0b);
+  border-color:rgba(239,68,68,.35);
+}
+
+/* خلي المواد الراجعة أوضح بالأحمر */
+.item.returned{
+  background:#2a0c12;            /* خلفية أحمر داكن */
+  border-color:#7f1d1d;
+}
+.item.returned .iname,
+.item.returned .icat{
+  color:#fca5a5;                  /* نص أحمر وردي */
+  text-decoration:line-through;   /* تبقيها مشطوب */
+}
+
+    
+ 
+ 
+ /* بادج "جديد" لاسم غير موجود بالمصفوفة */
+.badge-new{
+  font-size:11px;
+  padding:2px 8px;
+  border-radius:999px;
+  border:1px solid rgba(127,29,29,.55);
+  background:linear-gradient(180deg,#7f1d1d,#4c0b0b);
+  color:#fecaca; /* وردي فاتح للنص */
+  margin-inline-start:8px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+}
+
+ 
+ 
+    
+    
+    
+   /* نفس الإلغاء للسعر والعدد سوا */
+#qty, #price{
+  -moz-appearance: textfield;   /* Firefox */
+}
+#qty::-webkit-outer-spin-button,
+#qty::-webkit-inner-spin-button,
+#price::-webkit-outer-spin-button,
+#price::-webkit-inner-spin-button{
+  -webkit-appearance: none;     /* Chrome/Edge/Safari */
+  margin: 0;
+}
+
+
+
+
+/* ===== Toasts (أعلى الصفحة + توسيط الرسالة) ===== */
+.toasts{
+  position:fixed;
+  inset-inline:50%;
+  transform:translateX(50%);
+  top:18px;                 /* أعلى الصفحة */
+  z-index:12000;
+  display:flex;flex-direction:column;gap:8px;
+  pointer-events:none;
+}
+.toast{
+  min-width:280px;max-width:520px;padding:10px 12px;border-radius:12px;
+  border:1px solid var(--stroke);
+  background:linear-gradient(135deg, rgba(20,30,55,.95), rgba(17,25,45,.95));
+  box-shadow:0 10px 28px rgba(0,0,0,.45);color:#e7eef9;
+  display:flex;align-items:center;gap:10px;pointer-events:auto;
+  animation:toast-in-top .25s ease-out both;
+
+  /* المفتاح: خلّي توزيع العناصر يسمح بتوسيط النص */
+  justify-content:space-between;
+}
+.toast__icon{
+  width:28px;height:28px;border-radius:8px;
+  display:grid;place-items:center;background:#0b1327;border:1px solid var(--stroke);
+  flex:0 0 auto;                  /* حجم ثابت */
+}
+.toast__msg{
+  font-size:14px;font-weight:800;letter-spacing:.2px;
+  flex:1 1 auto;                  /* تاخذ المساحة الوسطية */
+  text-align:center;              /* توسيط النص داخل الحاوية */
+}
+.toast__close{
+  margin-inline-start:8px;cursor:pointer;opacity:.9;
+  display:grid;place-items:center;width:28px;height:28px;border-radius:8px;
+  border:1px solid var(--stroke);background:#0b1327;
+  flex:0 0 auto;                  /* حجم ثابت */
+}
+
+.toast.success .toast__icon{background:linear-gradient(180deg,#064e3b,#052e2a);border-color:rgba(16,185,129,.35)}
+.toast.warn    .toast__icon{background:linear-gradient(180deg,#5b3b06,#3a2704);border-color:rgba(245,158,11,.4)}
+.toast.error   .toast__icon{background:linear-gradient(180deg,#7f1d1d,#4c0b0b);border-color:rgba(239,68,68,.45)}
+.toast.info    .toast__icon{background:linear-gradient(180deg,#0b3b5b,#07293f);border-color:rgba(14,165,233,.45)}
+
+@keyframes toast-in-top{from{transform:translateX(50%) translateY(-10px);opacity:0}to{transform:translateX(50%) translateY(0);opacity:1}}
+@keyframes toast-out-top{from{transform:translateX(50%) translateY(0);opacity:1}to{transform:translateX(50%) translateY(-8px);opacity:0}}
+
+/* أخفِ زر الإغلاق نهائياً */
+.toast__close{ display:none !important; }
+
+
+/* ===== تعديلات أسطر البطاقة (داخل الكارت) =====
+   [راجع] [تسديد] | اسم المادة | الصنف | العدد | الملاحظات | الوقت | حذف
+   ملاحظة: استعملنا !important حتى نضمن التطبيق فوق القواعد القديمة
+*/
+.card .item{
+  /* [راجع] [تسديد] | الاسم | الصنف | السعر | العدد | الملاحظات | الوقت | حذف */
+  grid-template-columns: auto auto .9fr 2.2fr .8fr .6fr 1fr auto auto !important;
+  column-gap: 6px !important;
+}
+
+/* مظهر أنيق للسعر */
+.iprice{
+  font-weight:900;
+  text-align:center;
+  padding:2px 8px;
+  border-radius:999px;
+  background:#0a1020;
+  border:1px solid var(--stroke);
+  font-size:12px;
+  color:#c7d2e1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+
+/* وسّط ووسّع اسم المادة */
+.card .item .iname{
+  text-align: center !important;
+  min-width: 0 !important;     /* يمنع التمدد */
+}
+
+/* صغّر الصنف والملاحظات بصرياً وامنعها تقصّر الصف */
+.card .item .ichip,
+.card .item .inote{
+  padding-inline: 8px !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* العدد بمساحة أضيق ومحاذاة وسط */
+.card .item .iqty{
+  text-align: center !important;
+}
+
+/* (اختياري) صغّر خط الوقت شوي */
+.card .item .itime{
+  font-size: 10.5px !important;
+}
+
+
+
+/* لمعة مؤقتة للبطاقة الجديدة */
+/* لمعة مؤقتة للبطاقة الجديدة */
+.flash-card{
+  outline: 2px solid rgba(124,58,237,.55);
+  box-shadow: 0 0 0 3px rgba(124,58,237,.22), var(--shadow);
+  transition: outline .2s ease, box-shadow .2s ease;
+}
+
+/* خلّي المتصفّح يحسب مسافة فوق الكارت مساوية لارتفاع الهيدر */
+.card{
+  scroll-margin-top: calc(var(--hdr-h) + 10px);
+  
+}
+
+
+
+/* ===== Zebra قوية وواضحة بين البطاقات ===== */
+
+/* ضمّن إن البطاقة نسبية للزخرفة */
+.masonry > .card{ position:relative; }
+
+/* الزوجية: أفتح شوي */
+.masonry > .card:nth-child(even){
+  background: linear-gradient(180deg, #122243, #0e1b36) !important;
+  border-color: #2c3f66 !important;
+}
+
+/* الفردية: أغمق شوي */
+.masonry > .card:nth-child(odd){
+  background: linear-gradient(180deg, #0b162e, #091126) !important;
+  border-color: #223556 !important;
+}
+
+
+.masonry > .card:nth-child(even)::before{
+  background: linear-gradient(180deg, var(--brand-3), var(--brand-2));
+  opacity:.85;
+}
+
+/* لمسة ظل مختلفة خفيفة */
+.masonry > .card:nth-child(even){
+  box-shadow: 0 16px 36px rgba(0,0,0,.42);
+}
+.masonry > .card:nth-child(odd){
+  box-shadow: 0 14px 32px rgba(0,0,0,.38);
+}
+
+
+
+/* ========= إبراز اسم الزبون داخل البطاقة ========= */
+
+/* أيقونة صغيرة قبل الاسم (من Font Awesome) */
+.card .card-head .cust{
+  position: relative;
+  gap: 10px;
+}
+.card .card-head .cust::before{
+  content: "\f007"; /* user icon */
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+  display: grid; place-items: center;
+  width: 26px; height: 26px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(124,58,237,.28);
+  margin-inline-start: 0;
+  margin-inline-end: 6px;
+}
+
+/* اسم الزبون نفسه (أول span داخل .cust) بتدرّج أنيق */
+.card .card-head .cust > span:first-child{
+  position: relative;
+  font-weight: 900;
+  font-size: 18px;
+  letter-spacing: .2px;
+  line-height: 1.1;
+  background: linear-gradient(90deg, #eef2ff, #cbd5ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;               /* يُظهر التدرّج كنص */
+  text-shadow: 0 1px 0 rgba(255,255,255,.04);
+}
+
+
+
+/* مسافات أنظف بين الاسم والبادجات اللاحقة */
+.card .card-head .cust .badge-type,
+.card .card-head .cust .bill-badge{
+  margin-inline-start: 8px;
+}
+
+/* تباين بسيط لبادج النوع قرب الاسم */
+.card .card-head .cust .badge-type{
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+}
+
+
+
+
+/* خلي حاوية البحث صف واحد */
+.board-search{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+/* الحقل يتمدّد، بدون ما يطيح للتالي */
+.board-search .input{
+  flex:1 1 auto;
+  min-width:160px;
+  height:34px;
+}
+
+/* (اختياري) استجابة للشاشات الصغيرة: خليه يلفّ بنعومة */
+@media (max-width:700px){
+  .board-search{
+    flex-wrap:wrap;
+  }
+  .board-search .input{
+    flex:1 1 100%;
+  }
+}
+
+
+
+
+/* === توحيد المسافات داخل رأس البطاقة (الاسم + البادجات) === */
+:root{ --cust-inline-gap: 6px; }  /* غيّرها لـ 4px أو 8px إذا تريد تضبط أكثر */
+
+.card .card-head .cust{
+  gap: var(--cust-inline-gap) !important;               /* مسافة موحّدة بين العناصر */
+}
+
+/* شيل أي هوامش إضافية قديمة حتى ما تتضاعف المسافات */
+.card .card-head .cust .badge-new,
+.card .card-head .cust .badge-type,
+.card .card-head .cust .bill-badge{
+  margin-inline-start: 0 !important;
+}
+
+/* خلي أيقونة المستخدم بنفس المسافة */
+.card .card-head .cust::before{
+  margin-inline-end: var(--cust-inline-gap) !important;
+}
+
+
+/* ====== قائمة الأصناف المخصّصة ====== */
+.cat-list{ list-style:none; margin:0; padding:0; }
+.cat-item{
+  height:36px; display:flex; align-items:center; gap:10px;
+  padding:0 12px; cursor:pointer; color:#e7eef9;
+  border-bottom:1px dashed rgba(255,255,255,.06);
+}
+.cat-item i{ width:18px; text-align:center; opacity:.95; }
+.cat-item:hover, .cat-item.active{ background:#0e1b36; }
+
+
+
+
+
+
+/* ===== Page breaks (html2pdf) ===== */
+@media print{
+  .card{ break-inside: avoid; page-break-inside: avoid; }
+}
+.html2pdf__page-break{ height: 0; break-after: page; page-break-after: always; }
+
+/* ===== Loading Overlay (للـ reloader فقط) ===== */
+.loading{
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  background: rgba(2,6,23,.72);
+  backdrop-filter: blur(2px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.loading.active{ display:flex; }
+
+.loading-box{
+  min-width: 220px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: linear-gradient(135deg, rgba(20,30,55,.95), rgba(17,25,45,.95));
+  box-shadow: 0 18px 40px rgba(0,0,0,.45);
+  color: #e7eef9;
+  display:flex; align-items:center; gap:10px;
+  font-weight: 800;
+}
+.spinner{
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 3px solid rgba(255,255,255,.18);
+  border-top-color: #7c3aed;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin{ to{ transform: rotate(360deg); } }
+
+
+/* سهم منسدل لحقل الأصناف */
+.cat-wrap{
+  position:relative;
+}
+.cat-wrap::after{
+  content:"";
+  position:absolute;
+  inset-inline-end: 12px;
+  top:50%;
+  width: 8px; height: 8px;
+  border-inline-start: 2px solid #9aa4b2;
+  border-bottom:       2px solid #9aa4b2;
+  transform: translateY(-50%) rotate(-45deg);
+  pointer-events:none;
+  opacity:.9;
+  transition: transform .18s ease, opacity .18s ease;
+}
+/* لما القائمة تنفتح يدور السهم */
+.cat-wrap.open::after{
+  transform: translateY(-50%) rotate(135deg);
+  opacity:1;
+}
+
+
+/* حاويات نطبّق عليها سكرول أنيق */
+.nice-scroll{
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+
+/* افتراضي: إخفاء في فايرفوكس */
+.nice-scroll{
+  scrollbar-width: none;          /* Firefox */
+}
+.nice-scroll:hover{
+  scrollbar-width: thin;          /* يظهر عند التحويم */
+}
+
+/* WebKit (كروم/إيدج/سفاري) */
+.nice-scroll::-webkit-scrollbar{
+  width: 0; height: 0;            /* مخفي */
+}
+.nice-scroll:hover::-webkit-scrollbar{
+  width: 10px; height:10px;       /* يظهر عند التحويم */
+}
+.nice-scroll::-webkit-scrollbar-track{
+  background: linear-gradient(180deg, #0a1020, #0b1327);
+  border-radius: 999px;
+  border: 1px solid var(--stroke);
+}
+.nice-scroll::-webkit-scrollbar-thumb{
+  background: linear-gradient(180deg, var(--brand-3), var(--brand-2));
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.nice-scroll::-webkit-scrollbar-thumb:hover{
+  filter: brightness(1.1);
+}
+
+/* توسيط اسم المادة والملاحظات داخل الكارد */
+.card .item .iname{ text-align:center !important; }
+.card .item .inote{ text-align:center !important; }
+
+
+
+/* ===== لوحة الملاحظات (بدون سكرول أفقي + أناقة أعلى) ===== */
+.notes-compact{
+  position: relative;
+  border:1px solid var(--stroke);
+  border-radius:12px;
+  background:#0b1327;
+  padding:10px 10px 8px;
+  margin-top:8px;
+  overflow: hidden; /* يضمن ما يطلع شي برّه */
+}
+
+/* خط زينة رأسي خفيف (Timeline) داخل الصندوق */
+.notes-compact::before{
+  content:"";
+  position:absolute;
+  inset-inline-start: 6px;    /* RTL */
+  top:8px; bottom:8px;
+  width:3px;
+  border-radius:999px;
+  background:linear-gradient(180deg,var(--brand-3),var(--brand-2));
+  opacity:.65;
+  pointer-events:none;
+}
+
+/* إلغاء الرأس/العدّاد */
+.notes-compact__head,
+.notes-compact__title,
+.notes-compact__count{ display:none !important; }
+
+/* قائمة الملاحظات — عمودي فقط، لا أفقي */
+.notes-compact__list{
+  display:flex; flex-direction:column; gap:8px;
+  max-height:168px;
+  overflow-y:auto;        /* عمودي فقط */
+  overflow-x:hidden;      /* لا أفقي نهائيًا */
+  padding-inline-start: 8px; /* يبتعد عن خط الزينة */
+  padding-inline-end: 2px;   /* حتى ما يغطي سكرول عمودي على المحتوى */
+}
+.notes-compact__empty{ display:none !important; }
+
+/* صف الملاحظة: يضمن ما يصير تمدد بعرض زايد */
+.note-row{
+  position:relative;
+  padding-inline-end: 38px;     /* مساحة لزر الحذف الخارجي */
+  min-width: 0;                 /* مهم لمنع تمدد grid */
+}
+
+/* شكل الحبة — أنعم */
+.note-pill{
+  display:grid;
+  grid-template-columns: auto 1fr auto; /* # | النص | الوقت */
+  align-items:center;
+  height:34px;
+  padding:0 12px;
+  background:linear-gradient(180deg,#0a1327,#0b1327);
+  border:1px solid var(--stroke);
+  border-radius:10px;
+  gap:10px;
+  min-width:0;                  /* يمنع الهروب عرضيًا */
+  box-shadow: 0 6px 14px rgba(0,0,0,.18);
+}
+.note-pill:hover{
+  border-color: rgba(124,58,237,.45);
+  box-shadow: 0 8px 18px rgba(124,58,237,.18);
+  transform: translateY(-1px);
+  transition: .18s ease;
+}
+
+/* زيبرا خفيفة */
+.notes-compact__list .note-row:nth-child(odd) .note-pill{
+  background:linear-gradient(180deg,#0b1428,#0a1326);
+  border-color:#223556;
+}
+
+/* رقم التسلسل — تدرّج ناعم */
+.note-pill__idx{
+  font-weight:900; font-size:12px; letter-spacing:.2px;
+  color:#eef2ff;
+  min-width:34px; height:22px;
+  display:grid; place-items:center;
+  border-radius:999px;
+  background:linear-gradient(135deg,var(--brand),var(--brand-2));
+  box-shadow:0 4px 12px rgba(124,58,237,.25);
+}
+
+/* نص الملاحظة — سطر واحد بدون أي سكرول أفقي */
+.note-pill__text{
+  font-size:13px; color:#e7eef9; min-width:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+
+/* الوقت + أيقونة صغيرة */
+.note-pill__time{
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:11px; color:#9aa4b2;
+  padding:2px 8px; border-radius:999px;
+  background:#0b1327; border:1px solid var(--stroke);
+}
+.note-pill__time i{ font-size:10px; opacity:.95; }
+
+/* زر حذف خارج الحبة على الحافة */
+.note-del-out{
+  position:absolute;
+  inset-inline-end: -2px; top:50%;
+  transform: translateY(-50%);
+  width:28px; height:28px;
+  border-radius:8px;
+  border:1px solid rgba(239,68,68,.45);
+  background:linear-gradient(135deg,#7f1d1d,#4c0b0b);
+  color:#fecaca; display:grid; place-items:center; cursor:pointer;
+}
+.note-del-out:hover{ filter:brightness(1.06); transform: translateY(-50%) scale(1.04); }
+
+/* شريط الإدخال */
+.notes-compact__bar{
+  display:grid; grid-template-columns: 1fr auto; gap:6px; margin-top:8px;
+}
+.note-input-sm{
+  height:34px; padding:6px 10px; font-size:13px;
+  background:#0a1327; border:1px solid var(--stroke); border-radius:10px; color:#e7eef9;
+}
+.note-add-mini{
+  height:34px; min-width:40px; padding:0 12px; font-weight:900;
+  border-radius:10px; border:1px solid transparent;
+  background:linear-gradient(135deg,var(--brand),var(--brand-2)); color:#fff;
+  display:inline-flex; align-items:center; gap:6px;
+}
+.note-add-mini i{ font-size:12px; }
+
+
+
+   
+    
+  </style>
+</head>
+
+<body>
+  <!-- Header -->
+  <div class="ribbon">
+    <div class="ribbon-wrap">
+      <div class="r-left">
+        <span id="dateBadge" class="pill">—</span>
+      </div>
+
+      <div class="r-center">
+        <div class="brand">
+          <div class="dot">A</div>
+          <div class="name">فواتير ديون يومية مكتب عسل</div>
+        </div>
+      </div>
+
+      <div class="r-right">
+        <button class="icon" id="btnRefresh" title="تحديث"><i class="fa-solid fa-rotate-right"></i></button>
+        <button class="icon" id="btnSearch" title="بحث"><i class="fa-solid fa-magnifying-glass"></i></button>
+        
+        <button class="icon" id="btnExportAll" title="تصدير الفواتير">
+  <i class="fa-solid fa-file-export"></i>
+</button>
+
+<button class="icon" id="btnImportAll" title="استيراد الفواتير">
+  <i class="fa-solid fa-file-import"></i>
+  
+  
+  <button class="icon" id="btnNextDay" title="فتح فاتورة اليوم التالي">
+  <i class="fa-solid fa-calendar-plus"></i>
+</button>
+
+  
+  
+  
+</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Layout -->
+  <main class="layout">
+    <!-- Rail -->
+    <aside class="rail">
+      <h3><i class="fa-regular fa-calendar-days"></i> الفواتير السابقة</h3>
+      <div class="search">
+
+<input id="dayFilter" class="input" type="text" placeholder="فلترة (مثال: 02-10-2025 )"/>
+
+
+      </div>
+      <div id="rail" class="timeline"></div>
+    </aside>
+
+    <!-- Board -->
+    <section class="board">
+      
+      
+     <div class="board-head">
+  <div class="chips">
+    <span class="chip"><i class="fa-solid fa-layer-group"></i> بطاقات اليوم</span>
+    <span id="cardsCount" class="chip">0 بطاقة</span>
+  </div>
+
+  <div class="board-search">
+    <input id="cardSearch" class="input" type="text" placeholder="بحث بالاسم (مثال: حسين)"/>
+    <label class="chip" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;flex:0 0 auto">
+      <input id="globalSearch" type="checkbox" style="accent-color:#7c3aed;width:16px;height:16px;cursor:pointer">
+      بحث كل الأيام
+    </label>
+  </div>
+
+  <div class="chips">
+    <button id="btnExportDay" class="btn ghost"><i class="fa-regular fa-file-pdf"></i> PDF اليوم</button>
+    <button id="btnClearDay" class="btn ghost"><i class="fa-regular fa-trash-can"></i> تفريغ اليوم</button>
+  </div>
+</div>
+
+
+
+
+      
+      
+      <div id="masonry" class="masonry"></div>
+    </section>
+
+    <!-- Insights -->
+    <aside class="insights">
+      <h3><i class="fa-solid fa-chart-simple"></i> ملخص اليوم</h3>
+      <div class="stat"><span>عدد البطاقات</span><b id="statCards">0</b></div>
+      <div class="stat"><span>عدد المواد</span><b id="statItems">0</b></div>
+      <div class="stat"><span>آخر تحديث</span><b id="statTime">—</b></div>
+      <div style="margin-top:auto;color:#9aa4b2;font-size:12px">واجهة تجريبية — ربط Google Sheets/PDF لاحقاً</div>
+    </aside>
+  </main>
+
+  <!-- Dock -->
+  
+  
+  <!-- ===== Dock (كامل بعد التعديل) ===== -->
+<div class="dock">
+  <div class="dock-inner">
+    <!-- 1) اسم الزبون (اقتراحات فوق + 8 مرئية) -->
+    <div class="cust-wrap" style="position:relative; min-width:0;">
+      <input id="cust" class="field" type="text" placeholder="اسم الزبون"/>
+      <ul id="custSuggestions" class="nice-scroll" style="
+  display:none; position:absolute; inset-inline:0; bottom:calc(100% + 6px);
+  z-index:1100; background:#0b1327; border:1px solid var(--stroke);
+  border-radius:10px; max-height:288px; overflow:auto; margin:0; padding:6px 0; list-style:none;
+  box-shadow:0 12px 28px rgba(0,0,0,.35);
+"></ul>
+    </div>
+
+    <!-- 2) نوع الفاتورة -->
+    <select id="type" class="field">
+      <option value="بيع" selected>بيع</option>
+      <option value="راجع">راجع</option>
+    </select>
+
+    <!-- 3) الصنف (قائمة مخصّصة تطلع فوق + Scroll) -->
+    <div class="cat-wrap" style="position:relative; min-width:0;">
+      <input id="cat" class="field" type="text" placeholder="الصنف" readonly />
+      <div id="catPanel" class="cat-panel nice-scroll" style="
+  display:none; position:absolute; inset-inline:0; bottom:calc(100% + 6px);
+  z-index:1100; background:#0b1327; border:1px solid var(--stroke);
+  border-radius:10px; max-height:288px; overflow:auto; padding:6px 0;
+  box-shadow:0 12px 28px rgba(0,0,0,.35);
+">
+        <div class="cat-list" id="catList">
+          <div class="cat-item" data-val="LCD"><i class="fa-solid fa-tv"></i> شاشات</div>
+          <div class="cat-item" data-val="BATTERY"><i class="fa-solid fa-bolt"></i> بطاريات</div>
+          <div class="cat-item" data-val="CAMERA"><i class="fa-solid fa-camera"></i> كاميرات</div>
+          <div class="cat-item" data-val="CHARGING"><i class="fa-solid fa-plug"></i> شحن</div>
+          <div class="cat-item" data-val="SPEAKER"><i class="fa-solid fa-headphones"></i> سماعة</div>
+          <div class="cat-item" data-val="HOUSING"><i class="fa-solid fa-border-none"></i> شواصي</div>
+          <div class="cat-item" data-val="BACK"><i class="fa-solid fa-mobile-screen"></i> أظهر</div>
+          <div class="cat-item" data-val="BUZZER"><i class="fa-solid fa-bell"></i> جرس</div>
+          <div class="cat-item" data-val="FINGER"><i class="fa-solid fa-fingerprint"></i> بصمة</div>
+          <div class="cat-item" data-val="FLAT LCD"><i class="fa-solid fa-film"></i> فلات شاشة</div>
+          <div class="cat-item" data-val="POWER"><i class="fa-solid fa-charging-station"></i> فلات بور</div>
+          <div class="cat-item" data-val="VOLUME"><i class="fa-solid fa-sliders"></i> فلات صوت</div>
+          <div class="cat-item" data-val="LENS"><i class="fa-solid fa-bullseye"></i> عدسة كاميرا</div>
+          <div class="cat-item" data-val="NO-CATEGORY"><i class="fa-regular fa-square"></i> بدون صنف</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4) اسم المادة (اقتراحات فوق + 8 مرئية) -->
+    <div style="position:relative; min-width:0;">
+      <input id="item" class="field" type="text" placeholder="اسم القطعة"/>
+     <ul id="itemSuggestions" class="nice-scroll" style="
+  display:none; position:absolute; inset-inline:0; bottom:calc(100% + 6px);
+  z-index:1000; background:#0b1327; border:1px solid var(--stroke);
+  border-radius:10px; max-height:288px; /* 8 عناصر × ~36px */
+  overflow:auto; margin:0; padding:6px 0; list-style:none;
+  box-shadow:0 12px 28px rgba(0,0,0,.35);
+"></ul>
+    </div>
+
+    <!-- 5) السعر -->
+    <input id="price" class="field" type="number" step="1" inputmode="numeric" placeholder="السعر (دينار)"/>
+
+    <!-- 6) العدد -->
+    <input id="qty" class="field" type="number" min="1" step="1" placeholder="العدد"/>
+
+    <!-- 7) الملاحظات + زر الإضافة -->
+    <div class="note-wrap">
+      <input id="note" class="field note-field" type="text" placeholder="ملاحظات (اختياري)"/>
+      <button id="btnAdd" class="btn primary note-add">
+        <i class="fa-solid fa-plus"></i> إضافة
+      </button>
+    </div>
+  </div>
+</div>
+
+
+  
+
+  <!-- Footer -->
+  <div class="footer">© ASSAL — واجهة تجريبية</div>
+
+  <!-- ===== Modal ===== -->
+  <div id="modal-backdrop" class="modal-backdrop"></div>
+  <div id="modal" class="modal" aria-modal="true" role="dialog">
+    <div class="modal-card" role="document">
+      <div class="modal-head" id="modal-title">تأكيد</div>
+      <div class="modal-body" id="modal-body">هل أنت متأكد؟</div>
+      <div class="modal-actions">
+        <button id="modal-cancel" class="modal-btn ghost">إلغاء</button>
+        <button id="modal-confirm" class="modal-btn danger">تأكيد</button>
+      </div>
+    </div>
+  </div>
+  
+  
+  <!-- Toasts -->
+<div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
+
+
+<!-- Page Reload Overlay (يظهر فقط عند الضغط على زر التحديث) -->
+<div id="reloader" class="loading" aria-live="polite" aria-atomic="true">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <div style="font-weight:800">جاري تحديث الصفحة…</div>
+  </div>
+</div>
+
+
+<input type="file" id="importFile" accept="application/json" style="display:none">
+
+
+  <script>
+    
+    
+    // ===== Excel DB (تحميل جوجل شيت) =====
+let database = {};   // نخزّن بيه جداول الأصناف
+
+// نفس رابطك (استخدم Google Sheets published XLSX)
+const dropboxMainFile =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSZww_ZDcqXnX6pUjlKccZdFUkRR9Z_JmfmdvNsnGVYT_rq_RTsSB1ydTy6QVrrS_o4s_ml1DNBTnaQ/pub?output=xlsx"
+  + "&t=" + new Date().getTime();
+
+async function loadExcelFiles(){
+  try{
+    const resp   = await fetch(dropboxMainFile, { cache: 'no-store' });
+    const buffer = await resp.arrayBuffer();
+    const wb     = XLSX.read(buffer, { type:"array" });
+
+    database = {
+      LCD       : XLSX.utils.sheet_to_json(wb.Sheets["LCD"]       || {}, {defval:null}),
+      BATTERY   : XLSX.utils.sheet_to_json(wb.Sheets["BATTERY"]   || {}, {defval:null}),
+      HOUSING   : XLSX.utils.sheet_to_json(wb.Sheets["HOUSING"]   || {}, {defval:null}),
+      BACK      : XLSX.utils.sheet_to_json(wb.Sheets["BACK"]      || {}, {defval:null}),
+      CAMERA    : XLSX.utils.sheet_to_json(wb.Sheets["CAMERA"]    || {}, {defval:null}),
+      CHARGING  : XLSX.utils.sheet_to_json(wb.Sheets["CHARGING"]  || {}, {defval:null}),
+      BUZZER    : XLSX.utils.sheet_to_json(wb.Sheets["BUZZER"]    || {}, {defval:null}),
+      SPEAKER   : XLSX.utils.sheet_to_json(wb.Sheets["SPEAKER"]   || {}, {defval:null}),
+      FINGER    : XLSX.utils.sheet_to_json(wb.Sheets["FINGER"]    || {}, {defval:null}),
+      "FLAT LCD": XLSX.utils.sheet_to_json(wb.Sheets["FLAT LCD"]  || {}, {defval:null}),
+      POWER     : XLSX.utils.sheet_to_json(wb.Sheets["POWER"]     || {}, {defval:null}),
+      VOLUME    : XLSX.utils.sheet_to_json(wb.Sheets["VOLUME"]    || {}, {defval:null}),
+      LENS      : XLSX.utils.sheet_to_json(wb.Sheets["LENS"]      || {}, {defval:null})
+    };
+
+    // للتأكيد
+    // console.log("DB loaded:", Object.keys(database));
+  }catch(err){
+    console.error("❌ خطأ تحميل:", err);
+    showToast?.('error','تعذر تحميل بيانات الأصناف');
+  }
+}
+
+
+
+Object.defineProperty(window, 'days', { get(){ return days; } });
+Object.defineProperty(window, 'selectedDay', { get(){ return selectedDay; } });
+
+
+
+
+
+/* ===== Dropdown الأصناف المخصّصة (8 مرئية + Scroll للأعلى) ===== */
+let __catIdx = -1;
+
+
+
+function showCatPanel(){
+  const panel = document.getElementById('catPanel');
+  if(!panel) return;
+  panel.style.display = 'block';
+  // دوران السهم
+  document.querySelector('.cat-wrap')?.classList.add('open');
+  __catIdx = -1;
+  highlightCatItem();
+}
+function hideCatPanel(){
+  const panel = document.getElementById('catPanel');
+  if(panel) panel.style.display = 'none';
+  // رجّع السهم لوضعه الطبيعي
+  document.querySelector('.cat-wrap')?.classList.remove('open');
+  __catIdx = -1;
+  highlightCatItem();
+}
+
+
+
+function getCatItems(){ return Array.from(document.querySelectorAll('#catList .cat-item')); }
+function highlightCatItem(){
+  const items = getCatItems();
+  items.forEach((li,i)=> li.classList.toggle('active', i===__catIdx));
+  if(__catIdx >= 0 && items[__catIdx]){
+    items[__catIdx].scrollIntoView({ block:'nearest' });
+  }
+}
+function selectCatByIndex(i){
+  const items = getCatItems();
+  if(i < 0 || i >= items.length) return;
+  const li = items[i];
+  const val = li.getAttribute('data-val') || '';
+  const input = document.getElementById('cat');
+  if(input){
+    input.value = val;                 // نخزن القيمة الإنجليزية
+    hideCatPanel();
+    // أشعل أحداثك الحالية المرتبطة بـ #cat (تعبئة اقتراحات/سعر...)
+    input.dispatchEvent(new Event('change', { bubbles:true }));
+    document.getElementById('item')?.focus();
+  }
+}
+
+// فتح/إغلاق بالنقر على الحقل
+document.getElementById('cat')?.addEventListener('click', (e)=>{
+  e.stopPropagation();
+  const panel = document.getElementById('catPanel');
+  const visible = panel && panel.style.display === 'block';
+  if(visible) hideCatPanel(); else showCatPanel();
+});
+
+// اختيار بالماوس
+document.getElementById('catList')?.addEventListener('click', (e)=>{
+  const li = e.target.closest('.cat-item');
+  if(!li) return;
+  const items = getCatItems();
+  __catIdx = items.indexOf(li);
+  selectCatByIndex(__catIdx);
+});
+
+// هايلايت مع حركة الماوس (اختياري)
+document.getElementById('catList')?.addEventListener('mousemove', (e)=>{
+  const li = e.target.closest('.cat-item');
+  if(!li) return;
+  const items = getCatItems();
+  const idx = items.indexOf(li);
+  if(idx !== -1 && idx !== __catIdx){
+    __catIdx = idx;
+    highlightCatItem();
+  }
+});
+
+// تنقّل الكيبورد داخل قائمة الأصناف
+// 2) تنقّل الكيبورد داخل قائمة الأصناف (ArrowUp/ArrowDown فقط)
+// 2) تنقّل الكيبورد: ضفنا دعم ArrowLeft/ArrowRight كمكافئ لفوق/تحت
+document.getElementById('cat')?.addEventListener('keydown', (e)=>{
+  const panel = document.getElementById('catPanel');
+  const visible = panel && panel.style.display === 'block';
+
+  if(!visible){
+    if(e.key === 'Enter' || e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'ArrowRight'){
+      e.preventDefault();
+      showCatPanel();
+
+      // عند الفتح من هنا، خليه يبدأ على LCD أيضًا
+      const items = getCatItems();
+      const lcdIndex = items.findIndex(li => (li.getAttribute('data-val')||'') === 'LCD');
+      __catIdx = lcdIndex >= 0 ? lcdIndex : 0;
+      highlightCatItem();
+    }
+    return;
+  }
+
+  const items = getCatItems();
+  if(!items.length) return;
+
+  // اعتبر Left مثل Up و Right مثل Down (مفيد مع RTL)
+  const isDown = (e.key === 'ArrowDown' || e.key === 'ArrowRight');
+  const isUp   = (e.key === 'ArrowUp'   || e.key === 'ArrowLeft');
+
+  if(isDown){
+    e.preventDefault();
+    __catIdx = (__catIdx < 0) ? 0 : Math.min(items.length - 1, __catIdx + 1);
+    highlightCatItem();
+  }else if(isUp){
+    e.preventDefault();
+    __catIdx = (__catIdx < 0) ? items.length - 1 : Math.max(0, __catIdx - 1);
+    highlightCatItem();
+  }else if(e.key === 'Enter'){
+    e.preventDefault();
+    if(__catIdx >= 0) selectCatByIndex(__catIdx);
+  }else if(e.key === 'Escape'){
+    e.preventDefault();
+    hideCatPanel();
+  }
+});
+
+// إغلاق إذا نقرّت برّه
+document.addEventListener('click', (ev)=>{
+  const panel = document.getElementById('catPanel');
+  const field = document.getElementById('cat');
+  if(!panel || !field) return;
+  const inside = panel.contains(ev.target) || field.contains(ev.target);
+  if(!inside) hideCatPanel();
+});
+
+
+
+
+
+
+// ===== أوتوكومبليت لاسم القطعة معتمد على الصنف المختار =====
+let __autoIdx = -1;
+
+function norm(s){ return String(s||'').replace(/\s+/g,'').toLowerCase(); }
+
+function getSelectedCat(){
+  const c = document.getElementById('cat')?.value || '';
+  return c.trim();
+}
+
+
+
+
+function parseIQD(v){
+  const s = String(v||'').replace(/[^\d.]/g,'');
+  if(!s) return '';
+  const n = Math.round(parseFloat(s));
+  return isFinite(n) ? n : '';
+}
+
+function findPrice(cat, itemName){
+  if(!cat || cat === 'NO-CATEGORY' || !itemName) return '';
+  const list = database[cat] || [];
+  const qn = norm(itemName);
+  const row = list.find(r => norm(r["Item Name"] || r["Item"] || '') === qn);
+  return row ? parseIQD(row["Price"]) : '';
+}
+
+function tryFillPrice(){
+  const cat  = getSelectedCat();
+  const name = (document.getElementById('item')?.value || '').trim();
+  const priceEl = document.getElementById('price');
+  if(!priceEl) return;
+  const p = findPrice(cat, name);
+  if(p !== '') priceEl.value = p;
+}
+
+
+
+
+
+
+/* تحت دوال parseIQD / findPrice أضف: */
+function formatIQD(v){
+  const n = Number(String(v||'').replace(/[^\d.]/g,''));
+  if(!isFinite(n)) return '';
+  // نستخدم en-US حتى يطلع 12,500 (فوارز)
+  return n.toLocaleString('en-US');
+}
+
+
+
+
+function renderItemSuggestions(){
+  const host = document.getElementById('itemSuggestions');
+  const qEl  = document.getElementById('item');
+  if(!host || !qEl) return;
+
+  const cat = getSelectedCat();
+  const q   = norm(qEl.value.trim());
+
+  host.innerHTML = '';
+  host.style.display = 'none';
+  __autoIdx = -1;
+
+  // إذا ما مختار صنف أو NO-CATEGORY، لا نعرض اقتراحات
+  if(!cat || cat === 'NO-CATEGORY') return;
+  // إذا قاعدة البيانات بعد ما انملت، انتظر (ما نعرض شي)
+  const list = database[cat] || [];
+  if(!q) return;
+
+  // نجرّب حقول اسم شائعة
+  const filtered = list.filter(row=>{
+    const name = norm(row["Item Name"] || row["Item"] || '');
+    return name.includes(q);
+  });
+
+  if(!filtered.length) return;
+
+  filtered.forEach(row=>{
+    const name = row["Item Name"] || row["Item"];
+    const li = document.createElement('li');
+    li.textContent = name || '';
+    li.style.cssText = `
+      padding:8px 12px; height:36px; display:flex; align-items:center;
+      cursor:pointer; border-bottom:1px dashed rgba(255,255,255,.06);
+    `;
+    li.onmouseenter = ()=> li.style.background = '#0e1b36';
+    li.onmouseleave = ()=> li.style.background = 'transparent';
+   
+   
+   li.onclick = ()=>{
+  qEl.value = name || '';
+  host.style.display = 'none';
+
+  // تعبئة السعر تلقائياً
+  const priceEl = document.getElementById('price');
+  if(priceEl){
+    const p = findPrice(cat, name || '');
+    if(p !== '') priceEl.value = p;
+  }
+
+  document.getElementById('qty')?.focus();
+  document.getElementById('qty')?.select?.();
+};
+
+   
+   
+    host.appendChild(li);
+  });
+
+  host.style.display = 'block';
+}
+
+function hideItemSuggestions(){
+  const host = document.getElementById('itemSuggestions');
+  if(host){ host.style.display = 'none'; __autoIdx = -1; }
+}
+
+// تريّغر العرض عند الكتابة وتغيير الصنف
+document.getElementById('item')?.addEventListener('input', renderItemSuggestions);
+
+
+document.getElementById('cat')?.addEventListener('change', ()=>{
+  hideItemSuggestions();
+  if((document.getElementById('item')?.value||'').trim()) renderItemSuggestions();
+  // محاولة تعبية السعر حسب الاسم الحالي
+  tryFillPrice();
+});
+
+// إذا المستخدم كتب/غيّر اسم المادة يدويًا ثم خرج من الحقل
+document.getElementById('item')?.addEventListener('change', tryFillPrice);
+
+
+
+// تنقّل الكيبورد داخل قائمة الاقتراحات
+document.getElementById('item')?.addEventListener('keydown', (e)=>{
+  const host = document.getElementById('itemSuggestions');
+  const visible = host && host.style.display === 'block';
+  if(!visible){
+    // إنتر من item بدون اقتراحات → نزّل للـ qty
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      document.getElementById('qty')?.focus();
+      document.getElementById('qty')?.select?.();
+    }
+    return;
+  }
+
+  const items = Array.from(host.querySelectorAll('li'));
+  if(!items.length) return;
+
+  if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+    e.preventDefault();
+    const step = (e.key === 'ArrowDown') ? 1 : -1;
+    if(__autoIdx < 0){
+      __autoIdx = (e.key === 'ArrowDown') ? 0 : items.length - 1;
+    }else{
+      __autoIdx = Math.max(0, Math.min(items.length - 1, __autoIdx + step));
+    }
+    items.forEach((li, i)=> li.style.background = (i===__autoIdx) ? '#0e1b36' : 'transparent');
+    items[__autoIdx].scrollIntoView({ block:'nearest' });
+  }
+
+  if(e.key === 'Enter' && __autoIdx >= 0){
+    e.preventDefault();
+    const li = items[__autoIdx];
+    document.getElementById('item').value = li.textContent;
+    hideItemSuggestions();
+    document.getElementById('qty')?.focus();
+    document.getElementById('qty')?.select?.();
+  }
+
+  if(e.key === 'Escape'){
+    hideItemSuggestions();
+  }
+});
+
+// إغلاق الاقتراحات إذا نقرّت برّه
+document.addEventListener('click', (ev)=>{
+  const host = document.getElementById('itemSuggestions');
+  const field= document.getElementById('item');
+  if(!host || !field) return;
+  const inside = host.contains(ev.target) || field.contains(ev.target);
+  if(!inside) hideItemSuggestions();
+});
+
+    
+    
+    
+    
+    
+    
+    
+    
+    /* ============ بيانات محلية ============ */
+    const STORAGE = 'assal:board:v3';
+    const NAMES   = 'assal:names:v3';
+    let globalLimit = 20;
+    
+    
+    /* ====== قائمة أسماء الزبائن اليدوية (عدّلها على راحتك) ====== */
+const CUSTOMERS = [
+  "حسين",
+  "علي",
+  "أحمد",
+  "عمر",
+  "زيد",
+  "حيدر",
+  "مصطفى",
+  "كرار",
+  "يوسف",
+  "محمد"
+];
+
+
+// مساعد: يرجّع ارتفاع شريط البورد اللاصق
+    const boardHeadH = ()=> (document.querySelector('.board-head')?.offsetHeight || 0);
+
+    const $  = (s)=> document.querySelector(s);
+    const CE = (t, c)=>{ const e = document.createElement(t); if(c) e.className=c; return e; };
+
+    const todayISO      = ()=> new Date().toISOString().slice(0,10);
+    const TODAY         = todayISO();              // ← ثابت لليوم الحالي
+
+    const arDateWithDay = (d)=> new Date(d).toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'2-digit',day:'2-digit'});
+    const arMonthName   = (d)=> new Date(d).toLocaleDateString('ar-EG',{year:'numeric',month:'long'});
+    const arTime        = (d)=> new Date(d).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+
+    let days        = load(STORAGE, {});
+    let names       = load(NAMES, []);
+    let selectedDay = todayISO();
+
+    function load(k, d){ try{ return JSON.parse(localStorage.getItem(k)||JSON.stringify(d)); }catch{ return d; } }
+    function save(){ localStorage.setItem(STORAGE, JSON.stringify(days)); }
+    function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+  /* ====== Enter Navigation (جديد) ====== */
+/* التسلسل المطلوب: cust -> type -> cat -> item -> qty -> note */
+const order = ['cust','type','cat','item','price','qty','note'];
+
+
+function openSelect(el){
+  try{
+    el.focus();
+    if(typeof el.showPicker === 'function'){ el.showPicker(); }
+    else{
+      // fallback: ركّز وخلّي المستخدم ينزل بالسهم (ماكو API موحّد لكل المتصفحات)
+      // نرسل ArrowDown كإشارة خفيفة (قد لا تعمل بكل المتصفحات)
+      const ev = new KeyboardEvent('keydown', { key:'ArrowDown', bubbles:true });
+      el.dispatchEvent(ev);
+    }
+  }catch(_){}
+}
+
+order.forEach((id, idx)=>{
+  const el = document.getElementById(id);
+  el.addEventListener('keydown', (e)=>{
+    if(e.key !== 'Enter') return;
+    e.preventDefault();
+
+   if(id === 'cust'){
+  // إذا قائمة الاقتراحات مفتوحة، خلّي مستمع الكيبورد أعلاه يتكفّل
+  const vis = document.getElementById('custSuggestions')?.style.display === 'block';
+  if(vis) return;
+
+  // ماكو قائمة → تاليها نوع الفاتورة كالعادة
+  const target = document.getElementById('type');
+  openSelect(target);
+  return;
+}
+
+
+  // 1) Enter على نوع الفاتورة: افتح القائمة وحدّد LCD مباشرة
+if(id === 'type'){
+  const catField = document.getElementById('cat');
+  catField?.focus();
+
+  // افتح القائمة
+  showCatPanel();
+
+  // ابحث عن فهرس "شاشات" (data-val="LCD") وخلّه محدّد
+  const items = getCatItems();
+  const lcdIndex = items.findIndex(li => (li.getAttribute('data-val')||'') === 'LCD');
+  __catIdx = lcdIndex >= 0 ? lcdIndex : 0;   // إذا ما لقاها، خليه على أول عنصر
+  highlightCatItem();
+
+  // الآن إذا ضغطت Enter مرة ثانية فورًا يختارها
+  return;
+}
+
+
+   if (id === 'note') {
+  // أضف السطر
+  document.getElementById('btnAdd').click();
+
+  // رجّع الفوكس إلى "اسم الزبون"
+  setTimeout(()=>{
+    const target = document.getElementById('cust');
+    target.focus();
+    target.select?.();
+  }, 0);
+
+  return;
+}
+
+    // باقي الحقول تتنقل للتالي بشكل طبيعي
+    const next = document.getElementById(order[idx+1]);
+    if(next){
+      next.focus();
+      next.select?.();
+      if(next.tagName === 'SELECT') openSelect(next);
+    }
+  });
+});
+
+
+
+
+/* ===== Toast API (Top) ===== */
+function showToast(type, message, timeout=2200){
+  type = (type||'info').toLowerCase();
+  const ok = ['success','warn','error','info'].includes(type);
+  if(!ok) type = 'info';
+  const host = document.getElementById('toasts'); if(!host) return;
+
+  while(host.children.length >= 4){ host.removeChild(host.firstElementChild); }
+
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.setAttribute('role','status');
+
+  const icon = document.createElement('div');
+  icon.className='toast__icon';
+  icon.innerHTML = ({
+    success:'<i class="fa-solid fa-check"></i>',
+    warn   :'<i class="fa-solid fa-triangle-exclamation"></i>',
+    error  :'<i class="fa-solid fa-xmark"></i>',
+    info   :'<i class="fa-solid fa-circle-info"></i>'
+  })[type];
+
+  const msg = document.createElement('div');
+  msg.className='toast__msg';
+  msg.textContent = message || 'تم التنفيذ';
+
+  const btn = document.createElement('button');
+  btn.className='toast__close';
+  btn.title='إغلاق';
+  btn.innerHTML='<i class="fa-solid fa-xmark"></i>';
+
+  function dismiss(){
+    t.style.animation='toast-out-top .2s ease-in both';
+    clearTimeout(timer);
+    setTimeout(()=> t.remove(), 180);
+  }
+  btn.onclick = dismiss;
+
+  t.append(icon, msg, btn);
+  host.appendChild(t);
+
+  const timer = setTimeout(dismiss, timeout);
+}
+
+
+
+
+
+    /* ====== Modal API ====== */
+    const $modal  = $('#modal');
+    const $back   = $('#modal-backdrop');
+    const $mtitle = $('#modal-title');
+    const $mbody  = $('#modal-body');
+    const $mok    = $('#modal-confirm');
+    const $mcancel= $('#modal-cancel');
+
+    function showConfirm({title='تأكيد', message='هل أنت متأكد؟', okText='تأكيد', cancelText='إلغاء', danger=true}={}){
+      return new Promise((resolve)=>{
+        $mtitle.textContent = title;
+        $mbody.textContent  = message;
+        $mok.textContent    = okText;
+        $mcancel.textContent= cancelText;
+        $mok.classList.toggle('danger', !!danger);
+
+        $back.classList.add('active');
+        $modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+
+        const done = (val)=>{
+          $back.classList.remove('active');
+          $modal.classList.remove('active');
+          document.body.style.overflow = '';
+          $mok.onclick = null;
+          $mcancel.onclick = null;
+          resolve(val);
+        };
+
+        $mok.onclick     = ()=> done(true);
+        $mcancel.onclick = ()=> done(false);
+        document.onkeydown = (e)=>{ if(e.key === 'Escape'){ /* مقفلة */ } };
+      });
+    }
+
+    /* ====== إضافة سطر (نظيف) ====== */
+/* ====== إضافة سطر (نظيف) ====== */
+document.getElementById('btnAdd').onclick = () => {
+  const customer = (document.getElementById('cust').value || '').trim();
+  const item     = (document.getElementById('item').value || '').trim();
+  const priceVal = String(document.getElementById('price').value || '').trim();
+  let   qty      = String(document.getElementById('qty').value || '1').trim();
+  const cat      = (document.getElementById('cat').value || '').trim();
+  const type     = (document.getElementById('type').value || 'بيع').trim(); // بيع / راجع
+  const note     = (document.getElementById('note').value || '').trim();
+
+  if (!customer || !item) return;
+  if (!/^\d+$/.test(qty)) qty = '1';
+
+  if (!days[selectedDay]) days[selectedDay] = [];
+
+  let createdNewCard = false;
+
+  // ابحث عن البطاقة وموقعها
+  let cardIndex = days[selectedDay].findIndex(c => c.customer === customer);
+  let card = days[selectedDay][cardIndex];
+
+  if (!card) {
+    // إنشاء بطاقة جديدة + updatedAt
+    card = {
+      id: Date.now(),
+      customer,
+      lines: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(), // NEW
+      paidAll: false,
+      billType: type
+    };
+    days[selectedDay].unshift(card);
+    createdNewCard = true;
+  } else {
+    // لو نوع مختلف يصير مختلط
+    if (card.billType && card.billType !== type) card.billType = 'مختلط';
+    if (!card.billType) card.billType = type;
+
+    // حدّث آخر نشاط وارفع البطاقة للأعلى
+    card.updatedAt = new Date().toISOString();
+    days[selectedDay].splice(cardIndex, 1);
+    days[selectedDay].unshift(card);
+  }
+
+  const isReturn = (type === 'راجع');
+
+  card.lines.push({
+    item,
+    price: priceVal,          // <-- جديد
+    qty,
+    cat,
+    note,
+    type,
+    at: new Date().toISOString(),
+    returned: isReturn,
+    paid: false
+  });
+
+  save();
+
+
+  document.getElementById('item').value = '';
+  document.getElementById('price').value = '';   // <-- نظّف السعر
+  document.getElementById('qty').value  = '';
+  document.getElementById('note').value = '';
+  document.getElementById('item').focus();
+
+  renderBoard();
+  renderRail();
+  refreshStats();
+
+  // اسحب الكارت أسفل شريط البحث بمسافة أنيقة دائمًا
+  focusNewCard(card);
+
+  showToast('success', createdNewCard ? 'تم إنشاء بطاقة وإضافة مادة' : 'تم إضافة مادة وتحريك البطاقة للأعلى');
+};
+
+
+
+
+
+
+
+// استبدال كامل للدالة القديمة
+function rebuildNames(){
+  // لم نعد نستخدم <datalist> لاقتراحات الزبائن.
+  // خَلّيناه no-op حتى ما ينهار الكود لو بقت مناداته بمكان.
+}
+
+
+
+    /* ====== رسم اللوح ====== */
+    
+function renderBoard(){
+  const host = document.getElementById('masonry'); 
+  host.innerHTML = '';
+
+  const q = (document.getElementById('cardSearch')?.value || '').trim().toLowerCase();
+  const global = document.getElementById('globalSearch')?.checked;
+
+  // جهّز مصدر البطاقات
+  const collect = (d)=> (days[d]||[]).map(c => ({...c, __day: d}));
+  let pool = [];
+
+  if(global){
+    const allDaysKeys = Object.keys(days).sort().reverse(); // أحدث أولًا
+    allDaysKeys.forEach(d => { pool.push(...collect(d)); });
+  }else{
+    pool = collect(selectedDay);
+  }
+
+  // فلترة بالاسم (إن وجد)
+  let arr = q ? pool.filter(c => (c.customer||'').toLowerCase().includes(q)) : pool;
+
+  // بالبحث الشامل: فرز من الأحدث للأقدم
+  
+  // بالبحث الشامل: فرز حسب آخر نشاط (updatedAt إن وجِد وإلا createdAt)
+if (global) {
+  arr.sort((a, b) =>
+    new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)
+  );
+}
+
+  
+  
+  // عدّاد وإظهار حدّ العرض
+  const totalCount = arr.length;
+  if(global){
+    arr = arr.slice(0, globalLimit); // قصّ على حسب الحد الحالي
+    document.getElementById('cardsCount').textContent = `${arr.length} / ${totalCount} بطاقة`;
+  }else{
+    document.getElementById('cardsCount').textContent = `${arr.length} بطاقة`;
+  }
+
+  // لا توجد نتائج
+  if(!arr.length){
+    host.innerHTML = `<div style="border:1px dashed var(--stroke);background:#0b1327;border-radius:14px;padding:16px;text-align:center;color:#9aa4b2">
+      لا توجد بطاقات${global ? ' مطابقة في كل الأيام' : ' اليوم'}
+    </div>`;
+    return;
+  }
+
+  // اطبع البطاقات
+  arr.forEach((card, ci)=>{
+    const box = CE('div','card');
+    box.id = 'card-' + card.id;
+
+    /* Head */
+    const head = CE('div','card-head');
+    const custWrap = CE('div','cust');
+    const custName = CE('span'); 
+    custName.textContent = card.customer;
+    custWrap.appendChild(custName);
+    
+    
+    // لو الاسم مو ضمن المصفوفة اليدوية نضيف "جديد"
+const isKnownCustomer = CUSTOMERS.includes(card.customer);
+if (!isKnownCustomer) {
+  const newBadge = CE('span','badge-new');
+ newBadge.textContent = 'زبون جديد';
+  custWrap.appendChild(newBadge);
+}
+
+    
+    
+
+    // نوع الفاتورة (بيع/راجع/مختلط)
+    let billType = card.billType;
+    if(!billType){
+      const types = Array.from(new Set((card.lines||[]).map(l=>l.type)));
+      billType = (types.length === 1) ? types[0] : 'مختلط';
+      card.billType = billType;
+    }
+   
+   const typeBadge = CE('span','badge-type ' + (billType==='راجع' ? 'return' : billType==='بيع' ? 'sell' : ''));
+const typeLabel = (billType === 'راجع')
+  ? 'فاتورة راجع'
+  : (billType === 'بيع')
+    ? 'فاتورة بيع'
+    : 'فاتورة مختلطة';
+typeBadge.textContent = typeLabel;
+custWrap.appendChild(typeBadge);
+
+   
+   
+    // بادج “تم التسديد” إن كل الفعال مدفوع
+    if(card.paidAll || (card.lines.length && card.lines.every(l=>l.paid))){
+      card.paidAll = true;
+      const paidBadge = CE('span','bill-badge'); 
+      paidBadge.textContent='تم تسديد مواد اليوم';
+      custWrap.appendChild(paidBadge);
+    }
+
+    // يمين الهيدر: التاريخ (من يوم البطاقة) + الوقت (من createdAt)
+    const rightWrap = CE('div'); 
+    rightWrap.style.display = 'flex';
+    rightWrap.style.gap = '6px';
+
+    const dateTag = CE('span','tag'); 
+    dateTag.textContent = fmtDMY(card.__day || selectedDay);  // DD-MM-YYYY
+
+    const timeTag = CE('span','tag'); 
+    timeTag.textContent = arTime(card.createdAt);
+
+    rightWrap.append(dateTag, timeTag);
+    head.append(custWrap, rightWrap);
+    box.appendChild(head);
+
+    /* Items */
+    const itemsWrap = CE('div','items');
+    card.lines.forEach((ln, li)=>{
+      const it = CE('div','item');
+      if(ln.returned) it.classList.add('returned');
+      if(ln.paid)     it.classList.add('paid');
+
+      const btnReturn = CE('button','btn-mini btn-return'); 
+      btnReturn.innerHTML='<i class="fa-solid fa-rotate-left"></i>'; 
+      btnReturn.title='راجع';
+
+      const btnPay    = CE('button','btn-mini btn-pay');    
+      btnPay.innerHTML   ='<i class="fa-solid fa-check"></i>';      
+      btnPay.title='تسديد';
+
+     
+     
+     const name  = CE('div','iname');  name.textContent = ln.item;
+const cat   = CE('div','ichip');  cat.textContent  = ln.cat || '—';
+const price = CE('div','iprice'); price.textContent = ln.price ? formatIQD(ln.price) : '—';
+const qty   = CE('div','iqty');   qty.textContent  = `× ${ln.qty}`;
+const note  = CE('div','inote');  note.textContent = (ln.note && ln.note.trim()) ? ln.note : '—';
+const time  = CE('div','itime');  time.textContent = arTime(ln.at);
+     
+     
+      const del   = CE('button','btn-mini btn-del'); 
+      del.innerHTML='<i class="fa-regular fa-trash-can"></i>'; 
+      del.title='حذف';
+
+      const badge = CE('span','badge'); 
+      setBadge(badge, ln);
+      if (badge.textContent) name.appendChild(badge);
+
+    it.append(btnReturn, btnPay, cat, name, price, qty, note, time, del);
+
+      btnReturn.onclick = ()=>{
+        ln.returned = !ln.returned;
+        if(ln.returned) ln.paid = false;
+        card.paidAll = false;
+        save(); renderBoard(); renderRail(); refreshStats();
+        showToast(ln.returned ? 'warn' : 'info', ln.returned ? 'تم تعليمها راجع' : 'تم إلغاء الراجع');
+      };
+
+      btnPay.onclick = ()=>{
+        ln.paid = !ln.paid;
+        if(ln.paid) ln.returned = false;
+        save(); renderBoard(); renderRail(); refreshStats();
+        showToast(ln.paid ? 'success' : 'info', ln.paid ? 'تم تسديد المادة' : 'تم إلغاء التسديد');
+      };
+
+      del.onclick = async ()=>{
+        const ok = await showConfirm({
+          title:'تأكيد حذف السطر',
+          message:`هل تريد حذف "${ln.item}"؟`,
+          okText:'حذف',
+          cancelText:'إلغاء',
+          danger:true
+        });
+        if(!ok) return;
+        card.lines.splice(li,1); save();
+        renderBoard(); renderRail(); refreshStats();
+        showToast('error', 'تم حذف المادة');
+      };
+
+      itemsWrap.appendChild(it);
+    });
+    
+    
+    
+    box.appendChild(itemsWrap);
+
+
+
+/* ===== ملاحظات البطاقة (Timeline أنيق + بدون سكرول أفقي) ===== */
+if(!Array.isArray(card.notes)) card.notes = [];
+
+const notesBox  = CE('div','notes-compact');
+const notesList = CE('div','notes-compact__list');
+
+const notesBar   = CE('div','notes-compact__bar');
+const noteInput  = CE('input','field note-input-sm');
+noteInput.placeholder = 'اكتب الملاحظة…';
+const noteAddBtn = CE('button','btn primary note-add-mini');
+noteAddBtn.title = 'إضافة ملاحظة';
+noteAddBtn.innerHTML = '<i class="fa-solid fa-plus"></i>';
+
+notesBar.append(noteInput, noteAddBtn);
+notesBox.append(notesList, notesBar);
+box.appendChild(notesBox);
+
+// وقت عربي قصير
+const tinyTime = (d)=> new Date(d).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+
+// رسم أنيق: (#) متدرّج + وقت مع أيقونة + زر حذف خارجي
+function renderNotes(){
+  notesList.innerHTML = '';
+  const arr = [...(card.notes||[])].sort((a,b)=> new Date(b.at)-new Date(a.at)); // الأحدث أولًا
+
+  arr.forEach((n, i)=>{
+    const row  = CE('div','note-row');   // يحتوي الحبة + زر الحذف
+    row.style.minWidth = '0';            // مهم ضد أي تمدد عرضي
+
+    const pill = CE('div','note-pill');  // الحبة
+    pill.style.minWidth = '0';
+
+    // # التسلسل (الأحدث = #1). بدّلها إلى arr.length - i إذا تريد الأقدم #1
+    const idx = CE('div','note-pill__idx');
+    idx.textContent = `#${i+1}`;
+
+    // النص — سطر واحد، بدون سكرول أفقي، مع Tooltip بالنص الكامل
+    const txt = CE('div','note-pill__text');
+    txt.textContent = n.text || '';
+    txt.title = n.text || ''; // تولتيب
+
+    // الوقت + أيقونة
+    const when = CE('div','note-pill__time');
+    when.innerHTML = '<i class="fa-regular fa-clock"></i>' + tinyTime(n.at || Date.now());
+
+    // زر الحذف خارج الحبة
+    const del = CE('button','note-del-out');
+    del.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+    del.title = 'حذف الملاحظة';
+
+    del.onclick = async ()=>{
+      const ok = await showConfirm({
+        title:'حذف ملاحظة',
+        message:'تحب تحذف هذه الملاحظة؟',
+        okText:'حذف',
+        cancelText:'إلغاء',
+        danger:true
+      });
+      if(!ok) return;
+      if(deleteCardNote(card, n.id)){
+        renderNotes();
+        showToast('error','تم حذف الملاحظة');
+      }
+    };
+
+    pill.append(idx, txt, when);
+    row.append(pill, del);
+    notesList.appendChild(row);
+  });
+}
+
+function doAddNote(){
+  const val = (noteInput.value||'').trim();
+  if(!val) return;
+  if(addCardNote(card, val)){
+    noteInput.value = '';
+    renderNotes();
+    showToast('success','تمت إضافة الملاحظة');
+    setTimeout(()=> noteInput.focus(), 0);
+  }
+}
+
+noteAddBtn.onclick = doAddNote;
+noteInput.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); doAddNote(); }
+});
+
+// أول رسم
+renderNotes();
+
+
+    
+    
+    
+
+    /* Foot */
+    const foot = CE('div','card-foot');
+    const left = CE('div'); 
+    left.innerHTML = `<span class="tag">${card.lines.length} مادة</span>`;
+    const right = CE('div','foot-actions');
+
+   const btnPdf = CE('button','i-btn');
+btnPdf.innerHTML = '<i class="fa-regular fa-file-pdf"></i><span>PDF</span>';
+btnPdf.title = 'طباعة هاي البطاقة فقط';
+btnPdf.onclick = ()=>{
+  // نمرّر يوم البطاقة (يدعم وضع البحث الشامل)
+  exportCardPDF_Vector(card, card.__day || selectedDay);
+};
+
+
+    const btnPayAll = CE('button','i-btn');
+    card.paidAll = allActivePaid(card);
+    stylePayAll(btnPayAll, card);
+
+    btnPayAll.onclick = ()=>{
+      if (!card.lines.length) return;
+      const active = activeLines(card);
+      if (active.length === 0) return;
+
+      const allPaidBefore = active.every(l => l.paid);
+      const makePaid = !allPaidBefore;
+
+      active.forEach(l => { l.paid = makePaid; });
+      card.paidAll = allActivePaid(card);
+
+      save(); renderBoard(); renderRail(); refreshStats();
+      showToast(makePaid ? 'success' : 'info', makePaid ? 'تم تسديد كل المواد' : 'تم إلغاء تسديد الكل');
+    };
+
+    const btnDel = CE('button','i-btn'); 
+    btnDel.innerHTML  = '<i class="fa-regular fa-trash-can"></i><span>حذف البطاقة</span>'; 
+    btnDel.title='حذف البطاقة';
+    btnDel.onclick = async ()=>{
+      const ok = await showConfirm({
+        title:'تأكيد حذف البطاقة',
+        message:`سيتم حذف بطاقة "${card.customer}" بكافة موادها.`,
+        okText:'حذف البطاقة',
+        cancelText:'إلغاء',
+        danger:true
+      });
+      if(!ok) return;
+
+      // عند البحث الشامل: احذف من يوم البطاقة الحقيقي
+      const dayKey = card.__day || selectedDay;
+      const arrRef = (days[dayKey]||[]);
+      const idx = arrRef.findIndex(c => c.id === card.id);
+      if(idx > -1){ arrRef.splice(idx,1); save(); }
+
+      renderBoard(); renderRail(); refreshStats();
+      showToast('error', 'تم حذف البطاقة');
+    };
+
+    right.append(btnPdf, btnPayAll, btnDel);
+    foot.append(left,right);
+    box.appendChild(foot);
+
+    host.appendChild(box);
+  });
+
+  // زر عرض المزيد للبحث الشامل
+  if(global && totalCount > arr.length){
+    const more = CE('button','i-btn');
+    more.style.margin = '8px auto 0';
+    more.innerHTML = '<i class="fa-solid fa-angles-down"></i><span>عرض المزيد</span>';
+    more.onclick = ()=>{ globalLimit += 20; renderBoard(); };
+    host.appendChild(more);
+  }
+}
+
+    
+    
+    
+    function activeLines(card){ return card.lines.filter(l => !l.returned); }
+function allActivePaid(card){
+  const a = activeLines(card);
+  return a.length>0 && a.every(l => l.paid);
+}
+
+
+
+/* سكرول مضمونة للكارت الجديد بعد الريندر */
+/* سكرول مضمونة للكارت الجديد بعد الريندر */
+
+
+/* سكرول مضمونة للكارت الجديد بعد الريندر (أسفل شريط البحث بمسافة صغيرة) */
+function focusNewCard(card){
+  const el = document.getElementById('card-' + card.id);
+  if(!el) return;
+
+  requestAnimationFrame(()=>{
+    const header  = document.querySelector('.ribbon');
+    const headerH = header ? header.offsetHeight : 0;
+    const bh      = boardHeadH();   // ارتفاع .board-head اللاصق
+    const gap     = 16;             // المسافة الأنيقة المطلوبة أسفل الشريط
+
+    // خَلّي أعلى البطاقة يبتعد بمقدار gap تحت أسفل الشريط
+    const absTop = el.getBoundingClientRect().top + window.pageYOffset;
+    const y = Math.max(0, absTop - (headerH + bh + gap));
+
+    window.scrollTo({ top: y, behavior: 'smooth' });
+
+    el.classList.add('flash-card');
+    setTimeout(()=> el.classList.remove('flash-card'), 1600);
+  });
+}
+
+
+
+    
+    
+    
+
+    /* ===== Helpers ===== */
+    
+    
+    
+    
+    
+    function addCardNote(card, text){
+  if(!card || !text) return false;
+  card.notes ||= [];
+  card.notes.push({ id: Date.now() + Math.random(), text, at: new Date().toISOString() });
+  save();
+  return true;
+}
+function deleteCardNote(card, id){
+  if(!card || !Array.isArray(card.notes)) return false;
+  const i = card.notes.findIndex(n=> n.id === id);
+  if(i === -1) return false;
+  card.notes.splice(i,1);
+  save();
+  return true;
+}
+
+ 
+ 
+ 
+ function stylePayAll(btn, cardRef){
+  const allPaidNow = allActivePaid(cardRef);
+  if(allPaidNow || cardRef.paidAll){
+    btn.classList.remove('primary'); btn.classList.add('ghost');
+    btn.innerHTML = '<i class="fa-solid fa-rotate-left"></i><span>إلغاء التسديد</span>';
+    btn.title = 'إلغاء تسديد المواد غير الراجعة';
+  }else{
+    btn.classList.remove('ghost'); btn.classList.add('primary');
+    btn.innerHTML = '<i class="fa-solid fa-check-double"></i><span>تسديد الكل</span>';
+    btn.title = 'تسديد كل المواد غير الراجعة';
+  }
+}
+
+ 
+ 
+ 
+    function wrapName(name, cat, badge){
+      const box = CE('div');
+      box.style.display='flex'; box.style.alignItems='center'; box.style.gap='6px';
+      box.append(name, cat); if(badge.textContent) box.appendChild(badge);
+      return box;
+    }
+    function setBadge(el, ln){
+      el.textContent = ln.returned ? 'راجع' : (ln.paid ? 'تم التسديد' : '');
+      el.style.display = el.textContent ? 'inline-flex' : 'none';
+    }
+    
+    
+    
+    
+    
+    /* ===== تنسيقات مساعدة للفلترة ===== */
+function pad2(n){ n = String(n); return n.length===1 ? '0'+n : n; }
+function fmtDMY(iso){ // 'YYYY-MM-DD' -> 'DD-MM-YYYY'
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  const [y,m,d] = iso.split('-'); return `${d}-${m}-${y}`;
+}
+function fmtMY(iso){ // 'YYYY-MM-DD' -> 'MM-YYYY'
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  const [y,m] = iso.split('-'); return `${m}-${y}`;
+}
+function getYear(iso){ return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.slice(0,4) : iso; }
+
+/* تحضير مُرشِّح حسب إدخال المستخدم */
+function makeFilterPredicate(fraw){
+  const f = (fraw||'').trim();
+  if(!f) return ()=>true;
+
+  // أنماط مدعومة:
+  // 1) DD-MM-YYYY  2) MM-YYYY  3) YYYY
+  const dmy = /^(\d{2})-(\d{2})-(\d{4})$/;
+  const my  = /^(\d{2})-(\d{4})$/;
+  const y   = /^(\d{4})$/;
+
+  if(dmy.test(f)){
+    const [_, dd, mm, yyyy] = f.match(dmy);
+    const want = `${dd}-${mm}-${yyyy}`;
+    return (iso)=> fmtDMY(iso) === want;
+  }
+  if(my.test(f)){
+    const [_, mm, yyyy] = f.match(my);
+    const want = `${mm}-${yyyy}`;
+    return (iso)=> fmtMY(iso) === want;
+  }
+  if(y.test(f)){
+    const [_, yyyy] = f.match(y);
+    return (iso)=> getYear(iso) === yyyy;
+  }
+
+  // لو نص حر، نجرّب contains على صيغتنا
+  const s = f.toLowerCase();
+  return (iso)=> (fmtDMY(iso).toLowerCase().includes(s) ||
+                  fmtMY(iso).toLowerCase().includes(s)  ||
+                  getYear(iso).toLowerCase().includes(s));
+}
+
+    
+    
+    
+    
+
+    /* ===== Rail (تجميع شهري) ===== */
+
+
+function renderRail(){
+  const host = document.getElementById('rail'); host.innerHTML='';
+
+  const allDays = Object.keys(days).sort().reverse();
+  if(!allDays.includes(selectedDay)) allDays.unshift(selectedDay);
+
+  const fraw = (document.getElementById('dayFilter').value||'').trim();
+  const match = makeFilterPredicate(fraw);
+  const isFiltering = !!fraw;
+
+  // لو فلترة: نختار الأيام المطابقة فقط
+  // لو لا: نطبق سياسة "آخر يومين لكل شهر" و"آخر شهرين لكل سنة"
+  let daysToShow = [];
+
+  if(isFiltering){
+    daysToShow = allDays.filter(k => match(k));
+  }else{
+    // نبني شجرة: year -> month -> [days...]
+    const tree = {};
+    allDays.forEach(k=>{
+      const [y,m] = [k.slice(0,4), k.slice(5,7)];
+      (tree[y] ||= {});
+      (tree[y][m] ||= []);
+      tree[y][m].push(k);
+    });
+
+    // لكل سنة: أخذ آخر شهرين فقط
+    const years = Object.keys(tree).sort().reverse();
+    years.forEach(y=>{
+      const months = Object.keys(tree[y]).sort().reverse(); // '12','11',...
+      const lastTwoMonths = months.slice(0,2);
+      lastTwoMonths.forEach(m=>{
+        const daysList = tree[y][m].sort().reverse();       // 'YYYY-MM-DD' نزولياً
+        const lastTwoDays = daysList.slice(0,2);
+        daysToShow.push(...lastTwoDays);
+      });
+    });
+
+    // تأكد نظل محافظين على الترتيب العام نزولياً
+    daysToShow.sort().reverse();
+  }
+
+  if(!daysToShow.length){
+    host.innerHTML = '<div style="color:#9aa4b2">لا يوجد أيام لعرضها</div>';
+    return;
+  }
+
+  // نجمع بالشهور (YYYY-MM)
+  const groups = {};
+  daysToShow.forEach(d=>{
+    const key = d.slice(0,7); // YYYY-MM
+    (groups[key] ||= []).push(d);
+  });
+
+  // نحتاج أيضاً تجميع بالسنة لفرز الأشهر صح
+  const monthKeys = Object.keys(groups).sort().reverse(); // '2025-10', '2025-09', ...
+  const yearsSet = new Set(monthKeys.map(mk=> mk.slice(0,4)));
+  const yearsOrdered = Array.from(yearsSet).sort().reverse();
+
+  yearsOrdered.forEach(yyyy=>{
+    // الأشهر التابعة لهذه السنة، بالأحدث أولاً
+    const monthsOfYear = monthKeys.filter(mk => mk.startsWith(yyyy+'-')).sort().reverse();
+
+    monthsOfYear.forEach(monthKey=>{
+      const monthBox = CE('div','month');
+
+      const mTitle = CE('div','month-title');
+      const niceMonth = arMonthName(monthKey+'-01');
+      const mCount = groups[monthKey].reduce((n,k)=> n + (days[k]?.length||0), 0);
+      mTitle.innerHTML = `<span>${niceMonth}</span><span class="mchip">${mCount} بطاقة</span>`;
+      monthBox.appendChild(mTitle);
+
+      // الأيام داخل هذا الشهر
+      const daysInMonth = groups[monthKey].sort().reverse();
+      daysInMonth.forEach(k=>{
+        const row = CE('div','day'+(k===selectedDay?' active':'')); 
+        row.innerHTML = `
+          <div class="title">${arDateWithDay(k)}</div>
+          <div class="meta">${(days[k]||[]).length} بطاقة</div>
+        `;
+       
+       row.onclick = ()=>{
+  selectedDay = k;
+  renderBoard();
+  refreshStats();
+  // لا تحدّث الهيدر هنا حتى يبقى ثابت على TODAY
+  // document.getElementById('dateBadge').textContent = arDateWithDay(selectedDay);
+};
+
+       
+       
+        monthBox.appendChild(row);
+      });
+
+      host.appendChild(monthBox);
+    });
+  });
+}
+
+
+
+    document.getElementById('dayFilter').addEventListener('input', renderRail);
+    document.getElementById('cardSearch').addEventListener('input', renderBoard);
+  
+  
+   document.getElementById('globalSearch')?.addEventListener('change', ()=>{
+  globalLimit = 20;     // رجّع الحد للبداية كل ما تبدّل وضع البحث الشامل
+  renderBoard();
+});
+
+
+
+    /* ===== Stats ===== */
+    function refreshStats(){
+      const arr = (days[selectedDay]||[]);
+      const items = arr.reduce((n,c)=> n + c.lines.length, 0);
+      document.getElementById('statCards').textContent = arr.length;
+      document.getElementById('statItems').textContent = items;
+      document.getElementById('statTime').textContent = new Date().toLocaleTimeString('ar-EG');
+    }
+
+    /* ===== Actions ===== */
+   
+   document.getElementById('btnClearDay').onclick  = async ()=>{
+  const ok = await showConfirm({
+    title:'تفريغ اليوم',
+    message:`سيتم حذف جميع بطاقات يوم ${arDateWithDay(selectedDay)}.`,
+    okText:'تفريغ اليوم',
+    cancelText:'إلغاء',
+    danger:true
+  });
+  if(!ok) return;
+  days[selectedDay] = [];
+  save(); renderBoard(); refreshStats();
+  showToast('error', 'تم تفريغ اليوم');
+};
+
+   
+   
+   
+// كسر الكاش + عرض شاشة التحديث قبل الرِيلود
+function hardReload(){
+  const url = new URL(location.href);
+  url.searchParams.set('_ts', Date.now());
+  location.replace(url.toString());
+}
+
+function refreshWithOverlay(){
+  document.getElementById('reloader')?.classList.add('active');
+  setTimeout(hardReload, 300);
+}
+
+document.getElementById('btnRefresh').onclick = refreshWithOverlay;
+
+
+
+
+
+/* ===== اقتراحات اسم الزبون (تطلع فوق + 8 مرئية + Scroll) ===== */
+let __custIdx = -1;
+
+function getAllCustomers(){
+  // دمج القائمة اليدوية + أسماء محفوظة من البيانات
+  const set = new Set(CUSTOMERS);
+  // استخرج أسماء الزبائن من كل الأيام
+  Object.values(days||{}).forEach(arr=>{
+    (arr||[]).forEach(card=>{ if(card?.customer) set.add(card.customer); });
+  });
+  return Array.from(set);
+}
+
+function renderCustSuggestions(){
+  const host = document.getElementById('custSuggestions');
+  const inp  = document.getElementById('cust');
+  if(!host || !inp) return;
+
+  const q = String(inp.value||'').trim().toLowerCase();
+  const all = getAllCustomers();
+
+  // فلترة بسيطة بالـ contains
+  const data = q ? all.filter(n => n.toLowerCase().includes(q)) : all;
+
+  host.innerHTML = '';
+  __custIdx = -1;
+
+  // ما نقتطع النتائج؛ نخلي الـ UL يتكفّل بالتمرير
+  data.forEach(name=>{
+    const li = document.createElement('li');
+    li.textContent = name;
+    li.style.cssText = `
+      padding:8px 12px; height:36px; display:flex; align-items:center; cursor:pointer;
+      border-bottom:1px dashed rgba(255,255,255,.06);
+    `;
+    li.onmouseenter = ()=> li.style.background = '#0e1b36';
+    li.onmouseleave = ()=> li.style.background = 'transparent';
+    li.onclick = ()=>{
+      inp.value = name;
+      hideCustSuggestions();
+      // بعد الاختيار: روّح على نوع الفاتورة مثل ما كان
+      const target = document.getElementById('type');
+      target && (target.focus(), typeof target.showPicker==='function' && target.showPicker());
+    };
+    host.appendChild(li);
+  });
+
+  host.style.display = data.length ? 'block' : 'none';
+}
+
+function hideCustSuggestions(){
+  const host = document.getElementById('custSuggestions');
+  if(host){ host.style.display = 'none'; __custIdx = -1; }
+}
+
+function getCustLis(){
+  const host = document.getElementById('custSuggestions');
+  return host ? Array.from(host.querySelectorAll('li')) : [];
+}
+
+function highlightCustItem(){
+  const items = getCustLis();
+  items.forEach((li,i)=> li.style.background = (i===__custIdx) ? '#0e1b36' : 'transparent');
+  if(__custIdx >= 0 && items[__custIdx]){
+    items[__custIdx].scrollIntoView({ block:'nearest' });
+  }
+}
+
+// فتح أثناء الكتابة/الفوكس/الضغط
+document.getElementById('cust')?.addEventListener('input',  renderCustSuggestions);
+document.getElementById('cust')?.addEventListener('focus',  renderCustSuggestions);
+document.getElementById('cust')?.addEventListener('click',  renderCustSuggestions);
+document.getElementById('btnExportDay').onclick = exportDayPDF_Vector;
+
+
+
+// تنقّل الكيبورد داخل قائمة الزبائن
+document.getElementById('cust')?.addEventListener('keydown', (e)=>{
+  const host = document.getElementById('custSuggestions');
+  const visible = host && host.style.display === 'block';
+
+  // افتح بالقوسلة إذا مو ظاهرة
+  if(!visible && (e.key==='Enter' || e.key==='ArrowDown' || e.key==='ArrowUp')){
+    e.preventDefault();
+    renderCustSuggestions();
+    return;
+  }
+
+  if(!visible) return;
+
+  const items = getCustLis();
+  if(!items.length) return;
+
+  if(e.key === 'ArrowDown'){
+    e.preventDefault();
+    __custIdx = (__custIdx < 0) ? 0 : Math.min(items.length - 1, __custIdx + 1);
+    highlightCustItem();
+  }else if(e.key === 'ArrowUp'){
+    e.preventDefault();
+    __custIdx = (__custIdx < 0) ? items.length - 1 : Math.max(0, __custIdx - 1);
+    highlightCustItem();
+  }else if(e.key === 'Enter'){
+    e.preventDefault();
+    if(__custIdx >= 0) items[__custIdx].click();
+  }else if(e.key === 'Escape'){
+    e.preventDefault();
+    hideCustSuggestions();
+  }
+});
+
+// إغلاق إذا نقرّت برّه
+document.addEventListener('click', (ev)=>{
+  const host = document.getElementById('custSuggestions');
+  const field= document.getElementById('cust');
+  if(!host || !field) return;
+  const inside = host.contains(ev.target) || field.contains(ev.target);
+  if(!inside) hideCustSuggestions();
+});
+
+
+
+
+// ===== تصدير كل بطاقات اليوم إلى PDF (محدّثة) =====
+function exportDayPDF_Vector(){
+  // نضمن آخر رسم
+  renderBoard();
+
+  const cards = (days[selectedDay] || []);
+  if(!cards.length){ showToast('warn','ماكو بطاقات اليوم للتصدير'); return; }
+
+  const dateStr = document.getElementById('dateBadge')?.textContent || '';
+
+  // نحضر بايلود + نمرر قائمة الزبائن المعروفة
+  const payload = { dateStr, cards, known: CUSTOMERS || [] };
+
+  const w = window.open('', '_blank');
+  if(!w){ showToast('error','المتصفح منع فتح نافذة الطباعة'); return; }
+
+  const title = 'فواتير ديون — مكتب عسل';
+  const payloadJSON = JSON.stringify(payload).replace(/</g,'\\u003C'); // أمان بسيط
+
+  w.document.write(`
+    <!DOCTYPE html><html lang="ar" dir="rtl">
+    <head>
+      <meta charset="utf-8"/>
+      <meta name="viewport" content="width=device-width, initial-scale=1"/>
+      <title>${title}</title>
+      <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet" />
+      <style>
+        :root{ --ink:#111827; --muted:#6b7280; --stroke:#e5e7eb; }
+        html,body{ margin:0; padding:0; font-family:"Cairo",system-ui; color:var(--ink); }
+        .wrap{ padding:18px; }
+        .head{
+          display:flex; align-items:center; justify-content:space-between;
+          border:1px solid var(--stroke); border-radius:12px; padding:10px 12px; margin-bottom:14px;
+          background:#fafafa;
+        }
+        .title{ font-weight:900; }
+        .date{ font-size:12px; color:var(--muted); }
+        .card{
+          border:1px solid var(--stroke); border-radius:12px; padding:10px; margin-bottom:10px;
+          page-break-inside: avoid;
+        }
+        .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+        .cust{ font-weight:900; font-size:16px; display:flex; align-items:center; gap:8px; }
+        .tag{ font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--stroke); color:#374151; }
+        table{ width:100%; border-collapse:collapse; }
+        th,td{ border:1px solid var(--stroke); padding:6px 8px; font-size:12.5px; }
+        th{ background:#f5f5f5; text-align:center; }
+        td{ vertical-align:top; }
+        .center{ text-align:center; }
+        .right{ text-align:right; }
+
+        /* ===== خط على اسم المادة حسب الحالة ===== */
+        .nm.return{ text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color:#b91c1c; }
+        .nm.paid  { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color:#065f46; }
+
+        /* ===== بادج زبون جديد ===== */
+        .badge-new{
+          font-size:11px;
+          padding:2px 8px;
+          border-radius:999px;
+          border:1px solid rgba(127,29,29,.55);
+          background:linear-gradient(180deg,#7f1d1d,#4c0b0b);
+          color:#fecaca;
+          box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+        }
+
+        @media print{ .card{ break-inside: avoid; } }
+      </style>
+    </head>
+    <body>
+      <div class="wrap">
+        <div class="head">
+          <div class="title">${title}</div>
+          <div id="dateHolder" class="date"></div>
+        </div>
+        <div id="printCards"></div>
+      </div>
+      <script>
+        // البيانات المحقونة
+        const PAYLOAD = ${payloadJSON};
+
+        (function(){
+          const host = document.getElementById('printCards');
+          document.getElementById('dateHolder').textContent = PAYLOAD.dateStr || '';
+          const KNOWN = Array.isArray(PAYLOAD.known) ? PAYLOAD.known : [];
+
+          const cards = PAYLOAD.cards || [];
+          if(!cards.length){ host.innerHTML = '<div>لا توجد بطاقات اليوم</div>'; return; }
+
+          function arTime(d){ return new Date(d).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}); }
+
+          cards.forEach(card=>{
+            const box = document.createElement('div');
+            box.className = 'card';
+
+            const head = document.createElement('div');
+            head.className = 'card-head';
+
+            const left = document.createElement('div');
+            left.className = 'cust';
+
+            // اسم الزبون
+            const nm = document.createElement('span');
+            nm.textContent = card.customer || '';
+            left.appendChild(nm);
+
+            // بادج زبون جديد إذا مو موجود بالمصفوفة
+            if(card.customer && !KNOWN.includes(card.customer)){
+              const nb = document.createElement('span');
+              nb.className = 'badge-new';
+              nb.textContent = 'زبون جديد';
+              left.appendChild(nb);
+            }
+
+            const right = document.createElement('div');
+            const type = card.billType || (()=>{
+              const ts = Array.from(new Set((card.lines||[]).map(l=>l.type)));
+              return (ts.length===1) ? ts[0] : 'مختلط';
+            })();
+            const tag = document.createElement('span');
+            tag.className = 'tag';
+            tag.textContent = (type==='راجع') ? 'فاتورة راجع' : (type==='بيع') ? 'فاتورة بيع' : 'فاتورة مختلطة';
+            right.appendChild(tag);
+
+            head.append(left,right);
+            box.appendChild(head);
+
+            const tbl = document.createElement('table');
+            tbl.innerHTML = \`
+              <thead>
+                <tr>
+                  <th>الصنف</th>
+                  <th>اسم المادة</th>
+                  <th>السعر</th>
+                  <th>العدد</th>
+                  <th>ملاحظات</th>
+                  <th>الوقت</th>
+                  <th>الحالة</th>
+                </tr>
+              </thead>
+              <tbody></tbody>\`;
+            const tbody = tbl.querySelector('tbody');
+
+            (card.lines||[]).forEach(ln=>{
+              const tr = document.createElement('tr');
+              const isReturned = !!ln.returned;
+              const isPaid     = !!ln.paid;
+              const state = isReturned ? 'راجع' : (isPaid ? 'مدفوع' : '');
+              const price = (ln.price||'') ? String(ln.price).replace(/\\B(?=(\\d{3})+(?!\\d))/g, ",") : '—';
+
+              const nmClass = isReturned ? 'return' : (isPaid ? 'paid' : '');
+              const nameHTML = \`<span class="nm \${nmClass}">\${ln.item || ''}</span>\`;
+
+              tr.innerHTML = \`
+                <td class="center">\${ln.cat || '—'}</td>
+                <td class="center">\${nameHTML}</td>
+                <td class="center">\${price}</td>
+                <td class="center">× \${ln.qty || '1'}</td>
+                <td class="center">\${(ln.note && ln.note.trim()) ? ln.note : '—'}</td>
+                <td class="center">\${arTime(ln.at)}</td>
+                <td class="center">\${state}</td>\`;
+              tbody.appendChild(tr);
+            });
+
+            box.appendChild(tbl);
+            host.appendChild(box);
+          });
+
+          setTimeout(function(){ window.focus(); window.print(); }, 200);
+        })();
+      <\/script>
+    </body></html>
+  `);
+
+  w.document.close();
+  showToast('success','جاهز للطباعة — اختر "حفظ كـ PDF"');
+}
+
+
+
+
+// ===== تصدير بطاقة واحدة إلى PDF (محدّثة) =====
+function exportCardPDF_Vector(card, dayKey){
+  if(!card || !card.lines || !card.lines.length){
+    showToast('warn','هاي البطاقة فارغة');
+    return;
+  }
+
+  const theDayISO = dayKey || card.__day || selectedDay;
+  const dateStr = (function(iso){
+    try{
+      return new Date(iso).toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'2-digit',day:'2-digit'});
+    }catch{ return document.getElementById('dateBadge')?.textContent || ''; }
+  })(theDayISO);
+
+  // نمرر كذلك known: CUSTOMERS
+  const payload = { dateStr, card, known: CUSTOMERS || [] };
+
+  const w = window.open('', '_blank');
+  if(!w){ showToast('error','المتصفح منع فتح نافذة الطباعة'); return; }
+
+  const title = 'فاتورة ديون — مكتب عسل';
+  const payloadJSON = JSON.stringify(payload).replace(/</g,'\\u003C');
+
+  w.document.write(`
+    <!DOCTYPE html><html lang="ar" dir="rtl">
+    <head>
+      <meta charset="utf-8"/>
+      <meta name="viewport" content="width=device-width, initial-scale=1"/>
+      <title>${title}</title>
+      <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet" />
+      <style>
+        :root{ --ink:#111827; --muted:#6b7280; --stroke:#e5e7eb; }
+        html,body{ margin:0; padding:0; font-family:"Cairo",system-ui; color:var(--ink); }
+        .wrap{ padding:18px; }
+        .head{
+          display:flex; align-items:center; justify-content:space-between;
+          border:1px solid var(--stroke); border-radius:12px; padding:10px 12px; margin-bottom:14px;
+          background:#fafafa;
+        }
+        .title{ font-weight:900; }
+        .date{ font-size:12px; color:var(--muted); }
+        .card{
+          border:1px solid var(--stroke); border-radius:12px; padding:10px; margin-bottom:10px;
+          page-break-inside: avoid;
+        }
+        .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+        .cust{ font-weight:900; font-size:16px; display:flex; align-items:center; gap:8px; }
+        .tag{ font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--stroke); color:#374151; }
+        table{ width:100%; border-collapse:collapse; }
+        th,td{ border:1px solid var(--stroke); padding:6px 8px; font-size:12.5px; }
+        th{ background:#f5f5f5; text-align:center; }
+        td{ vertical-align:top; }
+        .center{ text-align:center; }
+        .right{ text-align:right; }
+
+        /* ===== خط على اسم المادة حسب الحالة ===== */
+        .nm.return{ text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color:#b91c1c; }
+        .nm.paid  { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color:#065f46; }
+
+        /* ===== بادج زبون جديد ===== */
+        .badge-new{
+          font-size:11px;
+          padding:2px 8px;
+          border-radius:999px;
+          border:1px solid rgba(127,29,29,.55);
+          background:linear-gradient(180deg,#7f1d1d,#4c0b0b);
+          color:#fecaca;
+          box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+        }
+
+        @media print{ .card{ break-inside: avoid; } }
+      </style>
+    </head>
+    <body>
+      <div class="wrap">
+        <div class="head">
+          <div class="title">${title}</div>
+          <div id="dateHolder" class="date"></div>
+        </div>
+        <div id="printCard"></div>
+      </div>
+      <script>
+        const PAYLOAD = ${payloadJSON};
+
+        (function(){
+          document.getElementById('dateHolder').textContent = PAYLOAD.dateStr || '';
+          const KNOWN = Array.isArray(PAYLOAD.known) ? PAYLOAD.known : [];
+
+          const host = document.getElementById('printCard');
+          const card = PAYLOAD.card;
+
+          const box = document.createElement('div');
+          box.className = 'card';
+
+          const head = document.createElement('div');
+          head.className = 'card-head';
+
+          const left = document.createElement('div');
+          left.className = 'cust';
+
+          // اسم الزبون
+          const nm = document.createElement('span');
+          nm.textContent = card.customer || '';
+          left.appendChild(nm);
+
+          // بادج زبون جديد إذا مو معروف
+          if(card.customer && !KNOWN.includes(card.customer)){
+            const nb = document.createElement('span');
+            nb.className = 'badge-new';
+            nb.textContent = 'زبون جديد';
+            left.appendChild(nb);
+          }
+
+          const right = document.createElement('div');
+          const type = card.billType || (()=>{
+            const ts = Array.from(new Set((card.lines||[]).map(l=>l.type)));
+            return (ts.length===1) ? ts[0] : 'مختلط';
+          })();
+          const tag = document.createElement('span');
+          tag.className = 'tag';
+          tag.textContent = (type==='راجع') ? 'فاتورة راجع' : (type==='بيع') ? 'فاتورة بيع' : 'فاتورة مختلطة';
+          right.appendChild(tag);
+
+          head.append(left,right);
+          box.appendChild(head);
+
+          const tbl = document.createElement('table');
+          tbl.innerHTML = \`
+            <thead>
+              <tr>
+                <th>الصنف</th>
+                <th>اسم المادة</th>
+                <th>السعر</th>
+                <th>العدد</th>
+                <th>ملاحظات</th>
+                <th>الوقت</th>
+                <th>الحالة</th>
+              </tr>
+            </thead>
+            <tbody></tbody>\`;
+          const tbody = tbl.querySelector('tbody');
+
+          function arTime(d){ return new Date(d).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}); }
+
+          (card.lines||[]).forEach(ln=>{
+            const tr = document.createElement('tr');
+            const isReturned = !!ln.returned;
+            const isPaid     = !!ln.paid;
+            const state = isReturned ? 'راجع' : (isPaid ? 'مدفوع' : '');
+            const price = (ln.price||'') ? String(ln.price).replace(/\\B(?=(\\d{3})+(?!\\d))/g, ",") : '—';
+
+            const nmClass = isReturned ? 'return' : (isPaid ? 'paid' : '');
+            const nameHTML = \`<span class="nm \${nmClass}">\${ln.item || ''}</span>\`;
+
+            tr.innerHTML = \`
+              <td class="center">\${ln.cat || '—'}</td>
+              <td class="center">\${nameHTML}</td>
+              <td class="center">\${price}</td>
+              <td class="center">× \${ln.qty || '1'}</td>
+              <td class="center">\${(ln.note && ln.note.trim()) ? ln.note : '—'}</td>
+              <td class="center">\${arTime(ln.at)}</td>
+              <td class="center">\${state}</td>\`;
+            tbody.appendChild(tr);
+          });
+
+          box.appendChild(tbl);
+          host.appendChild(box);
+
+          setTimeout(function(){ window.focus(); window.print(); }, 200);
+        })();
+      <\/script>
+    </body></html>
+  `);
+
+  w.document.close();
+  showToast('success','جاهز لطباعة البطاقة — اختر "حفظ كـ PDF"');
+}
+
+
+
+
+
+
+
+
+
+
+// ربط الأزرار والملف
+const btnExportAll = document.getElementById('btnExportAll');
+const btnImportAll = document.getElementById('btnImportAll');
+const importInput  = document.getElementById('importFile');
+
+document.getElementById('btnNextDay')?.addEventListener('click', openNextDayFromToday);
+
+
+btnExportAll && (btnExportAll.onclick = exportInvoices);
+btnImportAll && (btnImportAll.onclick = () => importInput && importInput.click());
+
+importInput && (importInput.onchange = (e) => {
+  const file = e.target.files?.[0];
+  if(file) importInvoicesFromFile(file);
+  e.target.value = ''; // حتى تقدر تختار نفس الملف مرة ثانية
+});
+
+
+
+// ===== تصدير/استيراد كل الفواتير (JSON) =====
+// نستخدم نفس مفاتيح التخزين عندك
+// STORAGE = 'assal:board:v3' | NAMES = 'assal:names:v3'
+// المتغيرات days / names موجودة ومحمّلة سابقًا
+
+function exportInvoices(){
+  try{
+    const payload = {
+      version: 3,
+      exportedAt: new Date().toISOString(),
+      days : days || {},   // كل الأيام والبطاقات
+      names: names || []   // إن كانت تستخدمها لاحقًا
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const d = new Date().toISOString().slice(0,10); // YYYY-MM-DD
+    a.download = `assal-bills-backup-${d}.json`;
+    document.body.appendChild(a);
+    a.click();
+    URL.revokeObjectURL(a.href);
+    a.remove();
+    showToast?.('success','تم تصدير الفواتير كـ JSON');
+  }catch(err){
+    console.error(err);
+    showToast?.('error','تعذّر التصدير');
+  }
+}
+
+async function importInvoicesFromFile(file){
+  if(!file) return;
+  try{
+    const text = await file.text();
+    let data = JSON.parse(text);
+
+    // ندعم شكلين: {days,names,...} الحديث، أو مباشرة كائن الأيام (قديم)
+    if(data && typeof data === 'object'){
+      if(data.days){
+        localStorage.setItem(STORAGE, JSON.stringify(data.days || {}));
+        localStorage.setItem(NAMES,   JSON.stringify(data.names || []));
+      }else{
+        localStorage.setItem(STORAGE, JSON.stringify(data));
+      }
+      showToast?.('success','تم الاستيراد — إعادة تحميل الصفحة');
+      setTimeout(()=> hardReload(), 400);
+    }else{
+      showToast?.('error','ملف غير صالح');
+    }
+  }catch(err){
+    console.error(err);
+    showToast?.('error','تعذّر قراءة الملف');
+  }
+}
+
+
+
+// يرجّع 'YYYY-MM-DD' بعد n أيام من ISO معيّن
+function addDaysISO(iso, n=1){
+  try{
+    const d = new Date(iso);
+    d.setDate(d.getDate() + n);
+    return d.toISOString().slice(0,10);
+  }catch{ 
+    const t = new Date(); t.setDate(t.getDate()+n);
+    return t.toISOString().slice(0,10);
+  }
+}
+
+// افتح يوم "باجر" بالنسبة لتاريخ اليوم الحقيقي (TODAY)
+function openNextDayFromToday(){
+  const nextISO = addDaysISO(TODAY, 1);      // باجر
+  selectedDay = nextISO;
+
+  // إذا اليوم ما موجود بالقائمة، سوّي مصفوفة فارغة
+  if(!days[selectedDay]) days[selectedDay] = [];
+
+  // خزّن التغيير (حتى إذا أضفت مواد فورًا تبقى على نفس المفتاح)
+  save();
+
+  // حدّث شارة التاريخ بالهيدر حتى توضح إنّه على اليوم التالي
+  const badge = document.getElementById('dateBadge');
+  if(badge){
+    badge.textContent = arDateWithDay(selectedDay) + ' — (اليوم التالي)';
+  }
+
+  renderBoard();
+  renderRail();
+  refreshStats();
+
+  showToast('info','تم فتح فاتورة اليوم التالي');
+}
+
+
+
+
+
+    /* ===== Init ===== */
+
+
+(function init(){
+  document.getElementById('dateBadge').textContent = arDateWithDay(TODAY);
+  // --- سطر جديد: حمّل قاعدة الأصناف من الشيت ---
+  loadExcelFiles();
+  // ----------------------------------------------
+  rebuildNames(); renderBoard(); renderRail(); refreshStats();
+})();
+
+
+
+
+
+  </script>
+</body>
+</html>
