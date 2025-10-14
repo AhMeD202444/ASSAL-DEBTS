@@ -3669,21 +3669,20 @@ function openNextDayFromToday(){
 
 (function(){
   const baseTitle = document.title;
-  const mark = t => document.title = `${t} ${baseTitle}`;
+  const mark = tag => document.title = `${tag} ${baseTitle}`;
   const unmark = () => document.title = baseTitle;
 
-  const byId = id => document.getElementById(id);
-  byId('cust')?.addEventListener('focus', ()=> mark('[cust]'));
-  byId('item')?.addEventListener('focus', ()=> mark('[item]'));
-  byId('note')?.addEventListener('focus', ()=> mark('[note]'));
+  const $ = id => document.getElementById(id);
+  $('cust')?.addEventListener('focus', ()=> mark('[cust]'));
+  $('item')?.addEventListener('focus', ()=> mark('[item]'));
+  $('note')?.addEventListener('focus', ()=> mark('[note]'));
 
-  byId('cust')?.addEventListener('blur', unmark);
-  byId('item')?.addEventListener('blur', unmark);
-  byId('note')?.addEventListener('blur', unmark);
+  $('cust')?.addEventListener('blur',  unmark);
+  $('item')?.addEventListener('blur',  unmark);
+  $('note')?.addEventListener('blur',  unmark);
 })();
-
-
 
   </script>
 </body>
 </html>
+
