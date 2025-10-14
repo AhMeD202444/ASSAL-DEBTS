@@ -3668,21 +3668,60 @@ function openNextDayFromToday(){
 
 
 (function(){
-  const baseTitle = document.title;
-  const mark = tag => document.title = `${tag} ${baseTitle}`;
-  const unmark = () => document.title = baseTitle;
+  // شيل أي وسوم قديمة من العنوان وخلي أساس ثابت
+  const clean = s => String(s||"").replace(/\s*\[(cust|item|note|filter|c-note)\]\s*/gi, "").trim();
+  const baseTitle = clean(document.title);
 
-  const $ = id => document.getElementById(id);
-  $('cust')?.addEventListener('focus', ()=> mark('[cust]'));
-  $('item')?.addEventListener('focus', ()=> mark('[item]'));
-  $('note')?.addEventListener('focus', ()=> mark('[note]'));
+  function markTag(tag){
+    document.title = `${baseTitle} ${tag}`;
+  }
+  function clearTag(){
+    document.title = baseTitle;
+  }
 
-  $('cust')?.addEventListener('blur',  unmark);
-  $('item')?.addEventListener('blur',  unmark);
-  $('note')?.addEventListener('blur',  unmark);
+  // ===== حقول الـ Dock (ثابتة) =====
+  const cust = document.getElementById('cust');   // اسم الزبون → عربي
+  const item = document.getElementById('item');   // اسم المادة → إنكليزي
+  const note = document.getElementById('note');   // الملاحظات (Dock) → عربي
+  const cardSearch = document.getElementById('cardSearch'); // فلترة الكروت → عربي
+
+  cust && cust.addEventListener('focus', ()=> markTag('[cust]'));
+  cust && cust.addEventListener('blur',  ()=> clearTag());
+
+  item && item.addEventListener('focus', ()=> markTag('[item]'));
+  item && item.addEventListener('blur',  ()=> clearTag());
+
+  note && note.addEventListener('focus', ()=> markTag('[note]'));
+  note && note.addEventListener('blur',  ()=> clearTag());
+
+  cardSearch && cardSearch.addEventListener('focus', ()=> markTag('[filter]'));
+  cardSearch && cardSearch.addEventListener('blur',  ()=> clearTag());
+
+  // ===== ملاحظات داخل الكروت (تنشأ ديناميكياً) =====
+  // عنصر الإدخال داخل البطاقة: input.note-input-sm
+  document.addEventListener('focusin', (e)=>{
+    if(e.target?.classList?.contains('note-input-sm')){
+      markTag('[c-note]');
+    }
+  });
+  document.addEventListener('focusout', (e)=>{
+    if(e.target?.classList?.contains('note-input-sm')){
+      clearTag();
+    }
+  });
+
+  // حماية: لو تغيّر العنوان لسبب آخر، نظّفه كل 3 ثواني
+  setInterval(()=>{
+    const t = document.title;
+    const cleaned = clean(t);
+    if (t !== cleaned && !/\[(cust|item|note|filter|c-note)\]/i.test(t)) {
+      document.title = cleaned;
+    }
+  }, 3000);
 })();
 
   </script>
 </body>
 </html>
+
 
