@@ -1174,9 +1174,42 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
 
 
 
+/* ===== توسيع لوحة الكروت بتصغير الأعمدة الجانبية (العرضين متطابقين – أَعْرَض) ===== */
+.layout{
+  /* كان: 280px 1fr 320px */
+  grid-template-columns: 260px 1fr 260px !important; /* يسار = يمين (أعرض) */
+}
 
-   
-    
+/* على الشاشات المتوسطة */
+@media (max-width:1280px){
+  .layout{
+    /* كان: 240px 1fr 280px */
+    grid-template-columns: 240px 1fr 240px !important; /* يسار = يمين (أعرض) */
+  }
+}
+
+/* توازن الحشوات */
+.rail, .insights{
+  padding: 12px !important;
+}
+.rail .search{ margin: 6px 0 !important; }
+.stat{ padding: 8px !important; }
+
+/* عناصر الأيام – رجّعناها شوي أوسع */
+.day{ padding: 8px 12px !important; }
+.day .title{ font-size: 13px !important; }
+.day .meta{ font-size: 11.5px !important; }
+
+/* الدوك: بقاء مع توسيع بسيط إذا تحتاج عرض إضافي */
+.dock{
+  max-width: 1480px !important;
+  width: calc(100vw - 80px) !important;
+}
+
+
+
+
+
   </style>
 </head>
 
@@ -3723,5 +3756,4 @@ function openNextDayFromToday(){
   </script>
 </body>
 </html>
-
 
