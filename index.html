@@ -3667,6 +3667,22 @@ function openNextDayFromToday(){
 
 
 
+(function(){
+  const baseTitle = document.title;
+  const mark = t => document.title = `${t} ${baseTitle}`;
+  const unmark = () => document.title = baseTitle;
+
+  const byId = id => document.getElementById(id);
+  byId('cust')?.addEventListener('focus', ()=> mark('[cust]'));
+  byId('item')?.addEventListener('focus', ()=> mark('[item]'));
+  byId('note')?.addEventListener('focus', ()=> mark('[note]'));
+
+  byId('cust')?.addEventListener('blur', unmark);
+  byId('item')?.addEventListener('blur', unmark);
+  byId('note')?.addEventListener('blur', unmark);
+})();
+
+
 
   </script>
 </body>
