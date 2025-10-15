@@ -1460,11 +1460,6 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
   <script>
     
     
-    // === ASSAL • Google Sheets Sync (Config) ===
-const API_URL = 'https://script.google.com/macros/s/AKfycbxCqdTX2iGDj0ubIt_qSda3tYf1avEhabZcnR8OEjym6LK_3nsypeU_na5C0PSitFVK/exec';
-const API_KEY = 'test123';
-    
-    
     // ===== Excel DB (تحميل جوجل شيت) =====
 let database = {};   // نخزّن بيه جداول الأصناف
 
@@ -1504,60 +1499,18 @@ async function loadExcelFiles(){
 }
 
 
-
-// === ASSAL • Google Sheets Sync (Functions) ===
-async function fetchDay(day){
-  const url = `${API_URL}?action=getday&day=${encodeURIComponent(day)}&key=${API_KEY}`;
-  const r = await fetch(url);
-  const j = await r.json();
-  if(!j.ok) throw new Error(j.error||'fetch error');
-  return j.data; // { day, cards, dayVersion }
-}
-
-async function saveDay(day, cards){
-  const r = await fetch(API_URL, {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ action:'replaceday', key: API_KEY, day, cards })
-  });
-  const j = await r.json();
-  if(!j.ok) throw new Error(j.error||'save error');
-  return j.data; // { saved:true, dayVersion }
-}
-
-// جلب يوم من السيرفر وتحديث الواجهة
-async function syncFromServer(day){
-  try{
-    const d = await fetchDay(day);
-    days[day] = d.cards || [];
-    save(); queueServerSave(); renderBoard(); renderRail(); refreshStats();
-    showToast('success','تم جلب بيانات اليوم من الشيت');
-  }catch(e){
-    showToast('warn','تعذّر الجلب من الشيت');
-  }
-}
-
-// طابور حفظ خفيف حتى لا نحفظ كل ضغطة
-let saveTimer=null;
-function queueServerSave(){
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(async ()=>{
-    try{
-      await saveDay(selectedDay, days[selectedDay]||[]);
-      showToast('success','تم حفظ اليوم على الشيت');
-    }catch(e){
-      showToast('error','تعذّر الحفظ على الشيت');
-    }
-  }, 400);
-}
-
-
-
-
-
-Object.defineProperty(window, 'days', { get(){ return days; } });
-Object.defineProperty(window, 'selectedDay', { get(){ return selectedDay; } });
-
+Object.defineProperty(window, 'days', {
+  get(){ return days; },
+  set(v){ days = v; }
+});
+Object.defineProperty(window, 'names', {
+  get(){ return names; },
+  set(v){ names = v; }
+});
+Object.defineProperty(window, 'selectedDay', {
+  get(){ return selectedDay; },
+  set(v){ selectedDay = v; }
+});
 
 
 
@@ -2030,7 +1983,18 @@ const CUSTOMERS = [
     let selectedDay = todayISO();
 
     function load(k, d){ try{ return JSON.parse(localStorage.getItem(k)||JSON.stringify(d)); }catch{ return d; } }
-    function save(){ localStorage.setItem(STORAGE, JSON.stringify(days)); }
+   
+   
+   
+   function save(){
+  localStorage.setItem(STORAGE, JSON.stringify(days));
+  // مزامنة سحابية مهدّأة (إذا الـmodule جاهز)
+  window.cloudSaveDebounced?.();
+}
+
+   
+   
+   
     function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
   /* ====== Enter Navigation (جديد) ====== */
@@ -2263,7 +2227,6 @@ document.getElementById('btnAdd').onclick = () => {
   });
 
   save();
-  queueServerSave();
 
 
   document.getElementById('item').value = '';
@@ -2473,14 +2436,14 @@ priceInput?.addEventListener('blur', ()=>{
         ln.returned = !ln.returned;
         if(ln.returned) ln.paid = false;
         card.paidAll = false;
-        save(); queueServerSave(); renderBoard(); renderRail(); refreshStats();
+        save(); renderBoard(); renderRail(); refreshStats();
         showToast(ln.returned ? 'warn' : 'info', ln.returned ? 'تم تعليمها راجع' : 'تم إلغاء الراجع');
       };
 
       btnPay.onclick = ()=>{
         ln.paid = !ln.paid;
         if(ln.paid) ln.returned = false;
-        save(); queueServerSave(); renderBoard(); renderRail(); refreshStats();
+        save(); renderBoard(); renderRail(); refreshStats();
         showToast(ln.paid ? 'success' : 'info', ln.paid ? 'تم تسديد المادة' : 'تم إلغاء التسديد');
       };
 
@@ -2493,7 +2456,7 @@ priceInput?.addEventListener('blur', ()=>{
           danger:true
         });
         if(!ok) return;
-        card.lines.splice(li,1); save(); queueServerSave();
+        card.lines.splice(li,1); save();
         renderBoard(); renderRail(); refreshStats();
         showToast('error', 'تم حذف المادة');
       };
@@ -2632,7 +2595,7 @@ btnPdf.onclick = ()=>{
       active.forEach(l => { l.paid = makePaid; });
       card.paidAll = allActivePaid(card);
 
-      save(); queueServerSave(); renderBoard(); renderRail(); refreshStats();
+      save(); renderBoard(); renderRail(); refreshStats();
       showToast(makePaid ? 'success' : 'info', makePaid ? 'تم تسديد كل المواد' : 'تم إلغاء تسديد الكل');
     };
 
@@ -2653,7 +2616,7 @@ btnPdf.onclick = ()=>{
       const dayKey = card.__day || selectedDay;
       const arrRef = (days[dayKey]||[]);
       const idx = arrRef.findIndex(c => c.id === card.id);
-      if(idx > -1){ arrRef.splice(idx,1); save(); queueServerSave(); }
+      if(idx > -1){ arrRef.splice(idx,1); save(); }
 
       renderBoard(); renderRail(); refreshStats();
       showToast('error', 'تم حذف البطاقة');
@@ -2754,7 +2717,7 @@ function addCardNote(viewCard, text){
   // حدّث آخر نشاط (يفيد بالفرز حسب updatedAt إن موجود)
   real.updatedAt = new Date().toISOString();
 
-  save(); queueServerSave();
+  save();
   return true;
 }
 
@@ -2773,7 +2736,7 @@ function deleteCardNote(viewCard, noteId){
   viewCard.notes = real.notes;
 
   real.updatedAt = new Date().toISOString();
-  save(); queueServerSave();
+  save();
   return true;
 }
 
@@ -2998,7 +2961,7 @@ function renderRail(){
   });
   if(!ok) return;
   days[selectedDay] = [];
-  save(); queueServerSave(); renderBoard(); refreshStats();
+  save(); renderBoard(); refreshStats();
   showToast('error', 'تم تفريغ اليوم');
 };
 
@@ -3017,8 +2980,7 @@ function refreshWithOverlay(){
   setTimeout(hardReload, 300);
 }
 
-document.getElementById('btnRefresh').onclick = ()=> syncFromServer(selectedDay);
-
+document.getElementById('btnRefresh').onclick = refreshWithOverlay;
 
 
 
@@ -3757,7 +3719,7 @@ function openNextDayFromToday(){
   if(!days[selectedDay]) days[selectedDay] = [];
 
   // خزّن التغيير (حتى إذا أضفت مواد فورًا تبقى على نفس المفتاح)
-  save(); queueServerSave();
+  save();
 
   // حدّث شارة التاريخ بالهيدر حتى توضح إنّه على اليوم التالي
   const badge = document.getElementById('dateBadge');
@@ -3781,13 +3743,11 @@ function openNextDayFromToday(){
 
 (function init(){
   document.getElementById('dateBadge').textContent = arDateWithDay(TODAY);
+  // --- سطر جديد: حمّل قاعدة الأصناف من الشيت ---
   loadExcelFiles();
-  // ⬇️ جلب بيانات اليوم من الشيت عند الفتح
-  syncFromServer(TODAY);
-
+  // ----------------------------------------------
   rebuildNames(); renderBoard(); renderRail(); refreshStats();
 })();
-
 
 
 
@@ -3856,8 +3816,12 @@ function openNextDayFromToday(){
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut }
     from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
-  import { getFirestore, doc, getDoc }
-    from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+ 
+ 
+ import {
+  getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+
 
   // كونفِغ مشروعك (نفس اللي أعطيتني)
   const firebaseConfig = {
@@ -3873,6 +3837,112 @@ function openNextDayFromToday(){
   const app  = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db   = getFirestore(app);
+  
+  
+  
+  // ====== إعداد مستند مشترك للمزامنة (وثيقة واحدة لكل الجميع) ======
+const SHARED_DOC = doc(db, "boards", "assal-v1"); // تقدر تغيّر الاسم
+
+// حمايات داخلية حتى ما نسوي حلقات لا نهائية
+let __cloudApplying = false;      // دا نطبّق تحديث جاي من السحابة
+let __saveTimer = null;           // Debounce للحفظ
+let __unsubscribeCloud = null;    // حتى نكطع الاشتراك عند تسجيل الخروج
+
+// حساب "آخر تعديل محلي" ببساطة من الكروت
+function guessLocalUpdatedAt(){
+  try{
+    const localDays = window.days || {};
+    const allCards = Object.values(localDays).flat();
+    const times = allCards
+      .map(c => +new Date(c.updatedAt || c.createdAt || 0))
+      .filter(Boolean);
+    return Math.max(0, ...(times.length ? times : [0]));
+  }catch{ return 0; }
+}
+
+// حفظ سحابي مهدّأ (كل تغيير يتأخر شوي حتى ما نطرّك السحابة)
+function cloudSaveDebounced(){
+  if(__cloudApplying) return; // إذا هسه دا نطبّق من السحابة، لا ترفع فورًا
+  clearTimeout(__saveTimer);
+  __saveTimer = setTimeout(cloudSaveNow, 450);
+}
+
+// حفظ فوري للسحابة
+async function cloudSaveNow(){
+  try{
+    await setDoc(SHARED_DOC, {
+      days:  window.days  || {},
+      names: window.names || [],
+      updatedAt: Date.now(),          // طابع وقت عددي (للمقارنة السريعة)
+      updatedAtTs: serverTimestamp()  // طابع من سيرفر فايربيس (اختياري)
+    }, { merge: true });
+    // تقدر تعرض Toast إذا تحب
+    // showToast?.('success','تمت مزامنة السحابة');
+  }catch(e){
+    console.error('cloudSave error', e);
+    // showToast?.('error','تعذّرت مزامنة السحابة');
+  }
+}
+
+// قراءة أولية من السحابة (إذا أحدث من المحلي)
+async function cloudLoadOnce(){
+  try{
+    const snap = await getDoc(SHARED_DOC);
+    if(!snap.exists()) return; // أول مرة – ماكو مستند بعد
+    const data = snap.data() || {};
+    const localUpdated = guessLocalUpdatedAt();
+    if((data.updatedAt || 0) > localUpdated){
+      __cloudApplying = true;
+      window.days  = data.days  || {};
+      window.names = data.names || [];
+      // خزن محلي حتى تبقى بدون نت
+      localStorage.setItem('assal:board:v3', JSON.stringify(window.days));
+      localStorage.setItem('assal:names:v3', JSON.stringify(window.names));
+      // حدّث الواجهة
+      renderBoard(); renderRail(); refreshStats();
+      __cloudApplying = false;
+    }
+  }catch(e){
+    console.error('cloudLoad error', e);
+  }
+}
+
+// اشتراك Realtime: أي تحديث من غيرك ينزل فوراً
+function cloudSubscribe(){
+  // إذا أكو اشتراك سابق، الغه
+  __unsubscribeCloud?.();
+  __unsubscribeCloud = onSnapshot(SHARED_DOC, (snap)=>{
+    if(!snap.exists()) return;
+    const data = snap.data() || {};
+    const localUpdated = guessLocalUpdatedAt();
+    if((data.updatedAt || 0) > localUpdated){
+      __cloudApplying = true;
+      window.days  = data.days  || {};
+      window.names = data.names || [];
+      localStorage.setItem('assal:board:v3', JSON.stringify(window.days));
+      localStorage.setItem('assal:names:v3', JSON.stringify(window.names));
+      renderBoard(); renderRail(); refreshStats();
+      __cloudApplying = false;
+      // showToast?.('info','تم التحديث من السحابة');
+    }
+  });
+}
+
+// إلغاء الاشتراك (عند تسجيل خروج مثلًا)
+function cloudUnsubscribe(){
+  __unsubscribeCloud?.();
+  __unsubscribeCloud = null;
+}
+
+// نعرّفهم على window حتى نكدر نناديهم من السكربت العادي
+window.cloudSaveDebounced = cloudSaveDebounced;
+window.cloudSaveNow       = cloudSaveNow;
+window.cloudLoadOnce      = cloudLoadOnce;
+window.cloudSubscribe     = cloudSubscribe;
+window.cloudUnsubscribe   = cloudUnsubscribe;
+
+  
+  
 
   // عناصر البوابة
   const gate = document.getElementById('loginGate');
@@ -3938,6 +4008,7 @@ btnEl?.addEventListener('click', async ()=>{
   try{
     const { user } = await signInWithEmailAndPassword(auth, email, pass);
     if(!(await isAllowed(user.email))){
+        cloudUnsubscribe();          // تأكيد قطع الاستماع إذا كان مفعل
       await signOut(auth);
       showGate('هذا الإيميل غير مخوّل بالدخول');
       return;
@@ -3955,6 +4026,8 @@ btnEl?.addEventListener('click', async ()=>{
 btnLogout?.addEventListener('click', async ()=>{
   showSplash();
   try{
+    
+     cloudUnsubscribe();          // اقطع الاستماع قبل ما نطلع
     await signOut(auth);
     setSignedOutUI();
     showGate('');
@@ -3968,6 +4041,7 @@ onAuthStateChanged(auth, async (user)=>{
   showSplash();
   try{
     if(!user){
+     cloudUnsubscribe();            // قطع الاستماع من السحابة إذا موجود
       setSignedOutUI();
       showGate('');
       return;
@@ -3976,8 +4050,14 @@ onAuthStateChanged(auth, async (user)=>{
     if(ok){
       hideGate();
       setSignedInUI(user);
+      
+      await cloudLoadOnce();   // جيب نسخة السحابة إذا أحدث من المحلي
+cloudSubscribe();        // فعّل الاستماع اللحظي
+
+      
     }else{
       await signOut(auth);
+      cloudUnsubscribe();   // ← قطع الاشتراك
       setSignedOutUI();
       showGate('الإيميل غير مخوّل');
     }
