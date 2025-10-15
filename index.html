@@ -1231,6 +1231,11 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
       <div class="r-right">
         <button class="icon" id="btnRefresh" title="تحديث"><i class="fa-solid fa-rotate-right"></i></button>
         <button class="icon" id="btnSearch" title="بحث"><i class="fa-solid fa-magnifying-glass"></i></button>
+        <button class="icon" id="btnLogout" title="تسجيل خروج" style="display:none">
+                <i class="fa-solid fa-right-from-bracket"></i>
+        </button>
+        <!-- شارة تعرض الإيميل عند تسجيل الدخول -->
+       <span id="userBadge" class="pill" style="display:none"></span>
         
         <button class="icon" id="btnExportAll" title="تصدير الفواتير">
   <i class="fa-solid fa-file-export"></i>
@@ -1424,7 +1429,40 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
 <input type="file" id="importFile" accept="application/json" style="display:none">
 
 
+
+<!-- Gate: شاشة تسجيل الدخول -->
+<div id="loginGate" style="
+  position:fixed; inset:0; z-index:99999;
+  background:#0b1220; display:none; place-items:center;
+">
+  <div style="width:min(360px,90vw);padding:16px;border:1px solid #1f2a44;border-radius:14px;
+              background:#0f172a;color:#e5e7eb; display:flex; flex-direction:column; gap:10px">
+    <h3 style="margin:0 0 6px 0; font-weight:900">تسجيل الدخول</h3>
+    <input id="lgEmail" type="email" class="field" placeholder="الإيميل">
+    <input id="lgPass"  type="password" class="field" placeholder="كلمة السر">
+    <button id="lgBtn"  class="btn primary" style="width:100%">دخول</button>
+    <div id="lgMsg" style="min-height:18px;color:#fda4af;font-size:12px"></div>
+  </div>
+</div>
+
+<!-- Auth Splash: يظهر لحين حسم حالة الجلسة -->
+<div id="authSplash" class="loading active" aria-live="polite" aria-atomic="true">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <div style="font-weight:800">جاري التحقق من الجلسة…</div>
+  </div>
+</div>
+
+
+
+
+
   <script>
+    
+    
+    // === ASSAL • Google Sheets Sync (Config) ===
+const API_URL = 'https://script.google.com/macros/s/AKfycbxCqdTX2iGDj0ubIt_qSda3tYf1avEhabZcnR8OEjym6LK_3nsypeU_na5C0PSitFVK/exec';
+const API_KEY = 'test123';
     
     
     // ===== Excel DB (تحميل جوجل شيت) =====
@@ -1464,6 +1502,56 @@ async function loadExcelFiles(){
     showToast?.('error','تعذر تحميل بيانات الأصناف');
   }
 }
+
+
+
+// === ASSAL • Google Sheets Sync (Functions) ===
+async function fetchDay(day){
+  const url = `${API_URL}?action=getday&day=${encodeURIComponent(day)}&key=${API_KEY}`;
+  const r = await fetch(url);
+  const j = await r.json();
+  if(!j.ok) throw new Error(j.error||'fetch error');
+  return j.data; // { day, cards, dayVersion }
+}
+
+async function saveDay(day, cards){
+  const r = await fetch(API_URL, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ action:'replaceday', key: API_KEY, day, cards })
+  });
+  const j = await r.json();
+  if(!j.ok) throw new Error(j.error||'save error');
+  return j.data; // { saved:true, dayVersion }
+}
+
+// جلب يوم من السيرفر وتحديث الواجهة
+async function syncFromServer(day){
+  try{
+    const d = await fetchDay(day);
+    days[day] = d.cards || [];
+    save(); queueServerSave(); renderBoard(); renderRail(); refreshStats();
+    showToast('success','تم جلب بيانات اليوم من الشيت');
+  }catch(e){
+    showToast('warn','تعذّر الجلب من الشيت');
+  }
+}
+
+// طابور حفظ خفيف حتى لا نحفظ كل ضغطة
+let saveTimer=null;
+function queueServerSave(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async ()=>{
+    try{
+      await saveDay(selectedDay, days[selectedDay]||[]);
+      showToast('success','تم حفظ اليوم على الشيت');
+    }catch(e){
+      showToast('error','تعذّر الحفظ على الشيت');
+    }
+  }, 400);
+}
+
+
 
 
 
@@ -2175,6 +2263,7 @@ document.getElementById('btnAdd').onclick = () => {
   });
 
   save();
+  queueServerSave();
 
 
   document.getElementById('item').value = '';
@@ -2384,14 +2473,14 @@ priceInput?.addEventListener('blur', ()=>{
         ln.returned = !ln.returned;
         if(ln.returned) ln.paid = false;
         card.paidAll = false;
-        save(); renderBoard(); renderRail(); refreshStats();
+        save(); queueServerSave(); renderBoard(); renderRail(); refreshStats();
         showToast(ln.returned ? 'warn' : 'info', ln.returned ? 'تم تعليمها راجع' : 'تم إلغاء الراجع');
       };
 
       btnPay.onclick = ()=>{
         ln.paid = !ln.paid;
         if(ln.paid) ln.returned = false;
-        save(); renderBoard(); renderRail(); refreshStats();
+        save(); queueServerSave(); renderBoard(); renderRail(); refreshStats();
         showToast(ln.paid ? 'success' : 'info', ln.paid ? 'تم تسديد المادة' : 'تم إلغاء التسديد');
       };
 
@@ -2404,7 +2493,7 @@ priceInput?.addEventListener('blur', ()=>{
           danger:true
         });
         if(!ok) return;
-        card.lines.splice(li,1); save();
+        card.lines.splice(li,1); save(); queueServerSave();
         renderBoard(); renderRail(); refreshStats();
         showToast('error', 'تم حذف المادة');
       };
@@ -2543,7 +2632,7 @@ btnPdf.onclick = ()=>{
       active.forEach(l => { l.paid = makePaid; });
       card.paidAll = allActivePaid(card);
 
-      save(); renderBoard(); renderRail(); refreshStats();
+      save(); queueServerSave(); renderBoard(); renderRail(); refreshStats();
       showToast(makePaid ? 'success' : 'info', makePaid ? 'تم تسديد كل المواد' : 'تم إلغاء تسديد الكل');
     };
 
@@ -2564,7 +2653,7 @@ btnPdf.onclick = ()=>{
       const dayKey = card.__day || selectedDay;
       const arrRef = (days[dayKey]||[]);
       const idx = arrRef.findIndex(c => c.id === card.id);
-      if(idx > -1){ arrRef.splice(idx,1); save(); }
+      if(idx > -1){ arrRef.splice(idx,1); save(); queueServerSave(); }
 
       renderBoard(); renderRail(); refreshStats();
       showToast('error', 'تم حذف البطاقة');
@@ -2665,7 +2754,7 @@ function addCardNote(viewCard, text){
   // حدّث آخر نشاط (يفيد بالفرز حسب updatedAt إن موجود)
   real.updatedAt = new Date().toISOString();
 
-  save();
+  save(); queueServerSave();
   return true;
 }
 
@@ -2684,7 +2773,7 @@ function deleteCardNote(viewCard, noteId){
   viewCard.notes = real.notes;
 
   real.updatedAt = new Date().toISOString();
-  save();
+  save(); queueServerSave();
   return true;
 }
 
@@ -2909,7 +2998,7 @@ function renderRail(){
   });
   if(!ok) return;
   days[selectedDay] = [];
-  save(); renderBoard(); refreshStats();
+  save(); queueServerSave(); renderBoard(); refreshStats();
   showToast('error', 'تم تفريغ اليوم');
 };
 
@@ -2928,7 +3017,8 @@ function refreshWithOverlay(){
   setTimeout(hardReload, 300);
 }
 
-document.getElementById('btnRefresh').onclick = refreshWithOverlay;
+document.getElementById('btnRefresh').onclick = ()=> syncFromServer(selectedDay);
+
 
 
 
@@ -3667,7 +3757,7 @@ function openNextDayFromToday(){
   if(!days[selectedDay]) days[selectedDay] = [];
 
   // خزّن التغيير (حتى إذا أضفت مواد فورًا تبقى على نفس المفتاح)
-  save();
+  save(); queueServerSave();
 
   // حدّث شارة التاريخ بالهيدر حتى توضح إنّه على اليوم التالي
   const badge = document.getElementById('dateBadge');
@@ -3691,11 +3781,13 @@ function openNextDayFromToday(){
 
 (function init(){
   document.getElementById('dateBadge').textContent = arDateWithDay(TODAY);
-  // --- سطر جديد: حمّل قاعدة الأصناف من الشيت ---
   loadExcelFiles();
-  // ----------------------------------------------
+  // ⬇️ جلب بيانات اليوم من الشيت عند الفتح
+  syncFromServer(TODAY);
+
   rebuildNames(); renderBoard(); renderRail(); refreshStats();
 })();
+
 
 
 
@@ -3753,7 +3845,151 @@ function openNextDayFromToday(){
   }, 3000);
 })();
 
+
+
   </script>
+  
+  
+  
+<script type="module">
+  // ===== Firebase (ES Modules) =====
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut }
+    from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+  import { getFirestore, doc, getDoc }
+    from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+
+  // كونفِغ مشروعك (نفس اللي أعطيتني)
+  const firebaseConfig = {
+    apiKey: "AIzaSyACIkf1KHXOiM_hAoNHT1CnxFAr-joo7oM",
+    authDomain: "assal-debts.firebaseapp.com",
+    projectId: "assal-debts",
+    storageBucket: "assal-debts.firebasestorage.app",
+    messagingSenderId: "329153281725",
+    appId: "1:329153281725:web:1b69678fde727f3efa01d4"
+  };
+
+  // Init
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
+
+  // عناصر البوابة
+  const gate = document.getElementById('loginGate');
+  const emailEl = document.getElementById('lgEmail');
+  const passEl  = document.getElementById('lgPass');
+  const btnEl   = document.getElementById('lgBtn');
+  const msgEl   = document.getElementById('lgMsg');
+  const btnLogout = document.getElementById('btnLogout');
+  
+  
+  // عناصر السلاش
+const authSplash = document.getElementById('authSplash');
+function showSplash(){ authSplash?.classList.add('active'); }
+function hideSplash(){ authSplash?.classList.remove('active'); }
+
+// عناصر البوابة
+function showGate(message=''){
+  gate.style.display = 'grid';
+  if(msgEl) msgEl.textContent = message || '';
+  if(btnLogout) btnLogout.style.display = 'none';
+}
+function hideGate(){
+  gate.style.display = 'none';
+  if(msgEl) msgEl.textContent = '';
+  if(btnLogout) btnLogout.style.display = '';
+}
+
+// UI عند الدخول/الخروج
+function setSignedInUI(user){
+  const badge = document.getElementById('userBadge');
+  if(badge){ badge.textContent = user?.email || ''; badge.style.display = ''; }
+  if(btnLogout){ btnLogout.style.display = ''; btnLogout.title = `تسجيل خروج (${user?.email||''})`; }
+  showToast?.('success','تم تسجيل الدخول بنجاح');
+}
+function setSignedOutUI(){
+  const badge = document.getElementById('userBadge');
+  if(badge){ badge.textContent = ''; badge.style.display = 'none'; }
+  if(btnLogout){ btnLogout.style.display = 'none'; btnLogout.title = 'تسجيل خروج'; }
+  showToast?.('info','تم تسجيل الخروج');
+}
+
+// allowlist من Firestore
+async function isAllowed(email){
+  try{
+    const snap = await getDoc(doc(db, "allowlist", "assal"));
+    const emails = (snap.exists() && Array.isArray(snap.data().emails)) ? snap.data().emails : [];
+    return emails.includes(email);
+  }catch{ return false; }
+}
+
+// ابدأ والسلاش ظاهر والبوابة مخفية
+showSplash();
+gate.style.display = 'none';
+
+// دخول يدوي
+btnEl?.addEventListener('click', async ()=>{
+  msgEl.textContent = '';
+  const email = (emailEl.value||'').trim();
+  const pass  = passEl.value;
+  if(!email || !pass){ msgEl.textContent = 'أدخل الإيميل وكلمة السر'; return; }
+
+  showSplash();
+  try{
+    const { user } = await signInWithEmailAndPassword(auth, email, pass);
+    if(!(await isAllowed(user.email))){
+      await signOut(auth);
+      showGate('هذا الإيميل غير مخوّل بالدخول');
+      return;
+    }
+    hideGate();
+    setSignedInUI(user);
+  }catch(e){
+    msgEl.textContent = 'فشل تسجيل الدخول';
+  }finally{
+    hideSplash();
+  }
+});
+
+// خروج
+btnLogout?.addEventListener('click', async ()=>{
+  showSplash();
+  try{
+    await signOut(auth);
+    setSignedOutUI();
+    showGate('');
+  }finally{
+    hideSplash();
+  }
+});
+
+// مراقبة حالة المصادقة (واحد فقط)
+onAuthStateChanged(auth, async (user)=>{
+  showSplash();
+  try{
+    if(!user){
+      setSignedOutUI();
+      showGate('');
+      return;
+    }
+    const ok = await isAllowed(user.email);
+    if(ok){
+      hideGate();
+      setSignedInUI(user);
+    }else{
+      await signOut(auth);
+      setSignedOutUI();
+      showGate('الإيميل غير مخوّل');
+    }
+  }finally{
+    // مهما صار، انهي شاشة التحميل
+    hideSplash();
+  }
+});
+
+
+
+</script>
+  
 </body>
 </html>
-
