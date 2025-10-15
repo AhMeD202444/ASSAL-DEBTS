@@ -1250,9 +1250,7 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
 </button>
 
   
-  
-  
-</button>
+
       </div>
     </div>
   </div>
@@ -1694,6 +1692,21 @@ function formatIQD(v){
 }
 
 
+// ===== Price field one-time listeners =====
+(function bindPriceField(){
+  const priceInput = document.getElementById('price');
+  if(!priceInput) return;
+  priceInput.addEventListener('focus', ()=> priceInput.select?.());
+  priceInput.addEventListener('input', ()=>{
+    priceInput.value = priceInput.value.replace(/[^\d]/g,'');
+  });
+  priceInput.addEventListener('blur', ()=>{
+    if(priceInput.value) priceInput.value = formatIQD(priceInput.value);
+  });
+})();
+
+
+
 
 
 function renderItemSuggestions(){
@@ -1850,10 +1863,11 @@ document.addEventListener('click', (ev)=>{
     
     /* ====== SYNC CONFIG ====== */
 const SYNC = {
-  BASE_URL: "https://script.google.com/macros/s/AKfycbyJTfw-cu5SreA4fyN97FDNc4xJ3vlJl1OHtyIvO7QW5R7NlUHwhXwRIOOBdSsTnfCyEg/exec",
-  TOKEN  : "PUT_A_STRONG_SECRET_TOKEN_HERE"
+  // بدّل <your-subdomain> إذا طالع لك دومين مخصص؛
+  // إذا ما عندك دومين مخصص استعمل workers.dev مالك مثل الظاهر أدناه:
+  BASE_URL: "https://assal-proxy.ahmed-al-bayatii-90.workers.dev/",
+  TOKEN   : "test1234"
 };
-    
     
     /* ====== قائمة أسماء الزبائن اليدوية (عدّلها على راحتك) ====== */
 const CUSTOMERS = [
@@ -2392,23 +2406,6 @@ const note  = CE('div','inote');  note.textContent = (ln.note && ln.note.trim())
 const time  = CE('div','itime');  time.textContent = arTime(ln.at);
 
 
-
-// بعد تعريف الدوال، مثلاً مع باقي Listeners
-const priceInput = document.getElementById('price');
-
-priceInput?.addEventListener('focus', ()=>{
-  priceInput.select?.();
-});
-
-priceInput?.addEventListener('input', ()=>{
-  // اسمح بالأرقام فقط
-  priceInput.value = priceInput.value.replace(/[^\d]/g,'');
-});
-
-priceInput?.addEventListener('blur', ()=>{
-  // نسّقه بفوارز عند الخروج
-  if(priceInput.value) priceInput.value = formatIQD(priceInput.value);
-});
 
 
      
@@ -3763,26 +3760,31 @@ function buildBackupPayload(){
   return payload;
 }
 
-// GET: سحب آخر نسخة من الويب-آب
+
 async function serverGetBackup(){
-  const url = `${SYNC.BASE_URL}?token=${encodeURIComponent(SYNC.TOKEN)}`;
-  const resp = await fetch(url, { method:'GET', cache:'no-store' });
+  const resp = await fetch(SYNC.BASE_URL, {
+    method: 'GET',
+    cache : 'no-store',
+    headers: { 'Authorization': `Bearer ${SYNC.TOKEN}` }
+  });
   if(!resp.ok) throw new Error('GET failed');
-  // السيرفر يرجّع JSON جاهز (قد يكون هيكل كامل)
   return await resp.json();
 }
 
-// POST: رفع النسخة الحالية للسيرفر إذا نسمح
 async function serverPostBackup(payload){
-  const url = `${SYNC.BASE_URL}?token=${encodeURIComponent(SYNC.TOKEN)}`;
-  const resp = await fetch(url, {
-    method:'POST',
-    headers:{ 'Content-Type':'application/json' },
+  const resp = await fetch(SYNC.BASE_URL, {
+    method : 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SYNC.TOKEN}`
+    },
     body: JSON.stringify(payload)
   });
   if(!resp.ok) throw new Error('POST failed');
   return await resp.json();
 }
+
+
 
 /* ====== Smart Export / Import ====== */
 
