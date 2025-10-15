@@ -1234,8 +1234,6 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
         <button class="icon" id="btnLogout" title="تسجيل خروج" style="display:none">
                 <i class="fa-solid fa-right-from-bracket"></i>
         </button>
-        <!-- شارة تعرض الإيميل عند تسجيل الدخول -->
-      
         
         <button class="icon" id="btnExportAll" title="تصدير الفواتير">
   <i class="fa-solid fa-file-export"></i>
@@ -1243,9 +1241,9 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
 
 <button class="icon" id="btnImportAll" title="استيراد الفواتير">
   <i class="fa-solid fa-file-import"></i>
-</button>
-
-<button class="icon" id="btnNextDay" title="فتح فاتورة اليوم التالي">
+  
+  
+  <button class="icon" id="btnNextDay" title="فتح فاتورة اليوم التالي">
   <i class="fa-solid fa-calendar-plus"></i>
 </button>
 
@@ -1456,20 +1454,6 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
 
 
   <script>
-    
-    
-    
-    
-    // ===== Device ID (مرة واحدة لكل جهاز) =====
-const DEVICE_KEY = 'assal:device-id';
-let DEVICE_ID = localStorage.getItem(DEVICE_KEY);
-if(!DEVICE_ID){
-  DEVICE_ID = 'dev-' + Math.random().toString(36).slice(2,8);
-  localStorage.setItem(DEVICE_KEY, DEVICE_ID);
-}
-
-    
-    
     
     
     // ===== Excel DB (تحميل جوجل شيت) =====
@@ -2209,20 +2193,15 @@ document.getElementById('btnAdd').onclick = () => {
 
   if (!card) {
     // إنشاء بطاقة جديدة + updatedAt
- 
- 
- card = {
-  id: String(Date.now()) + '-' + DEVICE_ID, // فريد بين الأجهزة
-  customer,
-  lines: [],
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-  paidAll: false,
-  billType: type
-};
-
- 
- 
+    card = {
+      id: Date.now(),
+      customer,
+      lines: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(), // NEW
+      paidAll: false,
+      billType: type
+    };
     days[selectedDay].unshift(card);
     createdNewCard = true;
   } else {
@@ -2238,20 +2217,17 @@ document.getElementById('btnAdd').onclick = () => {
 
   const isReturn = (type === 'راجع');
 
-card.lines.push({
-  lid: String(Date.now()) + '-' + Math.random().toString(36).slice(2,6) + '-' + DEVICE_ID,
-  item,
-  price: priceVal,
-  qty,
-  cat,
-  note,
-  type,
-  at: new Date().toISOString(),
-  returned: isReturn,
-  paid: false,
-  deletedAt: null
-});
-
+  card.lines.push({
+    item,
+    price: priceVal,          // <-- جديد
+    qty,
+    cat,
+    note,
+    type,
+    at: new Date().toISOString(),
+    returned: isReturn,
+    paid: false
+  });
 
   save();
 
@@ -2296,10 +2272,7 @@ function renderBoard(){
   const global = document.getElementById('globalSearch')?.checked;
 
   // جهّز مصدر البطاقات
- const collect = (d)=> (days[d]||[])
-  .filter(c=>!c.deletedAt)
-  .map(c => ({...c, __day: d}));
-
+  const collect = (d)=> (days[d]||[]).map(c => ({...c, __day: d}));
   let pool = [];
 
   if(global){
@@ -2408,7 +2381,7 @@ custWrap.appendChild(typeBadge);
 
     /* Items */
     const itemsWrap = CE('div','items');
-    (card.lines||[]).filter(l=>!l.deletedAt).forEach((ln, li)=>{
+    card.lines.forEach((ln, li)=>{
       const it = CE('div','item');
       if(ln.returned) it.classList.add('returned');
       if(ln.paid)     it.classList.add('paid');
@@ -2460,21 +2433,19 @@ const time  = CE('div','itime');  time.textContent = arTime(ln.at);
         showToast(ln.paid ? 'success' : 'info', ln.paid ? 'تم تسديد المادة' : 'تم إلغاء التسديد');
       };
 
-del.onclick = async ()=>{
-  const ok = await showConfirm({
-    title:'تأكيد حذف السطر',
-    message:`هل تريد حذف "${ln.item}"؟`,
-    okText:'حذف',
-    cancelText:'إلغاء',
-    danger:true
-  });
-  if(!ok) return;
-  ln.deletedAt = new Date().toISOString(); // حذف لطيف
-  card.updatedAt = new Date().toISOString();
-  save(); renderBoard(); renderRail(); refreshStats();
-  showToast('error', 'تم حذف المادة');
-};
-
+      del.onclick = async ()=>{
+        const ok = await showConfirm({
+          title:'تأكيد حذف السطر',
+          message:`هل تريد حذف "${ln.item}"؟`,
+          okText:'حذف',
+          cancelText:'إلغاء',
+          danger:true
+        });
+        if(!ok) return;
+        card.lines.splice(li,1); save();
+        renderBoard(); renderRail(); refreshStats();
+        showToast('error', 'تم حذف المادة');
+      };
 
       itemsWrap.appendChild(it);
     });
@@ -2628,18 +2599,13 @@ btnPdf.onclick = ()=>{
       if(!ok) return;
 
       // عند البحث الشامل: احذف من يوم البطاقة الحقيقي
-     const dayKey = card.__day || selectedDay;
-const arrRef = (days[dayKey]||[]);
-const idx = arrRef.findIndex(c => c.id === card.id);
-if(idx > -1){
-  const real = arrRef[idx];
-  real.deletedAt = new Date().toISOString(); // حذف لطيف
-  real.updatedAt = real.deletedAt;
-  save();
-}
-renderBoard(); renderRail(); refreshStats();
-showToast('error', 'تم حذف البطاقة');
+      const dayKey = card.__day || selectedDay;
+      const arrRef = (days[dayKey]||[]);
+      const idx = arrRef.findIndex(c => c.id === card.id);
+      if(idx > -1){ arrRef.splice(idx,1); save(); }
 
+      renderBoard(); renderRail(); refreshStats();
+      showToast('error', 'تم حذف البطاقة');
     };
 
     right.append(btnPdf, btnPayAll, btnDel);
@@ -2916,19 +2882,18 @@ function renderRail(){
 
       const mTitle = CE('div','month-title');
       const niceMonth = arMonthName(monthKey+'-01');
-      const mCount = groups[monthKey].reduce((n,k)=> n + ((days[k]||[]).filter(c=>!c.deletedAt).length||0), 0);
+      const mCount = groups[monthKey].reduce((n,k)=> n + (days[k]?.length||0), 0);
       mTitle.innerHTML = `<span>${niceMonth}</span><span class="mchip">${mCount} بطاقة</span>`;
       monthBox.appendChild(mTitle);
 
       // الأيام داخل هذا الشهر
       const daysInMonth = groups[monthKey].sort().reverse();
       daysInMonth.forEach(k=>{
-        const dayCount = (days[k]||[]).filter(c=>!c.deletedAt).length;
-        const row = CE('div','day');   // ← هذا السطر هو المفقود
-row.innerHTML = `
-  <div class="title">${arDateWithDay(k)}</div>
-  <div class="meta">${dayCount} بطاقة</div>
-`;
+        const row = CE('div','day'+(k===selectedDay?' active':'')); 
+        row.innerHTML = `
+          <div class="title">${arDateWithDay(k)}</div>
+          <div class="meta">${(days[k]||[]).length} بطاقة</div>
+        `;
        
        row.onclick = ()=>{
   selectedDay = k;
@@ -2963,13 +2928,10 @@ row.innerHTML = `
 
     /* ===== Stats ===== */
     function refreshStats(){
-     
-     const arr = (days[selectedDay]||[]).filter(c=>!c.deletedAt);
-const items = arr.reduce((n,c)=> n + (c.lines||[]).filter(l=>!l.deletedAt).length, 0);
-document.getElementById('statCards').textContent = arr.length;
-document.getElementById('statItems').textContent = items;
-
-     
+      const arr = (days[selectedDay]||[]);
+      const items = arr.reduce((n,c)=> n + c.lines.length, 0);
+      document.getElementById('statCards').textContent = arr.length;
+      document.getElementById('statItems').textContent = items;
       document.getElementById('statTime').textContent = new Date().toLocaleTimeString('ar-EG');
     }
 
@@ -3311,7 +3273,7 @@ function exportDayPDF_Vector(){
               <tbody></tbody>\`;
             const tbody = tbl.querySelector('tbody');
 
-           (card.lines||[]).filter(l=>!l.deletedAt).forEach(ln=>{
+            (card.lines||[]).forEach(ln=>{
               const tr = document.createElement('tr');
               const isReturned = !!ln.returned;
               const isPaid     = !!ln.paid;
@@ -3558,7 +3520,7 @@ function exportCardPDF_Vector(card, dayKey){
 
           function arTime(d){ return new Date(d).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}); }
 
-        (card.lines||[]).filter(l=>!l.deletedAt).forEach(ln=>{
+          (card.lines||[]).forEach(ln=>{
             const tr = document.createElement('tr');
             const isReturned = !!ln.returned;
             const isPaid     = !!ln.paid;
@@ -3769,90 +3731,6 @@ function openNextDayFromToday(){
 
 /* ====== Sync Helpers (Server <-> Local) ====== */
 
-
-// ===== Merge Helpers =====
-
-// مفتاح سطر (يدعم القديم إذا ماكو lid)
-function lineKey(l){
-  if(l.lid) return l.lid;
-  return ['@', l.at, l.item, l.cat, l.qty, l.note].map(x=>String(x||'')).join('|');
-}
-
-function mergeLines(a=[], b=[]){
-  const map = new Map();
-  const put = (l)=>{
-    const k = lineKey(l);
-    const old = map.get(k);
-    if(!old){ map.set(k, {...l}); return; }
-    const tsOld = new Date(old.deletedAt || old.at || 0).getTime();
-    const tsNew = new Date(l.deletedAt   || l.at   || 0).getTime();
-    if(tsNew >= tsOld) map.set(k, {...old, ...l});
-  };
-  a.forEach(put); b.forEach(put);
-  return Array.from(map.values());
-}
-
-function mergeNotes(a=[], b=[]){
-  const key = (n)=> n.id ? n.id : ['#', n.at, n.text].join('|');
-  const map = new Map();
-  const put = (n)=>{
-    const k = key(n);
-    const old = map.get(k);
-    if(!old){ map.set(k, {...n}); return; }
-    const tsOld = new Date(old.at||0).getTime();
-    const tsNew = new Date(n.at ||0).getTime();
-    if(tsNew >= tsOld) map.set(k, {...old, ...n});
-  };
-  a.forEach(put); b.forEach(put);
-  return Array.from(map.values());
-}
-
-function mergeCard(local, remote){
-  const base = { ...local, ...remote };
-  base.lines = mergeLines(local.lines, remote.lines);
-  base.notes = mergeNotes(local.notes, remote.notes);
-
-  const asTs = d=> (d? new Date(d).getTime() : 0);
-  const upd = Math.max(asTs(local.updatedAt||local.createdAt), asTs(remote.updatedAt||remote.createdAt));
-  base.updatedAt = new Date(upd).toISOString();
-
-  const delTs = Math.max(asTs(local.deletedAt), asTs(remote.deletedAt));
-  base.deletedAt = delTs ? new Date(delTs).toISOString() : null;
-
-  // نوع الفاتورة: الأحدث يغلب
-  base.billType = (asTs(remote.updatedAt||remote.createdAt) >= asTs(local.updatedAt||local.createdAt))
-    ? (remote.billType ?? local.billType)
-    : (local.billType  ?? remote.billType);
-
-  return base;
-}
-
-function mergeDayCards(arrA=[], arrB=[]){
-  const byId = new Map();
-  arrA.forEach(c=> byId.set(c.id, {...c}));
-  arrB.forEach(c=>{
-    const ex = byId.get(c.id);
-    if(ex) byId.set(c.id, mergeCard(ex, c));
-    else   byId.set(c.id, {...c});
-  });
-  return Array.from(byId.values());
-}
-
-function mergeDays(localDays={}, remoteDays={}){
-  const out = {...localDays};
-  const keys = new Set([...Object.keys(localDays||{}), ...Object.keys(remoteDays||{})]);
-  keys.forEach(day=>{
-    const a = localDays[day]  || [];
-    const b = remoteDays[day] || [];
-    out[day] = mergeDayCards(a, b);
-  });
-  return out;
-}
-
-
-
-
-
 // احسب أحدث وقت تعديل داخل كل البيانات (بطاقات/سطور/ملاحظات)
 function getUpdatedAtMax(daysObj){
   let maxTs = 0;
@@ -3861,16 +3739,8 @@ function getUpdatedAtMax(daysObj){
   Object.values(daysObj||{}).forEach(cards=>{
     (cards||[]).forEach(card=>{
       maxTs = Math.max(maxTs, asTs(card.updatedAt), asTs(card.createdAt));
-     
-     
-     (card.lines||[]).forEach(l=>{
-  maxTs = Math.max(maxTs, asTs(l.at), asTs(l.deletedAt));
-});
-(card.notes||[]).forEach(n=>{ maxTs = Math.max(maxTs, asTs(n.at)); });
-maxTs = Math.max(maxTs, asTs(card.deletedAt));
-
-     
-     
+      (card.lines||[]).forEach(l=>{ maxTs = Math.max(maxTs, asTs(l.at)); });
+      (card.notes||[]).forEach(n=>{ maxTs = Math.max(maxTs, asTs(n.at)); });
     });
   });
   return maxTs || 0;
@@ -3956,36 +3826,45 @@ async function smartImportFromServer(){
     showToast('info','جاري جلب آخر نسخة من السيرفر…', 1800);
 
     const server = await serverGetBackup();
+    const srvMax = Number(server?.updatedAtMax || 0);
+
+    // حضّر مقارنة مع المحلي
+    const locMax = getUpdatedAtMax(days || {});
+
     if(!server || !server.days){
       showToast('warn','ماكو نسخة على السيرفر بعد');
       return;
     }
 
-    const srvMax = Number(server.updatedAtMax || 0);
-    const locMax = getUpdatedAtMax(days || {});
+    // إذا السيرفر أحدث أو المحلي فارغ — نزّلها مباشرة
     const localIsEmpty = !Object.keys(days || {}).length;
-
-    // ندمج دائماً لو عندنا محلي
-    const merged = localIsEmpty ? (server.days || {}) : mergeDays(days || {}, server.days || {});
-
-    if(srvMax >= locMax || localIsEmpty){
-      localStorage.setItem(STORAGE, JSON.stringify(merged));
+    if(srvMax > locMax || localIsEmpty){
+      localStorage.setItem(STORAGE, JSON.stringify(server.days || {}));
       localStorage.setItem(NAMES,   JSON.stringify(server.names || []));
-      showToast('success','تم الاستيراد (دمج آمن) — إعادة تحميل الصفحة');
+      showToast('success','تم الاستيراد من السيرفر — إعادة تحميل الصفحة');
       setTimeout(()=> location.reload(), 500);
       return;
     }
 
-    // المحلي أحدث: ندمج ونبقى محلياً (ونتوقع التصدير لاحقاً)
-    localStorage.setItem(STORAGE, JSON.stringify(merged));
-    showToast('info','تم الدمج محليًا — نسختك أحدث، راح تندفع بالتصدير');
-    renderBoard(); renderRail(); refreshStats();
+    // إذا المحلي أحدث من السيرفر — نطلب تأكيد قبل الكتابة فوق المحلي
+    const ok = await showConfirm({
+      title:'تأكيد الاستيراد',
+      message:'نسختك المحلية أحدث من السيرفر. تريد تستبدلها بنسخة السيرفر الأقدم؟',
+      okText:'استبدال',
+      cancelText:'إلغاء',
+      danger:true
+    });
+    if(!ok) return;
+
+    localStorage.setItem(STORAGE, JSON.stringify(server.days || {}));
+    localStorage.setItem(NAMES,   JSON.stringify(server.names || []));
+    showToast('success','تم الاستيراد من السيرفر — إعادة تحميل الصفحة');
+    setTimeout(()=> location.reload(), 500);
   }catch(err){
     console.error(err);
-    showToast('error','تعذّر جلب/دمج نسخة السيرفر');
+    showToast('error','تعذّر جلب النسخة من السيرفر');
   }
 }
-
 
 
 
