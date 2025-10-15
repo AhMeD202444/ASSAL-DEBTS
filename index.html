@@ -1499,18 +1499,10 @@ async function loadExcelFiles(){
 }
 
 
-Object.defineProperty(window, 'days', {
-  get(){ return days; },
-  set(v){ days = v; }
-});
-Object.defineProperty(window, 'names', {
-  get(){ return names; },
-  set(v){ names = v; }
-});
-Object.defineProperty(window, 'selectedDay', {
-  get(){ return selectedDay; },
-  set(v){ selectedDay = v; }
-});
+
+Object.defineProperty(window, 'days', { get(){ return days; } });
+Object.defineProperty(window, 'selectedDay', { get(){ return selectedDay; } });
+
 
 
 
@@ -1853,6 +1845,16 @@ document.addEventListener('click', (ev)=>{
     let globalLimit = 20;
     
     
+    
+    
+    
+    /* ====== SYNC CONFIG ====== */
+const SYNC = {
+  BASE_URL: "https://script.google.com/macros/s/AKfycbyJTfw-cu5SreA4fyN97FDNc4xJ3vlJl1OHtyIvO7QW5R7NlUHwhXwRIOOBdSsTnfCyEg/exec",
+  TOKEN  : "PUT_A_STRONG_SECRET_TOKEN_HERE"
+};
+    
+    
     /* ====== قائمة أسماء الزبائن اليدوية (عدّلها على راحتك) ====== */
 const CUSTOMERS = [
   "ابو همام - الكهربائي",
@@ -1983,18 +1985,7 @@ const CUSTOMERS = [
     let selectedDay = todayISO();
 
     function load(k, d){ try{ return JSON.parse(localStorage.getItem(k)||JSON.stringify(d)); }catch{ return d; } }
-   
-   
-   
-   function save(){
-  localStorage.setItem(STORAGE, JSON.stringify(days));
-  // مزامنة سحابية مهدّأة (إذا الـmodule جاهز)
-  window.cloudSaveDebounced?.();
-}
-
-   
-   
-   
+    function save(){ localStorage.setItem(STORAGE, JSON.stringify(days)); }
     function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
   /* ====== Enter Navigation (جديد) ====== */
@@ -3630,9 +3621,15 @@ const importInput  = document.getElementById('importFile');
 
 document.getElementById('btnNextDay')?.addEventListener('click', openNextDayFromToday);
 
+// التصدير الآن يرفع إلى السيرفر (ويب آب)
+btnExportAll && (btnExportAll.onclick = smartExportToServer);
 
-btnExportAll && (btnExportAll.onclick = exportInvoices);
-btnImportAll && (btnImportAll.onclick = () => importInput && importInput.click());
+// الاستيراد يجي من السيرفر مباشرة
+btnImportAll && (btnImportAll.onclick = smartImportFromServer);
+
+// إذا بعدها تريد تحتفظ بخيار الاستيراد من ملف يدوي (زر مخفي أو منيو)
+// خلِّه مثل ما هو: importInput.onclick… و importInvoicesFromFile(file)
+
 
 importInput && (importInput.onchange = (e) => {
   const file = e.target.files?.[0];
@@ -3737,6 +3734,141 @@ function openNextDayFromToday(){
 
 
 
+/* ====== Sync Helpers (Server <-> Local) ====== */
+
+// احسب أحدث وقت تعديل داخل كل البيانات (بطاقات/سطور/ملاحظات)
+function getUpdatedAtMax(daysObj){
+  let maxTs = 0;
+  const asTs = (d)=> (d ? new Date(d).getTime() : 0);
+
+  Object.values(daysObj||{}).forEach(cards=>{
+    (cards||[]).forEach(card=>{
+      maxTs = Math.max(maxTs, asTs(card.updatedAt), asTs(card.createdAt));
+      (card.lines||[]).forEach(l=>{ maxTs = Math.max(maxTs, asTs(l.at)); });
+      (card.notes||[]).forEach(n=>{ maxTs = Math.max(maxTs, asTs(n.at)); });
+    });
+  });
+  return maxTs || 0;
+}
+
+// حضّر بايلود النسخة الاحتياطية (نفس فورماتك + updatedAtMax)
+function buildBackupPayload(){
+  const payload = {
+    version: 3,
+    exportedAt: new Date().toISOString(),
+    updatedAtMax: getUpdatedAtMax(days || {}),
+    days : days || {},
+    names: names || []
+  };
+  return payload;
+}
+
+// GET: سحب آخر نسخة من الويب-آب
+async function serverGetBackup(){
+  const url = `${SYNC.BASE_URL}?token=${encodeURIComponent(SYNC.TOKEN)}`;
+  const resp = await fetch(url, { method:'GET', cache:'no-store' });
+  if(!resp.ok) throw new Error('GET failed');
+  // السيرفر يرجّع JSON جاهز (قد يكون هيكل كامل)
+  return await resp.json();
+}
+
+// POST: رفع النسخة الحالية للسيرفر إذا نسمح
+async function serverPostBackup(payload){
+  const url = `${SYNC.BASE_URL}?token=${encodeURIComponent(SYNC.TOKEN)}`;
+  const resp = await fetch(url, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if(!resp.ok) throw new Error('POST failed');
+  return await resp.json();
+}
+
+/* ====== Smart Export / Import ====== */
+
+// تصدير ذكي: يصدّر فقط إذا نسختنا أحدث أو ماكو نسخة على السيرفر
+async function smartExportToServer(){
+  try{
+    showToast('info','جاري فحص النسخ على السيرفر…', 1800);
+
+    const local = buildBackupPayload();
+
+    let server;
+    try{
+      server = await serverGetBackup();
+    }catch(_){
+      server = null; // إذا ماكو ملف، نعدّه فارغ
+    }
+
+    const srvMax = Number(server?.updatedAtMax || 0);
+    const locMax = Number(local.updatedAtMax || 0);
+
+    if(srvMax > locMax){
+      showToast('warn','السيرفر يحتوي نسخة أحدث — استوردها أولاً', 3500);
+      return;
+    }
+
+    const r = await serverPostBackup(local);
+    if(r?.status === 'ok' || r?.status === undefined){
+      showToast('success','انرفع النسخة على Google Drive');
+    }else{
+      showToast('error','فشل التصدير للسيرفر');
+    }
+  }catch(err){
+    console.error(err);
+    showToast('error','تعذّر الاتصال بالسيرفر');
+  }
+}
+
+// استيراد ذكي: يسحب من السيرفر إذا هو أحدث (أو إذا المحلي فارغ)
+async function smartImportFromServer(){
+  try{
+    showToast('info','جاري جلب آخر نسخة من السيرفر…', 1800);
+
+    const server = await serverGetBackup();
+    const srvMax = Number(server?.updatedAtMax || 0);
+
+    // حضّر مقارنة مع المحلي
+    const locMax = getUpdatedAtMax(days || {});
+
+    if(!server || !server.days){
+      showToast('warn','ماكو نسخة على السيرفر بعد');
+      return;
+    }
+
+    // إذا السيرفر أحدث أو المحلي فارغ — نزّلها مباشرة
+    const localIsEmpty = !Object.keys(days || {}).length;
+    if(srvMax > locMax || localIsEmpty){
+      localStorage.setItem(STORAGE, JSON.stringify(server.days || {}));
+      localStorage.setItem(NAMES,   JSON.stringify(server.names || []));
+      showToast('success','تم الاستيراد من السيرفر — إعادة تحميل الصفحة');
+      setTimeout(()=> location.reload(), 500);
+      return;
+    }
+
+    // إذا المحلي أحدث من السيرفر — نطلب تأكيد قبل الكتابة فوق المحلي
+    const ok = await showConfirm({
+      title:'تأكيد الاستيراد',
+      message:'نسختك المحلية أحدث من السيرفر. تريد تستبدلها بنسخة السيرفر الأقدم؟',
+      okText:'استبدال',
+      cancelText:'إلغاء',
+      danger:true
+    });
+    if(!ok) return;
+
+    localStorage.setItem(STORAGE, JSON.stringify(server.days || {}));
+    localStorage.setItem(NAMES,   JSON.stringify(server.names || []));
+    showToast('success','تم الاستيراد من السيرفر — إعادة تحميل الصفحة');
+    setTimeout(()=> location.reload(), 500);
+  }catch(err){
+    console.error(err);
+    showToast('error','تعذّر جلب النسخة من السيرفر');
+  }
+}
+
+
+
+
 
     /* ===== Init ===== */
 
@@ -3748,6 +3880,17 @@ function openNextDayFromToday(){
   // ----------------------------------------------
   rebuildNames(); renderBoard(); renderRail(); refreshStats();
 })();
+
+
+// داخل init() بنهايته مثلاً:
+(function autoPullIfEmpty(){
+  const empty = !Object.keys(days||{}).length;
+  if(empty){
+    // لا تنتظر تفاعل: جيب نسخة السيرفر إذا موجودة
+    smartImportFromServer();
+  }
+})();
+
 
 
 
@@ -3816,12 +3959,8 @@ function openNextDayFromToday(){
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut }
     from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
- 
- 
- import {
-  getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
-
+  import { getFirestore, doc, getDoc }
+    from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
   // كونفِغ مشروعك (نفس اللي أعطيتني)
   const firebaseConfig = {
@@ -3837,145 +3976,6 @@ function openNextDayFromToday(){
   const app  = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db   = getFirestore(app);
-  
-  
-  
-  // ====== إعداد مستند مشترك للمزامنة (وثيقة واحدة لكل الجميع) ======
-const SHARED_DOC = doc(db, "boards", "assal-v1"); // تقدر تغيّر الاسم
-
-// حمايات داخلية حتى ما نسوي حلقات لا نهائية
-let __cloudApplying = false;      // دا نطبّق تحديث جاي من السحابة
-let __saveTimer = null;           // Debounce للحفظ
-let __unsubscribeCloud = null;    // حتى نكطع الاشتراك عند تسجيل الخروج
-
-// حساب "آخر تعديل محلي" ببساطة من الكروت
-function guessLocalUpdatedAt(){
-  try{
-    const localDays = window.days || {};
-    const allCards = Object.values(localDays).flat();
-    const times = allCards
-      .map(c => +new Date(c.updatedAt || c.createdAt || 0))
-      .filter(Boolean);
-    return Math.max(0, ...(times.length ? times : [0]));
-  }catch{ return 0; }
-}
-
-// حفظ سحابي مهدّأ (كل تغيير يتأخر شوي حتى ما نطرّك السحابة)
-function cloudSaveDebounced(){
-  if(__cloudApplying) return; // إذا هسه دا نطبّق من السحابة، لا ترفع فورًا
-  clearTimeout(__saveTimer);
-  __saveTimer = setTimeout(cloudSaveNow, 450);
-}
-
-// حفظ فوري للسحابة
-async function cloudSaveNow(){
-  try{
-    await setDoc(SHARED_DOC, {
-      days:  window.days  || {},
-      names: window.names || [],
-      updatedAt: Date.now(),          // طابع وقت عددي (للمقارنة السريعة)
-      updatedAtTs: serverTimestamp()  // طابع من سيرفر فايربيس (اختياري)
-    }, { merge: true });
-    // تقدر تعرض Toast إذا تحب
-    // showToast?.('success','تمت مزامنة السحابة');
-  }catch(e){
-    console.error('cloudSave error', e);
-    // showToast?.('error','تعذّرت مزامنة السحابة');
-  }
-}
-
-// قراءة أولية من السحابة (إذا أحدث من المحلي)
-async function cloudLoadOnce(){
-  try{
-    const snap = await getDoc(SHARED_DOC);
-    if(!snap.exists()) return; // أول مرة – ماكو مستند بعد
-    const data = snap.data() || {};
-    const localUpdated = guessLocalUpdatedAt();
-    if((data.updatedAt || 0) > localUpdated){
-      __cloudApplying = true;
-      window.days  = data.days  || {};
-      window.names = data.names || [];
-      // خزن محلي حتى تبقى بدون نت
-      localStorage.setItem('assal:board:v3', JSON.stringify(window.days));
-      localStorage.setItem('assal:names:v3', JSON.stringify(window.names));
-      // حدّث الواجهة
-      renderBoard(); renderRail(); refreshStats();
-      __cloudApplying = false;
-    }
-  }catch(e){
-    console.error('cloudLoad error', e);
-  }
-}
-
-// اشتراك Realtime: أي تحديث من غيرك ينزل فوراً
-function cloudSubscribe(){
-  // إذا أكو اشتراك سابق، الغه
-  __unsubscribeCloud?.();
-  __unsubscribeCloud = onSnapshot(SHARED_DOC, (snap)=>{
-    if(!snap.exists()) return;
-    const data = snap.data() || {};
-    const localUpdated = guessLocalUpdatedAt();
-    if((data.updatedAt || 0) > localUpdated){
-      __cloudApplying = true;
-      window.days  = data.days  || {};
-      window.names = data.names || [];
-      localStorage.setItem('assal:board:v3', JSON.stringify(window.days));
-      localStorage.setItem('assal:names:v3', JSON.stringify(window.names));
-      renderBoard(); renderRail(); refreshStats();
-      __cloudApplying = false;
-      // showToast?.('info','تم التحديث من السحابة');
-    }
-  });
-}
-
-
-// مزامنة ذكية عند تسجيل الدخول (سحب/دفع حسب الأحدث)
-async function cloudSyncOnLogin(){
-  try{
-    const snap = await getDoc(SHARED_DOC);
-    const cloud = snap.exists() ? (snap.data()||{}) : null;
-
-    const localUpdated = guessLocalUpdatedAt();      // أحدث توقيت محلي من الكروت
-    const cloudUpdated = cloud?.updatedAt || 0;      // أحدث توقيت سحابة (رقمي)
-
-    if(!cloud || cloudUpdated === 0 || localUpdated > cloudUpdated){
-      // جهازك أحدث أو السحابة فارغة → ارفع المحلّي فورًا
-      await cloudSaveNow();
-      // بعد الرفع، خلّ الاشتراك يجلب أي تحديثات لاحقة
-    }else if(cloudUpdated > localUpdated){
-      // السحابة أحدث → نزّلها على المحلي
-      __cloudApplying = true;
-      window.days  = cloud.days  || {};
-      window.names = cloud.names || [];
-      localStorage.setItem('assal:board:v3', JSON.stringify(window.days));
-      localStorage.setItem('assal:names:v3', JSON.stringify(window.names));
-      renderBoard(); renderRail(); refreshStats();
-      __cloudApplying = false;
-    }
-  }catch(e){
-    console.error('cloudSyncOnLogin error', e);
-  }
-}
-
-
-
-
-
-// إلغاء الاشتراك (عند تسجيل خروج مثلًا)
-function cloudUnsubscribe(){
-  __unsubscribeCloud?.();
-  __unsubscribeCloud = null;
-}
-
-// نعرّفهم على window حتى نكدر نناديهم من السكربت العادي
-window.cloudSaveDebounced = cloudSaveDebounced;
-window.cloudSaveNow       = cloudSaveNow;
-window.cloudLoadOnce      = cloudLoadOnce;
-window.cloudSubscribe     = cloudSubscribe;
-window.cloudUnsubscribe   = cloudUnsubscribe;
-
-  
-  
 
   // عناصر البوابة
   const gate = document.getElementById('loginGate');
@@ -4041,18 +4041,12 @@ btnEl?.addEventListener('click', async ()=>{
   try{
     const { user } = await signInWithEmailAndPassword(auth, email, pass);
     if(!(await isAllowed(user.email))){
-      cloudUnsubscribe();
       await signOut(auth);
       showGate('هذا الإيميل غير مخوّل بالدخول');
       return;
     }
     hideGate();
     setSignedInUI(user);
-
-    // ↓↓↓ المهم: مزامنة أولية مباشرة
-    await cloudSyncOnLogin();
-    cloudSubscribe();
-    // ↑↑↑
   }catch(e){
     msgEl.textContent = 'فشل تسجيل الدخول';
   }finally{
@@ -4060,13 +4054,10 @@ btnEl?.addEventListener('click', async ()=>{
   }
 });
 
-
 // خروج
 btnLogout?.addEventListener('click', async ()=>{
   showSplash();
   try{
-    
-     cloudUnsubscribe();          // اقطع الاستماع قبل ما نطلع
     await signOut(auth);
     setSignedOutUI();
     showGate('');
@@ -4080,7 +4071,6 @@ onAuthStateChanged(auth, async (user)=>{
   showSplash();
   try{
     if(!user){
-      cloudUnsubscribe();
       setSignedOutUI();
       showGate('');
       return;
@@ -4089,18 +4079,13 @@ onAuthStateChanged(auth, async (user)=>{
     if(ok){
       hideGate();
       setSignedInUI(user);
-
-      // ↓↓↓ المهم: مزامنة ذات اتجاهين
-      await cloudSyncOnLogin();   // يدفع المحلّي للسحابة أو يسحب حسب الأحدث
-      cloudSubscribe();           // اشترك لتحديثات فورية
-      // ↑↑↑
     }else{
       await signOut(auth);
-      cloudUnsubscribe();
       setSignedOutUI();
       showGate('الإيميل غير مخوّل');
     }
   }finally{
+    // مهما صار، انهي شاشة التحميل
     hideSplash();
   }
 });
