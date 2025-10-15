@@ -1241,11 +1241,12 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
 
 <button class="icon" id="btnImportAll" title="استيراد الفواتير">
   <i class="fa-solid fa-file-import"></i>
-  
-  
-  <button class="icon" id="btnNextDay" title="فتح فاتورة اليوم التالي">
+</button>
+
+<button class="icon" id="btnNextDay" title="فتح فاتورة اليوم التالي">
   <i class="fa-solid fa-calendar-plus"></i>
 </button>
+
 
   
 
@@ -1493,11 +1494,6 @@ async function loadExcelFiles(){
     showToast?.('error','تعذر تحميل بيانات الأصناف');
   }
 }
-
-
-
-Object.defineProperty(window, 'days', { get(){ return days; } });
-Object.defineProperty(window, 'selectedDay', { get(){ return selectedDay; } });
 
 
 
@@ -1995,6 +1991,12 @@ const CUSTOMERS = [
     let days        = load(STORAGE, {});
     let names       = load(NAMES, []);
     let selectedDay = todayISO();
+    
+    
+    Object.defineProperty(window, 'days', { get(){ return days; } });
+Object.defineProperty(window, 'selectedDay', { get(){ return selectedDay; } });
+    
+    
 
     function load(k, d){ try{ return JSON.parse(localStorage.getItem(k)||JSON.stringify(d)); }catch{ return d; } }
     function save(){ localStorage.setItem(STORAGE, JSON.stringify(days)); }
@@ -2418,20 +2420,28 @@ const time  = CE('div','itime');  time.textContent = arTime(ln.at);
 
     it.append(btnReturn, btnPay, cat, name, price, qty, note, time, del);
 
-      btnReturn.onclick = ()=>{
-        ln.returned = !ln.returned;
-        if(ln.returned) ln.paid = false;
-        card.paidAll = false;
-        save(); renderBoard(); renderRail(); refreshStats();
-        showToast(ln.returned ? 'warn' : 'info', ln.returned ? 'تم تعليمها راجع' : 'تم إلغاء الراجع');
-      };
+ btnReturn.onclick = ()=>{
+  ln.returned = !ln.returned;
+  if(ln.returned) ln.paid = false;
+  card.paidAll = false;
 
-      btnPay.onclick = ()=>{
-        ln.paid = !ln.paid;
-        if(ln.paid) ln.returned = false;
-        save(); renderBoard(); renderRail(); refreshStats();
-        showToast(ln.paid ? 'success' : 'info', ln.paid ? 'تم تسديد المادة' : 'تم إلغاء التسديد');
-      };
+  card.updatedAt = new Date().toISOString();   // <-- جديد
+
+  save(); renderBoard(); renderRail(); refreshStats();
+  showToast(ln.returned ? 'warn' : 'info', ln.returned ? 'تم تعليمها راجع' : 'تم إلغاء الراجع');
+};
+
+
+ btnPay.onclick = ()=>{
+  ln.paid = !ln.paid;
+  if(ln.paid) ln.returned = false;
+
+  card.updatedAt = new Date().toISOString();   // <-- جديد
+
+  save(); renderBoard(); renderRail(); refreshStats();
+  showToast(ln.paid ? 'success' : 'info', ln.paid ? 'تم تسديد المادة' : 'تم إلغاء التسديد');
+};
+
 
       del.onclick = async ()=>{
         const ok = await showConfirm({
@@ -2442,7 +2452,10 @@ const time  = CE('div','itime');  time.textContent = arTime(ln.at);
           danger:true
         });
         if(!ok) return;
-        card.lines.splice(li,1); save();
+        card.lines.splice(li,1); 
+         card.updatedAt = new Date().toISOString();   // <-- جديد
+        
+        save();
         renderBoard(); renderRail(); refreshStats();
         showToast('error', 'تم حذف المادة');
       };
@@ -2570,20 +2583,23 @@ btnPdf.onclick = ()=>{
     card.paidAll = allActivePaid(card);
     stylePayAll(btnPayAll, card);
 
-    btnPayAll.onclick = ()=>{
-      if (!card.lines.length) return;
-      const active = activeLines(card);
-      if (active.length === 0) return;
+   btnPayAll.onclick = ()=>{
+  if (!card.lines.length) return;
+  const active = activeLines(card);
+  if (active.length === 0) return;
 
-      const allPaidBefore = active.every(l => l.paid);
-      const makePaid = !allPaidBefore;
+  const allPaidBefore = active.every(l => l.paid);
+  const makePaid = !allPaidBefore;
 
-      active.forEach(l => { l.paid = makePaid; });
-      card.paidAll = allActivePaid(card);
+  active.forEach(l => { l.paid = makePaid; });
+  card.paidAll = allActivePaid(card);
 
-      save(); renderBoard(); renderRail(); refreshStats();
-      showToast(makePaid ? 'success' : 'info', makePaid ? 'تم تسديد كل المواد' : 'تم إلغاء تسديد الكل');
-    };
+  card.updatedAt = new Date().toISOString();   // <-- جديد
+
+  save(); renderBoard(); renderRail(); refreshStats();
+  showToast(makePaid ? 'success' : 'info', makePaid ? 'تم تسديد كل المواد' : 'تم إلغاء تسديد الكل');
+};
+
 
     const btnDel = CE('button','i-btn'); 
     btnDel.innerHTML  = '<i class="fa-regular fa-trash-can"></i><span>حذف البطاقة</span>'; 
@@ -3847,13 +3863,23 @@ async function smartImportFromServer(){
     }
 
     // إذا المحلي أحدث من السيرفر — نطلب تأكيد قبل الكتابة فوق المحلي
-    const ok = await showConfirm({
-      title:'تأكيد الاستيراد',
-      message:'نسختك المحلية أحدث من السيرفر. تريد تستبدلها بنسخة السيرفر الأقدم؟',
-      okText:'استبدال',
-      cancelText:'إلغاء',
-      danger:true
-    });
+    
+    const lastLocal = new Date(locMax).toLocaleString('ar-EG');
+const lastSrv   = new Date(srvMax).toLocaleString('ar-EG');
+
+const ok = await showConfirm({
+  title:'تأكيد الاستيراد',
+  message:`نسختك المحلية أحدث من السيرفر.
+الأحدث محلياً: ${lastLocal}
+الأحدث على السيرفر: ${lastSrv}
+تريد تستبدلها بنسخة السيرفر الأقدم؟`,
+  okText:'استبدال',
+  cancelText:'إلغاء',
+  danger:true
+});
+
+    
+    
     if(!ok) return;
 
     localStorage.setItem(STORAGE, JSON.stringify(server.days || {}));
