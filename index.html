@@ -3928,6 +3928,39 @@ function cloudSubscribe(){
   });
 }
 
+
+// مزامنة ذكية عند تسجيل الدخول (سحب/دفع حسب الأحدث)
+async function cloudSyncOnLogin(){
+  try{
+    const snap = await getDoc(SHARED_DOC);
+    const cloud = snap.exists() ? (snap.data()||{}) : null;
+
+    const localUpdated = guessLocalUpdatedAt();      // أحدث توقيت محلي من الكروت
+    const cloudUpdated = cloud?.updatedAt || 0;      // أحدث توقيت سحابة (رقمي)
+
+    if(!cloud || cloudUpdated === 0 || localUpdated > cloudUpdated){
+      // جهازك أحدث أو السحابة فارغة → ارفع المحلّي فورًا
+      await cloudSaveNow();
+      // بعد الرفع، خلّ الاشتراك يجلب أي تحديثات لاحقة
+    }else if(cloudUpdated > localUpdated){
+      // السحابة أحدث → نزّلها على المحلي
+      __cloudApplying = true;
+      window.days  = cloud.days  || {};
+      window.names = cloud.names || [];
+      localStorage.setItem('assal:board:v3', JSON.stringify(window.days));
+      localStorage.setItem('assal:names:v3', JSON.stringify(window.names));
+      renderBoard(); renderRail(); refreshStats();
+      __cloudApplying = false;
+    }
+  }catch(e){
+    console.error('cloudSyncOnLogin error', e);
+  }
+}
+
+
+
+
+
 // إلغاء الاشتراك (عند تسجيل خروج مثلًا)
 function cloudUnsubscribe(){
   __unsubscribeCloud?.();
@@ -4008,19 +4041,25 @@ btnEl?.addEventListener('click', async ()=>{
   try{
     const { user } = await signInWithEmailAndPassword(auth, email, pass);
     if(!(await isAllowed(user.email))){
-        cloudUnsubscribe();          // تأكيد قطع الاستماع إذا كان مفعل
+      cloudUnsubscribe();
       await signOut(auth);
       showGate('هذا الإيميل غير مخوّل بالدخول');
       return;
     }
     hideGate();
     setSignedInUI(user);
+
+    // ↓↓↓ المهم: مزامنة أولية مباشرة
+    await cloudSyncOnLogin();
+    cloudSubscribe();
+    // ↑↑↑
   }catch(e){
     msgEl.textContent = 'فشل تسجيل الدخول';
   }finally{
     hideSplash();
   }
 });
+
 
 // خروج
 btnLogout?.addEventListener('click', async ()=>{
@@ -4041,7 +4080,7 @@ onAuthStateChanged(auth, async (user)=>{
   showSplash();
   try{
     if(!user){
-     cloudUnsubscribe();            // قطع الاستماع من السحابة إذا موجود
+      cloudUnsubscribe();
       setSignedOutUI();
       showGate('');
       return;
@@ -4050,19 +4089,18 @@ onAuthStateChanged(auth, async (user)=>{
     if(ok){
       hideGate();
       setSignedInUI(user);
-      
-      await cloudLoadOnce();   // جيب نسخة السحابة إذا أحدث من المحلي
-cloudSubscribe();        // فعّل الاستماع اللحظي
 
-      
+      // ↓↓↓ المهم: مزامنة ذات اتجاهين
+      await cloudSyncOnLogin();   // يدفع المحلّي للسحابة أو يسحب حسب الأحدث
+      cloudSubscribe();           // اشترك لتحديثات فورية
+      // ↑↑↑
     }else{
       await signOut(auth);
-      cloudUnsubscribe();   // ← قطع الاشتراك
+      cloudUnsubscribe();
       setSignedOutUI();
       showGate('الإيميل غير مخوّل');
     }
   }finally{
-    // مهما صار، انهي شاشة التحميل
     hideSplash();
   }
 });
