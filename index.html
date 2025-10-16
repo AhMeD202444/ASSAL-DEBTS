@@ -1495,6 +1495,100 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
 
 
 
+/* ===== Auth Splash (Highly Polished) ===== */
+.auth-splash{
+  position: fixed; inset: 0; z-index: 30000;
+  display: none; place-items: center;
+  backdrop-filter: blur(6px);
+  background:
+    radial-gradient(1000px 600px at 80% -10%, rgba(124,58,237,.12), transparent 60%),
+    radial-gradient(900px 500px at -10% 10%, rgba(18,209,180,.10), transparent 60%),
+    linear-gradient(180deg, rgba(11,18,32,.92), rgba(15,23,42,.92));
+}
+
+.auth-shell{
+  width: min(520px, 92vw);
+  border-radius: 16px;
+  padding: 18px 18px 16px;
+  border: 1px solid rgba(124,58,237,.25);
+  background:
+    linear-gradient(180deg, rgba(17,24,39,.75), rgba(15,23,42,.85));
+  box-shadow: 0 24px 60px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.03);
+  display:flex; flex-direction:column; gap:14px;
+  animation: auth-pop .22s ease-out both;
+}
+
+@keyframes auth-pop{ from{ transform: translateY(8px); opacity:0 } to{ transform: translateY(0); opacity:1 } }
+
+.auth-brand{ display:flex; align-items:center; gap:12px }
+.auth-mark{
+  width:36px; height:36px; border-radius:10px;
+  display:grid; place-items:center; font-weight:900;
+  color:#fff;
+  background:linear-gradient(135deg,var(--brand,#12d1b4),var(--brand-2,#7c3aed));
+  box-shadow:0 10px 26px rgba(124,58,237,.35);
+}
+.auth-texts .auth-title{
+  font-weight:900; letter-spacing:.5px; color:#fff; line-height:1;
+}
+.auth-texts .auth-sub{
+  font-size:12px; color:#cbd5e1; opacity:.9; margin-top:2px;
+}
+
+.auth-status{ display:flex; flex-direction:column; gap:10px }
+.auth-tip{
+  font-weight:800; letter-spacing:.2px; color:#e7eef9;
+  text-align:center;
+}
+.auth-progress{
+  height:12px; border-radius:999px; overflow:hidden;
+  border:1px solid var(--stroke,#1f2a44);
+  background:linear-gradient(180deg,#0b1327,#0d172d);
+  position:relative;
+}
+.auth-bar{
+  height:100%; width:0%;
+  background:linear-gradient(90deg, var(--brand-3,#0ea5e9), var(--brand-2,#7c3aed));
+  border-right:1px solid rgba(255,255,255,.28);
+  box-shadow: inset 0 0 10px rgba(255,255,255,.14);
+  position:relative;
+}
+.auth-bar::after{
+  content:"";
+  position:absolute; inset:0;
+  background-size: 32px 12px;
+  background-image: linear-gradient( -45deg, rgba(255,255,255,.14) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.14) 50%, rgba(255,255,255,.14) 75%, transparent 75%, transparent);
+  animation: auth-stripes 1s linear infinite;
+  mix-blend-mode: screen;
+  opacity:.55;
+}
+@keyframes auth-stripes{ to{ background-position: 32px 0 } }
+
+.auth-meta{
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  font-size:12.5px; color:#9aa4b2;
+}
+.auth-pct{ font-weight:900; color:#e7eef9 }
+.auth-sep{ opacity:.6 }
+.auth-subtle{ color:#b5bfd0 }
+
+.auth-bg{
+  position:absolute; filter: blur(24px); opacity:.22; pointer-events:none;
+  border-radius: 50%;
+}
+.auth-bg--1{ width:340px; height:340px; right:8%; top:8%; background: radial-gradient(circle at 30% 30%, #7c3aed, transparent 70%); }
+.auth-bg--2{ width:420px; height:420px; left:6%; bottom:6%; background: radial-gradient(circle at 70% 70%, #0ea5e9, transparent 70%); }
+.auth-bg--3{ width:260px; height:260px; left:40%; top:12%; background: radial-gradient(circle at 50% 50%, #12d1b4, transparent 70%); }
+
+@media (prefers-reduced-motion: reduce){
+  .auth-shell{ animation:none }
+  .auth-bar::after{ animation: none }
+}
+
+
+
+
+
   </style>
 </head>
 
@@ -1689,13 +1783,35 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
 
 
 
+<!-- Auth Splash: نافذة احترافية للتحقق من الجلسة -->
+<div id="authSplash" class="auth-splash" aria-live="polite" aria-atomic="true" style="display:none">
+  <div class="auth-shell" role="dialog" aria-label="جاري التحقق من الجلسة">
+    <div class="auth-brand">
+      <div class="auth-mark">A</div>
+      <div class="auth-texts">
+        <div class="auth-title">ASSAL</div>
+        <div class="auth-sub">مكتب عسل</div>
+      </div>
+    </div>
 
-<!-- Auth Splash: يظهر لحين حسم حالة الجلسة -->
-<div id="authSplash" class="loading active" aria-live="polite" aria-atomic="true">
-  <div class="loading-box">
-    <div class="spinner"></div>
-    <div style="font-weight:800">جاري التحقق من الجلسة…</div>
+    <div class="auth-status">
+      <div id="authTip" class="auth-tip">نحضّر كلشي…</div>
+
+      <div class="auth-progress" aria-label="شريط التقدم">
+        <div id="authBar" class="auth-bar"></div>
+      </div>
+
+      <div class="auth-meta">
+        <span id="authPct" class="auth-pct">0%</span>
+        <span class="auth-sep">•</span>
+        <span id="authSub" class="auth-subtle">التحقق من الجلسة</span>
+      </div>
+    </div>
   </div>
+  <!-- خلفية زخرفية -->
+  <div class="auth-bg auth-bg--1"></div>
+  <div class="auth-bg auth-bg--2"></div>
+  <div class="auth-bg auth-bg--3"></div>
 </div>
 
 
@@ -5020,42 +5136,92 @@ toggleControls(true);
   
   // عناصر السلاش
 
-
-// عناصر السلاش
+// ===== Auth Splash (منطق التقدّم الاحترافي) =====
 const authSplash = document.getElementById('authSplash');
+const authBar    = document.getElementById('authBar');
+const authTip    = document.getElementById('authTip');
+const authPct    = document.getElementById('authPct');
+const authSubEl  = document.getElementById('authSub');
 
-let splashTimer = null, splashVal = 0;
+let authRAF = null, authStart = 0, authHold = false;
 
-function startSplashPct(){
-  const el = document.getElementById('splashPct');
-  splashVal = 0;
-  if(!el) return;
-  el.textContent = '0%';
-  clearInterval(splashTimer);
-  splashTimer = setInterval(()=>{
-    splashVal = Math.min(99, splashVal + Math.ceil(Math.random()*3));
-    el.textContent = splashVal + '%';
-  }, 120);
+const AUTH_TIPS = [
+  'نحضّر كلشي…',
+  'نحدّث حالة الجلسة…',
+  'نتأكد من صلاحيات الدخول…',
+  'نربط بياناتك بأمان…'
+];
+
+// easeOutQuad
+function easeOut(t){ return 1 - (1 - t) * (1 - t); }
+
+// شغّل التقدم إلى 95% (الباقي عند الإخفاء)
+function startAuthProgress(totalMs = 2200){
+  cancelAnimationFrame(authRAF);
+  authStart = performance.now();
+  authHold  = false;
+
+  function step(now){
+    const t = Math.min(1, (now - authStart) / totalMs);
+    const eased = easeOut(t);
+    const val = Math.min(95, Math.floor(eased * 100)); // نمسك عند 95%
+
+    if(authBar) authBar.style.width = val + '%';
+    if(authPct) authPct.textContent = val + '%';
+
+    // بدّل التلميح كل 500ms تقريبًا
+    const tipIdx = Math.min(AUTH_TIPS.length - 1, Math.floor((now - authStart) / 500));
+    if(authTip) authTip.textContent = AUTH_TIPS[tipIdx];
+
+    if(t < 1 && !authHold){
+      authRAF = requestAnimationFrame(step);
+    }
+  }
+  authRAF = requestAnimationFrame(step);
 }
 
-function stopSplashPct(done=false){
-  const el = document.getElementById('splashPct');
-  if(!el) return;
-  if(done){ el.textContent = '100%'; }
-  clearInterval(splashTimer);
-  splashTimer = null;
+// نكمل لـ 100% بسرعة لطيفة ثم نخفي
+function completeAuthProgress(holdAfterMs = 120){
+  authHold = true;
+  cancelAnimationFrame(authRAF);
+
+  const start = performance.now();
+  const from  = parseInt((authPct?.textContent || '0').replace(/\D/g,''), 10) || 0;
+
+  function step(now){
+    const t = Math.min(1, (now - start) / 260); // اندفاع قصير
+    const val = Math.floor(from + (100 - from) * easeOut(t));
+
+    if(authBar) authBar.style.width = val + '%';
+    if(authPct) authPct.textContent = val + '%';
+
+    if(t < 1){
+      requestAnimationFrame(step);
+    }else{
+      setTimeout(hideSplash, holdAfterMs);
+    }
+  }
+  requestAnimationFrame(step);
 }
 
-function showSplash(){
-  authSplash?.classList.add('active');
-  startSplashPct();
-}
+// واجهات العرض/الإخفاء (استبدل الموجودة بكودك القديم)
+function showSplash(subtitle = 'التحقق من الجلسة'){
+  if(authSubEl) authSubEl.textContent = subtitle;
+  if(authTip)   authTip.textContent   = AUTH_TIPS[0];
+  if(authBar)   authBar.style.width   = '0%';
+  if(authPct)   authPct.textContent   = '0%';
 
+  authSplash.style.display = 'grid';
+  startAuthProgress();
+}
 function hideSplash(){
-  stopSplashPct(true);
-  authSplash?.classList.remove('active');
+  // أنيميشن خروج خفيف
+  authSplash.style.animation = 'auth-pop .22s reverse ease-in both';
+  setTimeout(()=>{
+    authSplash.style.display   = 'none';
+    authSplash.style.animation = '';
+  }, 180);
 }
-
 
 
 
