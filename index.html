@@ -1457,6 +1457,12 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
   <script>
     
     
+    
+    
+    if(typeof window.IS_SIGNED_IN === 'undefined'){ window.IS_SIGNED_IN = false; }
+    
+    
+    
     // ===== Excel DB (تحميل جوجل شيت) =====
 let database = {};   // نخزّن بيه جداول الأصناف
 
@@ -3006,7 +3012,7 @@ function renderRail(){
 
     /* ===== Actions ===== */
    
-   document.getElementById('btnClearDay').onclick  = async ()=>{
+  document.getElementById('btnClearDay').onclick  = async ()=>{
   const ok = await showConfirm({
     title:'تفريغ اليوم',
     message:`سيتم حذف جميع بطاقات يوم ${arDateWithDay(selectedDay)}.`,
@@ -3015,10 +3021,31 @@ function renderRail(){
     danger:true
   });
   if(!ok) return;
-  days[selectedDay] = [];
-  save(); renderBoard(); refreshStats();
-  showToast('error', 'تم تفريغ اليوم');
+
+  const now = nowISO();
+  const arr = days[selectedDay] || [];
+
+  arr.forEach(card=>{
+    if(card){
+      card.deletedAt = now;
+      card.updatedAt = now;
+
+      (card.lines || []).forEach(l=>{
+        l.deletedAt = now;
+        l.updatedAt = now;
+      });
+      (card.notes || []).forEach(n=>{
+        n.deletedAt = now;
+        n.updatedAt = now;
+      });
+    }
+  });
+
+  // لا تصفّر المصفوفة — خلّ التومبستونات تنسجّم مع الدمج
+  save(); renderBoard(); renderRail(); refreshStats();
+  showToast('error', 'تم تعليم كل بطاقات اليوم كمحذوفة');
 };
+
 
    
    
@@ -3179,6 +3206,12 @@ document.addEventListener('click', (ev)=>{
 
 
 
+/* ==== Helper: HTML Escaper (للاحتياط لو احتجت نص داخل template) ==== */
+function escHtml(s){
+  return String(s||'')
+   .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+   .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
 // ===== تصدير كل بطاقات اليوم إلى PDF (محدّثة) =====
 function exportDayPDF_Vector(){
@@ -3277,6 +3310,13 @@ function exportDayPDF_Vector(){
         <div id="printCards"></div>
       </div>
       <script>
+        // نفس مُنسّق السعر المُستخدم بالكروت
+        function formatIQD(v){
+          const n = Number(String(v||'').replace(/[^\\d.]/g,''));
+          if(!Number.isFinite(n)) return '';
+          return n.toLocaleString('en-US');
+        }
+
         // البيانات المحقونة
         const PAYLOAD = ${payloadJSON};
 
@@ -3347,7 +3387,7 @@ function exportDayPDF_Vector(){
               const isReturned = !!ln.returned;
               const isPaid     = !!ln.paid;
               const state = isReturned ? 'راجع' : (isPaid ? 'مدفوع' : '');
-              const price = (ln.price||'') ? String(ln.price).replace(/\\B(?=(\\d{3})+(?!\\d))/g, ",") : '—';
+              const price = (ln.price === 0 || ln.price) ? (formatIQD(ln.price) || '—') : '—';
 
               const nmClass = isReturned ? 'return' : (isPaid ? 'paid' : '');
               const nameHTML = \`<span class="nm \${nmClass}">\${ln.item || ''}</span>\`;
@@ -3358,7 +3398,7 @@ function exportDayPDF_Vector(){
                 <td class="center">\${price}</td>
                 <td class="center">× \${ln.qty || '1'}</td>
                 <td class="center">\${(ln.note && ln.note.trim()) ? ln.note : '—'}</td>
-           <td class="center">\${arTime(ln.at || ln.createdAt || ln.updatedAt)}</td>
+                <td class="center">\${arTime(ln.at || ln.createdAt || ln.updatedAt)}</td>
                 <td class="center">\${state}</td>\`;
               tbody.appendChild(tr);
             });
@@ -3421,8 +3461,6 @@ function exportDayPDF_Vector(){
   w.document.close();
   showToast('success','جاهز للطباعة — اختر "حفظ كـ PDF"');
 }
-
-
 
 
 
@@ -3527,6 +3565,13 @@ function exportCardPDF_Vector(card, dayKey){
         <div id="printCard"></div>
       </div>
       <script>
+        // نفس مُنسّق السعر المُستخدم بالكروت
+        function formatIQD(v){
+          const n = Number(String(v||'').replace(/[^\\d.]/g,''));
+          if(!Number.isFinite(n)) return '';
+          return n.toLocaleString('en-US');
+        }
+
         const PAYLOAD = ${payloadJSON};
 
         (function(){
@@ -3594,7 +3639,7 @@ function exportCardPDF_Vector(card, dayKey){
             const isReturned = !!ln.returned;
             const isPaid     = !!ln.paid;
             const state = isReturned ? 'راجع' : (isPaid ? 'مدفوع' : '');
-            const price = (ln.price||'') ? String(ln.price).replace(/\\B(?=(\\d{3})+(?!\\d))/g, ",") : '—';
+            const price = (ln.price === 0 || ln.price) ? (formatIQD(ln.price) || '—') : '—';
 
             const nmClass = isReturned ? 'return' : (isPaid ? 'paid' : '');
             const nameHTML = \`<span class="nm \${nmClass}">\${ln.item || ''}</span>\`;
@@ -3605,7 +3650,7 @@ function exportCardPDF_Vector(card, dayKey){
               <td class="center">\${price}</td>
               <td class="center">× \${ln.qty || '1'}</td>
               <td class="center">\${(ln.note && ln.note.trim()) ? ln.note : '—'}</td>
-            <td class="center">\${arTime(ln.at || ln.createdAt || ln.updatedAt)}</td>
+              <td class="center">\${arTime(ln.at || ln.createdAt || ln.updatedAt)}</td>
               <td class="center">\${state}</td>\`;
             tbody.appendChild(tr);
           });
@@ -3667,7 +3712,6 @@ function exportCardPDF_Vector(card, dayKey){
   w.document.close();
   showToast('success','جاهز لطباعة البطاقة — اختر "حفظ كـ PDF"');
 }
-
 
 
 
@@ -3893,17 +3937,19 @@ async function serverPostBackup(payload){
 
 
 
-
 function safeStr(s){ return String(s||'').trim().replace(/\s+/g,' '); }
+
+// --- جديد: تجميع الطابع الزمني على مستوى الدقيقة فقط ---
 function minuteBucket(ts){
   try{
     const d = new Date(ts);
-    d.setSeconds(0,0); // قص للدقيقة
+    if(!Number.isFinite(d.getTime())) return '';
+    d.setSeconds(0, 0);          // نلغي الثواني والميلي ثانية
     return d.toISOString();
   }catch{ return ''; }
 }
 
-// مفتاح السطر: lineId إن وجد، وإلا مُركّب ثابت
+// --- تعريف lineKey الوحيد المعتمد في النظام (لا تنسخه مرتين) ---
 function lineKey(l){
   if(l?.lineId) return l.lineId;
   const item = safeStr(l?.item);
@@ -3914,6 +3960,11 @@ function lineKey(l){
   const t    = minuteBucket(l?.createdAt || l?.at || l?.updatedAt || '');
   return `SYN::${item}|${cat}|${price}|${qty}|${note}|${t}`;
 }
+
+
+
+
+
 
 // نفس الفكرة للملاحظة
 function noteKey(n){
@@ -3928,11 +3979,28 @@ function noteKey(n){
 
 /* ====== Smart Export / Import ====== */
 
-// يتطلب وجود: mergeAllDays(), serverGetBackup(), serverPostBackup(),
-// getUpdatedAtMax(), load(), showToast(), STORAGE/NAMES, والمتغيرين days/names موجودين بالعالمية.
+
+// ===== تصدير/رفع ذكي لكل الفواتير إلى السيرفر (نهائي بعد الدمج) =====
+let __EXPORTING__ = false;
+
 async function smartExportToServer(){
+  // حماية: لا تسمح باستدعاء متزامن
+  if(__EXPORTING__){
+    showToast?.('info','جاري الرفع بالفعل… انتظر انتهاء العملية الحالية');
+    return;
+  }
+
+  if(!window.IS_SIGNED_IN){
+    showToast?.('warn','سجّل دخول أولاً');
+    return;
+  }
+  
+  __EXPORTING__ = true;
   try{
     showToast('info','جاري تحضير النسخة للرفع (دمج+تسوية)…', 2000);
+
+    // لقطة سلامة: أعلى توقيت تحديث محلي قبل أي عملية
+    const preTs = getUpdatedAtMax(days || {});
 
     // 1) حاول تجيب نسخة السيرفر (قد لا تكون موجودة أول مرة)
     let server = null;
@@ -3942,39 +4010,38 @@ async function smartExportToServer(){
       server = null; // ماكو نسخة على السيرفر — نعدّها فارغة
     }
 
-    // 2) دمج قبل الرفع لتقليل التعارض
+    // 2) دمج قبل الرفع لتقليل التعارض (محلي × سيرفر)
     const localDays  = days || {};
     const remoteDays = server?.days || {};
     const { days: mergedDays, report } = mergeAllDays(localDays, remoteDays);
-    
-   dedupeAllDays(mergedDays);
- 
 
-    // 3) وحّد أسماء الزبائن (إن وجِدت على السيرفر)
+    // 3) تثبيت المعرّفات + إزالة التكرارات
+    normalizeIdsInAllDays(mergedDays);
+    dedupeAllDays(mergedDays);
+
+    // 4) وحّد أسماء الزبائن (إن وجِدت على السيرفر)
     const curNames = Array.isArray(names) ? names : [];
     const srvNames = Array.isArray(server?.names) ? server.names : [];
     const mergedNames = Array.from(new Set([...curNames, ...srvNames]));
-    
 
-
-    // 4) خزّن نتيجة الدمج محليًا حتى تظل الواجهة متوافقة مع اللي راح ينرفع
+    // 5) خزّن نتيجة الدمج محليًا حتى تظل الواجهة متوافقة مع اللي راح ينرفع
     localStorage.setItem(STORAGE, JSON.stringify(mergedDays));
     localStorage.setItem(NAMES,   JSON.stringify(mergedNames));
     // حدّث الحالة بالذاكرة
     days  = load(STORAGE, {});
     names = load(NAMES,   []);
 
-    // 5) حضّر الحمولة للرفع (اعتمدت nowISO إن كانت عندك؛ وإلا ISO عادي)
+    // 6) حضّر الحمولة للرفع
     const now = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
     const payload = {
-      version: 3,
-      exportedAt: now,
+      version     : 3,
+      exportedAt  : now,
       updatedAtMax: getUpdatedAtMax(mergedDays),
-      days : mergedDays,
-      names: mergedNames
+      days        : mergedDays,
+      names       : mergedNames
     };
 
-    // (اختياري) تحاشي الرفع إذا لا تغييرات فعلية مقارنةً بالسيرفر
+    // 7) تحاشي الرفع إذا لا تغييرات فعلية مقارنةً بالسيرفر
     const sameDays  = JSON.stringify(remoteDays)  === JSON.stringify(mergedDays);
     const sameNames = JSON.stringify(srvNames)    === JSON.stringify(mergedNames);
     if (sameDays && sameNames){
@@ -3982,24 +4049,34 @@ async function smartExportToServer(){
       return;
     }
 
-    // 6) الرفع
+    // 8) فحص سباق التعديل: إذا تغيّرت البيانات محليًا أثناء التحضير — ألغِ العملية
+    const postTs = getUpdatedAtMax(days || {});
+    if(postTs !== preTs){
+      showToast('warn','تغيّرت البيانات أثناء التحضير — أعد المحاولة بعد اكتمال التعديلات');
+      return;
+    }
+
+    // 9) الرفع
     const r = await serverPostBackup(payload);
 
     if(r?.status === 'ok' || r?.status === undefined){
       const ch = report?.length || 0;
       showToast('success', ch ? `انرفع النسخة بعد دمج (${ch} تغيير)` : 'انرفع النسخة — لا تغييرات كبيرة');
       // (اختياري) اطبع تقرير الدمج
-      console.groupCollapsed('ASSAL MERGE REPORT (EXPORT)');
+      console.groupCollapsed?.('ASSAL MERGE REPORT (EXPORT)');
       (report || []).forEach(row => console.log(row));
-      console.groupEnd();
+      console.groupEnd?.();
     }else{
       showToast('error','فشل التصدير للسيرفر');
     }
   }catch(err){
     console.error(err);
     showToast('error','تعذّر الدمج/الرفع إلى السيرفر');
+  }finally{
+    __EXPORTING__ = false;
   }
 }
+
 
 
 
@@ -4242,8 +4319,15 @@ out[dayKey] = mergedCards;
 
 
 // استيراد ذكي: يسحب من السيرفر إذا هو أحدث (أو إذا المحلي فارغ)
-// يتطلب وجود mergeAllDays() و serverGetBackup() و load()/render*() معرفة مسبقًا
+
 async function smartImportFromServer(){
+  
+ if(!window.IS_SIGNED_IN){
+    // لا تستورد قبل الدخول
+    return;
+  }
+  
+  
   try{
     showToast('info','جاري جلب آخر نسخة من السيرفر…', 1800);
 
@@ -4339,13 +4423,6 @@ function dedupeAllDays(daysObj){
 })();
 
 
-// داخل init() بنهايته مثلاً:
-(function autoPullOnBoot(){
-  // بدل الفحص على الفراغ، سوّي دمج آمن دائمًا عند التشغيل
-  // حتى لو عندك بيانات محلية، الدمج يحميك من الفقدان/التعارض.
-  smartImportFromServer();
-})();
-
 
 
 
@@ -4433,13 +4510,34 @@ function dedupeAllDays(daysObj){
   const auth = getAuth(app);
   const db   = getFirestore(app);
 
-  // عناصر البوابة
-  const gate = document.getElementById('loginGate');
-  const emailEl = document.getElementById('lgEmail');
-  const passEl  = document.getElementById('lgPass');
-  const btnEl   = document.getElementById('lgBtn');
-  const msgEl   = document.getElementById('lgMsg');
-  const btnLogout = document.getElementById('btnLogout');
+  // ===== حالة الجلسة كمتغيّر عالمي =====
+window.IS_SIGNED_IN = false;     // خليها عالمية لأن كود خارج المودول يستعملها
+
+// عناصر البوابة (تعريف مرّة وحدة فقط)
+const gate     = document.getElementById('loginGate');
+const emailEl  = document.getElementById('lgEmail');
+const passEl   = document.getElementById('lgPass');
+const btnEl    = document.getElementById('lgBtn');
+const msgEl    = document.getElementById('lgMsg');
+const btnLogout= document.getElementById('btnLogout');
+
+// أزرار لازم تتعطّل لحد الدخول
+const ctrlButtons = [
+  document.getElementById('btnExportAll'),
+  document.getElementById('btnImportAll'),
+  document.getElementById('btnExportDay'),
+  document.getElementById('btnClearDay'),
+  document.getElementById('btnNextDay')
+];
+function toggleControls(disabled){
+  ctrlButtons.forEach(b=> b && (b.disabled = !!disabled));
+}
+// ✅ فعّل القفل من البداية (تنفيذ ملاحظتك السابقة)
+toggleControls(true);
+
+  
+  
+  
   
   
   // عناصر السلاش
@@ -4461,15 +4559,21 @@ function hideGate(){
 
 // UI عند الدخول/الخروج
 function setSignedInUI(user){
+  IS_SIGNED_IN = true;
   const badge = document.getElementById('userBadge');
   if(badge){ badge.textContent = user?.email || ''; badge.style.display = ''; }
   if(btnLogout){ btnLogout.style.display = ''; btnLogout.title = `تسجيل خروج (${user?.email||''})`; }
+  toggleControls(false);   // فعّل الأزرار
   showToast?.('success','تم تسجيل الدخول بنجاح');
 }
+
+
 function setSignedOutUI(){
+  IS_SIGNED_IN = false;
   const badge = document.getElementById('userBadge');
   if(badge){ badge.textContent = ''; badge.style.display = 'none'; }
   if(btnLogout){ btnLogout.style.display = 'none'; btnLogout.title = 'تسجيل خروج'; }
+  toggleControls(true);    // عطّل الأزرار
   showToast?.('info','تم تسجيل الخروج');
 }
 
@@ -4535,16 +4639,19 @@ onAuthStateChanged(auth, async (user)=>{
     if(ok){
       hideGate();
       setSignedInUI(user);
+
+      // ← هنا فقط: أول استيراد ذكي بعد تسجيل الدخول
+      await smartImportFromServer();
     }else{
       await signOut(auth);
       setSignedOutUI();
       showGate('الإيميل غير مخوّل');
     }
   }finally{
-    // مهما صار، انهي شاشة التحميل
     hideSplash();
   }
 });
+
 
 
 
