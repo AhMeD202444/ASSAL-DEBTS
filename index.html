@@ -2339,6 +2339,8 @@ if (global) {
   // اطبع البطاقات
   arr.forEach((card, ci)=>{
     if(card.deletedAt){ return; }
+    
+     dedupeCardLines(card);
     const box = CE('div','card');
     box.id = 'card-' + card.id;
 
@@ -3891,6 +3893,39 @@ async function serverPostBackup(payload){
 
 
 
+
+function safeStr(s){ return String(s||'').trim().replace(/\s+/g,' '); }
+function minuteBucket(ts){
+  try{
+    const d = new Date(ts);
+    d.setSeconds(0,0); // قص للدقيقة
+    return d.toISOString();
+  }catch{ return ''; }
+}
+
+// مفتاح السطر: lineId إن وجد، وإلا مُركّب ثابت
+function lineKey(l){
+  if(l?.lineId) return l.lineId;
+  const item = safeStr(l?.item);
+  const cat  = safeStr(l?.cat);
+  const price= String(l?.price ?? '');
+  const qty  = String(l?.qty   ?? '');
+  const note = safeStr(l?.note);
+  const t    = minuteBucket(l?.createdAt || l?.at || l?.updatedAt || '');
+  return `SYN::${item}|${cat}|${price}|${qty}|${note}|${t}`;
+}
+
+// نفس الفكرة للملاحظة
+function noteKey(n){
+  if(n?.id) return n.id;
+  const text = safeStr(n?.text);
+  const t    = minuteBucket(n?.at || n?.updatedAt || '');
+  return `SYNNOTE::${text}|${t}`;
+}
+
+
+
+
 /* ====== Smart Export / Import ====== */
 
 // يتطلب وجود: mergeAllDays(), serverGetBackup(), serverPostBackup(),
@@ -3912,12 +3947,15 @@ async function smartExportToServer(){
     const remoteDays = server?.days || {};
     const { days: mergedDays, report } = mergeAllDays(localDays, remoteDays);
     
+   dedupeAllDays(mergedDays);
  
 
     // 3) وحّد أسماء الزبائن (إن وجِدت على السيرفر)
     const curNames = Array.isArray(names) ? names : [];
     const srvNames = Array.isArray(server?.names) ? server.names : [];
     const mergedNames = Array.from(new Set([...curNames, ...srvNames]));
+    
+
 
     // 4) خزّن نتيجة الدمج محليًا حتى تظل الواجهة متوافقة مع اللي راح ينرفع
     localStorage.setItem(STORAGE, JSON.stringify(mergedDays));
@@ -3962,6 +4000,19 @@ async function smartExportToServer(){
     showToast('error','تعذّر الدمج/الرفع إلى السيرفر');
   }
 }
+
+
+
+
+function normalizeIdsInAllDays(daysObj){
+  Object.values(daysObj||{}).forEach(cards=>{
+    (cards||[]).forEach(card=>{
+      (card.lines||[]).forEach(l => { if(!l.lineId) l.lineId = lineKey(l); });
+      (card.notes||[]).forEach(n => { if(!n.id)     n.id     = noteKey(n); });
+    });
+  });
+}
+
 
 
 
@@ -4095,17 +4146,32 @@ function mergeCard(a, b, report, path){
   merged.deletedAt = (newestDelTs && !isNewer(newestEditTs, newestDelTs)) ? newestDelTs : null;
 
   // الدمج سطر-بسطر بالـ lineId
-  const linesById = {};
-  (x.lines||[]).forEach(l => { linesById[l.lineId||('A-'+genId())] = l; });
-  (y.lines||[]).forEach(l => { const id = l.lineId||('B-'+genId()); linesById[id] = mergeLine(linesById[id], l, report, path+'.line:'+id); });
+ // مطابقة بمفتاح ثابت
+const linesByKey = {};
+(a.lines||[]).forEach(l => { linesByKey[lineKey(l)] = l; });
+(b.lines||[]).forEach(l => {
+  const k = lineKey(l);
+  linesByKey[k] = mergeLine(linesByKey[k], l, report, path+'.line:'+k);
+});
+merged.lines = Object.values(linesByKey).map(l => {
+  // ضمن وجود lineId بعد الدمج
+  if(!l.lineId) l.lineId = lineKey(l);
+  return l;
+});
 
-  merged.lines = Object.values(linesById);
 
   // دمج الملاحظات noteId
-  const notesById = {};
-  (x.notes||[]).forEach(n => { notesById[n.id||('A-'+genId())] = n; });
-  (y.notes||[]).forEach(n => { const id = n.id||('B-'+genId()); notesById[id] = mergeNote(notesById[id], n, report, path+'.note:'+id); });
-  merged.notes = Object.values(notesById);
+  const notesByKey = {};
+(a.notes||[]).forEach(n => { notesByKey[noteKey(n)] = n; });
+(b.notes||[]).forEach(n => {
+  const k = noteKey(n);
+  notesByKey[k] = mergeNote(notesByKey[k], n, report, path+'.note:'+k);
+});
+merged.notes = Object.values(notesByKey).map(n => {
+  if(!n.id) n.id = noteKey(n);
+  return n;
+});
+
 
   // updatedAt الأحدث
   merged.updatedAt = isNewer(x.updatedAt, y.updatedAt) ? y.updatedAt : x.updatedAt;
@@ -4194,8 +4260,9 @@ async function smartImportFromServer(){
 
     // 3) دمج قوي يوم-بيوم/بطاقة-ببطاقة/سطر-بسطر/ملاحظة-بملاحظة
     const { days: mergedDays, report } = mergeAllDays(localDays, remoteDays);
+    normalizeIdsInAllDays(mergedDays);
     
-   
+   dedupeAllDays(mergedDays);
 
     // 4) خزّن النتيجة المدموجة محلّياً (بدون فقدان)
     localStorage.setItem(STORAGE, JSON.stringify(mergedDays));
@@ -4227,6 +4294,34 @@ names = load(NAMES,   []);
   }
 }
 
+
+
+
+
+function dedupeCardLines(card){
+  const map = {};
+  (card.lines||[]).forEach(l=>{
+    const k = lineKey(l);
+    const prev = map[k];
+    if(!prev){
+      map[k] = l;
+    }else{
+      // احتفظ بالأحدث
+      const ta = new Date(prev.updatedAt || prev.at || 0).getTime();
+      const tb = new Date(l.updatedAt    || l.at    || 0).getTime();
+      map[k] = (tb > ta) ? l : prev;
+    }
+  });
+  card.lines = Object.values(map).map(l => {
+    if(!l.lineId) l.lineId = lineKey(l);
+    return l;
+  });
+}
+function dedupeAllDays(daysObj){
+  Object.values(daysObj||{}).forEach(cards=>{
+    (cards||[]).forEach(dedupeCardLines);
+  });
+}
 
 
 
