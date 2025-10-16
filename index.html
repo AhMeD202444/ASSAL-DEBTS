@@ -1703,6 +1703,22 @@ function formatIQD(v){
 
 
 
+/* ===== IDs & Time helpers (أضِف) ===== */
+function nowISO(){ return new Date().toISOString(); }
+function genId(){ return 'id-' + Math.random().toString(36).slice(2) + Date.now().toString(36); }
+
+/* اختصار مقارنة وقت: يرجّع true إذا tsB أحدث من tsA */
+function isNewer(tsA, tsB){
+  const a = tsA ? new Date(tsA).getTime() : 0;
+  const b = tsB ? new Date(tsB).getTime() : 0;
+  return b > a;
+}
+
+
+
+
+
+
 function renderItemSuggestions(){
   const host = document.getElementById('itemSuggestions');
   const qEl  = document.getElementById('item');
@@ -2218,18 +2234,20 @@ document.getElementById('btnAdd').onclick = () => {
   }
 
   const isReturn = (type === 'راجع');
+  
+const now = nowISO();
+card.lines.push({
+  lineId   : genId(),
+  item, cat, price: priceVal, qty, note, type,
+  paid:false, returned:isReturn,
+  createdAt: now,
+  updatedAt: now,
+  at: now,                 // <— إضافة لضمان التوافق القديم
+  deletedAt: null
+});
 
-  card.lines.push({
-    item,
-    price: priceVal,          // <-- جديد
-    qty,
-    cat,
-    note,
-    type,
-    at: new Date().toISOString(),
-    returned: isReturn,
-    paid: false
-  });
+card.updatedAt = now;
+
 
   save();
 
@@ -2249,6 +2267,9 @@ document.getElementById('btnAdd').onclick = () => {
 
   showToast('success', createdNewCard ? 'تم إنشاء بطاقة وإضافة مادة' : 'تم إضافة مادة وتحريك البطاقة للأعلى');
 };
+
+
+
 
 
 
@@ -2317,6 +2338,7 @@ if (global) {
 
   // اطبع البطاقات
   arr.forEach((card, ci)=>{
+    if(card.deletedAt){ return; }
     const box = CE('div','card');
     box.id = 'card-' + card.id;
 
@@ -2383,8 +2405,10 @@ custWrap.appendChild(typeBadge);
 
     /* Items */
     const itemsWrap = CE('div','items');
-    card.lines.forEach((ln, li)=>{
-      const it = CE('div','item');
+   card.lines
+  .filter(ln => !ln.deletedAt)        // تجاهل المحذوف
+  .forEach((ln, li)=>{
+    const it = CE('div','item');
       if(ln.returned) it.classList.add('returned');
       if(ln.paid)     it.classList.add('paid');
 
@@ -2403,7 +2427,11 @@ const cat   = CE('div','ichip');  cat.textContent  = ln.cat || '—';
 const price = CE('div','iprice'); price.textContent = ln.price ? formatIQD(ln.price) : '—';
 const qty   = CE('div','iqty');   qty.textContent  = `× ${ln.qty}`;
 const note  = CE('div','inote');  note.textContent = (ln.note && ln.note.trim()) ? ln.note : '—';
-const time  = CE('div','itime');  time.textContent = arTime(ln.at);
+
+const time  = CE('div','itime');
+const ts = ln.at || ln.createdAt || ln.updatedAt;
+time.textContent = arTime(ts);
+
 
 
 
@@ -2420,27 +2448,29 @@ const time  = CE('div','itime');  time.textContent = arTime(ln.at);
 
     it.append(btnReturn, btnPay, cat, name, price, qty, note, time, del);
 
- btnReturn.onclick = ()=>{
+btnReturn.onclick = ()=>{
   ln.returned = !ln.returned;
   if(ln.returned) ln.paid = false;
-  card.paidAll = false;
-
-  card.updatedAt = new Date().toISOString();   // <-- جديد
+  ln.updatedAt = nowISO();
+  card.updatedAt = ln.updatedAt;
 
   save(); renderBoard(); renderRail(); refreshStats();
   showToast(ln.returned ? 'warn' : 'info', ln.returned ? 'تم تعليمها راجع' : 'تم إلغاء الراجع');
 };
 
 
+
  btnPay.onclick = ()=>{
   ln.paid = !ln.paid;
   if(ln.paid) ln.returned = false;
+  ln.updatedAt = nowISO();
+  card.updatedAt = ln.updatedAt;
 
-  card.updatedAt = new Date().toISOString();   // <-- جديد
-
-  save(); renderBoard(); renderRail(); refreshStats();
+  save(); /* لاحقًا سنضيف scheduleExportDebounced() */ 
+  renderBoard(); renderRail(); refreshStats();
   showToast(ln.paid ? 'success' : 'info', ln.paid ? 'تم تسديد المادة' : 'تم إلغاء التسديد');
 };
+
 
 
       del.onclick = async ()=>{
@@ -2452,12 +2482,15 @@ const time  = CE('div','itime');  time.textContent = arTime(ln.at);
           danger:true
         });
         if(!ok) return;
-        card.lines.splice(li,1); 
-         card.updatedAt = new Date().toISOString();   // <-- جديد
         
-        save();
-        renderBoard(); renderRail(); refreshStats();
-        showToast('error', 'تم حذف المادة');
+        ln.deletedAt = nowISO();
+ln.updatedAt = ln.deletedAt;
+card.updatedAt = ln.deletedAt;
+save(); renderBoard(); renderRail(); refreshStats();
+showToast('error','تم تعليم السطر كمحذوف');
+
+        
+        
       };
 
       itemsWrap.appendChild(it);
@@ -2616,9 +2649,14 @@ btnPdf.onclick = ()=>{
 
       // عند البحث الشامل: احذف من يوم البطاقة الحقيقي
       const dayKey = card.__day || selectedDay;
-      const arrRef = (days[dayKey]||[]);
-      const idx = arrRef.findIndex(c => c.id === card.id);
-      if(idx > -1){ arrRef.splice(idx,1); save(); }
+const arrRef = (days[dayKey]||[]);
+const real = arrRef.find(c => c.id === card.id);
+if(real){
+  real.deletedAt = nowISO();
+  real.updatedAt = real.deletedAt;
+  save();
+}
+
 
       renderBoard(); renderRail(); refreshStats();
       showToast('error', 'تم حذف البطاقة');
@@ -2644,7 +2682,11 @@ btnPdf.onclick = ()=>{
     
     
     
-    function activeLines(card){ return card.lines.filter(l => !l.returned); }
+  
+  function activeLines(card){ return (card.lines||[]).filter(l => !l.deletedAt && !l.returned); }
+
+  
+  
 function allActivePaid(card){
   const a = activeLines(card);
   return a.length>0 && a.every(l => l.paid);
@@ -2710,11 +2752,16 @@ function addCardNote(viewCard, text){
   // وحّد المرجع مع الكارت المعروض حتى تتحدّث الواجهة فورًا
   viewCard.notes = real.notes;
 
-  real.notes.push({
-    id: Date.now() + Math.random(),
-    text,
-    at: new Date().toISOString()
-  });
+ const t = nowISO();
+real.notes.push({
+  id: genId(),
+  text,
+  at: t,
+  updatedAt: t,
+  deletedAt: null
+});
+real.updatedAt = t;
+
 
   // حدّث آخر نشاط (يفيد بالفرز حسب updatedAt إن موجود)
   real.updatedAt = new Date().toISOString();
@@ -2732,12 +2779,16 @@ function deleteCardNote(viewCard, noteId){
   const i = real.notes.findIndex(n => n.id === noteId);
   if(i === -1) return false;
 
-  real.notes.splice(i, 1);
+ const n = real.notes[i];
+if(n){
+  n.deletedAt = nowISO();
+  n.updatedAt = n.deletedAt;
+}
+real.updatedAt = nowISO();
+
 
   // وحّد المرجع مع الكارت المعروض
   viewCard.notes = real.notes;
-
-  real.updatedAt = new Date().toISOString();
   save();
   return true;
 }
@@ -3305,7 +3356,7 @@ function exportDayPDF_Vector(){
                 <td class="center">\${price}</td>
                 <td class="center">× \${ln.qty || '1'}</td>
                 <td class="center">\${(ln.note && ln.note.trim()) ? ln.note : '—'}</td>
-                <td class="center">\${arTime(ln.at)}</td>
+           <td class="center">\${arTime(ln.at || ln.createdAt || ln.updatedAt)}</td>
                 <td class="center">\${state}</td>\`;
               tbody.appendChild(tr);
             });
@@ -3552,7 +3603,7 @@ function exportCardPDF_Vector(card, dayKey){
               <td class="center">\${price}</td>
               <td class="center">× \${ln.qty || '1'}</td>
               <td class="center">\${(ln.note && ln.note.trim()) ? ln.note : '—'}</td>
-              <td class="center">\${arTime(ln.at)}</td>
+            <td class="center">\${arTime(ln.at || ln.createdAt || ln.updatedAt)}</td>
               <td class="center">\${state}</td>\`;
             tbody.appendChild(tr);
           });
@@ -3685,24 +3736,55 @@ async function importInvoicesFromFile(file){
     const text = await file.text();
     let data = JSON.parse(text);
 
-    // ندعم شكلين: {days,names,...} الحديث، أو مباشرة كائن الأيام (قديم)
+    // هيّئ بيانات الملف بنمط موحّد
+    let fileDays  = {};
+    let fileNames = [];
     if(data && typeof data === 'object'){
-      if(data.days){
-        localStorage.setItem(STORAGE, JSON.stringify(data.days || {}));
-        localStorage.setItem(NAMES,   JSON.stringify(data.names || []));
-      }else{
-        localStorage.setItem(STORAGE, JSON.stringify(data));
+      if(data.days){            // فورمات جديد {version, days, names, ...}
+        fileDays  = data.days || {};
+        fileNames = data.names || [];
+      }else{                    // فورمات قديم: كائن أيام مباشرة
+        fileDays  = data;
       }
-      showToast?.('success','تم الاستيراد — إعادة تحميل الصفحة');
-      setTimeout(()=> hardReload(), 400);
     }else{
       showToast?.('error','ملف غير صالح');
+      return;
     }
+
+    // دمج قوي: المحلي × الملف
+    const localDays = days || {};
+    const { days: mergedDays, report } = mergeAllDays(localDays, fileDays);
+
+
+    // خزّن النتيجة المدموجة
+    localStorage.setItem(STORAGE, JSON.stringify(mergedDays));
+
+    // الأسماء: دمج بسيط (مجموعة)
+    const curNames = Array.isArray(names) ? names : [];
+    const newNames = Array.isArray(fileNames) ? fileNames : [];
+    const namesSet = new Set([ ...curNames, ...newNames ]);
+    const mergedNames = Array.from(namesSet);
+    localStorage.setItem(NAMES, JSON.stringify(mergedNames));
+
+    // حدّث الذاكرة والواجهة
+    days  = load(STORAGE, {});
+    names = load(NAMES,   []);
+    renderBoard(); renderRail(); refreshStats();
+
+    const changes = report.length;
+    showToast?.('success', changes ? `تم الدمج من الملف (${changes} تغيير)` : 'لا تغييرات من الملف');
+
+    // (اختياري) تقرير للكونسول
+    console.groupCollapsed('ASSAL MERGE REPORT (FILE)');
+    report.forEach(r=> console.log(r));
+    console.groupEnd();
+
   }catch(err){
     console.error(err);
-    showToast?.('error','تعذّر قراءة الملف');
+    showToast?.('error','تعذّر قراءة/دمج الملف');
   }
 }
+
 
 
 
@@ -3755,8 +3837,17 @@ function getUpdatedAtMax(daysObj){
   Object.values(daysObj||{}).forEach(cards=>{
     (cards||[]).forEach(card=>{
       maxTs = Math.max(maxTs, asTs(card.updatedAt), asTs(card.createdAt));
-      (card.lines||[]).forEach(l=>{ maxTs = Math.max(maxTs, asTs(l.at)); });
-      (card.notes||[]).forEach(n=>{ maxTs = Math.max(maxTs, asTs(n.at)); });
+      
+      
+      (card.lines||[]).forEach(l=>{
+  maxTs = Math.max(maxTs, asTs(l.updatedAt), asTs(l.createdAt), asTs(l.at));
+});
+(card.notes||[]).forEach(n=>{
+  maxTs = Math.max(maxTs, asTs(n.updatedAt), asTs(n.at));
+});
+
+      
+      
     });
   });
   return maxTs || 0;
@@ -3802,95 +3893,340 @@ async function serverPostBackup(payload){
 
 /* ====== Smart Export / Import ====== */
 
-// تصدير ذكي: يصدّر فقط إذا نسختنا أحدث أو ماكو نسخة على السيرفر
+// يتطلب وجود: mergeAllDays(), serverGetBackup(), serverPostBackup(),
+// getUpdatedAtMax(), load(), showToast(), STORAGE/NAMES, والمتغيرين days/names موجودين بالعالمية.
 async function smartExportToServer(){
   try{
-    showToast('info','جاري فحص النسخ على السيرفر…', 1800);
+    showToast('info','جاري تحضير النسخة للرفع (دمج+تسوية)…', 2000);
 
-    const local = buildBackupPayload();
-
-    let server;
+    // 1) حاول تجيب نسخة السيرفر (قد لا تكون موجودة أول مرة)
+    let server = null;
     try{
       server = await serverGetBackup();
     }catch(_){
-      server = null; // إذا ماكو ملف، نعدّه فارغ
+      server = null; // ماكو نسخة على السيرفر — نعدّها فارغة
     }
 
-    const srvMax = Number(server?.updatedAtMax || 0);
-    const locMax = Number(local.updatedAtMax || 0);
+    // 2) دمج قبل الرفع لتقليل التعارض
+    const localDays  = days || {};
+    const remoteDays = server?.days || {};
+    const { days: mergedDays, report } = mergeAllDays(localDays, remoteDays);
+    
+ 
 
-    if(srvMax > locMax){
-      showToast('warn','السيرفر يحتوي نسخة أحدث — استوردها أولاً', 3500);
+    // 3) وحّد أسماء الزبائن (إن وجِدت على السيرفر)
+    const curNames = Array.isArray(names) ? names : [];
+    const srvNames = Array.isArray(server?.names) ? server.names : [];
+    const mergedNames = Array.from(new Set([...curNames, ...srvNames]));
+
+    // 4) خزّن نتيجة الدمج محليًا حتى تظل الواجهة متوافقة مع اللي راح ينرفع
+    localStorage.setItem(STORAGE, JSON.stringify(mergedDays));
+    localStorage.setItem(NAMES,   JSON.stringify(mergedNames));
+    // حدّث الحالة بالذاكرة
+    days  = load(STORAGE, {});
+    names = load(NAMES,   []);
+
+    // 5) حضّر الحمولة للرفع (اعتمدت nowISO إن كانت عندك؛ وإلا ISO عادي)
+    const now = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
+    const payload = {
+      version: 3,
+      exportedAt: now,
+      updatedAtMax: getUpdatedAtMax(mergedDays),
+      days : mergedDays,
+      names: mergedNames
+    };
+
+    // (اختياري) تحاشي الرفع إذا لا تغييرات فعلية مقارنةً بالسيرفر
+    const sameDays  = JSON.stringify(remoteDays)  === JSON.stringify(mergedDays);
+    const sameNames = JSON.stringify(srvNames)    === JSON.stringify(mergedNames);
+    if (sameDays && sameNames){
+      showToast('info','لا توجد تغييرات تُرفع — البيانات متطابقة مع السيرفر');
       return;
     }
 
-    const r = await serverPostBackup(local);
+    // 6) الرفع
+    const r = await serverPostBackup(payload);
+
     if(r?.status === 'ok' || r?.status === undefined){
-      showToast('success','انرفع النسخة على Google Drive');
+      const ch = report?.length || 0;
+      showToast('success', ch ? `انرفع النسخة بعد دمج (${ch} تغيير)` : 'انرفع النسخة — لا تغييرات كبيرة');
+      // (اختياري) اطبع تقرير الدمج
+      console.groupCollapsed('ASSAL MERGE REPORT (EXPORT)');
+      (report || []).forEach(row => console.log(row));
+      console.groupEnd();
     }else{
       showToast('error','فشل التصدير للسيرفر');
     }
   }catch(err){
     console.error(err);
-    showToast('error','تعذّر الاتصال بالسيرفر');
+    showToast('error','تعذّر الدمج/الرفع إلى السيرفر');
   }
 }
 
+
+
+
+
+/* =========================================================
+   STRONG MERGE: يوم-بيوم، بطاقة-ببطاقة، سطر-بسطر، ملاحظة-بملاحظة
+   ========================================================= */
+
+/* اجلب حقل بالأحدث (حسب updatedAt خاصّ بالحقل إن وُجد، وإلا السطر/الملاحظة) */
+function pickNewerField(aVal, aTs, bVal, bTs){
+  return isNewer(aTs, bTs) ? {val:bVal, ts:bTs} : {val:aVal, ts:aTs};
+}
+
+/* دمج سطرين بنفس lineId */
+function mergeLine(a, b, report, path){
+  // a, b قد يكون أحدهما undefined
+  const x = a || {};
+  const y = b || {};
+
+  // إذا أحدهما غير موجود → رجّع الموجود (لكن سجّل)
+  if(!a && b){
+    report.push({ path, type:'line-add', before:null, after:y });
+    return {...y};
+  }
+  if(a && !b){
+    report.push({ path, type:'line-keep', before:null, after:x });
+    return {...x};
+  }
+
+  // كلاهما موجود: قارن deletedAt vs updatedAt (حذف مقابل تعديل)
+  const delA = x.deletedAt || null;
+  const delB = y.deletedAt || null;
+
+  // إذا أحدهما محذوف والآخر عدّل بعد الحذف → الإلغاء/الإبقاء حسب الأحدث
+  const base = {...x};
+
+  // الحقول التي ندمجها حقل-بحقل
+  const fields = ['item','cat','price','qty','note','paid','returned'];
+  const merged = {...base};
+
+  // timestamps لكل حقل (إذا ما عندك لكل حقل، نستعمل line.updatedAt كله)
+  fields.forEach(f=>{
+    const aVal = x[f];
+    const bVal = y[f];
+    const aTs  = x.updatedAt || x.at || null;
+    const bTs  = y.updatedAt || y.at || null;
+    const {val} = pickNewerField(aVal, aTs, bVal, bTs);
+    merged[f] = val;
+  });
+
+  // قرارات الحذف:
+  // إن كان delA أو delB موجودين، نحسم بحسب من الأحدث مقارنةً مع آخر updatedAt
+  const lineUpdatedA = x.updatedAt || x.at || null;
+  const lineUpdatedB = y.updatedAt || y.at || null;
+  const newestEditTs = isNewer(lineUpdatedA, lineUpdatedB) ? lineUpdatedB : lineUpdatedA;
+  const newestDelTs  = isNewer(delA, delB) ? delB : delA;
+
+  if(newestDelTs && !isNewer(newestEditTs, newestDelTs)){
+    // الحذف أحدث أو مساوي → إبقاء التومبستون
+    merged.deletedAt = newestDelTs;
+  }else{
+    // التعديل أحدث → إلغاء الحذف
+    merged.deletedAt = null;
+  }
+
+  // updatedAt = أحدث من الاثنين
+  merged.updatedAt = isNewer(x.updatedAt, y.updatedAt) ? y.updatedAt : x.updatedAt;
+  merged.createdAt = x.createdAt || y.createdAt || merged.updatedAt || nowISO();
+  merged.lineId    = x.lineId || y.lineId || genId();
+
+  // سجّل before/after إذا تغيّر شيء مهم
+  const before = JSON.stringify(x);
+  const after  = JSON.stringify(merged);
+  if(before !== after){
+    report.push({ path, type:'line-merge', before:x, after:merged });
+  }
+  return merged;
+}
+
+/* دمج ملاحظة noteId */
+function mergeNote(a, b, report, path){
+  const x = a || {};
+  const y = b || {};
+  if(!a && b){ report.push({ path, type:'note-add', before:null, after:y }); return {...y}; }
+  if(a && !b){ report.push({ path, type:'note-keep', before:null, after:x }); return {...x}; }
+
+  const merged = {...x};
+  const aTs = x.updatedAt || x.at || null;
+  const bTs = y.updatedAt || y.at || null;
+
+  // text
+  merged.text = pickNewerField(x.text, aTs, y.text, bTs).val;
+
+  // حذف مقابل تعديل
+  const delA = x.deletedAt || null, delB = y.deletedAt || null;
+  const newestEditTs = isNewer(aTs, bTs) ? bTs : aTs;
+  const newestDelTs  = isNewer(delA, delB) ? delB : delA;
+  merged.deletedAt = (newestDelTs && !isNewer(newestEditTs, newestDelTs)) ? newestDelTs : null;
+
+  merged.updatedAt = isNewer(x.updatedAt, y.updatedAt) ? y.updatedAt : x.updatedAt;
+  merged.at        = x.at || y.at || merged.updatedAt || nowISO();
+  merged.id        = x.id || y.id || genId();
+
+  const before = JSON.stringify(x);
+  const after  = JSON.stringify(merged);
+  if(before !== after){
+    report.push({ path, type:'note-merge', before:x, after:merged });
+  }
+  return merged;
+}
+
+/* دمج بطاقة cardId */
+function mergeCard(a, b, report, path){
+  const x = a || {};
+  const y = b || {};
+
+  if(!a && b){ report.push({ path, type:'card-add', before:null, after:y }); return {...y}; }
+  if(a && !b){ report.push({ path, type:'card-keep', before:null, after:x }); return {...x}; }
+
+  const merged = {...x};
+
+  // اسم الزبون بالأحدث (نادرًا يتغيّر)
+  const custPick = pickNewerField(x.customer, x.updatedAt, y.customer, y.updatedAt);
+  merged.customer = custPick.val;
+
+  // حذف مقابل تعديل
+  const delA = x.deletedAt || null, delB = y.deletedAt || null;
+  const newestEditTs = isNewer(x.updatedAt, y.updatedAt) ? y.updatedAt : x.updatedAt;
+  const newestDelTs  = isNewer(delA, delB) ? delB : delA;
+  merged.deletedAt = (newestDelTs && !isNewer(newestEditTs, newestDelTs)) ? newestDelTs : null;
+
+  // الدمج سطر-بسطر بالـ lineId
+  const linesById = {};
+  (x.lines||[]).forEach(l => { linesById[l.lineId||('A-'+genId())] = l; });
+  (y.lines||[]).forEach(l => { const id = l.lineId||('B-'+genId()); linesById[id] = mergeLine(linesById[id], l, report, path+'.line:'+id); });
+
+  merged.lines = Object.values(linesById);
+
+  // دمج الملاحظات noteId
+  const notesById = {};
+  (x.notes||[]).forEach(n => { notesById[n.id||('A-'+genId())] = n; });
+  (y.notes||[]).forEach(n => { const id = n.id||('B-'+genId()); notesById[id] = mergeNote(notesById[id], n, report, path+'.note:'+id); });
+  merged.notes = Object.values(notesById);
+
+  // updatedAt الأحدث
+  merged.updatedAt = isNewer(x.updatedAt, y.updatedAt) ? y.updatedAt : x.updatedAt;
+  merged.createdAt = x.createdAt || y.createdAt || merged.updatedAt || nowISO();
+
+  // billType يعاد احتسابه من السطور
+  const types = Array.from(new Set((merged.lines||[]).filter(l=>!l.deletedAt).map(l=> l.returned ? 'راجع' : 'بيع')));
+  merged.billType = (types.length===1) ? types[0] : (types.length===0 ? (x.billType||y.billType||'بيع') : 'مختلط');
+
+  // paidAll يُعاد احتسابه
+  merged.paidAll = (function(){
+    const active = (merged.lines||[]).filter(l=> !l.deletedAt && !l.returned);
+    return active.length>0 && active.every(l=> !!l.paid);
+  })();
+
+  const before = JSON.stringify(x);
+  const after  = JSON.stringify(merged);
+  if(before !== after){
+    report.push({ path, type:'card-merge', before:x, after:merged });
+  }
+  return merged;
+}
+
+/* دمج أيام: local مقابل remote (سيرفر) — يرجّع {days: merged, report:[] } */
+function mergeAllDays(localDays, remoteDays){
+  const out = {};
+  const report = [];
+
+  const allKeys = new Set([...Object.keys(localDays||{}), ...Object.keys(remoteDays||{})]);
+  const keysSorted = Array.from(allKeys).sort(); // ترتيب ثابت
+
+  keysSorted.forEach(dayKey=>{
+    const a = localDays?.[dayKey] || [];
+    const b = remoteDays?.[dayKey] || [];
+
+    // بطاقات حسب card.id (هو موجود عندك)
+    const byId = {};
+    a.forEach(c => { byId[c.id] = c; });
+    b.forEach(c => {
+      byId[c.id] = mergeCard(byId[c.id], c, report, `day:${dayKey}.card:${c.id}`);
+    });
+
+    // لو بطاقات في A فقط
+    a.forEach(c=>{
+      if(!(b.find(x=>x.id===c.id))){
+        byId[c.id] = mergeCard(c, null, report, `day:${dayKey}.card:${c.id}`);
+      }
+    });
+
+    
+    const mergedCards = Object.values(byId)
+  .map(c => {
+    // لا نحذف المحذوف—نخليه لأجل سجلات/تومبستون
+    return c;
+  })
+  .sort((x,y)=> new Date(y.updatedAt||y.createdAt||0) - new Date(x.updatedAt||x.createdAt||0));
+out[dayKey] = mergedCards;
+
+    
+  });
+
+  return { days: out, report };
+}
+
+
+
+
+
+
 // استيراد ذكي: يسحب من السيرفر إذا هو أحدث (أو إذا المحلي فارغ)
+// يتطلب وجود mergeAllDays() و serverGetBackup() و load()/render*() معرفة مسبقًا
 async function smartImportFromServer(){
   try{
     showToast('info','جاري جلب آخر نسخة من السيرفر…', 1800);
 
+    // 1) جرّب تجيب نسخة السيرفر
     const server = await serverGetBackup();
-    const srvMax = Number(server?.updatedAtMax || 0);
-
-    // حضّر مقارنة مع المحلي
-    const locMax = getUpdatedAtMax(days || {});
-
     if(!server || !server.days){
       showToast('warn','ماكو نسخة على السيرفر بعد');
       return;
     }
 
-    // إذا السيرفر أحدث أو المحلي فارغ — نزّلها مباشرة
-    const localIsEmpty = !Object.keys(days || {}).length;
-    if(srvMax > locMax || localIsEmpty){
-      localStorage.setItem(STORAGE, JSON.stringify(server.days || {}));
-      localStorage.setItem(NAMES,   JSON.stringify(server.names || []));
-      showToast('success','تم الاستيراد من السيرفر — إعادة تحميل الصفحة');
-      setTimeout(()=> location.reload(), 500);
-      return;
-    }
+    // 2) حضّر النسخ: محلي + سيرفر
+    const localDays  = days || {};
+    const remoteDays = server.days || {};
 
-    // إذا المحلي أحدث من السيرفر — نطلب تأكيد قبل الكتابة فوق المحلي
+    // 3) دمج قوي يوم-بيوم/بطاقة-ببطاقة/سطر-بسطر/ملاحظة-بملاحظة
+    const { days: mergedDays, report } = mergeAllDays(localDays, remoteDays);
     
-    const lastLocal = new Date(locMax).toLocaleString('ar-EG');
-const lastSrv   = new Date(srvMax).toLocaleString('ar-EG');
+   
 
-const ok = await showConfirm({
-  title:'تأكيد الاستيراد',
-  message:`نسختك المحلية أحدث من السيرفر.
-الأحدث محلياً: ${lastLocal}
-الأحدث على السيرفر: ${lastSrv}
-تريد تستبدلها بنسخة السيرفر الأقدم؟`,
-  okText:'استبدال',
-  cancelText:'إلغاء',
-  danger:true
-});
+    // 4) خزّن النتيجة المدموجة محلّياً (بدون فقدان)
+    localStorage.setItem(STORAGE, JSON.stringify(mergedDays));
+    
+    const curNames = Array.isArray(names) ? names : [];
+const srvNames = Array.isArray(server.names) ? server.names : [];
+const mergedNames = Array.from(new Set([...curNames, ...srvNames]));
+localStorage.setItem(NAMES, JSON.stringify(mergedNames));
+days  = load(STORAGE, {});
+names = load(NAMES,   []);
 
     
     
-    if(!ok) return;
+    renderBoard();
+    renderRail();
+    refreshStats();
 
-    localStorage.setItem(STORAGE, JSON.stringify(server.days || {}));
-    localStorage.setItem(NAMES,   JSON.stringify(server.names || []));
-    showToast('success','تم الاستيراد من السيرفر — إعادة تحميل الصفحة');
-    setTimeout(()=> location.reload(), 500);
+    // 6) تقارير
+    const changes = report.length;
+    showToast('success', changes ? `تم الدمج الآمن (${changes} تغيير)` : 'لا تغييرات — البيانات متطابقة');
+
+    // (اختياري) طباعة تقرير الدمج للتدقيق
+    console.groupCollapsed('ASSAL MERGE REPORT');
+    report.forEach(r => console.log(r));
+    console.groupEnd();
   }catch(err){
     console.error(err);
-    showToast('error','تعذّر جلب النسخة من السيرفر');
+    showToast('error','تعذّر جلب/دمج النسخة من السيرفر');
   }
 }
+
 
 
 
@@ -3909,13 +4245,12 @@ const ok = await showConfirm({
 
 
 // داخل init() بنهايته مثلاً:
-(function autoPullIfEmpty(){
-  const empty = !Object.keys(days||{}).length;
-  if(empty){
-    // لا تنتظر تفاعل: جيب نسخة السيرفر إذا موجودة
-    smartImportFromServer();
-  }
+(function autoPullOnBoot(){
+  // بدل الفحص على الفراغ، سوّي دمج آمن دائمًا عند التشغيل
+  // حتى لو عندك بيانات محلية، الدمج يحميك من الفقدان/التعارض.
+  smartImportFromServer();
 })();
+
 
 
 
