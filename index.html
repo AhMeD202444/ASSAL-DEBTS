@@ -493,7 +493,7 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
       position:fixed;bottom:0;inset-inline:0;height:var(--footer-h);z-index:75;
       background:linear-gradient(180deg, rgba(17,24,39,.7), rgba(17,24,39,.55));
       border-top:1px solid rgba(124,58,237,.25);
-      display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:12px;
+      display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:16px;
       backdrop-filter:blur(8px);
     }
 
@@ -615,15 +615,38 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
 
 
 /* ===== Toasts (أعلى الصفحة + توسيط الرسالة) ===== */
+
+
 .toasts{
   position:fixed;
   inset-inline:50%;
   transform:translateX(50%);
-  top:18px;                 /* أعلى الصفحة */
-  z-index:12000;
-  display:flex;flex-direction:column;gap:8px;
+  top:18px;
+  z-index:30000;                /* أعلى من الـ splash/الطبقات */
+  display:flex;flex-direction:column;gap:12px;
   pointer-events:none;
 }
+
+/* خط فاصل أنيق بين كل توست والتالي */
+.toasts .toast + .toast{
+  position: relative;
+}
+.toasts .toast + .toast::before{
+  content:"";
+  position:absolute;
+  inset-inline: 12px;
+  top:-6px;
+  height:1px;
+  background: linear-gradient(90deg,
+    rgba(255,255,255,.08),
+    rgba(124,58,237,.35),
+    rgba(255,255,255,.08)
+  );
+  pointer-events:none;
+}
+
+
+
 .toast{
   min-width:280px;max-width:520px;padding:10px 12px;border-radius:12px;
   border:1px solid var(--stroke);
@@ -640,11 +663,20 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
   display:grid;place-items:center;background:#0b1327;border:1px solid var(--stroke);
   flex:0 0 auto;                  /* حجم ثابت */
 }
+
 .toast__msg{
-  font-size:14px;font-weight:800;letter-spacing:.2px;
-  flex:1 1 auto;                  /* تاخذ المساحة الوسطية */
-  text-align:center;              /* توسيط النص داخل الحاوية */
+  font-size:14px;
+  font-weight:800;
+  letter-spacing:.2px;
+  flex:1 1 auto;
+  text-align:center;
+  white-space: nowrap;          /* سطر واحد */
+  overflow: hidden;             /* قصّ الزائد */
+  text-overflow: ellipsis;      /* … */
 }
+
+
+
 .toast__close{
   margin-inline-start:8px;cursor:pointer;opacity:.9;
   display:grid;place-items:center;width:28px;height:28px;border-radius:8px;
@@ -911,6 +943,24 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
   display:flex; align-items:center; gap:10px;
   font-weight: 800;
 }
+
+
+.pct{
+  margin-inline-start:8px;
+  padding:2px 8px;
+  border:1px solid var(--stroke);
+  border-radius:999px;
+  background:#0b1327;
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:.2px;
+  min-width:48px;
+  text-align:center;
+}
+
+
+
+
 .spinner{
   width: 22px; height: 22px; border-radius: 50%;
   border: 3px solid rgba(255,255,255,.18);
@@ -995,7 +1045,15 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
   padding:10px 10px 8px;
   margin-top:8px;
   overflow: hidden; /* يضمن ما يطلع شي برّه */
+  display: grid;
+  /* نستخدم صف واحد قابل للطي/الفتح (يفيدنا بالتوسيع لاحقًا) */
+  grid-template-rows: 1fr auto;           /* القائمة ثم شريط الإدخال */
+  align-content: center;                   /* يوسّط المحتوى عموديًا داخل الحاوية */
+  padding-block: 12px 10px;   
 }
+
+
+
 
 /* خط زينة رأسي خفيف (Timeline) داخل الصندوق */
 .notes-compact::before{
@@ -1022,7 +1080,8 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
   overflow-y:auto;        /* عمودي فقط */
   overflow-x:hidden;      /* لا أفقي نهائيًا */
   padding-inline-start: 8px; /* يبتعد عن خط الزينة */
-  padding-inline-end: 2px;   /* حتى ما يغطي سكرول عمودي على المحتوى */
+  padding-inline-end: 2px;   /* حتى ما يغطي سكرول عمودي على المحتوى*/
+  
 }
 .notes-compact__empty{ display:none !important; }
 
@@ -1206,6 +1265,232 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
   width: calc(100vw - 80px) !important;
 }
 
+.loading-box{
+  min-width: 220px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: linear-gradient(135deg, rgba(20,30,55,.95), rgba(17,25,45,.95));
+  box-shadow: 0 18px 40px rgba(0,0,0,.45);
+  color: #e7eef9;
+  display:flex; align-items:center; gap:10px;
+  font-weight: 800;
+}
+
+
+
+/* ===== Login Gate (animated) ===== */
+.gate{
+  position:fixed; inset:0; z-index:99999; display:grid; place-items:center;
+  background:
+    radial-gradient(1000px 600px at 80% -10%, rgba(124,58,237,.16), transparent 60%),
+    radial-gradient(900px 500px at -10% 10%, rgba(18,209,180,.12), transparent 60%),
+    linear-gradient(180deg, #0b1220, #0f172a);
+  animation: gate-bg 12s ease-in-out infinite alternate;
+}
+@keyframes gate-bg{
+  0%{ background-position: 0 0, 0 0, 0 0; }
+  100%{ background-position: -40px -20px, 30px 10px, 0 0; }
+}
+
+.gate-card{
+  width:min(420px, 92vw);
+  border:1px solid var(--stroke);
+  border-radius:16px;
+  background:linear-gradient(180deg,#0f1a33,#0d172d);
+  box-shadow:0 22px 56px rgba(0,0,0,.45);
+  padding:16px;
+  display:flex; flex-direction:column; gap:14px;
+  transform: translateY(6px);
+  animation: gate-float 3s ease-in-out infinite;
+}
+@keyframes gate-float{
+  0%,100%{ transform: translateY(6px); }
+  50%    { transform: translateY(0); }
+}
+
+.gate-head{ display:flex; flex-direction:column; gap:6px; text-align:center; }
+.gate-logo{ display:flex; align-items:center; justify-content:center; gap:10px; font-weight:900; }
+.g-dot{
+  width:28px; height:28px; border-radius:8px; display:grid; place-items:center;
+  background:linear-gradient(135deg,var(--brand),var(--brand-2)); color:#fff;
+  box-shadow:0 8px 24px rgba(124,58,237,.35); font-size:13px;
+}
+.g-name{ color:#fff; letter-spacing:.2px }
+.g-sub{ color:#9aa4b2; font-size:12.5px }
+
+.gate-body{ display:flex; flex-direction:column; gap:10px }
+.gate-input{
+  height:40px;
+  background:#0b1327;
+  border:1px solid var(--stroke);
+  border-radius:10px;
+  color:#e7eef9;
+  outline:none;
+  transition:border-color .18s ease, box-shadow .18s ease, transform .12s ease;
+}
+.gate-input:focus{
+  border-color:rgba(124,58,237,.55);
+  box-shadow:0 0 0 4px rgba(124,58,237,.16);
+  transform: translateY(-1px);
+}
+
+.gate-btn{
+  height:40px;
+  font-weight:900;
+  position:relative;
+  overflow:hidden;
+}
+.gate-btn .btn-spin{
+  width:18px; height:18px; border-radius:50%;
+  border:3px solid rgba(255,255,255,.25);
+  border-top-color:#fff; display:none; margin-inline-start:8px;
+  animation: spin 0.85s linear infinite;
+}
+@keyframes spin{ to{ transform: rotate(360deg); } }
+.gate-btn.loading .btn-txt{ opacity:.0 }
+.gate-btn.loading .btn-spin{ display:inline-block }
+
+.gate-msg{
+  min-height:18px;
+  color:#fca5a5;
+  font-size:12px;
+  text-align:center;
+}
+
+/* دخول/خروج أنيميشين */
+.gate.fade-in{ animation: gate-in .25s ease-out both; }
+.gate.fade-out{ animation: gate-out .22s ease-in both; }
+@keyframes gate-in{ from{ opacity:0 } to{ opacity:1 } }
+@keyframes gate-out{ from{ opacity:1 } to{ opacity:0 } }
+
+
+
+
+/* توسيع حاوية التوست حتى لا يختفي النص الطويل */
+.toasts .toast{
+  max-width: 840px !important;   /* كان 520px */
+  min-width: 320px;              /* كان 280px */
+}
+
+/* لو احتجنا أعرض لرسائل معيّنة */
+.toasts .toast.wide{
+  max-width: 1080px !important;  /* توست عريض جدًا */
+}
+
+/* على الشاشات الصغيرة خلّيه ياخذ تقريبًا كل العرض */
+@media (max-width: 980px){
+  .toasts .toast{
+    max-width: calc(100vw - 32px) !important;
+  }
+}
+
+
+/* ابعاد زر الدخول قليلاً عن حقل كلمة السر */
+#lgBtn{
+  margin-top: 6px !important;   /* جرّب 6–10px حسب ذوقك */
+}
+
+/* على الشاشات الصغيرة نزّل الزر أكثر شوية */
+@media (max-width: 480px){
+  #lgBtn{
+    margin-top: 10px !important;
+  }
+}
+
+
+
+
+/* ===== Reload Overlay (Pro) ===== */
+.reloader{
+  position:fixed; inset:0; z-index:40000;
+  display:none; place-items:center;
+  background: radial-gradient(1200px 700px at 100% -10%, rgba(124,58,237,.16), transparent 55%),
+              radial-gradient(1000px 600px at -10% 10%, rgba(18,209,180,.12), transparent 55%),
+              rgba(2,6,23,.68);
+  backdrop-filter: blur(6px);
+}
+.reloader.active{ display:grid; animation:reloader-in .22s ease-out both; }
+@keyframes reloader-in{ from{ opacity:0; transform:scale(.98) } to{ opacity:1; transform:scale(1) } }
+
+/* زخارف خفيفة */
+.reloader-bg{ position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+.orb{
+  position:absolute; filter: blur(24px); opacity:.22; border-radius:50%;
+  background: radial-gradient(circle at 30% 30%, var(--brand, #12d1b4), transparent 60%);
+  width:280px; height:280px; animation: orb-float 9s ease-in-out infinite;
+}
+.orb-a{ top:8%;  right:8%;  background: radial-gradient(circle, #7c3aed, transparent 60%); }
+.orb-b{ bottom:10%; left:6%; background: radial-gradient(circle, #0ea5e9, transparent 60%); animation-delay: -2s;}
+.orb-c{ top:40%; left:50%; transform:translateX(-50%); width:220px; height:220px; animation-delay:-4s;}
+@keyframes orb-float{ 0%,100%{ transform:translateY(0)} 50%{ transform:translateY(-14px)} }
+
+/* بطاقة */
+.reload-card{
+  position:relative;
+  width:min(520px, 92vw);
+  padding:18px 18px 16px;
+  border:1px solid rgba(124,58,237,.35);
+  border-radius:16px;
+  background:linear-gradient(135deg, rgba(20,30,55,.92), rgba(17,25,45,.92));
+  box-shadow:0 24px 70px rgba(0,0,0,.55);
+  display:flex; flex-direction:column; gap:14px; color:#e7eef9;
+}
+
+/* رأس */
+.reload-head{ display:flex; align-items:center; gap:10px; }
+.brand-dot{
+  flex: 0 0 auto;
+  width:30px; height:30px; border-radius:9px; display:grid; place-items:center;
+  background:linear-gradient(135deg, var(--brand,#12d1b4), var(--brand-2,#7c3aed));
+  color:#fff; font-weight:900; box-shadow:0 10px 26px rgba(124,58,237,.35);
+}
+.reload-title{ font-weight:900; font-size:16px; letter-spacing:.2px; }
+.reload-sub{ color:#bfc7d6; font-size:12.5px; margin-inline-start:auto; }
+
+/* حلقة */
+.ring-wrap{
+  position:relative; height:92px;
+  display:grid; place-items:center; margin-top:4px;
+}
+.ring{
+  position:absolute; width:88px; height:88px; border-radius:50%;
+  border:3px solid rgba(255,255,255,.10);
+  border-top-color:#7c3aed;
+  animation: spin 1s linear infinite;
+}
+.ring-2{
+  width:72px; height:72px; border-color:rgba(255,255,255,.08);
+  border-top-color:#12d1b4; animation-duration: 1.4s; animation-direction: reverse;
+}
+.ring-pct{ position:relative; font-weight:900; letter-spacing:.3px; }
+
+/* شريط التقدّم */
+.progress{
+  height:10px; border-radius:999px; overflow:hidden;
+  background: linear-gradient(180deg,#0b1327,#0e1830);
+  border:1px solid rgba(255,255,255,.08);
+}
+.progress .bar{
+  height:100%; width:0%;
+  background:linear-gradient(90deg, #12d1b4, #7c3aed, #0ea5e9);
+  background-size:200% 100%;
+  animation: slide 2.4s linear infinite;
+  border-right:1px solid rgba(255,255,255,.25);
+}
+@keyframes slide{ 0%{background-position:0 0} 100%{background-position:200% 0} }
+@keyframes spin{ to{ transform: rotate(360deg); } }
+
+/* أسفل */
+.reload-foot{ display:flex; gap:6px; justify-content:flex-end; }
+.reload-foot .chip{
+  font-size:11px; padding:2px 8px; border-radius:999px;
+  border:1px solid rgba(255,255,255,.08);
+  background:#0b1327; color:#cbd5e1;
+}
+
+/* تباين نص النسبة داخل الحلقة */
+.ring-pct{ font-size:14px; text-shadow:0 1px 0 rgba(0,0,0,.35) }
 
 
 
@@ -1228,29 +1513,39 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
         </div>
       </div>
 
+      
       <div class="r-right">
-        <button class="icon" id="btnRefresh" title="تحديث"><i class="fa-solid fa-rotate-right"></i></button>
-        <button class="icon" id="btnSearch" title="بحث"><i class="fa-solid fa-magnifying-glass"></i></button>
-        <button class="icon" id="btnLogout" title="تسجيل خروج" style="display:none">
-                <i class="fa-solid fa-right-from-bracket"></i>
-        </button>
-        
-        <button class="icon" id="btnExportAll" title="تصدير الفواتير">
-  <i class="fa-solid fa-file-export"></i>
-</button>
+  <button class="icon" id="btnRefresh" title="تحديث الصفحة" aria-label="تحديث الصفحة">
+    <i class="fa-solid fa-rotate-right"></i>
+  </button>
 
-<button class="icon" id="btnImportAll" title="استيراد الفواتير">
-  <i class="fa-solid fa-file-import"></i>
-</button>
+  <!-- تصدير محلي بدل زر البحث -->
+  <button class="icon" id="btnExportLocal" title="تصدير محلي (JSON)" aria-label="تصدير محلي (JSON)">
+    <i class="fa-solid fa-download"></i>
+  </button>
 
-<button class="icon" id="btnNextDay" title="فتح فاتورة اليوم التالي">
-  <i class="fa-solid fa-calendar-plus"></i>
-</button>
+  <!-- تصدير للسيرفر (رفع) -->
+  <button class="icon" id="btnExportAll" title="رفع النسخة للسيرفر" aria-label="رفع النسخة للسيرفر">
+    <i class="fa-solid fa-cloud-arrow-up"></i>
+  </button>
 
+  <!-- استيراد من السيرفر (سحب) -->
+  <button class="icon" id="btnImportAll" title="سحب النسخة من السيرفر" aria-label="سحب النسخة من السيرفر">
+    <i class="fa-solid fa-cloud-arrow-down"></i>
+  </button>
 
-  
+  <button class="icon" id="btnNextDay" title="فتح فاتورة اليوم التالي" aria-label="فتح فاتورة اليوم التالي">
+    <i class="fa-solid fa-calendar-plus"></i>
+  </button>
 
-      </div>
+  <button class="icon" id="btnLogout" title="تسجيل خروج" style="display:none" aria-label="تسجيل خروج">
+    <i class="fa-solid fa-right-from-bracket"></i>
+  </button>
+</div>
+
+      
+      
+      
     </div>
   </div>
 
@@ -1391,10 +1686,23 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
 </div>
 
 
+
+
+
+
+<!-- Auth Splash: يظهر لحين حسم حالة الجلسة -->
+<div id="authSplash" class="loading active" aria-live="polite" aria-atomic="true">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <div style="font-weight:800">جاري التحقق من الجلسة…</div>
+  </div>
+</div>
+
+
   
 
   <!-- Footer -->
-  <div class="footer">© ASSAL — واجهة تجريبية</div>
+ <div class="footer">© 2025 مكتب عسل — جميع الحقوق محفوظة</div>
 
   <!-- ===== Modal ===== -->
   <div id="modal-backdrop" class="modal-backdrop"></div>
@@ -1414,11 +1722,39 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
 <div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
 
 
-<!-- Page Reload Overlay (يظهر فقط عند الضغط على زر التحديث) -->
-<div id="reloader" class="loading" aria-live="polite" aria-atomic="true">
-  <div class="loading-box">
-    <div class="spinner"></div>
-    <div style="font-weight:800">جاري تحديث الصفحة…</div>
+<!-- Page Reload Overlay (احترافي) -->
+<div id="reloader" class="reloader" aria-live="polite" aria-atomic="true" role="dialog" aria-modal="true">
+  <!-- خلفية زخرفية خفيفة -->
+  <div class="reloader-bg">
+    <span class="orb orb-a"></span>
+    <span class="orb orb-b"></span>
+    <span class="orb orb-c"></span>
+  </div>
+
+  <!-- بطاقة اللودينگ -->
+  <div class="reload-card">
+    <div class="reload-head">
+      <div class="brand-dot">A</div>
+      <div class="reload-title">جاري تحديث الصفحة…</div>
+      <div id="reloadTip" class="reload-sub">نحفظ شغلك أولاً ثم نحدّث</div>
+    </div>
+
+    <!-- حلقة متحركة + نسبة -->
+    <div class="ring-wrap" aria-hidden="true">
+      <div class="ring"></div>
+      <div class="ring ring-2"></div>
+      <div id="splashPct" class="ring-pct">0%</div>
+    </div>
+
+    <!-- شريط تقدّم -->
+    <div class="progress">
+      <div id="reloadBar" class="bar"></div>
+    </div>
+
+    <div class="reload-foot">
+      <span class="chip">لا تغلق النافذة</span>
+      <span class="chip">ثواني ونرجع لك</span>
+    </div>
   </div>
 </div>
 
@@ -1426,29 +1762,35 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
 <input type="file" id="importFile" accept="application/json" style="display:none">
 
 
+<!-- Gate: شاشة تسجيل الدخول (جديدة بحركة ناعمة) -->
+<div id="loginGate" class="gate" style="display:none">
+  <div class="gate-card">
+    <div class="gate-head">
+      <div class="gate-logo">
+        <span class="g-dot">A</span>
+        <span class="g-name">ASSAL • دخول</span>
+      </div>
+      <div class="g-sub">سجّل دخولك للمتابعة</div>
+    </div>
 
-<!-- Gate: شاشة تسجيل الدخول -->
-<div id="loginGate" style="
-  position:fixed; inset:0; z-index:99999;
-  background:#0b1220; display:none; place-items:center;
-">
-  <div style="width:min(360px,90vw);padding:16px;border:1px solid #1f2a44;border-radius:14px;
-              background:#0f172a;color:#e5e7eb; display:flex; flex-direction:column; gap:10px">
-    <h3 style="margin:0 0 6px 0; font-weight:900">تسجيل الدخول</h3>
-    <input id="lgEmail" type="email" class="field" placeholder="الإيميل">
-    <input id="lgPass"  type="password" class="field" placeholder="كلمة السر">
-    <button id="lgBtn"  class="btn primary" style="width:100%">دخول</button>
-    <div id="lgMsg" style="min-height:18px;color:#fda4af;font-size:12px"></div>
+    <div class="gate-body">
+      <input id="lgEmail" type="email" class="field gate-input" placeholder="الإيميل">
+      <input id="lgPass"  type="password" class="field gate-input" placeholder="كلمة السر">
+      <button id="lgBtn"  class="btn primary gate-btn">
+        <span class="btn-txt">دخول</span>
+        <span class="btn-spin" aria-hidden="true"></span>
+      </button>
+      <div id="lgMsg" class="gate-msg" role="status" aria-live="polite"></div>
+    </div>
   </div>
 </div>
 
-<!-- Auth Splash: يظهر لحين حسم حالة الجلسة -->
-<div id="authSplash" class="loading active" aria-live="polite" aria-atomic="true">
-  <div class="loading-box">
-    <div class="spinner"></div>
-    <div style="font-weight:800">جاري التحقق من الجلسة…</div>
-  </div>
-</div>
+
+
+
+
+
+
 
 
 
@@ -1705,6 +2047,20 @@ function formatIQD(v){
   });
 })();
 
+
+
+function activeCardsOfDay(dayKey){
+  return (days[dayKey]||[]).filter(c=>{
+    if (c?.deletedAt) return false;
+    return (c.lines||[]).some(l=> !l.deletedAt);
+  });
+}
+function activeLinesCountOfDay(dayKey){
+  return (days[dayKey]||[]).reduce((sum,c)=>{
+    if (c?.deletedAt) return sum;
+    return sum + (c.lines||[]).filter(l=> !l.deletedAt).length;
+  }, 0);
+}
 
 
 
@@ -2106,49 +2462,70 @@ if(id === 'type'){
 
 
 
-/* ===== Toast API (Top) ===== */
-function showToast(type, message, timeout=2200){
-  type = (type||'info').toLowerCase();
-  const ok = ['success','warn','error','info'].includes(type);
-  if(!ok) type = 'info';
-  const host = document.getElementById('toasts'); if(!host) return;
+/* ===== Toasts: صف واحد دائمًا + تباعد أنيق ===== */
+const __toastQueue = [];
+let __toastBusy = false;
 
-  while(host.children.length >= 4){ host.removeChild(host.firstElementChild); }
-
-  const t = document.createElement('div');
-  t.className = `toast ${type}`;
-  t.setAttribute('role','status');
-
-  const icon = document.createElement('div');
-  icon.className='toast__icon';
-  icon.innerHTML = ({
-    success:'<i class="fa-solid fa-check"></i>',
-    warn   :'<i class="fa-solid fa-triangle-exclamation"></i>',
-    error  :'<i class="fa-solid fa-xmark"></i>',
-    info   :'<i class="fa-solid fa-circle-info"></i>'
-  })[type];
-
-  const msg = document.createElement('div');
-  msg.className='toast__msg';
-  msg.textContent = message || 'تم التنفيذ';
-
-  const btn = document.createElement('button');
-  btn.className='toast__close';
-  btn.title='إغلاق';
-  btn.innerHTML='<i class="fa-solid fa-xmark"></i>';
-
-  function dismiss(){
-    t.style.animation='toast-out-top .2s ease-in both';
-    clearTimeout(timer);
-    setTimeout(()=> t.remove(), 180);
-  }
-  btn.onclick = dismiss;
-
-  t.append(icon, msg, btn);
-  host.appendChild(t);
-
-  const timer = setTimeout(dismiss, timeout);
+function showToast(type='info', message='تم التنفيذ', timeout=2200){
+  // ندفع دائمًا للصف — ما نعتمد على حالة السلاش
+  __toastQueue.push({ type:type.toLowerCase(), message, timeout });
+  if(!__toastBusy) processToastQueueUnified();
 }
+
+async function processToastQueueUnified(){
+  __toastBusy = true;
+  const host = document.getElementById('toasts');
+  if(!host){ __toastBusy=false; return; }
+
+  while(__toastQueue.length){
+    const {type, message, timeout} = __toastQueue.shift();
+    const t = document.createElement('div');
+    t.className = `toast ${['success','warn','error','info'].includes(type)?type:'info'}`;
+    t.setAttribute('role','status');
+
+    const icon = document.createElement('div');
+    icon.className='toast__icon';
+    icon.innerHTML = ({
+      success:'<i class="fa-solid fa-check"></i>',
+      warn   :'<i class="fa-solid fa-triangle-exclamation"></i>',
+      error  :'<i class="fa-solid fa-xmark"></i>',
+      info   :'<i class="fa-solid fa-circle-info"></i>'
+    })[type] || '<i class="fa-solid fa-circle-info"></i>';
+
+    const msg = document.createElement('div');
+    msg.className='toast__msg';
+    msg.textContent = message || 'تم التنفيذ';
+
+    // زر الإغلاق مخفي عندك أصلًا
+    const btn = document.createElement('button');
+    btn.className='toast__close';
+    btn.title='إغلاق';
+    btn.innerHTML='<i class="fa-solid fa-xmark"></i>';
+
+    let closed = false;
+    function dismiss(){
+      if(closed) return;
+      closed = true;
+      t.style.animation='toast-out-top .22s ease-in both';
+      setTimeout(()=> t.remove(), 180);
+    }
+    btn.onclick = dismiss;
+
+    t.append(icon, msg, btn);
+    // سقف 3 مرئيات (الطابور يضمن واحد بواحد، بس نخلي تنظيف احتياطي)
+    while(host.children.length >= 3){ host.removeChild(host.firstElementChild); }
+    host.appendChild(t);
+
+    await new Promise(res=>{
+      const timer = setTimeout(()=>{ dismiss(); res(); }, timeout);
+    });
+
+    // تباعد لطيف بين الرسالة واللي بعدها
+    await new Promise(res=> setTimeout(res, 220));
+  }
+  __toastBusy = false;
+}
+
 
 
 
@@ -2300,39 +2677,41 @@ function renderBoard(){
   const q = (document.getElementById('cardSearch')?.value || '').trim().toLowerCase();
   const global = document.getElementById('globalSearch')?.checked;
 
-  // جهّز مصدر البطاقات
-  const collect = (d)=> (days[d]||[]).map(c => ({...c, __day: d}));
-  let pool = [];
 
-  if(global){
-    const allDaysKeys = Object.keys(days).sort().reverse(); // أحدث أولًا
-    allDaysKeys.forEach(d => { pool.push(...collect(d)); });
-  }else{
-    pool = collect(selectedDay);
-  }
-
-  // فلترة بالاسم (إن وجد)
-  let arr = q ? pool.filter(c => (c.customer||'').toLowerCase().includes(q)) : pool;
-
-  // بالبحث الشامل: فرز من الأحدث للأقدم
   
-  // بالبحث الشامل: فرز حسب آخر نشاط (updatedAt إن وجِد وإلا createdAt)
-if (global) {
-  arr.sort((a, b) =>
-    new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)
-  );
+// جهّز مصدر البطاقات
+const collect = (d)=> (days[d]||[]).map(c => ({...c, __day: d}));
+let pool = [];
+
+if(global){
+  const allDaysKeys = Object.keys(days).sort().reverse();
+  allDaysKeys.forEach(d => { pool.push(...collect(d)); });
+}else{
+  pool = collect(selectedDay);
 }
 
-  
-  
-  // عدّاد وإظهار حدّ العرض
-  const totalCount = arr.length;
-  if(global){
-    arr = arr.slice(0, globalLimit); // قصّ على حسب الحد الحالي
-    document.getElementById('cardsCount').textContent = `${arr.length} / ${totalCount} بطاقة`;
-  }else{
-    document.getElementById('cardsCount').textContent = `${arr.length} بطاقة`;
-  }
+// بس الفعّال: بطاقة غير محذوفة وبها سطر فعّال
+const isActiveCard = (c)=> !c.deletedAt && (c.lines||[]).some(l=> !l.deletedAt);
+pool = pool.filter(isActiveCard);
+
+// فلترة بالاسم
+let arr = q ? pool.filter(c => (c.customer||'').toLowerCase().includes(q)) : pool;
+
+// فرز بالبحث الشامل
+if(global){
+  arr.sort((a,b)=> new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
+}
+
+// العدادات الصحيحة
+const totalCount = arr.length;
+if(global){
+  const sliced = arr.slice(0, globalLimit);
+  document.getElementById('cardsCount').textContent = `${sliced.length} / ${totalCount} بطاقة`;
+  arr = sliced;
+}else{
+  document.getElementById('cardsCount').textContent = `${arr.length} بطاقة`;
+}
+
 
   // لا توجد نتائج
   if(!arr.length){
@@ -2532,30 +2911,43 @@ const tinyTime = (d)=> new Date(d).toLocaleTimeString('ar-EG',{hour:'2-digit',mi
 
 // رسم أنيق: (#) متدرّج + وقت مع أيقونة + زر حذف خارجي
 function renderNotes(){
+  // نظّف القائمة
   notesList.innerHTML = '';
-  const arr = [...(card.notes||[])].sort((a,b)=> new Date(b.at)-new Date(a.at)); // الأحدث أولًا
 
-  arr.forEach((n, i)=>{
-    const row  = CE('div','note-row');   // يحتوي الحبة + زر الحذف
-    row.style.minWidth = '0';            // مهم ضد أي تمدد عرضي
+  // اعرض فقط الملاحظات غير المحذوفة، والأحدث أولاً
+  const arr = (card.notes || [])
+    .filter(n => !n.deletedAt)
+    .sort((a, b) => new Date(b.at) - new Date(a.at));
 
-    const pill = CE('div','note-pill');  // الحبة
+  // لو تحب، ممكن تعرض حالة فارغة (حالياً مهملة حسب تصميمك)
+  // if (!arr.length) {
+  //   const empty = CE('div', 'notes-compact__empty');
+  //   empty.textContent = 'لا توجد ملاحظات';
+  //   notesList.appendChild(empty);
+  //   return;
+  // }
+
+  arr.forEach((n, i) => {
+    const row  = CE('div','note-row');        // يحتوي الحبة + زر الحذف
+    row.style.minWidth = '0';
+
+    const pill = CE('div','note-pill');       // الحبة نفسها
     pill.style.minWidth = '0';
 
-    // # التسلسل (الأحدث = #1). بدّلها إلى arr.length - i إذا تريد الأقدم #1
+    // # التسلسل (الأحدث = #1)
     const idx = CE('div','note-pill__idx');
     idx.textContent = `#${i+1}`;
 
-    // النص — سطر واحد، بدون سكرول أفقي، مع Tooltip بالنص الكامل
+    // النص — سطر واحد + tooltip بالنص الكامل
     const txt = CE('div','note-pill__text');
     txt.textContent = n.text || '';
-    txt.title = n.text || ''; // تولتيب
+    txt.title = n.text || '';
 
     // الوقت + أيقونة
     const when = CE('div','note-pill__time');
     when.innerHTML = '<i class="fa-regular fa-clock"></i>' + tinyTime(n.at || Date.now());
 
-    // زر الحذف خارج الحبة
+    // زر حذف خارج الحبة على الحافة
     const del = CE('button','note-del-out');
     del.innerHTML = '<i class="fa-solid fa-xmark"></i>';
     del.title = 'حذف الملاحظة';
@@ -2569,9 +2961,12 @@ function renderNotes(){
         danger:true
       });
       if(!ok) return;
+
       if(deleteCardNote(card, n.id)){
-        renderNotes();
+        renderNotes();                 // إعادة الرسم بعد الحذف
         showToast('error','تم حذف الملاحظة');
+      }else{
+        showToast('warn','تعذر حذف الملاحظة');
       }
     };
 
@@ -2580,6 +2975,7 @@ function renderNotes(){
     notesList.appendChild(row);
   });
 }
+
 
 function doAddNote(){
   const val = (noteInput.value||'').trim();
@@ -2608,7 +3004,7 @@ renderNotes();
     /* Foot */
     const foot = CE('div','card-foot');
     const left = CE('div'); 
-    left.innerHTML = `<span class="tag">${card.lines.length} مادة</span>`;
+    left.innerHTML = `<span class="tag">${(card.lines||[]).filter(l=>!l.deletedAt).length} مادة</span>`;
     const right = CE('div','foot-actions');
 
    const btnPdf = CE('button','i-btn');
@@ -2957,7 +3353,10 @@ function renderRail(){
 
       const mTitle = CE('div','month-title');
       const niceMonth = arMonthName(monthKey+'-01');
-      const mCount = groups[monthKey].reduce((n,k)=> n + (days[k]?.length||0), 0);
+     
+     const mCount = groups[monthKey].reduce((n,k)=> n + activeCardsOfDay(k).length, 0);
+
+     
       mTitle.innerHTML = `<span>${niceMonth}</span><span class="mchip">${mCount} بطاقة</span>`;
       monthBox.appendChild(mTitle);
 
@@ -2965,10 +3364,11 @@ function renderRail(){
       const daysInMonth = groups[monthKey].sort().reverse();
       daysInMonth.forEach(k=>{
         const row = CE('div','day'+(k===selectedDay?' active':'')); 
-        row.innerHTML = `
-          <div class="title">${arDateWithDay(k)}</div>
-          <div class="meta">${(days[k]||[]).length} بطاقة</div>
-        `;
+       row.innerHTML = `
+  <div class="title">${arDateWithDay(k)}</div>
+  <div class="meta">${activeCardsOfDay(k).length} بطاقة</div>
+`;
+
        
        row.onclick = ()=>{
   selectedDay = k;
@@ -2992,6 +3392,8 @@ function renderRail(){
 
     document.getElementById('dayFilter').addEventListener('input', renderRail);
     document.getElementById('cardSearch').addEventListener('input', renderBoard);
+    document.getElementById('btnExportLocal')?.addEventListener('click', exportInvoices);
+
   
   
    document.getElementById('globalSearch')?.addEventListener('change', ()=>{
@@ -3002,13 +3404,14 @@ function renderRail(){
 
 
     /* ===== Stats ===== */
-    function refreshStats(){
-      const arr = (days[selectedDay]||[]);
-      const items = arr.reduce((n,c)=> n + c.lines.length, 0);
-      document.getElementById('statCards').textContent = arr.length;
-      document.getElementById('statItems').textContent = items;
-      document.getElementById('statTime').textContent = new Date().toLocaleTimeString('ar-EG');
-    }
+function refreshStats(){
+  const cardsArr = activeCardsOfDay(selectedDay);
+  const items = cardsArr.reduce((n,c)=> n + (c.lines||[]).filter(l=> !l.deletedAt).length, 0);
+  document.getElementById('statCards').textContent = cardsArr.length;
+  document.getElementById('statItems').textContent = items;
+  document.getElementById('statTime').textContent = new Date().toLocaleTimeString('ar-EG');
+}
+
 
     /* ===== Actions ===== */
    
@@ -3057,12 +3460,87 @@ function hardReload(){
   location.replace(url.toString());
 }
 
-function refreshWithOverlay(){
-  document.getElementById('reloader')?.classList.add('active');
-  setTimeout(hardReload, 300);
+// نصائح بسيطة تتبدّل أثناء التحديث
+const RELOAD_TIPS = [
+  'نرتّب لك البيانات…',
+  'نحفظ آخر التغييرات…',
+  'نحدّث الواجهة…',
+  'ثواني ونرجع لك…'
+];
+
+// فتح نافذة التحديث وبدء الأنيميشن
+function showReloadOverlay(){
+  const el = document.getElementById('reloader');
+  if(!el) return;
+  el.classList.add('active');
+
+  // صفر الشريط والنسبة
+  const bar = document.getElementById('reloadBar');
+  const pct = document.getElementById('splashPct');
+  const tip = document.getElementById('reloadTip');
+  if(bar) bar.style.width = '0%';
+  if(pct) pct.textContent = '0%';
+  if(tip) tip.textContent = RELOAD_TIPS[0] || 'جارٍ التحديث…';
 }
 
-document.getElementById('btnRefresh').onclick = refreshWithOverlay;
+// إخفاء النافذة (في حال احتجت)
+function hideReloadOverlay(){
+  const el = document.getElementById('reloader');
+  if(!el) return;
+  el.classList.remove('active');
+}
+
+// أنيميشن نسبة + شريط، بعدها نعمل Reload
+function animateReloadAndGo(totalMs = 1400){
+  const bar = document.getElementById('reloadBar');
+  const pct = document.getElementById('splashPct');
+  const tip = document.getElementById('reloadTip');
+
+  const start = performance.now();
+  let tipIdx = 0;
+
+  function step(now){
+    const t = Math.min(1, (now - start) / totalMs);
+    const eased = 1 - Math.pow(1 - t, 2); // ease-out
+    const val = Math.floor(eased * 100);
+
+    if(bar) bar.style.width = val + '%';
+    if(pct) pct.textContent = val + '%';
+
+    // بدّل النص كل ~450ms
+    const newTipIdx = Math.min(RELOAD_TIPS.length - 1, Math.floor((now - start) / 450));
+    if(tip && newTipIdx !== tipIdx){
+      tipIdx = newTipIdx;
+      tip.textContent = RELOAD_TIPS[tipIdx];
+    }
+
+    if(t < 1){
+      requestAnimationFrame(step);
+    }else{
+      // بعد الاكتمال: ريفرش قاسي مع كسر كاش
+      hardReload();
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+// كسر الكاش + Reload (موجودة عندك – نحتفظ بها)
+function hardReload(){
+  const url = new URL(location.href);
+  url.searchParams.set('_ts', Date.now());
+  location.replace(url.toString());
+}
+
+// استدعاء من زر التحديث
+function refreshWithOverlay(){
+  showReloadOverlay();
+  animateReloadAndGo(1600, 300); // تقدر تغيّر المدة (ms)
+}
+
+// ربط الزر
+document.getElementById('btnRefresh')?.addEventListener('click', refreshWithOverlay);
+
+
 
 
 
@@ -4541,18 +5019,68 @@ toggleControls(true);
   
   
   // عناصر السلاش
-const authSplash = document.getElementById('authSplash');
-function showSplash(){ authSplash?.classList.add('active'); }
-function hideSplash(){ authSplash?.classList.remove('active'); }
 
-// عناصر البوابة
+
+// عناصر السلاش
+const authSplash = document.getElementById('authSplash');
+
+let splashTimer = null, splashVal = 0;
+
+function startSplashPct(){
+  const el = document.getElementById('splashPct');
+  splashVal = 0;
+  if(!el) return;
+  el.textContent = '0%';
+  clearInterval(splashTimer);
+  splashTimer = setInterval(()=>{
+    splashVal = Math.min(99, splashVal + Math.ceil(Math.random()*3));
+    el.textContent = splashVal + '%';
+  }, 120);
+}
+
+function stopSplashPct(done=false){
+  const el = document.getElementById('splashPct');
+  if(!el) return;
+  if(done){ el.textContent = '100%'; }
+  clearInterval(splashTimer);
+  splashTimer = null;
+}
+
+function showSplash(){
+  authSplash?.classList.add('active');
+  startSplashPct();
+}
+
+function hideSplash(){
+  stopSplashPct(true);
+  authSplash?.classList.remove('active');
+}
+
+
+
+
+
+function setBtnLoading(btn, on){
+  if(!btn) return;
+  btn.disabled = !!on;
+  btn.classList.toggle('loading', !!on);
+}
+
+
+
+
 function showGate(message=''){
+  gate.classList.remove('fade-out');
+  gate.classList.add('fade-in');
   gate.style.display = 'grid';
   if(msgEl) msgEl.textContent = message || '';
   if(btnLogout) btnLogout.style.display = 'none';
 }
 function hideGate(){
-  gate.style.display = 'none';
+  gate.classList.remove('fade-in');
+  gate.classList.add('fade-out');
+  // اخفِ بعد الأنيميشن
+  setTimeout(()=>{ gate.style.display = 'none'; }, 200);
   if(msgEl) msgEl.textContent = '';
   if(btnLogout) btnLogout.style.display = '';
 }
@@ -4591,28 +5119,50 @@ showSplash();
 gate.style.display = 'none';
 
 // دخول يدوي
+// تنقّل بالـ Enter داخل بوابة الدخول
+emailEl?.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); passEl?.focus(); }
+});
+passEl?.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); btnEl?.focus(); }
+});
+btnEl?.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); btnEl.click(); }
+});
+
+// دخول يدوي
 btnEl?.addEventListener('click', async ()=>{
   msgEl.textContent = '';
   const email = (emailEl.value||'').trim();
   const pass  = passEl.value;
   if(!email || !pass){ msgEl.textContent = 'أدخل الإيميل وكلمة السر'; return; }
 
-  showSplash();
+  // حركة زر + انتقال لطيف: gate يخفّ، بعدها يظهر Splash
+  setBtnLoading(btnEl, true);
   try{
+    hideGate();                 // أنيميشين خفيف
+    setTimeout(()=> showSplash(), 180);  // بعد خفوت البوابة
+
     const { user } = await signInWithEmailAndPassword(auth, email, pass);
     if(!(await isAllowed(user.email))){
       await signOut(auth);
+      hideSplash();
       showGate('هذا الإيميل غير مخوّل بالدخول');
       return;
     }
-    hideGate();
+
     setSignedInUI(user);
+    // هنا لا نعرض توستين مع بعض؛ نظام الطابور يضمن واحد ورا الثاني تلقائيًا
   }catch(e){
-    msgEl.textContent = 'فشل تسجيل الدخول';
-  }finally{
     hideSplash();
+    showGate('فشل تسجيل الدخول');
+  }finally{
+    setBtnLoading(btnEl, false);
   }
 });
+
+
+
 
 // خروج
 btnLogout?.addEventListener('click', async ()=>{
