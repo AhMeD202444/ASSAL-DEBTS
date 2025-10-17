@@ -1587,6 +1587,50 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
 
 
 
+/* صندوق المال المضغوط */
+.money--compact{
+  border:1px solid var(--stroke);
+  border-radius:12px;
+  background:#0c1529;
+  padding:8px;                 /* صغير */
+  display:flex;
+  flex-direction:column;
+  gap:6px;                     /* مسافة صغيرة بين السطور */
+}
+
+/* كل سطر عبارة عن شريحتين يمين/يسار */
+.money--compact .mrow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:6px 8px;             /* خفيف */
+  border:1px solid var(--stroke);
+  border-radius:10px;
+  background:#0b1327;
+}
+
+.money--compact .mlabel{
+  font-size:12.5px;
+  color:#cbd5e1;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+}
+.money--compact .mlabel i{ font-size:12px; opacity:.95; }
+
+.money--compact .mval{
+  font-weight:900;
+  font-size:13px;
+  letter-spacing:.2px;
+  color:#e7eef9;
+}
+
+/* دلالات ألوان خفيفة ومقروءة */
+.money--compact .mval--paid   { color:#86efac; }   /* أخضر فاتح */
+.money--compact .mval--unpaid { color:#fbbf24; }   /* أصفر */
+.money--compact .mval--ret    { color:#fca5a5; }   /* أحمر وردي */
+
 
 
   </style>
@@ -1692,10 +1736,7 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
     <!-- Insights -->
     <aside class="insights">
       <h3><i class="fa-solid fa-chart-simple"></i> ملخص اليوم</h3>
-      <div class="stat"><span>عدد البطاقات</span><b id="statCards">0</b></div>
-      <div class="stat"><span>عدد المواد</span><b id="statItems">0</b></div>
-      <div class="stat"><span>آخر تحديث</span><b id="statTime">—</b></div>
-      <div style="margin-top:auto;color:#9aa4b2;font-size:12px">واجهة تجريبية — ربط Google Sheets/PDF لاحقاً</div>
+     
     </aside>
   </main>
 
@@ -2688,7 +2729,8 @@ document.getElementById('btnAdd').onclick = () => {
   const customer = (document.getElementById('cust').value || '').trim();
   const item     = (document.getElementById('item').value || '').trim();
  
- const priceVal = parseIQD(document.getElementById('price').value); // يحذف الفوارز ويرجّع أرقام بس
+ const priceVal = Number(parseIQD(document.getElementById('price').value) || 0);
+
 
  
  
@@ -3119,8 +3161,14 @@ renderNotes();
 
     /* Foot */
     const foot = CE('div','card-foot');
-    const left = CE('div'); 
-    left.innerHTML = `<span class="tag">${(card.lines||[]).filter(l=>!l.deletedAt).length} مادة</span>`;
+  const left = CE('div');
+const sums = sumCardAmounts(card);
+left.innerHTML = `
+  <span class="tag">مواد: ${(card.lines||[]).filter(l=>!l.deletedAt).length}</span>
+  <span class="tag">المجموع: ${formatIQD(sums.total)}</span>
+  <span class="tag">غير مدفوع: ${formatIQD(sums.unpaid)}</span>
+`;
+
     const right = CE('div','foot-actions');
 
    const btnPdf = CE('button','i-btn');
@@ -3244,12 +3292,14 @@ function focusNewCard(card){
 
     
     
+  
+    
+    
     
 
     /* ===== Helpers ===== */
     
-    
-    
+  
     
     
    // (جديد) رجّع الكارت الأصلي المخزَّن داخل days اعتمادًا على __day + id
@@ -3521,12 +3571,102 @@ function renderRail(){
 
     /* ===== Stats ===== */
 function refreshStats(){
+  // بطاقات اليوم الفعّالة
   const cardsArr = activeCardsOfDay(selectedDay);
-  const items = cardsArr.reduce((n,c)=> n + (c.lines||[]).filter(l=> !l.deletedAt).length, 0);
-  document.getElementById('statCards').textContent = cardsArr.length;
-  document.getElementById('statItems').textContent = items;
-  document.getElementById('statTime').textContent = new Date().toLocaleTimeString('ar-EG');
+
+  // عدد المواد الفعّالة
+  const itemsCount = cardsArr.reduce((n, c) =>
+    n + (c.lines || []).filter(l => !l.deletedAt).length, 0
+  );
+
+  // مجاميع مالية
+  const totals = cardsArr.reduce((acc, c) => {
+    const s = sumCardAmounts(c); // { total, unpaid, paid, returned }
+    acc.total    += s.total;
+    acc.unpaid   += s.unpaid;
+    acc.paid     += s.paid;
+    acc.returned += s.returned;
+    return acc;
+  }, { total:0, unpaid:0, paid:0, returned:0 });
+
+  // تحديث العدادين الأساسيين
+  const setTxt = (id, v)=>{ const el = document.getElementById(id); if(el) el.textContent = v; };
+  setTxt('statCards', String(cardsArr.length));
+  setTxt('statItems', String(itemsCount));
+  setTxt('statTime',  new Date().toLocaleTimeString('ar-EG'));
+
+  // الحاوية الرئيسية
+  const insights = document.querySelector('.insights');
+  if(!insights) return;
+
+  // --- نحدد العنوان كنقطة ارتكاز ثم ننشئ جسمًا بعده ---
+  const titleEl = insights.querySelector('.insights__title, .section-title, h3, h2, h1');
+  let body = document.getElementById('insightsBody');
+  if(!body){
+    body = document.createElement('div');
+    body.id = 'insightsBody';
+    if(titleEl && titleEl.after) titleEl.after(body);
+    else insights.prepend(body); // احتياط
+  }
+
+  // ===== صندوق الإحصائيات السريعة (عدد البطاقات/المواد/آخر تحديث) =====
+  let quick = document.getElementById('quickStats');
+  if(!quick){
+    quick = document.createElement('div');
+    quick.id = 'quickStats';
+    quick.className = 'money--compact';
+    body.appendChild(quick);
+  }
+  quick.innerHTML = `
+    <div class="mrow">
+      <span class="mlabel"><i class="fa-solid fa-layer-group"></i> عدد البطاقات</span>
+      <span class="mval">${cardsArr.length}</span>
+    </div>
+    <div class="mrow">
+      <span class="mlabel"><i class="fa-solid fa-boxes-stacked"></i> عدد المواد</span>
+      <span class="mval">${itemsCount}</span>
+    </div>
+    <div class="mrow">
+      <span class="mlabel"><i class="fa-regular fa-clock"></i> آخر تحديث</span>
+      <span class="mval">${new Date().toLocaleTimeString('ar-EG')}</span>
+    </div>
+  `;
+
+  // ===== صندوق المال المضغوط =====
+  let box = document.getElementById('moneyStats');
+  if(!box){
+    box = document.createElement('div');
+    box.id = 'moneyStats';
+    box.className = 'money--compact';
+    body.appendChild(box);
+  }
+
+  const F = (v)=> formatIQD(v || 0);
+
+  box.innerHTML = `
+    <div class="mrow">
+      <span class="mlabel"><i class="fa-solid fa-sack-dollar"></i> إجمالي اليوم</span>
+      <span class="mval">${F(totals.total)}</span>
+    </div>
+    <div class="mrow">
+      <span class="mlabel"><i class="fa-regular fa-circle-check"></i> مدفوع</span>
+      <span class="mval mval--paid">${F(totals.paid)}</span>
+    </div>
+    <div class="mrow">
+      <span class="mlabel"><i class="fa-regular fa-clock"></i> غير مدفوع</span>
+      <span class="mval mval--unpaid">${F(totals.unpaid)}</span>
+    </div>
+    <div class="mrow">
+      <span class="mlabel"><i class="fa-solid fa-rotate-left"></i> راجع</span>
+      <span class="mval mval--ret">${F(totals.returned)}</span>
+    </div>
+  `;
 }
+
+
+
+
+
 
 
     /* ===== Actions ===== */
@@ -3640,12 +3780,7 @@ function animateReloadAndGo(totalMs = 1400){
   requestAnimationFrame(step);
 }
 
-// كسر الكاش + Reload (موجودة عندك – نحتفظ بها)
-function hardReload(){
-  const url = new URL(location.href);
-  url.searchParams.set('_ts', Date.now());
-  location.replace(url.toString());
-}
+
 
 // استدعاء من زر التحديث
 function refreshWithOverlay(){
@@ -3976,7 +4111,7 @@ function exportDayPDF_Vector(){
               <tbody></tbody>\`;
             const tbody = tbl.querySelector('tbody');
 
-            (card.lines||[]).forEach(ln=>{
+          (card.lines||[]).filter(ln=>!ln.deletedAt).forEach(ln=>{
               const tr = document.createElement('tr');
               const isReturned = !!ln.returned;
               const isPaid     = !!ln.paid;
@@ -4228,7 +4363,7 @@ function exportCardPDF_Vector(card, dayKey){
 
           function arTime(d){ return new Date(d).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}); }
 
-          (card.lines||[]).forEach(ln=>{
+         (card.lines||[]).filter(ln=>!ln.deletedAt).forEach(ln=>{
             const tr = document.createElement('tr');
             const isReturned = !!ln.returned;
             const isPaid     = !!ln.paid;
@@ -4567,6 +4702,29 @@ function noteKey(n){
   const t    = minuteBucket(n?.at || n?.updatedAt || '');
   return `SYNNOTE::${text}|${t}`;
 }
+
+
+
+
+
+
+// اجمع مبالغ البطاقة (يرجع كائن)
+function sumCardAmounts(card){
+  const out = { total:0, unpaid:0, paid:0, returned:0 };
+  (card.lines||[]).forEach(l=>{
+    if(l?.deletedAt) return;
+    const price = Number(String(l.price??'').replace(/[^\d.]/g,'')) || 0;
+    const qty   = Number(l.qty||1);
+    const amt   = price * qty;
+    out.total   += amt;
+    if(l.returned) out.returned += amt;
+    else if(l.paid) out.paid += amt;
+    else out.unpaid += amt;
+  });
+  return out;
+}
+
+
 
 
 
@@ -4915,57 +5073,44 @@ out[dayKey] = mergedCards;
 // استيراد ذكي: يسحب من السيرفر إذا هو أحدث (أو إذا المحلي فارغ)
 
 async function smartImportFromServer(){
-  
- if(!window.IS_SIGNED_IN){
-    // لا تستورد قبل الدخول
+  if(!window.IS_SIGNED_IN){
+    showToast('warn','سجّل دخول أولاً');
     return;
   }
-  
-  
+
   try{
     showToast('info','جاري جلب آخر نسخة من السيرفر…', 1800);
 
-    // 1) جرّب تجيب نسخة السيرفر
     const server = await serverGetBackup();
     if(!server || !server.days){
       showToast('warn','ماكو نسخة على السيرفر بعد');
       return;
     }
 
-    // 2) حضّر النسخ: محلي + سيرفر
     const localDays  = days || {};
     const remoteDays = server.days || {};
 
-    // 3) دمج قوي يوم-بيوم/بطاقة-ببطاقة/سطر-بسطر/ملاحظة-بملاحظة
     const { days: mergedDays, report } = mergeAllDays(localDays, remoteDays);
     normalizeIdsInAllDays(mergedDays);
-    
-   dedupeAllDays(mergedDays);
+    dedupeAllDays(mergedDays);
 
-    // 4) خزّن النتيجة المدموجة محلّياً (بدون فقدان)
+    // خزن محلي
     localStorage.setItem(STORAGE, JSON.stringify(mergedDays));
-    
     const curNames = Array.isArray(names) ? names : [];
-const srvNames = Array.isArray(server.names) ? server.names : [];
-const mergedNames = Array.from(new Set([...curNames, ...srvNames]));
-localStorage.setItem(NAMES, JSON.stringify(mergedNames));
-days  = load(STORAGE, {});
-names = load(NAMES,   []);
+    const srvNames = Array.isArray(server.names) ? server.names : [];
+    const mergedNames = Array.from(new Set([...curNames, ...srvNames]));
+    localStorage.setItem(NAMES, JSON.stringify(mergedNames));
 
-    
-    
-    renderBoard();
-    renderRail();
-    refreshStats();
+    // حدّث الذاكرة والواجهة
+    days  = load(STORAGE, {});
+    names = load(NAMES,   {});
+    renderBoard(); renderRail(); refreshStats();
 
-    // 6) تقارير
     const changes = report.length;
     showToast('success', changes ? `تم الدمج الآمن (${changes} تغيير)` : 'لا تغييرات — البيانات متطابقة');
-
-    // (اختياري) طباعة تقرير الدمج للتدقيق
-    console.groupCollapsed('ASSAL MERGE REPORT');
-    report.forEach(r => console.log(r));
-    console.groupEnd();
+    console.groupCollapsed?.('ASSAL MERGE REPORT (IMPORT)');
+    (report||[]).forEach(r => console.log(r));
+    console.groupEnd?.();
   }catch(err){
     console.error(err);
     showToast('error','تعذّر جلب/دمج النسخة من السيرفر');
@@ -4976,31 +5121,61 @@ names = load(NAMES,   []);
 
 
 
+
+/* ===== Dedupe Helpers (Lines/Notes) ===== */
 function dedupeCardLines(card){
-  const map = {};
-  (card.lines||[]).forEach(l=>{
-    const k = lineKey(l);
-    const prev = map[k];
-    if(!prev){
-      map[k] = l;
+  if(!card || !Array.isArray(card.lines)) return;
+
+  // احتفظ بالأحدث لكل lineKey
+  const byKey = new Map();
+  for(const ln of card.lines){
+    const k = lineKey(ln);
+    const cur = byKey.get(k);
+    if(!cur){
+      byKey.set(k, ln);
     }else{
-      // احتفظ بالأحدث
-      const ta = new Date(prev.updatedAt || prev.at || 0).getTime();
-      const tb = new Date(l.updatedAt    || l.at    || 0).getTime();
-      map[k] = (tb > ta) ? l : prev;
+      const curTs = new Date(cur.updatedAt || cur.at || 0).getTime();
+      const newTs = new Date(ln.updatedAt || ln.at || 0).getTime();
+      // خذ الأحدث
+      if(newTs > curTs) byKey.set(k, ln);
     }
-  });
-  card.lines = Object.values(map).map(l => {
-    if(!l.lineId) l.lineId = lineKey(l);
-    return l;
-  });
-}
-function dedupeAllDays(daysObj){
-  Object.values(daysObj||{}).forEach(cards=>{
-    (cards||[]).forEach(dedupeCardLines);
-  });
+  }
+  card.lines = Array.from(byKey.values());
+
+  // رتب نزولياً بالأحدث
+  card.lines.sort((a,b)=> new Date(b.updatedAt||b.createdAt||0) - new Date(a.updatedAt||a.createdAt||0));
 }
 
+function dedupeCardNotes(card){
+  if(!card || !Array.isArray(card.notes)) return;
+  const byKey = new Map();
+  for(const n of card.notes){
+    const k = noteKey(n);
+    const cur = byKey.get(k);
+    if(!cur){
+      byKey.set(k, n);
+    }else{
+      const curTs = new Date(cur.updatedAt || cur.at || 0).getTime();
+      const newTs = new Date(n.updatedAt || n.at || 0).getTime();
+      if(newTs > curTs) byKey.set(k, n);
+    }
+  }
+  card.notes = Array.from(byKey.values());
+  card.notes.sort((a,b)=> new Date(b.at||b.updatedAt||0) - new Date(a.at||a.updatedAt||0));
+}
+
+/* طبّق الديدوب على كل الأيام/البطاقات */
+function dedupeAllDays(daysObj){
+  Object.values(daysObj||{}).forEach(cards=>{
+    (cards||[]).forEach(c=>{
+      // ثبّت lineId / id لو ناقصة
+      (c.lines||[]).forEach(l => { if(!l.lineId) l.lineId = lineKey(l); });
+      (c.notes||[]).forEach(n => { if(!n.id)     n.id     = noteKey(n); });
+      dedupeCardLines(c);
+      dedupeCardNotes(c);
+    });
+  });
+}
 
 
 
@@ -5367,6 +5542,9 @@ onAuthStateChanged(auth, async (user)=>{
     hideSplash();
   }
 });
+
+
+
 
 
 
