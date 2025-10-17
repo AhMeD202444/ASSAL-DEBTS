@@ -1636,7 +1636,7 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
 #insightsBody{
   display: flex;
   flex-direction: column;
-  gap: 20px;        /* غيّرها 8–16px حسب ذوقك */
+  gap: 8px;        /* غيّرها 8–16px حسب ذوقك */
 }
 
 /* (اختياري) شدّ حواف الصناديق شوي حتى يبين الفراغ أحلى */
@@ -3773,6 +3773,63 @@ function refreshStats(){
     box.id = 'moneyStats';
     box.className = 'money--compact';
     body.appendChild(box);
+    
+    
+    
+    // ===== صندوق ملخّصات إضافية (تحت إجمالي اليوم) =====
+let extra = document.getElementById('extraStats');
+if (!extra) {
+  extra = document.createElement('div');
+  extra.id = 'extraStats';
+  extra.className = 'money--compact';
+  body.appendChild(extra); // body هو insightsBody نفسه (موجود فوق)
+}
+
+// مساعدات آمنة
+const F = (v)=> (typeof formatIQD === 'function' ? formatIQD(v || 0) : (v||0).toLocaleString('ar-IQ'));
+const N = (v)=> (v||0).toLocaleString('ar-EG');
+
+// حسابات سريعة (موجودة عندك أصلاً فوق)
+const cardsCount  = Array.isArray(cardsArr) ? cardsArr.length : 0;
+const avgPerCard  = cardsCount ? (totals.total / cardsCount) : 0;
+const avgPerItem  = (itemsCount ? (totals.total / itemsCount) : 0);
+
+// بطاقات فيها دين (غير مدفوعة كليًا)
+const withUnpaidCount = (Array.isArray(cardsArr) ? cardsArr.filter(c => {
+  const s = typeof sumCardAmounts==='function' ? sumCardAmounts(c) : {unpaid:0};
+  return (s.unpaid||0) > 0;
+}).length : 0);
+
+// أول/آخر وقت عملية (تقريبي من خطوط الكروت)
+function getFirstLastTime(arr){
+  try{
+    const all = arr.flatMap(c => (c.lines||[]))
+                   .filter(l => !l.deletedAt && l.at)
+                   .map(l => new Date(l.at).getTime())
+                   .sort((a,b)=>a-b);
+    if(!all.length) return {first:'—', last:'—'};
+    const fmt = (ts)=> new Date(ts).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+    return { first: fmt(all[0]), last: fmt(all[all.length-1]) };
+  }catch{ return {first:'—', last:'—'} }
+}
+const span = getFirstLastTime(Array.isArray(cardsArr)?cardsArr:[]);
+
+extra.innerHTML = `
+  <div class="mrow">
+    <span class="mlabel"><i class="fa-solid fa-receipt"></i> متوسّط الفاتورة</span>
+    <span class="mval">${F(avgPerCard)}</span>
+  </div>
+  
+  <div class="mrow">
+    <span class="mlabel"><i class="fa-regular fa-rectangle-list"></i> فواتير فيها دين</span>
+    <span class="mval mval--unpaid">${N(withUnpaidCount)}</span>
+  </div>
+  
+`;
+
+    
+    
+    
   }
 
   const F = (v)=> formatIQD(v || 0);
@@ -3795,6 +3852,7 @@ function refreshStats(){
       <span class="mval mval--ret">${F(totals.returned)}</span>
     </div>
   `;
+  
 }
 
 
