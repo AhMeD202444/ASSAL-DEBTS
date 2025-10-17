@@ -4270,11 +4270,14 @@ function exportDayPDF_Vector(){
 
             // ===== Notes (إن وُجدت) =====
             (function(){
-              const arr = Array.isArray(card.notes) ? [...card.notes] : [];
-              if(!arr.length) return;
+           const arr = Array.isArray(card.notes)
+  ? card.notes
+      .filter(n => !n.deletedAt)
+      .slice()
+      .sort((a,b)=> new Date(b.at || b.updatedAt || 0) - new Date(a.at || a.updatedAt || 0))
+  : [];
+if(!arr.length) return;
 
-              // الأحدث أولاً
-              arr.sort((a,b)=> new Date(b.at) - new Date(a.at));
 
               const notes = document.createElement('div');
               notes.className = 'notes';
@@ -4522,11 +4525,14 @@ function exportCardPDF_Vector(card, dayKey){
 
           // ===== Notes (إن وُجدت) =====
           (function(){
-            const arr = Array.isArray(card.notes) ? [...card.notes] : [];
-            if(!arr.length) return;
+           const arr = Array.isArray(card.notes)
+  ? card.notes
+      .filter(n => !n.deletedAt)
+      .slice()
+      .sort((a,b)=> new Date(b.at || b.updatedAt || 0) - new Date(a.at || a.updatedAt || 0))
+  : [];
+if(!arr.length) return;
 
-            // الأحدث أولاً
-            arr.sort((a,b)=> new Date(b.at) - new Date(a.at));
 
             const notes = document.createElement('div');
             notes.className = 'notes';
