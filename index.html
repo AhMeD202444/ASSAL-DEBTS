@@ -4727,31 +4727,178 @@ function prepareCleanPayload(daysObj, namesArr){
 
 
 
-// ===== تصدير/استيراد كل الفواتير (JSON) =====
-// نستخدم نفس مفاتيح التخزين عندك
-// STORAGE = 'assal:board:v3' | NAMES = 'assal:names:v3'
-// المتغيرات days / names موجودة ومحمّلة سابقًا
 
+
+
+
+function isActiveCard(card){
+  if (!card || card.deletedAt) return false;
+  const lines = Array.isArray(card.lines) ? card.lines.filter(l => !l.deletedAt) : [];
+  return lines.length > 0; // لازم بيه مواد فعلية
+}
+
+function compactDaysForExport(daysObj){
+  const out = {};
+  for (const [day, cards] of Object.entries(daysObj || {})){
+    const kept = (cards || [])
+      .filter(isActiveCard) // كروت فعّالة فقط
+      .map(card => ({
+        id       : card.id,
+        customer : card.customer,
+        createdAt: card.createdAt,
+        updatedAt: card.updatedAt,
+        paidAll  : !!card.paidAll,
+        billType : card.billType,
+        // سطور فعّالة فقط
+        lines: (card.lines || []).filter(l => !l.deletedAt).map(l => ({
+          lineId   : l.lineId,
+          item     : l.item,
+          cat      : l.cat,
+          price    : l.price,
+          qty      : l.qty,
+          note     : l.note,
+          type     : l.type,
+          paid     : !!l.paid,
+          returned : !!l.returned,
+          createdAt: l.createdAt,
+          updatedAt: l.updatedAt,
+          at       : l.at || l.createdAt || l.updatedAt || null
+        })),
+        // الملاحظات غير المحذوفة (تبقى بس لأن الكارت أصلاً فعّال)
+        notes: (card.notes || []).filter(n => !n.deletedAt).map(n => ({
+          id:n.id, text:n.text, at:n.at, updatedAt:n.updatedAt
+        }))
+      }))
+      .filter(c => c.lines.length > 0); // تأكيد إضافي
+    if (kept.length) out[day] = kept;
+  }
+  return out;
+}
+
+
+
+
+
+
+
+
+// ===== تصدير/استيراد كل الفواتير (JSON) =====
+
+// يبقي بس البيانات الفعّالة (غير محذوفة)
+// يبقي بس البطاقات التي تحتوي أسطر فعّالة (الملاحظات لا تكفي لوحدها)
+function compactDaysForExport(srcDays){
+  const out = {};
+  for (const [day, cards] of Object.entries(srcDays || {})) {
+    const kept = [];
+    for (const c of (cards || [])) {
+      if (c?.deletedAt) continue;
+
+      const lines = (c.lines || []).filter(l => !l?.deletedAt);
+      if (lines.length === 0) continue; // <-- هنا التغيير: تجاهل أي بطاقة بلا أسطر
+
+      // الملاحظات نضمّنها فقط كمعلومات إضافية، لكنها ما تأثر على قرار الإبقاء
+      const notes = (c.notes || []).filter(n => !n?.deletedAt);
+
+      const copy = {
+        id       : c.id,
+        customer : c.customer,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+        paidAll  : !!c.paidAll,
+        billType : c.billType,
+        lines,
+        notes
+      };
+      delete copy.deletedAt;
+      kept.push(copy);
+    }
+    if (kept.length) out[day] = kept;
+  }
+  return out;
+}
+
+
+
+
+
+
+// ===== (اختياري) تنظيف محلي مرّة واحدة =====
+// يشيل أي بطاقة ما بيها ولا سطر فعّال، حتى لو عدها ملاحظات
+function cleanupLocalOnce(){
+  if (!days || typeof days !== 'object') return 0;
+
+  let changes = 0;
+  const hasActiveLine = (card)=> (card.lines||[]).some(l => !l.deletedAt);
+
+  Object.keys(days).forEach(dayKey=>{
+    const arr = Array.isArray(days[dayKey]) ? days[dayKey] : [];
+    const kept = arr.filter(hasActiveLine);
+    changes += (arr.length - kept.length);
+    if (kept.length) days[dayKey] = kept;
+    else { delete days[dayKey]; changes++; }
+  });
+
+  save?.(); renderBoard?.(); renderRail?.(); refreshStats?.();
+  showToast?.('success', changes ? `تم تنظيف ${changes} عنصر قديم` : 'لا يوجد شيء للتنظيف');
+  return changes;
+}
+
+
+
+
+
+
+function cleanupEmptyCardsOnce(){
+  let changed = 0;
+  for(const [day, cards] of Object.entries(days || {})){
+    const before = (cards || []).length;
+    const afterArr = (cards || []).filter(isActiveCard);
+    if (afterArr.length !== before){
+      days[day] = afterArr;
+      changed++;
+    }
+  }
+  if (changed){
+    save();
+    renderBoard(); renderRail(); refreshStats();
+    showToast('success', `تنظيف تم: ${changed} يوم تغيّر`);
+  }else{
+    showToast('info','ماكو شي يحتاج تنظيف');
+  }
+}
+// نادِها يدويًا من الكونسول إذا تريد: cleanupEmptyCardsOnce()
+
+
+
+
+// تصدير محلي نظيف: بدون تومبستونات + أسماء من CUSTOMERS فقط
 function exportInvoices(){
   try{
-    // ✨ نستخدم التصدير النظيف
-    const payload = prepareCleanPayload(days, names);
-
+    const payload = {
+      version   : 3,
+      mode      : "clean", // علم يفيد بالاستيراد
+      exportedAt: new Date().toISOString(),
+      days      : compactDaysForExport(days || {}),
+      names     : Array.from(CUSTOMERS) // أو [] إذا ما تريدها
+    };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    const d = new Date().toISOString().slice(0,10); // YYYY-MM-DD
+    const d = new Date().toISOString().slice(0,10);
     a.download = `assal-bills-backup-${d}.json`;
-    document.body.appendChild(a);
-    a.click();
-    URL.revokeObjectURL(a.href);
-    a.remove();
+    document.body.appendChild(a); a.click();
+    URL.revokeObjectURL(a.href); a.remove();
     showToast?.('success','تم تصدير الفواتير كـ JSON (نظيف)');
   }catch(err){
     console.error(err);
     showToast?.('error','تعذّر التصدير');
   }
 }
+
+
+
+
+
 
 
 async function importInvoicesFromFile(file){
