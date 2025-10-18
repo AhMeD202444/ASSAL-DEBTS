@@ -2538,7 +2538,7 @@ const CUSTOMERS = [
   "احمد محسن - مندلي",
   "احمد محمد داودي",
   "ادم شروين",
-  "ادم صيانة 2",
+  "ادم صيانة - 2",
   "انور دبي",
   "ايسر - سومر",
   "حارث - خان بني سعد",
@@ -3290,6 +3290,28 @@ renderNotes();
     
     
     
+    function sumCardAmounts(card){
+  let total = 0, paid = 0, unpaid = 0, returned = 0;
+  for(const l of (card.lines || [])){
+    if(l.deletedAt) continue;
+    const price = Number(l.price || 0);
+    const qty   = parseInt(String(l.qty || '1'), 10) || 1;
+    const sub   = price * qty;
+
+    if(l.returned){
+      returned += sub;
+      continue;
+    }
+    total += sub;
+    if(l.paid) paid += sub; else unpaid += sub;
+  }
+  return { total, paid, unpaid, returned };
+}
+
+    
+    
+    
+    
 
     /* Foot */
     const foot = CE('div','card-foot');
@@ -3993,14 +4015,9 @@ document.getElementById('btnRefresh')?.addEventListener('click', refreshWithOver
 let __custIdx = -1;
 
 function getAllCustomers(){
-  // دمج القائمة اليدوية + أسماء محفوظة من البيانات
-  const set = new Set(CUSTOMERS);
-  // استخرج أسماء الزبائن من كل الأيام
-  Object.values(days||{}).forEach(arr=>{
-    (arr||[]).forEach(card=>{ if(card?.customer) set.add(card.customer); });
-  });
-  return Array.from(set);
+  return Array.isArray(CUSTOMERS) ? [...CUSTOMERS] : [];
 }
+
 
 function renderCustSuggestions(){
   const host = document.getElementById('custSuggestions');
@@ -4674,6 +4691,42 @@ importInput && (importInput.onchange = (e) => {
 
 
 
+
+
+// --- ضعها قبل exportInvoices() ---
+function prepareCleanPayload(daysObj, namesArr){
+  const cleanDays = {};
+  for (const [dayKey, cards] of Object.entries(daysObj || {})) {
+    const activeCards = (cards || [])
+      .filter(c => !c?.deletedAt)
+      .map(c => ({
+        ...c,
+        lines: (c.lines || []).filter(l => !l?.deletedAt),
+        notes: (c.notes || []).filter(n => !n?.deletedAt)
+      }))
+      .sort((a,b)=> new Date(b.updatedAt||b.createdAt||0) - new Date(a.updatedAt||a.createdAt||0));
+    if (activeCards.length) cleanDays[dayKey] = activeCards;
+  }
+
+  // الأسماء الفعّالة فقط (الموجودة فعلاً ببطاقات فعّالة)
+  const allowedNames = new Set();
+  for (const cards of Object.values(cleanDays)) {
+    for (const c of cards) if (c.customer) allowedNames.add(String(c.customer).trim());
+  }
+  const cleanNames = (namesArr || []).filter(n => allowedNames.has(String(n).trim()));
+
+  return {
+    version: 3,
+    exportedAt: new Date().toISOString(),
+    days: cleanDays,
+    names: cleanNames
+  };
+}
+
+
+
+
+
 // ===== تصدير/استيراد كل الفواتير (JSON) =====
 // نستخدم نفس مفاتيح التخزين عندك
 // STORAGE = 'assal:board:v3' | NAMES = 'assal:names:v3'
@@ -4681,12 +4734,9 @@ importInput && (importInput.onchange = (e) => {
 
 function exportInvoices(){
   try{
-    const payload = {
-      version: 3,
-      exportedAt: new Date().toISOString(),
-      days : days || {},   // كل الأيام والبطاقات
-      names: names || []   // إن كانت تستخدمها لاحقًا
-    };
+    // ✨ نستخدم التصدير النظيف
+    const payload = prepareCleanPayload(days, names);
+
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -4696,12 +4746,13 @@ function exportInvoices(){
     a.click();
     URL.revokeObjectURL(a.href);
     a.remove();
-    showToast?.('success','تم تصدير الفواتير كـ JSON');
+    showToast?.('success','تم تصدير الفواتير كـ JSON (نظيف)');
   }catch(err){
     console.error(err);
     showToast?.('error','تعذّر التصدير');
   }
 }
+
 
 async function importInvoicesFromFile(file){
   if(!file) return;
