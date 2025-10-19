@@ -1671,6 +1671,18 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
   background: linear-gradient(180deg,#0b151f,#0b1327);
 }
 
+/* اخفاء كل شي يخص الملاحظات داخل البطاقة فقط */
+.card .notes-compact,
+.card .notes-compact__list,
+.card .notes-compact__bar,
+.card .note-add-mini {
+  display: none !important;
+}
+
+/* ضمان المودال يبقى ظاهر (لا يتأثر) */
+#notesModal .notes-compact__list { display: block !important; }
+#notesModal .notes-compact__bar { display: grid !important; } /* إذا تستخدم Grid بالمودال */
+
 
 
 
@@ -1987,6 +1999,29 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
 
 
 
+<!-- مـودال الملاحظات -->
+<div id="notesModalBackdrop" class="modal-backdrop"></div>
+<div id="notesModal" class="modal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="notesModalTitle">
+    <div class="modal-head" id="notesModalTitle">ملاحظات البطاقة</div>
+    <div class="modal-body" style="width:100%;">
+      <!-- قائمة ملاحظات داخل المودال -->
+      <div id="notesModalList" class="notes-compact__list nice-scroll" style="max-height:200px;"></div>
+
+      <!-- شريط إدخال داخل المودال -->
+      <div class="notes-compact__bar" style="display:grid; grid-template-columns:1fr auto; gap:6px; margin-top:10px;">
+        <input id="notesModalInput" class="field note-input-sm" placeholder="اكتب الملاحظة…"/>
+        <button id="notesModalAdd" class="btn primary">
+          <i class="fa-solid fa-plus"></i><span>إضافة</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button id="notesModalClose" class="modal-btn ghost">إغلاق</button>
+    </div>
+  </div>
+</div>
 
 
 
@@ -3385,8 +3420,17 @@ if(real){
       renderBoard(); renderRail(); refreshStats();
       showToast('error', 'تم حذف البطاقة');
     };
+    
+    
+    // === زر ملاحظات (جديد) ===
+const btnNotes = CE('button','i-btn');
+btnNotes.innerHTML = '<i class="fa-regular fa-note-sticky"></i><span>ملاحظات</span>';
+btnNotes.title = 'إضافة/استعراض ملاحظات البطاقة';
+btnNotes.onclick = () => openNotesModal(card);  // الدالة بنضيفها بالخطوة 3
+    
+    
 
-    right.append(btnPdf, btnPayAll, btnDel);
+   right.append(btnPdf, btnPayAll, btnNotes, btnDel);
     foot.append(left,right);
     box.appendChild(foot);
 
@@ -3402,6 +3446,98 @@ if(real){
     host.appendChild(more);
   }
 }
+
+
+
+// حالة المودال الحالية
+let __activeNotesCard = null;
+
+// تنسيقات عنصر واحد (نفس ستايل الكبسولة داخل البطاقة)
+function makeNoteRow(n, idx){
+  const row  = CE('div','note-row');
+  const pill = CE('div','note-pill');
+
+  const idxEl = CE('div','note-pill__idx');  idxEl.textContent = idx;
+  const txtEl = CE('div','note-pill__text'); txtEl.textContent = n.text || '';
+  const tmEl  = CE('div','note-pill__time');
+  tmEl.innerHTML = '<i class="fa-regular fa-clock"></i>' + tinyTime(n.at || n.createdAt || new Date());
+
+  pill.append(idxEl, txtEl, tmEl);
+
+  // زر حذف بسيط ضمن المودال
+  const del = CE('button','note-del-out');
+  del.innerHTML = '<i class="fa-regular fa-trash-can"></i>';
+  del.title = 'حذف الملاحظة';
+  del.onclick = () => {
+    n.deletedAt = nowISO();
+    save();
+    renderNotesModalList();
+    renderBoard();   // حتى تنعكس داخل البطاقة أيضاً
+    showToast('error','تم حذف الملاحظة');
+  };
+
+  row.append(pill, del);
+  return row;
+}
+
+// وقت عربي قصير (موجود شبيه داخل ملفك)
+function tinyTime(d){
+  return new Date(d).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+}
+
+// افتح المودال على بطاقة معيّنة
+function openNotesModal(card){
+  __activeNotesCard = card;
+  if(!Array.isArray(__activeNotesCard.notes)) __activeNotesCard.notes = [];
+
+  renderNotesModalList();
+
+  document.getElementById('notesModalBackdrop').classList.add('active');
+  document.getElementById('notesModal').classList.add('active');
+}
+
+// ارسم القائمة داخل المودال
+function renderNotesModalList(){
+  const list = document.getElementById('notesModalList');
+  const arr = (__activeNotesCard.notes || [])
+    .filter(n => !n.deletedAt)
+    .sort((a,b)=> new Date(b.at)-new Date(a.at));
+  list.innerHTML = '';
+  arr.forEach((n, i)=> list.appendChild(makeNoteRow(n, arr.length - i)));
+}
+
+// إغلاق المودال
+function closeNotesModal(){
+  document.getElementById('notesModalBackdrop').classList.remove('active');
+  document.getElementById('notesModal').classList.remove('active');
+  __activeNotesCard = null;
+}
+
+// إضافة من داخل المودال
+function addNoteFromModal(){
+  const inp = document.getElementById('notesModalInput');
+  const text = (inp.value||'').trim();
+  if(!text) return;
+
+  __activeNotesCard.notes.push({
+    id: crypto.randomUUID ? crypto.randomUUID() : (Date.now()+''+Math.random()),
+    text,
+    at: nowISO()
+  });
+
+  __activeNotesCard.updatedAt = nowISO();
+  save();
+  renderNotesModalList();
+  renderBoard();        // حتى تبين مباشرة داخل البطاقة (القائمة فقط)
+  inp.value = '';
+  showToast('success','انضافت الملاحظة');
+}
+
+// ربط أزرار المودال
+document.getElementById('notesModalClose').onclick = closeNotesModal;
+document.getElementById('notesModalBackdrop').onclick = closeNotesModal; // اغلاق عند الضغط خارج
+document.getElementById('notesModalAdd').onclick = addNoteFromModal;
+
 
     
     
