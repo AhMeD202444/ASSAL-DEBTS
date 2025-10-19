@@ -3514,6 +3514,15 @@ function openNotesModal(card){
   document.getElementById('notesModalBackdrop').classList.add('active');
   document.getElementById('notesModal').classList.add('active');
 
+
+
+// ⬅️ أضِف هذا البلوك هنا تحديدًا (الأضمن):
+  requestAnimationFrame(() => {
+    const inp = document.getElementById('notesModalInput');
+    if (inp) { inp.focus(); inp.select(); }
+  });
+
+
   // قفل تمرير الخلفية
   document.body.classList.add('modal-open');
 }
@@ -3564,9 +3573,32 @@ document.getElementById('notesModalClose').onclick = closeNotesModal;
 document.getElementById('notesModalBackdrop').onclick = closeNotesModal; // اغلاق عند الضغط خارج
 document.getElementById('notesModalAdd').onclick = addNoteFromModal;
 
+// عناصر المودال
+const _mi = document.getElementById('notesModalInput');
+const _ma = document.getElementById('notesModalAdd');
+const _mc = document.getElementById('notesModalClose');
 
-    
-    
+// Enter بالحقل → يروح على زر الإضافة
+_mi?.addEventListener('keydown', (e)=>{
+  if(e.key !== 'Enter') return;
+  e.preventDefault();
+  _ma?.focus();
+});
+
+// Enter على زر الإضافة → يضيف + يحوّل الفوكس لزر الإغلاق
+_ma?.addEventListener('keydown', (e)=>{
+  if(e.key !== 'Enter') return;
+  e.preventDefault();
+  addNoteFromModal();
+  setTimeout(()=> _mc?.focus(), 0);
+});
+
+// Enter على زر الإغلاق → يغلق
+_mc?.addEventListener('keydown', (e)=>{
+  if(e.key !== 'Enter') return;
+  e.preventDefault();
+  closeNotesModal();
+});
     
   
   function activeLines(card){ return (card.lines||[]).filter(l => !l.deletedAt && !l.returned); }
