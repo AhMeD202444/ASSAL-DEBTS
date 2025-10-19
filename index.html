@@ -1685,6 +1685,25 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
 
 
 
+/* إلغاء أي تأثير hover على كبسولة الملاحظة */
+.note-pill{
+  transition: none !important;
+}
+.note-pill:hover{
+  border-color: var(--stroke) !important;
+  box-shadow: 0 6px 14px rgba(0,0,0,.18) !important; /* نفس الأساس */
+  transform: none !important;
+}
+
+
+/* عند فتح أي مودال نمنع تمرير الصفحة */
+body.modal-open{
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+  touch-action: none !important; /* مفيد للموبايل */
+}
+
+
 
 
   </style>
@@ -3494,14 +3513,17 @@ function openNotesModal(card){
 
   document.getElementById('notesModalBackdrop').classList.add('active');
   document.getElementById('notesModal').classList.add('active');
+
+  // قفل تمرير الخلفية
+  document.body.classList.add('modal-open');
 }
 
-// ارسم القائمة داخل المودال
+// ارسم القائمة داخل المودال (أحدث وقت أولاً)
 function renderNotesModalList(){
   const list = document.getElementById('notesModalList');
   const arr = (__activeNotesCard.notes || [])
     .filter(n => !n.deletedAt)
-    .sort((a,b)=> new Date(b.at)-new Date(a.at));
+    .sort((a,b)=> new Date(b.at || b.createdAt) - new Date(a.at || a.createdAt)); // تأكيد الترتيب
   list.innerHTML = '';
   arr.forEach((n, i)=> list.appendChild(makeNoteRow(n, arr.length - i)));
 }
@@ -3511,6 +3533,9 @@ function closeNotesModal(){
   document.getElementById('notesModalBackdrop').classList.remove('active');
   document.getElementById('notesModal').classList.remove('active');
   __activeNotesCard = null;
+
+  // رجّع تمرير الخلفية طبيعي
+  document.body.classList.remove('modal-open');
 }
 
 // إضافة من داخل المودال
@@ -3522,16 +3547,17 @@ function addNoteFromModal(){
   __activeNotesCard.notes.push({
     id: crypto.randomUUID ? crypto.randomUUID() : (Date.now()+''+Math.random()),
     text,
-    at: nowISO()
+    at: nowISO() // مهم للفرز
   });
 
   __activeNotesCard.updatedAt = nowISO();
   save();
-  renderNotesModalList();
-  renderBoard();        // حتى تبين مباشرة داخل البطاقة (القائمة فقط)
+  renderNotesModalList();  // رح يعيد ترتيبها فوراً
+  renderBoard();           // ينعكس على البطاقة
   inp.value = '';
   showToast('success','انضافت الملاحظة');
 }
+
 
 // ربط أزرار المودال
 document.getElementById('notesModalClose').onclick = closeNotesModal;
