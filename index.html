@@ -1704,6 +1704,62 @@ body.modal-open{
 }
 
 
+/* ===== أزرار أسفل بطاقة الزبون (PDF / تسديد / ملاحظات / حذف) — ألوان مطفّية أنيقة ===== */
+.card-foot .foot-actions .i-btn{
+  border: 1px solid var(--stroke);
+  transition: transform .18s ease, filter .18s ease, box-shadow .18s ease;
+  border-radius: 12px;
+  box-shadow: 0 6px 14px rgba(0,0,0,.08);
+}
+
+/* (1) PDF — تِيل مطفّي */
+.card-foot .foot-actions .i-btn:nth-child(1){
+  background: linear-gradient(135deg, #3a8d8e, #2e6e6f);
+  color: #f3fbfb;
+  border-color: rgba(58,141,142,.45);
+}
+.card-foot .foot-actions .i-btn:nth-child(1):hover{
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}
+
+/* (2) تسديد الكل — بدون تغيير */
+
+/* (3) الملاحظات — بنفسجي مُعتّق (mauve) */
+.card-foot .foot-actions .i-btn:nth-child(3){
+  background: linear-gradient(135deg, #7a6aa6, #66558c);
+  color: #f7f5ff;
+  border-color: rgba(122,106,166,.45);
+}
+.card-foot .foot-actions .i-btn:nth-child(3):hover{
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}
+
+/* (4) حذف البطاقة — طوبي/آجري مطفّي */
+.card-foot .foot-actions .i-btn:nth-child(4){
+  background: linear-gradient(135deg, #b64a3b, #8c372d);
+  color: #fff4f3;
+  border-color: rgba(182,74,59,.50);
+}
+.card-foot .foot-actions .i-btn:nth-child(4):hover{
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+/* فوكس هادئ موحّد */
+.card-foot .foot-actions .i-btn:focus-visible{
+  outline: 0;
+  box-shadow:
+    0 0 0 3px rgba(255,255,255,.08),
+    0 0 0 6px rgba(99,102,241,.22);
+}
+
+/* أيقونات */
+.card-foot .foot-actions .i-btn i{
+  opacity:.95; margin-inline-end:.35rem;
+}
+
 
 
   </style>
