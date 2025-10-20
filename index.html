@@ -1776,6 +1776,37 @@ body.modal-open{
 body{ padding-top: var(--hdr-h); }
 
 
+/* حتى لا يُقصّ البادج لو يطلع خارج حدود الزر */
+.card-foot .foot-actions { overflow: visible; }
+
+/* زر الملاحظات يحتاج مرجع تموضع */
+.card-foot .foot-actions .i-btn{ position: relative; }
+
+/* بادج عدّاد الملاحظات — أحمر غامق */
+.i-btn .notes-count{
+  position: absolute;
+  top: -6px;
+  inset-inline-end: -6px;          /* يدعم RTL */
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+  background: linear-gradient(135deg, #7f1d1d, #4c0b0b); /* أحمر غامق */
+  color: #fecaca;
+  border: 1px solid rgba(239,68,68,.45);
+  box-shadow: 0 2px 10px rgba(239,68,68,.25);
+  pointer-events: none; /* ما يمنع النقر على الزر */
+}
+
+/* إخفاء تام عندما العدد = 0 */
+.i-btn .notes-count[hidden]{ display: none; }
+
+
+
 
 
   </style>
@@ -3084,6 +3115,30 @@ function rebuildNames(){
 
 
 
+
+
+// احسب عدد الملاحظات (يتجاهل المحذوفة)
+function getNotesCount(card){
+  const arr = (card && Array.isArray(card.notes)) ? card.notes : [];
+  return arr.filter(n => !n.deletedAt).length;
+}
+
+// ضمن الزر: يظهر/يخفي البادج حسب العدد
+function updateNotesBadge(btnNotes, card){
+  if(!btnNotes) return;
+  const badge = btnNotes.querySelector('.notes-count');
+  if(!badge) return;
+  const n = getNotesCount(card);
+  if(n > 0){
+    badge.textContent = n;
+    badge.hidden = false;
+  }else{
+    badge.hidden = true;
+  }
+}
+
+
+
     /* ====== رسم اللوح ====== */
     
 function renderBoard(){
@@ -3515,11 +3570,18 @@ if(real){
     
     // === زر ملاحظات (جديد) ===
 const btnNotes = CE('button','i-btn');
-btnNotes.innerHTML = '<i class="fa-regular fa-note-sticky"></i><span>ملاحظات</span>';
+btnNotes.innerHTML = `
+  <i class="fa-regular fa-note-sticky"></i>
+  <span>ملاحظات</span>
+  <b class="badge notes-count" hidden>0</b>
+`;
 btnNotes.title = 'إضافة/استعراض ملاحظات البطاقة';
-btnNotes.onclick = () => openNotesModal(card);  // الدالة بنضيفها بالخطوة 3
-    
-    
+btnNotes.onclick = () => openNotesModal(card);
+
+// تحديث العدّاد أول ما ينتهي بناء الزر
+updateNotesBadge(btnNotes, card);
+
+
 
    right.append(btnPdf, btnPayAll, btnNotes, btnDel);
     foot.append(left,right);
