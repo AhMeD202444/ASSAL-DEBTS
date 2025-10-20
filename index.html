@@ -3877,7 +3877,11 @@ function renderRail(){
   const host = document.getElementById('rail'); host.innerHTML='';
 
   const allDays = Object.keys(days).sort().reverse();
-  if(!allDays.includes(selectedDay)) allDays.unshift(selectedDay);
+
+  // ثبّت TODAY أعلى السكة دائماً حتى لو المستخدم واقف على يوم سابق
+  if (!allDays.includes(TODAY)) {
+    allDays.unshift(TODAY);
+  }
 
   const fraw = (document.getElementById('dayFilter').value||'').trim();
   const match = makeFilterPredicate(fraw);
