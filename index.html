@@ -1807,6 +1807,61 @@ body{ padding-top: var(--hdr-h); }
 
 
 
+/* ===== زر حذف سطر المادة داخل البطاقة ===== */
+/* نغطي الاحتمالات الشائعة: زر صغير داخل العناصر، وأي زر يحمل كلاس/داتا حذف */
+.item .btn-del,
+.btn-mini.btn-del,
+.item [data-action="del-item"],
+.item .btn[data-action="del-item"]{
+  background: linear-gradient(135deg, #7f1d1d, #4c0b0b); /* أحمر غامق */
+  color: #fecaca;
+  border: 1px solid rgba(239,68,68,.45);
+  box-shadow: 0 8px 18px rgba(239,68,68,.24);
+  transition: transform .15s ease, filter .15s ease, box-shadow .15s ease;
+}
+
+/* Hover/Focus */
+.item .btn-del:hover,
+.btn-mini.btn-del:hover,
+.item [data-action="del-item"]:hover,
+.item .btn[data-action="del-item"]:hover{
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 12px 24px rgba(239,68,68,.30);
+}
+
+.item .btn-del:focus-visible,
+.btn-mini.btn-del:focus-visible,
+.item [data-action="del-item"]:focus-visible,
+.item .btn[data-action="del-item"]:focus-visible{
+  outline: 0;
+  box-shadow:
+    0 0 0 2px rgba(255,255,255,.10),
+    0 0 0 5px rgba(239,68,68,.35);
+}
+
+/* لو عندك ستايل يفرض "شفاف/ghost" يتغلب على الخلفية، نعالجه هنا */
+.item .btn-del.ghost,
+.btn-mini.btn-del.ghost,
+.item [data-action="del-item"].ghost{
+  background: linear-gradient(135deg, #7f1d1d, #4c0b0b);
+  color: #fecaca;
+  border-color: rgba(239,68,68,.45);
+}
+
+/* لو الحاوية تقصّ البادج/الظل بسبب overflow */
+.item .actions, .item .controls { overflow: visible; }
+
+/* (اختياري كحل أخير فقط) لو بعده أكو قاعدة تغلب – فعّل !important للخلفية واللون فقط */
+/*
+.item .btn-del,
+.btn-mini.btn-del{
+  background: linear-gradient(135deg, #7f1d1d, #4c0b0b) !important;
+  color: #fecaca !important;
+}
+*/
+
+
 
 
   </style>
@@ -5068,50 +5123,6 @@ function isActiveCard(card){
   const lines = Array.isArray(card.lines) ? card.lines.filter(l => !l.deletedAt) : [];
   return lines.length > 0; // لازم بيه مواد فعلية
 }
-
-function compactDaysForExport(daysObj){
-  const out = {};
-  for (const [day, cards] of Object.entries(daysObj || {})){
-    const kept = (cards || [])
-      .filter(isActiveCard) // كروت فعّالة فقط
-      .map(card => ({
-        id       : card.id,
-        customer : card.customer,
-        createdAt: card.createdAt,
-        updatedAt: card.updatedAt,
-        paidAll  : !!card.paidAll,
-        billType : card.billType,
-        // سطور فعّالة فقط
-        lines: (card.lines || []).filter(l => !l.deletedAt).map(l => ({
-          lineId   : l.lineId,
-          item     : l.item,
-          cat      : l.cat,
-          price    : l.price,
-          qty      : l.qty,
-          note     : l.note,
-          type     : l.type,
-          paid     : !!l.paid,
-          returned : !!l.returned,
-          createdAt: l.createdAt,
-          updatedAt: l.updatedAt,
-          at       : l.at || l.createdAt || l.updatedAt || null
-        })),
-        // الملاحظات غير المحذوفة (تبقى بس لأن الكارت أصلاً فعّال)
-        notes: (card.notes || []).filter(n => !n.deletedAt).map(n => ({
-          id:n.id, text:n.text, at:n.at, updatedAt:n.updatedAt
-        }))
-      }))
-      .filter(c => c.lines.length > 0); // تأكيد إضافي
-    if (kept.length) out[day] = kept;
-  }
-  return out;
-}
-
-
-
-
-
-
 
 
 // ===== تصدير/استيراد كل الفواتير (JSON) =====
