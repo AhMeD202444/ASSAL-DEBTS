@@ -219,6 +219,16 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
     .day .meta{font-size:11px;color:#9aa4b2}
     .day:hover{border-color:rgba(124,58,237,.45)}
     .day.active{outline:2px solid rgba(124,58,237,.35)}
+    
+    
+   .day{ position: relative; border-radius: 12px; }
+.day.active{
+  outline: none;
+  background: rgba(18,209,180,.08);   /* تظليل خفيف كلش */
+  border: 1px solid rgba(18,209,180,.20);
+}
+
+
 
     /* =================== Board =================== */
     .board{min-height:60vh;padding-bottom:calc(var(--dock-gap) + var(--footer-h) + 18px)}
@@ -4097,14 +4107,14 @@ function renderRail(){
 `;
 
        
-       row.onclick = ()=>{
+      row.onclick = ()=>{
   selectedDay = k;
   renderBoard();
+  renderRail();      // <-- أضفها حتى يتأشر اليوم المختار
   refreshStats();
   // لا تحدّث الهيدر هنا حتى يبقى ثابت على TODAY
   // document.getElementById('dateBadge').textContent = arDateWithDay(selectedDay);
 };
-
        
        
         monthBox.appendChild(row);
