@@ -3138,6 +3138,11 @@ if (!card) {
   const isReturn = (type === 'راجع');
   
 const now = nowISO();
+
+if (card && (!Array.isArray(card.lines) || !card.lines.some(l => !l.deletedAt))) {
+  card.createdAt = now;
+}
+
 card.lines.push({
   lineId   : genId(),
   item, cat, price: priceVal, qty, note, type,
