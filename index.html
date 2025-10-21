@@ -3090,33 +3090,40 @@ document.getElementById('btnAdd').onclick = () => {
 
   let createdNewCard = false;
 
-  // ابحث عن البطاقة وموقعها
-  let cardIndex = days[selectedDay].findIndex(c => c.customer === customer);
-  let card = days[selectedDay][cardIndex];
 
-  if (!card) {
-    // إنشاء بطاقة جديدة + updatedAt
-    card = {
-      id: Date.now(),
-      customer,
-      lines: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(), // NEW
-      paidAll: false,
-      billType: type
-    };
-    days[selectedDay].unshift(card);
-    createdNewCard = true;
-  } else {
-    // لو نوع مختلف يصير مختلط
-    if (card.billType && card.billType !== type) card.billType = 'مختلط';
-    if (!card.billType) card.billType = type;
+// ابحث عن البطاقة وموقعها (استبعد المحذوفة)
+let cardIndex = days[selectedDay].findIndex(c => c.customer === customer && !c.deletedAt);
+let card = days[selectedDay][cardIndex];
 
-    // حدّث آخر نشاط وارفع البطاقة للأعلى
-    card.updatedAt = new Date().toISOString();
-    days[selectedDay].splice(cardIndex, 1);
-    days[selectedDay].unshift(card);
+if (!card) {
+  // إنشاء بطاقة جديدة + updatedAt
+  card = {
+    id: Date.now(),
+    customer,
+    lines: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    paidAll: false,
+    billType: type
+  };
+  days[selectedDay].unshift(card);
+  createdNewCard = true;
+} else {
+  // ✅ إنعاش البطاقة إذا كانت محذوفة منطقيًا (حالة نادرة لو لقّطتها من مصدر قديم)
+  if (card.deletedAt) {
+    delete card.deletedAt;
   }
+
+  // لو نوع مختلف يصير مختلط
+  if (card.billType && card.billType !== type) card.billType = 'مختلط';
+  if (!card.billType) card.billType = type;
+
+  // حدّث آخر نشاط وارفع البطاقة للأعلى
+  card.updatedAt = new Date().toISOString();
+  days[selectedDay].splice(cardIndex, 1);
+  days[selectedDay].unshift(card);
+}
+
 
   const isReturn = (type === 'راجع');
   
@@ -3695,26 +3702,27 @@ function tinyTime(d){
 
 // افتح المودال على بطاقة معيّنة
 function openNotesModal(card){
-  __activeNotesCard = card;
-  if(!Array.isArray(__activeNotesCard.notes)) __activeNotesCard.notes = [];
+  // اربط على الأصل المخزّن داخل days (حتى لو اللي ظاهر نسخة بحث)
+  const real = (typeof getMutableCard === 'function' ? getMutableCard(card) : null) || card;
+
+  __activeNotesCard = real;
+  if (!Array.isArray(__activeNotesCard.notes)) __activeNotesCard.notes = [];
 
   renderNotesModalList();
 
   document.getElementById('notesModalBackdrop').classList.add('active');
   document.getElementById('notesModal').classList.add('active');
 
-
-
-// ⬅️ أضِف هذا البلوك هنا تحديدًا (الأضمن):
+  // فوكس مؤكد بعد عرض المودال
   requestAnimationFrame(() => {
     const inp = document.getElementById('notesModalInput');
     if (inp) { inp.focus(); inp.select(); }
   });
 
-
   // قفل تمرير الخلفية
   document.body.classList.add('modal-open');
 }
+
 
 // ارسم القائمة داخل المودال (أحدث وقت أولاً)
 function renderNotesModalList(){
@@ -3738,23 +3746,33 @@ function closeNotesModal(){
 
 // إضافة من داخل المودال
 function addNoteFromModal(){
-  const inp = document.getElementById('notesModalInput');
-  const text = (inp.value||'').trim();
-  if(!text) return;
+  const inp  = document.getElementById('notesModalInput');
+  const text = (inp && inp.value ? inp.value : '').trim();
+  if (!text || !__activeNotesCard) return;
 
-  __activeNotesCard.notes.push({
-    id: crypto.randomUUID ? crypto.randomUUID() : (Date.now()+''+Math.random()),
+  // اشتغل على الأصل داخل days حتى تبقى الملاحظة بعد الإغلاق
+  const real = (typeof getMutableCard === 'function' ? getMutableCard(__activeNotesCard) : null) || __activeNotesCard;
+  if (!Array.isArray(real.notes)) real.notes = [];
+
+  real.notes.push({
+    id: (typeof crypto !== 'undefined' && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : (Date.now() + '-' + Math.random().toString(16).slice(2)),
     text,
-    at: nowISO() // مهم للفرز
+    at: (typeof nowISO === 'function') ? nowISO() : new Date().toISOString()
   });
 
-  __activeNotesCard.updatedAt = nowISO();
-  save();
-  renderNotesModalList();  // رح يعيد ترتيبها فوراً
-  renderBoard();           // ينعكس على البطاقة
-  inp.value = '';
-  showToast('success','انضافت الملاحظة');
+  real.updatedAt = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
+
+  // خزّن وأعد الرسم حتى يبان كلشي مباشرة
+  try { if (typeof save === 'function') save(); } catch(_){}
+  try { if (typeof renderNotesModalList === 'function') renderNotesModalList(); } catch(_){}
+  try { if (typeof renderBoard === 'function') renderBoard(); } catch(_){}
+
+  if (inp) inp.value = '';
+  try { if (typeof showToast === 'function') showToast('success','انضافت الملاحظة'); } catch(_){}
 }
+
 
 
 // ربط أزرار المودال
