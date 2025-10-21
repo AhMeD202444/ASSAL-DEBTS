@@ -4561,7 +4561,10 @@ function exportDayPDF_Vector(){
   // نضمن آخر رسم
   renderBoard();
 
-  const cards = (days[selectedDay] || []);
+  // ✅ استبعاد البطاقات المحذوفة فقط (تغيير وحيد)
+  const source = (days[selectedDay] || []);
+  const cards  = source.filter(c => !c?.deletedAt);
+
   if(!cards.length){ showToast('warn','ماكو بطاقات اليوم للتصدير'); return; }
 
   const dateStr = document.getElementById('dateBadge')?.textContent || '';
@@ -4725,7 +4728,7 @@ function exportDayPDF_Vector(){
               <tbody></tbody>\`;
             const tbody = tbl.querySelector('tbody');
 
-          (card.lines||[]).filter(ln=>!ln.deletedAt).forEach(ln=>{
+            (card.lines||[]).filter(ln=>!ln.deletedAt).forEach(ln=>{
               const tr = document.createElement('tr');
               const isReturned = !!ln.returned;
               const isPaid     = !!ln.paid;
@@ -4750,14 +4753,13 @@ function exportDayPDF_Vector(){
 
             // ===== Notes (إن وُجدت) =====
             (function(){
-           const arr = Array.isArray(card.notes)
-  ? card.notes
-      .filter(n => !n.deletedAt)
-      .slice()
-      .sort((a,b)=> new Date(b.at || b.updatedAt || 0) - new Date(a.at || a.updatedAt || 0))
-  : [];
-if(!arr.length) return;
-
+              const arr = Array.isArray(card.notes)
+                ? card.notes
+                    .filter(n => !n.deletedAt)
+                    .slice()
+                    .sort((a,b)=> new Date(b.at || b.updatedAt || 0) - new Date(a.at || a.updatedAt || 0))
+                : [];
+              if(!arr.length) return;
 
               const notes = document.createElement('div');
               notes.className = 'notes';
@@ -4807,6 +4809,7 @@ if(!arr.length) return;
   w.document.close();
   showToast('success','جاهز للطباعة — اختر "حفظ كـ PDF"');
 }
+
 
 
 
