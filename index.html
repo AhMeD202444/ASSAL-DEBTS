@@ -1884,6 +1884,21 @@ body{ padding-top: var(--hdr-h); }
 }
 
 
+/* زبائن */
+#custSuggestions .sugg-item.is-active{
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  color: #fff;
+  border-radius: 10px;               /* اختياري نفس ستايلك */
+}
+
+/* مواد (إذا عندك ليست ثانية) */
+#itemSuggestions .sugg-item.is-active{
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  color: #fff;
+  border-radius: 10px;
+}
+
+
 
 
   </style>
@@ -4508,7 +4523,7 @@ function getCustLis(){
 
 function highlightCustItem(){
   const items = getCustLis();
-  items.forEach((li,i)=> li.style.background = (i===__custIdx) ? '#0e1b36' : 'transparent');
+ items.forEach((li,i)=> li.classList.toggle('is-active', i === __custIdx));
   if(__custIdx >= 0 && items[__custIdx]){
     items[__custIdx].scrollIntoView({ block:'nearest' });
   }
@@ -6380,14 +6395,9 @@ onAuthStateChanged(auth, async (user)=>{
 
 
 
-
-
-
-
 </script>
   
 </body>
 </html>
-
 
 
