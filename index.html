@@ -1871,6 +1871,18 @@ body{ padding-top: var(--hdr-h); }
 }
 */
 
+/* لون مميّز لحواف البطاقات الزوجية فقط (2,4,6,...) */
+:root{
+  /* غيّر اللون من هنا حسب ما يلائم تطبيقك */
+  --alt-card-border: #f59e0b; /* Amber واضح جداً */
+}
+
+.masonry > .card:nth-child(even){
+  border-color: var(--alt-card-border) !important; /* بس اللون */
+  border-style: solid; /* ما نغير العرض، بس نضمن ظهور الحد لو كان محدد مسبقاً */
+  /* ملاحظة: ما لمسنا الخلفية، النص، الأزرار، الظلال… فقط لون الحافة */
+}
+
 
 
 
@@ -4666,6 +4678,28 @@ function exportDayPDF_Vector(){
 
         @media print{ .card{ break-inside: avoid; } }
       </style>
+      
+      
+     <style>
+  /* حواف البطاقة رمادي داكن خفيف مو أسود صِرف */
+  .wrap .card{
+    border-style: solid !important;
+    border-width: 1.5px !important;     /* سماكة مناسبة */
+    border-color: rgba(0,0,0,.60) !important; /* افتح من الأسود (60%) */
+  }
+
+  @media print{
+    .wrap .card{
+      border-width: 1.5px !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+  }
+</style>
+
+
+      
+      
     </head>
     <body>
       <div class="wrap">
@@ -4924,6 +4958,27 @@ function exportCardPDF_Vector(card, dayKey){
 
         @media print{ .card{ break-inside: avoid; } }
       </style>
+      
+      
+   <style>
+  /* حواف البطاقة رمادي داكن خفيف مو أسود صِرف */
+  .wrap .card{
+    border-style: solid !important;
+    border-width: 1.5px !important;     /* سماكة مناسبة */
+    border-color: rgba(0,0,0,.60) !important; /* افتح من الأسود (60%) */
+  }
+
+  @media print{
+    .wrap .card{
+      border-width: 1.5px !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+  }
+</style>
+
+
+      
     </head>
     <body>
       <div class="wrap">
@@ -6333,7 +6388,6 @@ onAuthStateChanged(auth, async (user)=>{
   
 </body>
 </html>
-
 
 
 
