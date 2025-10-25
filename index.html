@@ -908,16 +908,6 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
 }
 
 
-/* ====== قائمة الأصناف المخصّصة ====== */
-.cat-list{ list-style:none; margin:0; padding:0; }
-.cat-item{
-  height:36px; display:flex; align-items:center; gap:10px;
-  padding:0 12px; cursor:pointer; color:#e7eef9;
-  border-bottom:1px dashed rgba(255,255,255,.06);
-}
-.cat-item i{ width:18px; text-align:center; opacity:.95; }
-.cat-item:hover, .cat-item.active{ background:#0e1b36; }
-
 
 
 
@@ -1240,6 +1230,41 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
 #custSuggestions .sugg-item:hover{
   background:#0e1b36;
 }
+
+
+
+
+/* قائمة اقتراحات المواد */
+#itemSuggestions { padding:6px 0; }
+
+/* كل عنصر مادة نفس شكل الزبون */
+#itemSuggestions .sugg-item{
+  position: relative;
+  padding: 12px 12px;
+  line-height: 1.5;
+  white-space: normal;
+  word-break: break-word;
+  display: block;
+  cursor: pointer;
+  border-radius:10px;
+}
+
+/* الفاصل بين العناصر داخل المواد */
+#itemSuggestions .sugg-item + .sugg-item::before{
+  content: "";
+  position: absolute;
+  inset-inline: 12px;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    rgba(255,255,255,.06),
+    rgba(255,255,255,.12),
+    rgba(255,255,255,.06)
+  );
+  pointer-events: none;
+}
+
+
 
 
 
@@ -1883,20 +1908,39 @@ body{ padding-top: var(--hdr-h); }
   /* ملاحظة: ما لمسنا الخلفية، النص، الأزرار، الظلال… فقط لون الحافة */
 }
 
-
-/* زبائن */
-#custSuggestions .sugg-item.is-active{
-  background: linear-gradient(135deg, var(--brand), var(--brand-2));
-  color: #fff;
-  border-radius: 10px;               /* اختياري نفس ستايلك */
+/* ====== قائمة الأصناف المخصّصة ====== */
+.cat-list{ list-style:none; margin:0; padding:0; }
+.cat-item{
+  height:36px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:0 12px;
+  cursor:pointer;
+  color:#e7eef9;
+  border-bottom:1px dashed rgba(255,255,255,.06);
+}
+.cat-item i{
+  width:18px;
+  text-align:center;
+  opacity:.95;
 }
 
-/* مواد (إذا عندك ليست ثانية) */
-#itemSuggestions .sugg-item.is-active{
+/* <<< هاي أهم نقطة: نفس التدرّج للعنصر المفعّل بكل القوائم >>> */
+#custSuggestions .sugg-item.is-active,
+#itemSuggestions .sugg-item.is-active,
+.cat-item.active{
   background: linear-gradient(135deg, var(--brand), var(--brand-2));
   color: #fff;
   border-radius: 10px;
 }
+
+/* الهوفر للباقي يبقى كحلي */
+#itemSuggestions .sugg-item:hover,
+.cat-item:hover{
+  background:#0e1b36;
+}
+
 
 
 
@@ -2613,6 +2657,28 @@ function isNewer(tsA, tsB){
 
 
 
+
+
+
+
+
+
+// دوال مساعدة جديدة (خليهم قبل/فوق renderItemSuggestions أو وياها نفس المنطقة)
+function getItemLis(){
+  const host = document.getElementById('itemSuggestions');
+  return host ? Array.from(host.querySelectorAll('li.sugg-item')) : [];
+}
+
+function highlightAutoItem(){
+  const lis = getItemLis();
+  lis.forEach((li, i)=>{
+    li.classList.toggle('is-active', i === __autoIdx);
+  });
+  if(__autoIdx >= 0 && lis[__autoIdx]){
+    lis[__autoIdx].scrollIntoView({block:'nearest'});
+  }
+}
+
 function renderItemSuggestions(){
   const host = document.getElementById('itemSuggestions');
   const qEl  = document.getElementById('item');
@@ -2625,13 +2691,12 @@ function renderItemSuggestions(){
   host.style.display = 'none';
   __autoIdx = -1;
 
-  // إذا ما مختار صنف أو NO-CATEGORY، لا نعرض اقتراحات
+  // ماكو صنف أو هو NO-CATEGORY ؟ لا تعرض شي
   if(!cat || cat === 'NO-CATEGORY') return;
-  // إذا قاعدة البيانات بعد ما انملت، انتظر (ما نعرض شي)
+
   const list = database[cat] || [];
   if(!q) return;
 
-  // نجرّب حقول اسم شائعة
   const filtered = list.filter(row=>{
     const name = norm(row["Item Name"] || row["Item"] || '');
     return name.includes(q);
@@ -2640,45 +2705,68 @@ function renderItemSuggestions(){
   if(!filtered.length) return;
 
   filtered.forEach(row=>{
-    const name = row["Item Name"] || row["Item"];
-    const li = document.createElement('li');
-    li.textContent = name || '';
-    li.style.cssText = `
-      padding:8px 12px; height:36px; display:flex; align-items:center;
-      cursor:pointer; border-bottom:1px dashed rgba(255,255,255,.06);
-    `;
-    li.onmouseenter = ()=> li.style.background = '#0e1b36';
-    li.onmouseleave = ()=> li.style.background = 'transparent';
-   
-   
-   li.onclick = ()=>{
-  qEl.value = name || '';
-  host.style.display = 'none';
+    const name = row["Item Name"] || row["Item"] || '';
+    const li   = document.createElement('li');
 
-  // تعبئة السعر تلقائياً
-  const priceEl = document.getElementById('price');
-  if(priceEl){
-   const p = findPrice(cat, name || '');
-if(p !== '') priceEl.value = formatIQD(p);
+    // بدال style.cssText و onmouseenter/onmouseleave
+    // نخلي كلاس موحّد حتى الـ CSS يتحكم
+    li.className = 'sugg-item';
+    li.textContent = name;
 
-  }
+    // كلك بالماوس يختار العنصر
+    li.addEventListener('click', ()=>{
+      qEl.value = name || '';
+      host.style.display = 'none';
 
-  document.getElementById('qty')?.focus();
-  document.getElementById('qty')?.select?.();
-};
+      // تعبئة السعر تلقائياً مثل قبل
+      const priceEl = document.getElementById('price');
+      if(priceEl){
+        const p = findPrice(cat, name || '');
+        if(p !== '') priceEl.value = formatIQD(p);
+      }
 
-   
-   
+      // روح مباشرة على الكمية
+      const qtyEl = document.getElementById('qty');
+      if(qtyEl){
+        qtyEl.focus();
+        if(qtyEl.select) qtyEl.select();
+      }
+    });
+
     host.appendChild(li);
   });
 
   host.style.display = 'block';
+
+  // أول عنصر يكون مختار تلقائي
+  __autoIdx = 0;
+  highlightAutoItem();
 }
+
 
 function hideItemSuggestions(){
   const host = document.getElementById('itemSuggestions');
   if(host){ host.style.display = 'none'; __autoIdx = -1; }
 }
+
+
+
+// تحديث الاختيار حسب حركة الماوس (يطي تظليل مباشر)
+document.getElementById('itemSuggestions')?.addEventListener('mousemove', (e)=>{
+  const li = e.target.closest('.sugg-item');
+  if(!li) return;
+
+  const items = getItemLis();
+  const idx = items.indexOf(li);
+
+  if(idx !== -1 && idx !== __autoIdx){
+    __autoIdx = idx;
+    highlightAutoItem();
+  }
+});
+
+
+
 
 // تريّغر العرض عند الكتابة وتغيير الصنف
 document.getElementById('item')?.addEventListener('input', renderItemSuggestions);
@@ -2697,47 +2785,77 @@ document.getElementById('item')?.addEventListener('change', tryFillPrice);
 
 
 // تنقّل الكيبورد داخل قائمة الاقتراحات
+// تنقّل الكيبورد داخل قائمة اقتراح المواد
 document.getElementById('item')?.addEventListener('keydown', (e)=>{
   const host = document.getElementById('itemSuggestions');
   const visible = host && host.style.display === 'block';
+
+  // إذا القائمة ما مفتوحة
   if(!visible){
-    // إنتر من item بدون اقتراحات → نزّل للـ qty
     if(e.key === 'Enter'){
+      // إنتر بدون لست → روح للكمية
       e.preventDefault();
-      document.getElementById('qty')?.focus();
-      document.getElementById('qty')?.select?.();
+      const qtyEl = document.getElementById('qty');
+      if(qtyEl){
+        qtyEl.focus();
+        if(qtyEl.select) qtyEl.select();
+      }
     }
     return;
   }
 
-  const items = Array.from(host.querySelectorAll('li'));
+  const items = getItemLis(); // بدل Array.from(... 'li')
   if(!items.length) return;
 
+  // الأسهم: تغيير الاختيار
   if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
     e.preventDefault();
     const step = (e.key === 'ArrowDown') ? 1 : -1;
+
     if(__autoIdx < 0){
-      __autoIdx = (e.key === 'ArrowDown') ? 0 : items.length - 1;
+      __autoIdx = (e.key === 'ArrowDown') ? 0 : (items.length - 1);
     }else{
-      __autoIdx = Math.max(0, Math.min(items.length - 1, __autoIdx + step));
+      __autoIdx = __autoIdx + step;
+      if(__autoIdx < 0) __autoIdx = 0;
+      if(__autoIdx > items.length - 1) __autoIdx = items.length - 1;
     }
-    items.forEach((li, i)=> li.style.background = (i===__autoIdx) ? '#0e1b36' : 'transparent');
-    items[__autoIdx].scrollIntoView({ block:'nearest' });
+
+    highlightAutoItem(); // يخلي is-active على العنصر المختار
   }
 
+  // إنتر: اختار العنصر الحالي وعبّي كلشي
   if(e.key === 'Enter' && __autoIdx >= 0){
     e.preventDefault();
+
     const li = items[__autoIdx];
-    document.getElementById('item').value = li.textContent;
+    const pickedName = li.textContent.trim();
+    const qEl  = document.getElementById('item');
+    const cat  = getSelectedCat();
+
+    qEl.value = pickedName;
     hideItemSuggestions();
-    document.getElementById('qty')?.focus();
-    document.getElementById('qty')?.select?.();
+
+    // نفس منطق السعر الموجود بالـ click
+    const priceEl = document.getElementById('price');
+    if(priceEl){
+      const p = findPrice(cat, pickedName);
+      if(p !== '') priceEl.value = formatIQD(p);
+    }
+
+    // روح للكمية
+    const qtyEl = document.getElementById('qty');
+    if(qtyEl){
+      qtyEl.focus();
+      if(qtyEl.select) qtyEl.select();
+    }
   }
 
+  // Escape: غلق الليست
   if(e.key === 'Escape'){
     hideItemSuggestions();
   }
 });
+
 
 // إغلاق الاقتراحات إذا نقرّت برّه
 document.addEventListener('click', (ev)=>{
@@ -2817,11 +2935,7 @@ const CUSTOMERS = [
   "ايوب - حديد",
   "مهند - خرنابات",
   "سيف سنتر - 2",
-   "سالم - مكتب المهندس",
-   "حسين - اخو ابو هنادي",
-  "قتيبة - حديد",
   "شاكر هبهب",
-  "صدام - عسل",
   "شعبان هبهب - حسين نانة",
   "صلاح المبرمج",
   "طالب جيزاني",
@@ -6532,4 +6646,3 @@ onAuthStateChanged(auth, async (user)=>{
   
 </body>
 </html>
-
