@@ -4608,7 +4608,7 @@ function exportDayPDF_Vector(){
   // نضمن آخر رسم
   renderBoard();
 
-  // ✅ استبعاد البطاقات المحذوفة فقط (تغيير وحيد)
+  // ✅ استبعاد البطاقات المحذوفة فقط
   const source = (days[selectedDay] || []);
   const cards  = source.filter(c => !c?.deletedAt);
 
@@ -4672,6 +4672,24 @@ function exportDayPDF_Vector(){
           box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
         }
 
+        /* ===== مجاميع البطاقة (جديد) ===== */
+        .totals{
+          margin:8px 0 10px;
+          display:flex;
+          flex-wrap:wrap;
+          gap:6px;
+          font-size:12px;
+          font-weight:900;
+          color:#111827;
+        }
+        .totals__pill{
+          border:1px solid var(--stroke);
+          border-radius:8px;
+          background:#f5f5f5;
+          padding:4px 8px;
+          line-height:1.3;
+        }
+
         /* ===== Notes block (للطباعة) ===== */
         .notes{ margin-top:8px; border:1px solid var(--stroke); border-radius:10px; }
         .notes__head{
@@ -4694,27 +4712,22 @@ function exportDayPDF_Vector(){
         @media print{ .card{ break-inside: avoid; } }
       </style>
       
-      
-     <style>
-  /* حواف البطاقة رمادي داكن خفيف مو أسود صِرف */
-  .wrap .card{
-    border-style: solid !important;
-    border-width: 1.5px !important;     /* سماكة مناسبة */
-    border-color: rgba(0,0,0,.60) !important; /* افتح من الأسود (60%) */
-  }
+      <style>
+        /* حواف البطاقة رمادي داكن خفيف مو أسود صِرف */
+        .wrap .card{
+          border-style: solid !important;
+          border-width: 1.5px !important;     /* سماكة مناسبة */
+          border-color: rgba(0,0,0,.60) !important; /* افتح من الأسود (60%) */
+        }
 
-  @media print{
-    .wrap .card{
-      border-width: 1.5px !important;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-  }
-</style>
-
-
-      
-      
+        @media print{
+          .wrap .card{
+            border-width: 1.5px !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+        }
+      </style>
     </head>
     <body>
       <div class="wrap">
@@ -4731,6 +4744,38 @@ function exportDayPDF_Vector(){
           if(!Number.isFinite(n)) return '';
           return n.toLocaleString('en-US');
         }
+
+        // ✅ حساب مجموع البطاقة / غير مدفوع
+      // ✅ حساب مجموع البطاقة / غير مدفوع
+// ملاحظة: القطع الراجعة تنطرح من المجموع (تروح سالب)
+function sumCard(card){
+  let total  = 0; // مجموع الباقي الحقيقي
+  let unpaid = 0; // نفس الشي (إنت تريد نفس المنطق)
+
+  (card.lines || []).forEach(ln => {
+    if (ln.deletedAt) return;
+
+    // نهمل الراجع نهائياً
+    if (ln.returned) return;
+
+    // نهمل المدفوع نهائياً
+    if (ln.paid) return;
+
+    // إذا وصلنا لهنا: هذا سطر فعّال فعلاً (مو راجع ومو مدفوع)
+    const price = Number(ln.price || 0);
+    const qty   = parseInt(String(ln.qty || '1'), 10) || 1;
+    const sub   = price * qty;
+
+    total  += sub;
+    unpaid += sub;
+  });
+
+  return { total, unpaid };
+}
+
+
+
+
 
         // البيانات المحقونة
         const PAYLOAD = ${payloadJSON};
@@ -4820,6 +4865,19 @@ function exportDayPDF_Vector(){
 
             box.appendChild(tbl);
 
+            // ✅ مجاميع البطاقة (المجموع / غير مدفوع / عدد المواد)
+            (function(){
+              const sums = sumCard(card);
+              const totalsDiv = document.createElement('div');
+              totalsDiv.className = 'totals';
+              totalsDiv.innerHTML = \`
+                <span class="totals__pill">مواد: \${(card.lines||[]).filter(l=>!l.deletedAt).length}</span>
+                <span class="totals__pill">المجموع: \${formatIQD(sums.total)}</span>
+                <span class="totals__pill">غير مدفوع: \${formatIQD(sums.unpaid)}</span>
+              \`;
+              box.appendChild(totalsDiv);
+            })();
+
             // ===== Notes (إن وُجدت) =====
             (function(){
               const arr = Array.isArray(card.notes)
@@ -4878,6 +4936,7 @@ function exportDayPDF_Vector(){
   w.document.close();
   showToast('success','جاهز للطباعة — اختر "حفظ كـ PDF"');
 }
+
 
 
 
@@ -4952,6 +5011,24 @@ function exportCardPDF_Vector(card, dayKey){
           box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
         }
 
+        /* ===== مجاميع البطاقة (جديد) ===== */
+        .totals{
+          margin:8px 0 10px;
+          display:flex;
+          flex-wrap:wrap;
+          gap:6px;
+          font-size:12px;
+          font-weight:900;
+          color:#111827;
+        }
+        .totals__pill{
+          border:1px solid var(--stroke);
+          border-radius:8px;
+          background:#f5f5f5;
+          padding:4px 8px;
+          line-height:1.3;
+        }
+
         /* ===== Notes block (للطباعة) ===== */
         .notes{ margin-top:8px; border:1px solid var(--stroke); border-radius:10px; }
         .notes__head{
@@ -4974,26 +5051,22 @@ function exportCardPDF_Vector(card, dayKey){
         @media print{ .card{ break-inside: avoid; } }
       </style>
       
-      
-   <style>
-  /* حواف البطاقة رمادي داكن خفيف مو أسود صِرف */
-  .wrap .card{
-    border-style: solid !important;
-    border-width: 1.5px !important;     /* سماكة مناسبة */
-    border-color: rgba(0,0,0,.60) !important; /* افتح من الأسود (60%) */
-  }
+      <style>
+        /* حواف البطاقة رمادي داكن خفيف مو أسود صِرف */
+        .wrap .card{
+          border-style: solid !important;
+          border-width: 1.5px !important;     /* سماكة مناسبة */
+          border-color: rgba(0,0,0,.60) !important; /* افتح من الأسود (60%) */
+        }
 
-  @media print{
-    .wrap .card{
-      border-width: 1.5px !important;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-  }
-</style>
-
-
-      
+        @media print{
+          .wrap .card{
+            border-width: 1.5px !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+        }
+      </style>
     </head>
     <body>
       <div class="wrap">
@@ -5010,6 +5083,38 @@ function exportCardPDF_Vector(card, dayKey){
           if(!Number.isFinite(n)) return '';
           return n.toLocaleString('en-US');
         }
+
+        // ✅ نحسب المجاميع للبطاقة
+      // ✅ نحسب المجاميع للبطاقة
+// القطعة الراجعة تنخصم من المجموع
+function sumCard(card){
+  let total  = 0; // مجموع الباقي الحقيقي
+  let unpaid = 0; // نفس الشي (إنت تريد نفس المنطق)
+
+  (card.lines || []).forEach(ln => {
+    if (ln.deletedAt) return;
+
+    // نهمل الراجع نهائياً
+    if (ln.returned) return;
+
+    // نهمل المدفوع نهائياً
+    if (ln.paid) return;
+
+    // إذا وصلنا لهنا: هذا سطر فعّال فعلاً (مو راجع ومو مدفوع)
+    const price = Number(ln.price || 0);
+    const qty   = parseInt(String(ln.qty || '1'), 10) || 1;
+    const sub   = price * qty;
+
+    total  += sub;
+    unpaid += sub;
+  });
+
+  return { total, unpaid };
+}
+
+
+
+
 
         const PAYLOAD = ${payloadJSON};
 
@@ -5073,7 +5178,7 @@ function exportCardPDF_Vector(card, dayKey){
 
           function arTime(d){ return new Date(d).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}); }
 
-         (card.lines||[]).filter(ln=>!ln.deletedAt).forEach(ln=>{
+          (card.lines||[]).filter(ln=>!ln.deletedAt).forEach(ln=>{
             const tr = document.createElement('tr');
             const isReturned = !!ln.returned;
             const isPaid     = !!ln.paid;
@@ -5096,16 +5201,28 @@ function exportCardPDF_Vector(card, dayKey){
 
           box.appendChild(tbl);
 
+          // ✅ مجاميع البطاقة (المواد / المجموع / غير مدفوع)
+          (function(){
+            const sums = sumCard(card);
+            const totalsDiv = document.createElement('div');
+            totalsDiv.className = 'totals';
+            totalsDiv.innerHTML = \`
+              <span class="totals__pill">مواد: \${(card.lines||[]).filter(l=>!l.deletedAt).length}</span>
+              <span class="totals__pill">المجموع: \${formatIQD(sums.total)}</span>
+              <span class="totals__pill">غير مدفوع: \${formatIQD(sums.unpaid)}</span>
+            \`;
+            box.appendChild(totalsDiv);
+          })();
+
           // ===== Notes (إن وُجدت) =====
           (function(){
-           const arr = Array.isArray(card.notes)
-  ? card.notes
-      .filter(n => !n.deletedAt)
-      .slice()
-      .sort((a,b)=> new Date(b.at || b.updatedAt || 0) - new Date(a.at || a.updatedAt || 0))
-  : [];
-if(!arr.length) return;
-
+            const arr = Array.isArray(card.notes)
+              ? card.notes
+                  .filter(n => !n.deletedAt)
+                  .slice()
+                  .sort((a,b)=> new Date(b.at || b.updatedAt || 0) - new Date(a.at || a.updatedAt || 0))
+              : [];
+            if(!arr.length) return;
 
             const notes = document.createElement('div');
             notes.className = 'notes';
@@ -5561,18 +5678,30 @@ function noteKey(n){
 // اجمع مبالغ البطاقة (يرجع كائن)
 function sumCardAmounts(card){
   const out = { total:0, unpaid:0, paid:0, returned:0 };
-  (card.lines||[]).forEach(l=>{
-    if(l?.deletedAt) return;
-    const price = Number(String(l.price??'').replace(/[^\d.]/g,'')) || 0;
-    const qty   = Number(l.qty||1);
+
+  (card.lines || []).forEach(l => {
+    if (l?.deletedAt) return;
+
+    // نهمل أي سطر راجع بالكامل
+    if (l.returned) return;
+
+    // نهمل أي سطر مدفوع بالكامل
+    if (l.paid) return;
+
+    // إذا وصلنا لهنا: هذا بند فعلي بعده محسوب دين
+    const price = Number(String(l.price ?? '').replace(/[^\d.]/g,'')) || 0;
+    const qty   = Number(l.qty || 1);
     const amt   = price * qty;
-    out.total   += amt;
-    if(l.returned) out.returned += amt;
-    else if(l.paid) out.paid += amt;
-    else out.unpaid += amt;
+
+    out.total  += amt;
+    out.unpaid += amt;
+    // out.paid يبقى 0
+    // out.returned يبقى 0
   });
+
   return out;
 }
+
 
 
 
@@ -6399,4 +6528,3 @@ onAuthStateChanged(auth, async (user)=>{
   
 </body>
 </html>
-
