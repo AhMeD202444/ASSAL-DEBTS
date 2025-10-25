@@ -1921,6 +1921,24 @@ body{ padding-top: var(--hdr-h); }
 
       
       <div class="r-right">
+        
+        
+        
+        <!-- زر إنجاز العمل / نقل الديون -->
+  <button class="icon" id="btnMarkTransfer"
+          title="إنجاز العمل / نقل الديون لغاية تاريخ"
+          aria-label="تحديد آخر يوم ناقل ديون">
+    <i class="fa-solid fa-check-double"></i>
+  </button>
+
+  <!-- زر عرض آخر تاريخ نقل -->
+  <button class="icon" id="btnShowTransferInfo"
+          title="عرض آخر تاريخ نقل"
+          aria-label="عرض آخر تاريخ نقل">
+    <i class="fa-solid fa-circle-info"></i>
+  </button>
+        
+        
   <button class="icon" id="btnRefresh" title="تحديث الصفحة" aria-label="تحديث الصفحة">
     <i class="fa-solid fa-rotate-right"></i>
   </button>
@@ -2141,6 +2159,46 @@ body{ padding-top: var(--hdr-h); }
       </div>
     </div>
   </div>
+  
+  
+  
+  
+  <!-- نفس الفكرة: خلفية سوداء توقف اللمس -->
+<div id="transferModalBackdrop" class="modal-backdrop"></div>
+
+<div id="transferModal" class="modal" style="direction: rtl;">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="modal-head__title">نقل الديون</div>
+    </div>
+
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
+      <div class="txt" style="font-size:14px;color:#fff;">
+        تم نقل الديون لغاية:
+      </div>
+
+      <div class="transfer-grid"
+           style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+        <select id="trDay"   class="field" style="width:70px;"></select>
+        <select id="trMonth" class="field" style="width:80px;"></select>
+        <select id="trYear"  class="field" style="width:90px;"></select>
+      </div>
+    </div>
+
+    <div class="modal-foot" style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn primary" id="transferSave">
+        <i class="fa-solid fa-save"></i>
+        <span>تأكيد</span>
+      </button>
+
+      <button class="btn ghost" id="transferClose">
+        <i class="fa-solid fa-xmark"></i>
+        <span>إغلاق</span>
+      </button>
+    </div>
+  </div>
+</div>
+  
   
   
   <!-- Toasts -->
@@ -2750,6 +2808,44 @@ document.addEventListener('click', (ev)=>{
 
     
     
+    
+    
+    
+    
+    // مفتاح نخزن بيه آخر تاريخ "نقل ديون"
+const LAST_TRANSFER_KEY = 'ASSAL_LAST_TRANSFER';
+
+// قيمة كاش بالذاكرة
+let lastTransferDate = localStorage.getItem(LAST_TRANSFER_KEY) || '';
+
+// helper: رجع آخر تاريخ معروف
+function getLastTransferDate(){
+  return lastTransferDate || '';
+}
+
+// helper: خزّن تاريخ جديد
+function setLastTransferDate(iso){
+  lastTransferDate = iso || '';
+  if (iso) {
+    localStorage.setItem(LAST_TRANSFER_KEY, iso);
+  }
+}
+
+// helper بسيط لتكوين نص للتوست
+function formatTransferToastText(iso){
+  // نطلع "يوم السبت | 25-10-2025"
+  try{
+    const d = new Date(iso + 'T00:00:00');
+    const weekday = d.toLocaleDateString('ar-IQ',{weekday:'long'});
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const yyyy = d.getFullYear();
+    return `يوم ${weekday} | ${dd}-${mm}-${yyyy}`;
+  }catch{
+    return iso;
+  }
+}
+
     
     
     
@@ -5157,6 +5253,180 @@ if(!arr.length) return;
 
 
 
+function populateTransferDropdowns(){
+  const dSel = document.getElementById('trDay');
+  const mSel = document.getElementById('trMonth');
+  const ySel = document.getElementById('trYear');
+
+  // عبّي الأيام 1..31 مرّة وحدة
+  if(dSel.options.length === 0){
+    for(let d=1; d<=31; d++){
+      const o=document.createElement('option');
+      o.value=d;
+      o.textContent=d;
+      dSel.appendChild(o);
+    }
+  }
+
+  // الأشهر 1..12
+  if(mSel.options.length === 0){
+    for(let m=1; m<=12; m++){
+      const o=document.createElement('option');
+      o.value=m;
+      o.textContent=m;
+      mSel.appendChild(o);
+    }
+  }
+
+  // السنوات حوالي الحالية (مثلاً سنة قبل/بعد حتى تبقى بسيطة)
+  if(ySel.options.length === 0){
+    const yNow = new Date().getFullYear();
+    for(let y=yNow-2; y<=yNow+2; y++){
+      const o=document.createElement('option');
+      o.value=y;
+      o.textContent=y;
+      ySel.appendChild(o);
+    }
+  }
+}
+
+
+// تكبير/تصغير السلكت حتى يبان مثل قائمة منسدلة بدون ما يحتاج الماوس
+function expandSelect(sel){
+  if(!sel) return;
+  sel.dataset._expanded = '1';
+  // نحول السلكت لقائمة طويلة كلها قدامك
+  sel.size = Math.min(sel.options.length, 12);
+  sel.classList.add('expandedSelect');
+}
+
+function collapseSelect(sel){
+  if(!sel) return;
+  if(sel.dataset._expanded === '1'){
+    sel.size = 1;
+    sel.classList.remove('expandedSelect');
+    sel.dataset._expanded = '';
+  }
+}
+
+
+// افتح المودال
+function openTransferModal(){
+  populateTransferDropdowns();
+
+  // اختار قيمة ابتدائية: آخر محفوظ وإلا اليوم
+  const defISO = getLastTransferDate() || TODAY;
+  const [yy,mm,dd] = defISO.split('-');
+
+  const dSel = document.getElementById('trDay');
+  const mSel = document.getElementById('trMonth');
+  const ySel = document.getElementById('trYear');
+
+  // ضبط القيم الابتدائية
+  dSel.value = String(Number(dd));
+  mSel.value = String(Number(mm));
+  ySel.value = yy;
+
+  // فعّل المودال
+  document.getElementById('transferModalBackdrop').classList.add('active');
+  document.getElementById('transferModal').classList.add('active');
+  document.body.classList.add('modal-open');
+
+  // أول شي ركّز على الأيام وخلّيها "منسدلة"
+  dSel.focus();
+  expandSelect(dSel);
+}
+
+
+// غلق المودال (بدون حفظ)
+function closeTransferModal(){
+  document.getElementById('transferModalBackdrop').classList.remove('active');
+  document.getElementById('transferModal').classList.remove('active');
+  document.body.classList.remove('modal-open');
+}
+
+// حفظ التاريخ المختار + غلق
+function saveTransferModal(){
+  const dSel = document.getElementById('trDay');
+  const mSel = document.getElementById('trMonth');
+  const ySel = document.getElementById('trYear');
+
+  const dd = String(dSel.value).padStart(2,'0');
+  const mm = String(mSel.value).padStart(2,'0');
+  const yy = String(ySel.value);
+
+  const iso = `${yy}-${mm}-${dd}`; // نخزنه بهالشكل
+  setLastTransferDate(iso);        // يروّح للـ localStorage + الميموري
+
+  closeTransferModal();
+  showToast('success','تم حفظ تاريخ نقل الديون');
+}
+
+// تنقّل بالإنتر، و Esc = إغلاق
+function handleTransferKey(e){
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    const id = e.target.id;
+
+    if(id === 'trDay'){
+      // نطوي الأيام ونفتح الأشهر
+      const cur  = e.target;
+      const next = document.getElementById('trMonth');
+      collapseSelect(cur);
+      next.focus();
+      expandSelect(next);
+
+    }else if(id === 'trMonth'){
+      // نطوي الأشهر ونفتح السنين
+      const cur  = e.target;
+      const next = document.getElementById('trYear');
+      collapseSelect(cur);
+      next.focus();
+      expandSelect(next);
+
+    }else if(id === 'trYear'){
+      // آخر خطوة: نطوي السنين ونحفظ فوراً ونغلق
+      const cur = e.target;
+      collapseSelect(cur);
+      saveTransferModal();
+
+    }else if(id === 'transferSave'){
+      // لو أحد استعمل تاب ووصل للزر، يبقى يشتغل طبيعي
+      saveTransferModal();
+
+    }else if(id === 'transferClose'){
+      closeTransferModal();
+    }
+
+  }else if(e.key === 'Escape'){
+    e.preventDefault();
+    closeTransferModal();
+  }
+}
+
+
+// اربط الهاندلر هذا على كل عناصر المودال حتى يتحكم بالكيبورد:
+['trDay','trMonth','trYear','transferSave','transferClose'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el){
+    el.addEventListener('keydown', handleTransferKey);
+  }
+});
+
+// التوست مال "عرض آخر نقل"
+function showLastTransferInfo(){
+  const iso = getLastTransferDate();
+  if(!iso){
+    showToast('info','ما مسجل أي نقل ديون بعد');
+    return;
+  }
+  const nice = formatTransferToastText(iso);
+  showToast('info', `تم نقل الدين لغاية ${nice}`);
+}
+
+
+
+
 
 
 
@@ -5168,6 +5438,8 @@ if(!arr.length) return;
 const btnExportAll = document.getElementById('btnExportAll');
 const btnImportAll = document.getElementById('btnImportAll');
 const importInput  = document.getElementById('importFile');
+const btnMarkTransfer     = document.getElementById('btnMarkTransfer');
+const btnShowTransferInfo = document.getElementById('btnShowTransferInfo');
 
 document.getElementById('btnNextDay')?.addEventListener('click', openNextDayFromToday);
 
@@ -5181,11 +5453,26 @@ btnImportAll && (btnImportAll.onclick = smartImportFromServer);
 // خلِّه مثل ما هو: importInput.onclick… و importInvoicesFromFile(file)
 
 
+
+// فتح نافذة "نقل الديون لغاية تاريخ"
+btnMarkTransfer && (btnMarkTransfer.onclick = openTransferModal);
+
+// عرض آخر تاريخ نقل مخزون كتَوست
+btnShowTransferInfo && (btnShowTransferInfo.onclick = showLastTransferInfo);
+
+
+// زر الحفظ داخل المودال
+btnSave && (btnSave.onclick = saveTransferModal);
+
+// زر الإغلاق داخل المودال
+btnClose && (btnClose.onclick = closeTransferModal);
+
 importInput && (importInput.onchange = (e) => {
   const file = e.target.files?.[0];
   if(file) importInvoicesFromFile(file);
   e.target.value = ''; // حتى تقدر تختار نفس الملف مرة ثانية
 });
+
 
 
 
@@ -5485,7 +5772,8 @@ function buildBackupPayload(){
     exportedAt: new Date().toISOString(),
     updatedAtMax: getUpdatedAtMax(days || {}),
     days : days || {},
-    names: names || []
+    names: names || [],
+    lastTransferDate: getLastTransferDate() || ''
   };
   return payload;
 }
@@ -5625,13 +5913,31 @@ async function smartExportToServer(){
     const curNames = Array.isArray(names) ? names : [];
     const srvNames = Array.isArray(server?.names) ? server.names : [];
     const mergedNames = Array.from(new Set([...curNames, ...srvNames]));
+    
+    
+    // 4.5) وحّد آخر تاريخ نقل ديون
+const curLast = (getLastTransferDate && getLastTransferDate()) || '';
+const srvLast = server?.lastTransferDate ? String(server.lastTransferDate) : '';
+// ناخذ الأحدث أبجدياً لأن الصيغة ISO YYYY-MM-DD تمشي تصاعدي (= مقارنة سترنغ تكفي)
+let mergedLast = curLast;
+if (srvLast && (!curLast || srvLast > curLast)) {
+  mergedLast = srvLast;
+}
 
     // 5) خزّن نتيجة الدمج محليًا حتى تظل الواجهة متوافقة مع اللي راح ينرفع
     localStorage.setItem(STORAGE, JSON.stringify(mergedDays));
     localStorage.setItem(NAMES,   JSON.stringify(mergedNames));
+    
+    if(mergedLast){
+  localStorage.setItem(LAST_TRANSFER_KEY, mergedLast);
+}
     // حدّث الحالة بالذاكرة
     days  = load(STORAGE, {});
     names = load(NAMES,   []);
+    
+    if (typeof setLastTransferDate === 'function') {
+  setLastTransferDate(mergedLast);
+}
 
     // 6) حضّر الحمولة للرفع
     const now = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
@@ -5640,13 +5946,16 @@ async function smartExportToServer(){
       exportedAt  : now,
       updatedAtMax: getUpdatedAtMax(mergedDays),
       days        : mergedDays,
-      names       : mergedNames
+      names       : mergedNames,
+       lastTransferDate: mergedLast || ''
+    
     };
 
     // 7) تحاشي الرفع إذا لا تغييرات فعلية مقارنةً بالسيرفر
     const sameDays  = JSON.stringify(remoteDays)  === JSON.stringify(mergedDays);
     const sameNames = JSON.stringify(srvNames)    === JSON.stringify(mergedNames);
-    if (sameDays && sameNames){
+    const sameLast   = String(server?.lastTransferDate||'') === (mergedLast||'');
+   if (sameDays && sameNames && sameLast){
       showToast('info','لا توجد تغييرات تُرفع — البيانات متطابقة مع السيرفر');
       return;
     }
@@ -5949,11 +6258,35 @@ async function smartImportFromServer(){
     const curNames = Array.isArray(names) ? names : [];
     const srvNames = Array.isArray(server.names) ? server.names : [];
     const mergedNames = Array.from(new Set([...curNames, ...srvNames]));
-    localStorage.setItem(NAMES, JSON.stringify(mergedNames));
+    
+    
+    // دمج آخر تاريخ نقل ديون
+const curLast = (getLastTransferDate && getLastTransferDate()) || '';
+const srvLast = server.lastTransferDate ? String(server.lastTransferDate) : '';
+let mergedLast = curLast;
+if (srvLast && (!curLast || srvLast > curLast)) {
+  mergedLast = srvLast;
+}
+    
+    
+   // خزن محلي
+localStorage.setItem(STORAGE, JSON.stringify(mergedDays));
+localStorage.setItem(NAMES,   JSON.stringify(mergedNames));
+if(mergedLast){
+  localStorage.setItem(LAST_TRANSFER_KEY, mergedLast);
+}
 
     // حدّث الذاكرة والواجهة
     days  = load(STORAGE, {});
     names = load(NAMES,   {});
+    
+    
+    if (typeof setLastTransferDate === 'function') {
+  setLastTransferDate(mergedLast);
+}
+
+    
+    
     renderBoard(); renderRail(); refreshStats();
 
     const changes = report.length;
@@ -6099,6 +6432,10 @@ function dedupeAllDays(daysObj){
     }
   }, 3000);
 })();
+
+
+
+
 
 
 
@@ -6399,5 +6736,4 @@ onAuthStateChanged(auth, async (user)=>{
   
 </body>
 </html>
-
 
