@@ -3377,17 +3377,22 @@ function wireTransferModalKeyNav(){
 }
 
 /* ====== ربط الأزرار في الهيدر مع المودال/التوست ====== */
-function wireTransferHeaderButtons(){
+function wireTransferHeaderButtons() {
   const btnOpen  = document.getElementById('btnTransferOpen');
   const btnToast = document.getElementById('btnTransferToast');
 
-  if(btnOpen){
-    btnOpen.addEventListener('click', openTransferModal);
+  // نستخدم onclick بدل addEventListener
+  // - إذا الدالة تنعاد أكثر من مرة ما راح يصير تكديس أحداث
+  // - وإذا DOM انبنى من جديد، نثبت الهاندلر من جديد
+  if (btnOpen) {
+    btnOpen.onclick = openTransferModal;
   }
-  if(btnToast){
-    btnToast.addEventListener('click', showTransferToast);
+
+  if (btnToast) {
+    btnToast.onclick = showTransferToast;
   }
 }
+
 
 /* استدعِ هذا بعد ما الـDOM يجهز (عندك اصلاً نهاية الملف تربط واي أزرار مثل btnImportAll.onclick = smartImportFromServer وغيره) :contentReference[oaicite:15]{index=15} */
 function initTransferFeature(){
@@ -3732,464 +3737,490 @@ function updateNotesBadge(btnNotes, card){
 
     /* ====== رسم اللوح ====== */
     
-function renderBoard(){
-  const host = document.getElementById('masonry'); 
+function renderBoard() {
+  const host = document.getElementById('masonry');
+  if (!host) return;
   host.innerHTML = '';
 
   const q = (document.getElementById('cardSearch')?.value || '').trim().toLowerCase();
   const global = document.getElementById('globalSearch')?.checked;
 
+  // نجمع البطاقات
+  const collect = (d) => (days[d] || []).map(c => ({ ...c, __day: d }));
+  let pool = [];
 
-  
-// جهّز مصدر البطاقات
-const collect = (d)=> (days[d]||[]).map(c => ({...c, __day: d}));
-let pool = [];
+  if (global) {
+    const allDaysKeys = Object.keys(days || {}).sort().reverse();
+    allDaysKeys.forEach(d => { pool.push(...collect(d)); });
+  } else {
+    pool = collect(selectedDay);
+  }
 
-if(global){
-  const allDaysKeys = Object.keys(days).sort().reverse();
-  allDaysKeys.forEach(d => { pool.push(...collect(d)); });
-}else{
-  pool = collect(selectedDay);
-}
+  // نختار بس البطاقات الفعّالة (مو محذوفة وبيها أقل شي سطر واحد مو محذوف)
+  const isActiveCard = (c) => !c.deletedAt && (c.lines || []).some(l => !l.deletedAt);
+  pool = pool.filter(isActiveCard);
 
-// بس الفعّال: بطاقة غير محذوفة وبها سطر فعّال
-const isActiveCard = (c)=> !c.deletedAt && (c.lines||[]).some(l=> !l.deletedAt);
-pool = pool.filter(isActiveCard);
+  // فلترة حسب اسم الزبون
+  let arr = q ? pool.filter(c => (c.customer || '').toLowerCase().includes(q)) : pool;
 
-// فلترة بالاسم
-let arr = q ? pool.filter(c => (c.customer||'').toLowerCase().includes(q)) : pool;
+  // ترتيب بالبحث الشامل: الأحدث فوق
+  if (global) {
+    arr.sort(
+      (a, b) =>
+        new Date(b.updatedAt || b.createdAt) -
+        new Date(a.updatedAt || a.createdAt)
+    );
+  }
 
-// فرز بالبحث الشامل
-if(global){
-  arr.sort((a,b)=> new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
-}
+  // عداد عدد البطاقات
+  const totalCount = arr.length;
+  if (global) {
+    const sliced = arr.slice(0, globalLimit);
+    document.getElementById('cardsCount').textContent =
+      `${sliced.length} / ${totalCount} بطاقة`;
+    arr = sliced;
+  } else {
+    document.getElementById('cardsCount').textContent = `${arr.length} بطاقة`;
+  }
 
-// العدادات الصحيحة
-const totalCount = arr.length;
-if(global){
-  const sliced = arr.slice(0, globalLimit);
-  document.getElementById('cardsCount').textContent = `${sliced.length} / ${totalCount} بطاقة`;
-  arr = sliced;
-}else{
-  document.getElementById('cardsCount').textContent = `${arr.length} بطاقة`;
-}
-
-
-  // لا توجد نتائج
-  if(!arr.length){
-    host.innerHTML = `<div style="border:1px dashed var(--stroke);background:#0b1327;border-radius:14px;padding:16px;text-align:center;color:#9aa4b2">
-      لا توجد بطاقات${global ? ' مطابقة في كل الأيام' : ' اليوم'}
-    </div>`;
+  // ماكو نتائج
+  if (!arr.length) {
+    host.innerHTML = `
+      <div style="border:1px dashed var(--stroke);background:#0b1327;border-radius:14px;padding:16px;text-align:center;color:#9aa4b2">
+        لا توجد بطاقات${global ? ' مطابقة في كل الأيام' : ' اليوم'}
+      </div>
+    `;
+    // مهم حتى زر "آخر تاريخ نقل" يبقى مربوط
+    wireTransferHeaderButtons();
     return;
   }
 
-  // اطبع البطاقات
-  arr.forEach((card, ci)=>{
-    if(card.deletedAt){ return; }
-    
-     dedupeCardLines(card);
-    const box = CE('div','card');
+  // أرسم كل بطاقة
+  arr.forEach((card) => {
+    if (card.deletedAt) return;
+
+    dedupeCardLines(card);
+
+    const box = CE('div', 'card');
     box.id = 'card-' + card.id;
 
-    /* Head */
-    const head = CE('div','card-head');
-    const custWrap = CE('div','cust');
-    const custName = CE('span'); 
+    /* ===== الهيدر مال البطاقة ===== */
+    const head = CE('div', 'card-head');
+
+    const custWrap = CE('div', 'cust');
+    const custName = CE('span');
     custName.textContent = card.customer;
     custWrap.appendChild(custName);
-    
-    
-    // لو الاسم مو ضمن المصفوفة اليدوية نضيف "جديد"
-const isKnownCustomer = CUSTOMERS.includes(card.customer);
-if (!isKnownCustomer) {
-  const newBadge = CE('span','badge-new');
- newBadge.textContent = 'زبون جديد';
-  custWrap.appendChild(newBadge);
-}
 
-    
-    
+    // بادج "زبون جديد" إذا مو ضمن القائمة المعروفة CUSTOMERS
+    const isKnownCustomer = CUSTOMERS.includes(card.customer);
+    if (!isKnownCustomer) {
+      const newBadge = CE('span', 'badge-new');
+      newBadge.textContent = 'زبون جديد';
+      custWrap.appendChild(newBadge);
+    }
 
-    // نوع الفاتورة (بيع/راجع/مختلط)
+    // نوع الفاتورة (بيع / راجع / مختلط). إذا مو مخزّن نحسبه من السطور
     let billType = card.billType;
-    if(!billType){
-      const types = Array.from(new Set((card.lines||[]).map(l=>l.type)));
+    if (!billType) {
+      const types = Array.from(new Set((card.lines || []).map(l => l.type)));
       billType = (types.length === 1) ? types[0] : 'مختلط';
       card.billType = billType;
     }
-   
-   const typeBadge = CE('span','badge-type ' + (billType==='راجع' ? 'return' : billType==='بيع' ? 'sell' : ''));
-const typeLabel = (billType === 'راجع')
-  ? 'فاتورة راجع'
-  : (billType === 'بيع')
-    ? 'فاتورة بيع'
-    : 'فاتورة مختلطة';
-typeBadge.textContent = typeLabel;
-custWrap.appendChild(typeBadge);
 
-   
-   
-    // بادج “تم التسديد” إن كل الفعال مدفوع
-    if(card.paidAll || (card.lines.length && card.lines.every(l=>l.paid))){
+    const typeBadge = CE(
+      'span',
+      'badge-type ' + (
+        billType === 'راجع'
+          ? 'return'
+          : billType === 'بيع'
+            ? 'sell'
+            : ''
+      )
+    );
+    const typeLabel =
+      billType === 'راجع'
+        ? 'فاتورة راجع'
+        : billType === 'بيع'
+          ? 'فاتورة بيع'
+          : 'فاتورة مختلطة';
+    typeBadge.textContent = typeLabel;
+    custWrap.appendChild(typeBadge);
+
+    // بادج "تم تسديد مواد اليوم" إذا كله مدفوع
+    if (card.paidAll || (card.lines.length && card.lines.every(l => l.paid))) {
       card.paidAll = true;
-      const paidBadge = CE('span','bill-badge'); 
-      paidBadge.textContent='تم تسديد مواد اليوم';
+      const paidBadge = CE('span', 'bill-badge');
+      paidBadge.textContent = 'تم تسديد مواد اليوم';
       custWrap.appendChild(paidBadge);
     }
 
-    // يمين الهيدر: التاريخ (من يوم البطاقة) + الوقت (من createdAt)
-    const rightWrap = CE('div'); 
+    // جهة اليمين بالهيدر: تاريخ الفاتورة + الوقت
+    const rightWrap = CE('div');
     rightWrap.style.display = 'flex';
     rightWrap.style.gap = '6px';
 
-    const dateTag = CE('span','tag'); 
-    dateTag.textContent = fmtDMY(card.__day || selectedDay);  // DD-MM-YYYY
+    const dateTag = CE('span', 'tag');
+    dateTag.textContent = fmtDMY(card.__day || selectedDay); // dd-mm-yyyy
 
-    const timeTag = CE('span','tag'); 
+    const timeTag = CE('span', 'tag');
     timeTag.textContent = arTime(card.createdAt);
 
     rightWrap.append(dateTag, timeTag);
     head.append(custWrap, rightWrap);
     box.appendChild(head);
 
-    /* Items */
-    const itemsWrap = CE('div','items');
-   card.lines
-  .filter(ln => !ln.deletedAt)        // تجاهل المحذوف
-  .forEach((ln, li)=>{
-    const it = CE('div','item');
-      if(ln.returned) it.classList.add('returned');
-      if(ln.paid)     it.classList.add('paid');
+    /* ===== السطور (المواد) ===== */
+    const itemsWrap = CE('div', 'items');
 
-      const btnReturn = CE('button','btn-mini btn-return'); 
-      btnReturn.innerHTML='<i class="fa-solid fa-rotate-left"></i>'; 
-      btnReturn.title='راجع';
+    (card.lines || [])
+      .filter(ln => !ln.deletedAt) // لا تعرض السطور المعلمة محذوف
+      .forEach((ln) => {
+        const it = CE('div', 'item');
+        if (ln.returned) it.classList.add('returned');
+        if (ln.paid) it.classList.add('paid');
 
-      const btnPay    = CE('button','btn-mini btn-pay');    
-      btnPay.innerHTML   ='<i class="fa-solid fa-check"></i>';      
-      btnPay.title='تسديد';
+        const btnReturn = CE('button', 'btn-mini btn-return');
+        btnReturn.innerHTML = '<i class="fa-solid fa-rotate-left"></i>';
+        btnReturn.title = 'راجع';
 
-     
-     
-     const name  = CE('div','iname');  name.textContent = ln.item;
-const cat   = CE('div','ichip');  cat.textContent  = ln.cat || '—';
-const price = CE('div','iprice'); price.textContent = ln.price ? formatIQD(ln.price) : '—';
-const qty   = CE('div','iqty');   qty.textContent  = `× ${ln.qty}`;
-const note  = CE('div','inote');  note.textContent = (ln.note && ln.note.trim()) ? ln.note : '—';
+        const btnPay = CE('button', 'btn-mini btn-pay');
+        btnPay.innerHTML = '<i class="fa-solid fa-check"></i>';
+        btnPay.title = 'تسديد';
 
-const time  = CE('div','itime');
-const ts = ln.at || ln.createdAt || ln.updatedAt;
-time.textContent = arTime(ts);
+        const name = CE('div', 'iname');
+        name.textContent = ln.item;
 
+        const cat = CE('div', 'ichip');
+        cat.textContent = ln.cat || '—';
 
+        const price = CE('div', 'iprice');
+        price.textContent =
+          (ln.price === 0 || ln.price) ? formatIQD(ln.price) : '—';
 
+        const qty = CE('div', 'iqty');
+        qty.textContent = `× ${ln.qty}`;
 
+        const note = CE('div', 'inote');
+        note.textContent =
+          (ln.note && ln.note.trim()) ? ln.note : '—';
 
-     
-     
-      const del   = CE('button','btn-mini btn-del'); 
-      del.innerHTML='<i class="fa-regular fa-trash-can"></i>'; 
-      del.title='حذف';
+        const time = CE('div', 'itime');
+        const ts = ln.at || ln.createdAt || ln.updatedAt;
+        time.textContent = arTime(ts);
 
-      const badge = CE('span','badge'); 
-      setBadge(badge, ln);
-      if (badge.textContent) name.appendChild(badge);
+        const del = CE('button', 'btn-mini btn-del');
+        del.innerHTML = '<i class="fa-regular fa-trash-can"></i>';
+        del.title = 'حذف';
 
-    it.append(btnReturn, btnPay, cat, name, price, qty, note, time, del);
+        // بادج حالة (مدفوع / راجع) جنب اسم المادة
+        const badge = CE('span', 'badge');
+        setBadge(badge, ln);
+        if (badge.textContent) name.appendChild(badge);
 
-btnReturn.onclick = ()=>{
-  ln.returned = !ln.returned;
-  if(ln.returned) ln.paid = false;
-  ln.updatedAt = nowISO();
-  card.updatedAt = ln.updatedAt;
+        it.append(
+          btnReturn,
+          btnPay,
+          cat,
+          name,
+          price,
+          qty,
+          note,
+          time,
+          del
+        );
 
-  save(); renderBoard(); renderRail(); refreshStats();
-  showToast(ln.returned ? 'warn' : 'info', ln.returned ? 'تم تعليمها راجع' : 'تم إلغاء الراجع');
-};
+        // ===== تبديل "راجع" للسطر =====
+        btnReturn.onclick = () => {
+          ln.returned = !ln.returned;
+          if (ln.returned) ln.paid = false;
 
+          ln.updatedAt = nowISO();
 
+          // مهم: حدّث البطاقة الأصلية الحقيقة (مو بس نسخة العرض) حتى ما يصير تناقض بعدين
+          const realCard = getMutableCard(card) || card;
+          realCard.updatedAt = ln.updatedAt;
 
- btnPay.onclick = ()=>{
-  ln.paid = !ln.paid;
-  if(ln.paid) ln.returned = false;
-  ln.updatedAt = nowISO();
-  card.updatedAt = ln.updatedAt;
+          save();
+          renderBoard();
+          renderRail();
+          refreshStats();
 
-  save(); /* لاحقًا سنضيف scheduleExportDebounced() */ 
-  renderBoard(); renderRail(); refreshStats();
-  showToast(ln.paid ? 'success' : 'info', ln.paid ? 'تم تسديد المادة' : 'تم إلغاء التسديد');
-};
+          showToast(
+            ln.returned ? 'warn' : 'info',
+            ln.returned ? 'تم تعليمها راجع' : 'تم إلغاء الراجع'
+          );
+        };
 
+        // ===== تبديل "مدفوع" للسطر =====
+        btnPay.onclick = () => {
+          ln.paid = !ln.paid;
+          if (ln.paid) ln.returned = false;
 
+          ln.updatedAt = nowISO();
 
-      del.onclick = async ()=>{
-        const ok = await showConfirm({
-          title:'تأكيد حذف السطر',
-          message:`هل تريد حذف "${ln.item}"؟`,
-          okText:'حذف',
-          cancelText:'إلغاء',
-          danger:true
-        });
-        if(!ok) return;
-        
-        ln.deletedAt = nowISO();
-ln.updatedAt = ln.deletedAt;
-card.updatedAt = ln.deletedAt;
-save(); renderBoard(); renderRail(); refreshStats();
-showToast('error','تم تعليم السطر كمحذوف');
+          const realCard = getMutableCard(card) || card;
+          realCard.updatedAt = ln.updatedAt;
 
-        
-        
-      };
+          save(); // بنفس فكرتك، بعدين ممكن يصير export للسيرفر
+          renderBoard();
+          renderRail();
+          refreshStats();
 
-      itemsWrap.appendChild(it);
-    });
-    
-    
-    
+          showToast(
+            ln.paid ? 'success' : 'info',
+            ln.paid ? 'تم تسديد المادة' : 'تم إلغاء التسديد'
+          );
+        };
+
+        // ===== حذف السطر (الإصلاح الحقيقي تبع مشكلتك الأولى) =====
+        del.onclick = async () => {
+          const ok = await showConfirm({
+            title: 'تأكيد حذف السطر',
+            message: `هل تريد حذف "${ln.item}"؟`,
+            okText: 'حذف',
+            cancelText: 'إلغاء',
+            danger: true
+          });
+          if (!ok) return;
+
+          // نجيب النسخة الحقيقية من البطاقة (حتى لو انت فاتح بحث شامل لكل الأيام)
+          const realCard = getMutableCard(card) || card;
+
+          // نحدد نفس السطر جوّا البطاقة الحقيقية
+          let realLine = (realCard.lines || []).find(
+            l => l === ln || l.lineId === ln.lineId
+          );
+          if (!realLine) {
+            // احتياط إذا لأي سبب ما لقيناه
+            realLine = ln;
+          }
+
+          const delTs = nowISO();
+          realLine.deletedAt = delTs;
+          realLine.updatedAt = delTs;
+
+          // حدّث وقت البطاقة الحقيقية حتى الدمج/الفرز يحترم آخر تعديل
+          realCard.updatedAt = delTs;
+
+          save();
+          renderBoard();
+          renderRail();
+          refreshStats();
+
+          showToast('error', 'تم تعليم السطر كمحذوف');
+        };
+
+        itemsWrap.appendChild(it);
+      });
+
     box.appendChild(itemsWrap);
 
+    /* ===== ملاحظات البطاقة (mini timeline جوّا البطاقة) ===== */
+    if (!Array.isArray(card.notes)) card.notes = [];
 
+    const notesBox = CE('div', 'notes-compact');
+    const notesList = CE('div', 'notes-compact__list');
 
-/* ===== ملاحظات البطاقة (Timeline أنيق + بدون سكرول أفقي) ===== */
-if(!Array.isArray(card.notes)) card.notes = [];
+    const notesBar = CE('div', 'notes-compact__bar');
+    const noteInput = CE('input', 'field note-input-sm');
+    noteInput.placeholder = 'اكتب الملاحظة…';
+    const noteAddBtn = CE('button', 'btn primary note-add-mini');
+    noteAddBtn.title = 'إضافة ملاحظة';
+    noteAddBtn.innerHTML = '<i class="fa-solid fa-plus"></i>';
 
-const notesBox  = CE('div','notes-compact');
-const notesList = CE('div','notes-compact__list');
+    notesBar.append(noteInput, noteAddBtn);
+    notesBox.append(notesList, notesBar);
+    box.appendChild(notesBox);
 
-const notesBar   = CE('div','notes-compact__bar');
-const noteInput  = CE('input','field note-input-sm');
-noteInput.placeholder = 'اكتب الملاحظة…';
-const noteAddBtn = CE('button','btn primary note-add-mini');
-noteAddBtn.title = 'إضافة ملاحظة';
-noteAddBtn.innerHTML = '<i class="fa-solid fa-plus"></i>';
+    // دالة وقت عربي مختصر
+    const tinyTime = (d) =>
+      new Date(d).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
 
-notesBar.append(noteInput, noteAddBtn);
-notesBox.append(notesList, notesBar);
-box.appendChild(notesBox);
+    function renderNotes() {
+      notesList.innerHTML = '';
 
-// وقت عربي قصير
-const tinyTime = (d)=> new Date(d).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+      const arrNotes = (card.notes || [])
+        .filter(n => !n.deletedAt)
+        .sort((a, b) => new Date(b.at) - new Date(a.at));
 
-// رسم أنيق: (#) متدرّج + وقت مع أيقونة + زر حذف خارجي
-function renderNotes(){
-  // نظّف القائمة
-  notesList.innerHTML = '';
+      arrNotes.forEach((n, i) => {
+        const row = CE('div', 'note-row');
+        row.style.minWidth = '0';
 
-  // اعرض فقط الملاحظات غير المحذوفة، والأحدث أولاً
-  const arr = (card.notes || [])
-    .filter(n => !n.deletedAt)
-    .sort((a, b) => new Date(b.at) - new Date(a.at));
+        const pill = CE('div', 'note-pill');
+        pill.style.minWidth = '0';
 
-  // لو تحب، ممكن تعرض حالة فارغة (حالياً مهملة حسب تصميمك)
-  // if (!arr.length) {
-  //   const empty = CE('div', 'notes-compact__empty');
-  //   empty.textContent = 'لا توجد ملاحظات';
-  //   notesList.appendChild(empty);
-  //   return;
-  // }
+        const idxEl = CE('div', 'note-pill__idx');
+        idxEl.textContent = i + 1;
 
-  arr.forEach((n, i) => {
-    const row  = CE('div','note-row');        // يحتوي الحبة + زر الحذف
-    row.style.minWidth = '0';
+        const txtEl = CE('div', 'note-pill__text');
+        txtEl.textContent = n.text || '';
 
-    const pill = CE('div','note-pill');       // الحبة نفسها
-    pill.style.minWidth = '0';
+        const tmEl = CE('div', 'note-pill__time');
+        tmEl.innerHTML =
+          '<i class="fa-regular fa-clock"></i>' +
+          tinyTime(n.at || n.createdAt || new Date());
 
-    // # التسلسل (الأحدث = #1)
-    const idx = CE('div','note-pill__idx');
-    idx.textContent = `#${i+1}`;
+        pill.append(idxEl, txtEl, tmEl);
 
-    // النص — سطر واحد + tooltip بالنص الكامل
-    const txt = CE('div','note-pill__text');
-    txt.textContent = n.text || '';
-    txt.title = n.text || '';
+        const delNote = CE('button', 'note-del-out');
+        delNote.innerHTML = '<i class="fa-regular fa-trash-can"></i>';
+        delNote.title = 'حذف الملاحظة';
+        delNote.onclick = () => {
+          n.deletedAt = nowISO();
+          save();
+          renderNotes();
+          renderBoard(); // حتى البادج والعداد يتحدّث
+          showToast('error', 'تم حذف الملاحظة');
+        };
 
-    // الوقت + أيقونة
-    const when = CE('div','note-pill__time');
-    when.innerHTML = '<i class="fa-regular fa-clock"></i>' + tinyTime(n.at || Date.now());
-
-    // زر حذف خارج الحبة على الحافة
-    const del = CE('button','note-del-out');
-    del.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-    del.title = 'حذف الملاحظة';
-
-    del.onclick = async ()=>{
-      const ok = await showConfirm({
-        title:'حذف ملاحظة',
-        message:'تحب تحذف هذه الملاحظة؟',
-        okText:'حذف',
-        cancelText:'إلغاء',
-        danger:true
+        row.append(pill, delNote);
+        notesList.appendChild(row);
       });
-      if(!ok) return;
+    }
 
-      if(deleteCardNote(card, n.id)){
-        renderNotes();                 // إعادة الرسم بعد الحذف
-        showToast('error','تم حذف الملاحظة');
-      }else{
-        showToast('warn','تعذر حذف الملاحظة');
+    function doAddNote() {
+      const val = (noteInput.value || '').trim();
+      if (!val) return;
+      if (addCardNote(card, val)) {
+        noteInput.value = '';
+        renderNotes();
+        showToast('success', 'تمت إضافة الملاحظة');
+        setTimeout(() => noteInput.focus(), 0);
       }
+    }
+
+    noteAddBtn.onclick = doAddNote;
+    noteInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        doAddNote();
+      }
+    });
+
+    // أول رسم للملاحظات
+    renderNotes();
+
+    /* ===== الفوتر (الإجماليات + الأزرار تحت) ===== */
+    const foot = CE('div', 'card-foot');
+
+    const left = CE('div');
+    const sums = sumCardAmounts(card);
+    left.innerHTML = `
+      <span class="sum-badge sum--items">مواد: ${(card.lines || []).filter(l => !l.deletedAt).length}</span>
+      <span class="sum-badge sum--total">المجموع: ${formatIQD(sums.total)}</span>
+      <span class="sum-badge sum--unpaid">غير مدفوع: ${formatIQD(sums.unpaid)}</span>
+    `;
+
+    const right = CE('div', 'foot-actions');
+
+    // زر PDF
+    const btnPdf = CE('button', 'i-btn');
+    btnPdf.innerHTML = '<i class="fa-regular fa-file-pdf"></i><span>PDF</span>';
+    btnPdf.title = 'طباعة هاي البطاقة فقط';
+    btnPdf.onclick = () => {
+      exportCardPDF_Vector(card, card.__day || selectedDay);
     };
 
-    pill.append(idx, txt, when);
-    row.append(pill, del);
-    notesList.appendChild(row);
-  });
-}
-
-
-function doAddNote(){
-  const val = (noteInput.value||'').trim();
-  if(!val) return;
-  if(addCardNote(card, val)){
-    noteInput.value = '';
-    renderNotes();
-    showToast('success','تمت إضافة الملاحظة');
-    setTimeout(()=> noteInput.focus(), 0);
-  }
-}
-
-noteAddBtn.onclick = doAddNote;
-noteInput.addEventListener('keydown', (e)=>{
-  if(e.key === 'Enter'){ e.preventDefault(); doAddNote(); }
-});
-
-// أول رسم
-renderNotes();
-
-
-    
-    
-    
-    function sumCardAmounts(card){
-  let total = 0, paid = 0, unpaid = 0, returned = 0;
-  for(const l of (card.lines || [])){
-    if(l.deletedAt) continue;
-    const price = Number(l.price || 0);
-    const qty   = parseInt(String(l.qty || '1'), 10) || 1;
-    const sub   = price * qty;
-
-    if(l.returned){
-      returned += sub;
-      continue;
-    }
-    total += sub;
-    if(l.paid) paid += sub; else unpaid += sub;
-  }
-  return { total, paid, unpaid, returned };
-}
-
-    
-    
-    
-    
-
-    /* Foot */
-    const foot = CE('div','card-foot');
-  const left = CE('div');
-const sums = sumCardAmounts(card);
-
-left.innerHTML = `
-  <span class="sum-badge sum--items">مواد: ${(card.lines||[]).filter(l=>!l.deletedAt).length}</span>
-  <span class="sum-badge sum--total">المجموع: ${formatIQD(sums.total)}</span>
-  <span class="sum-badge sum--unpaid">غير مدفوع: ${formatIQD(sums.unpaid)}</span>
-`;
-
-
-    const right = CE('div','foot-actions');
-
-   const btnPdf = CE('button','i-btn');
-btnPdf.innerHTML = '<i class="fa-regular fa-file-pdf"></i><span>PDF</span>';
-btnPdf.title = 'طباعة هاي البطاقة فقط';
-btnPdf.onclick = ()=>{
-  // نمرّر يوم البطاقة (يدعم وضع البحث الشامل)
-  exportCardPDF_Vector(card, card.__day || selectedDay);
-};
-
-
-    const btnPayAll = CE('button','i-btn');
+    // زر "تسديد الكل"
+    const btnPayAll = CE('button', 'i-btn');
     card.paidAll = allActivePaid(card);
     stylePayAll(btnPayAll, card);
 
-   btnPayAll.onclick = ()=>{
-  if (!card.lines.length) return;
-  const active = activeLines(card);
-  if (active.length === 0) return;
+    btnPayAll.onclick = () => {
+      if (!card.lines.length) return;
+      const active = activeLines(card);
+      if (active.length === 0) return;
 
-  const allPaidBefore = active.every(l => l.paid);
-  const makePaid = !allPaidBefore;
+      const allPaidBefore = active.every(l => l.paid);
+      const makePaid = !allPaidBefore;
 
-  active.forEach(l => { l.paid = makePaid; });
-  card.paidAll = allActivePaid(card);
+      active.forEach(l => { l.paid = makePaid; });
+      card.paidAll = allActivePaid(card);
 
-  card.updatedAt = new Date().toISOString();   // <-- جديد
+      card.updatedAt = new Date().toISOString();
 
-  save(); renderBoard(); renderRail(); refreshStats();
-  showToast(makePaid ? 'success' : 'info', makePaid ? 'تم تسديد كل المواد' : 'تم إلغاء تسديد الكل');
-};
+      save();
+      renderBoard();
+      renderRail();
+      refreshStats();
 
+      showToast(
+        makePaid ? 'success' : 'info',
+        makePaid ? 'تم تسديد كل المواد' : 'تم إلغاء تسديد الكل'
+      );
+    };
 
-    const btnDel = CE('button','i-btn'); 
-    btnDel.innerHTML  = '<i class="fa-regular fa-trash-can"></i><span>حذف البطاقة</span>'; 
-    btnDel.title='حذف البطاقة';
-    btnDel.onclick = async ()=>{
+    // زر حذف البطاقة كاملة
+    const btnDelCard = CE('button', 'i-btn');
+    btnDelCard.innerHTML = '<i class="fa-regular fa-trash-can"></i><span>حذف البطاقة</span>';
+    btnDelCard.title = 'حذف البطاقة';
+    btnDelCard.onclick = async () => {
       const ok = await showConfirm({
-        title:'تأكيد حذف البطاقة',
-        message:`سيتم حذف بطاقة "${card.customer}" بكافة موادها.`,
-        okText:'حذف البطاقة',
-        cancelText:'إلغاء',
-        danger:true
+        title: 'تأكيد حذف البطاقة',
+        message: `سيتم حذف بطاقة "${card.customer}" بكافة موادها.`,
+        okText: 'حذف البطاقة',
+        cancelText: 'إلغاء',
+        danger: true
       });
-      if(!ok) return;
+      if (!ok) return;
 
-      // عند البحث الشامل: احذف من يوم البطاقة الحقيقي
+      // إذا انت بوضع البحث الشامل، لازم نحذف من يومها الحقيقي
       const dayKey = card.__day || selectedDay;
-const arrRef = (days[dayKey]||[]);
-const real = arrRef.find(c => c.id === card.id);
-if(real){
-  real.deletedAt = nowISO();
-  real.updatedAt = real.deletedAt;
-  save();
-}
+      const arrRef = (days[dayKey] || []);
+      const real = arrRef.find(c => c.id === card.id);
+      if (real) {
+        const tsDel = nowISO();
+        real.deletedAt = tsDel;
+        real.updatedAt = tsDel;
+        save();
+      }
 
+      renderBoard();
+      renderRail();
+      refreshStats();
 
-      renderBoard(); renderRail(); refreshStats();
       showToast('error', 'تم حذف البطاقة');
     };
-    
-    
-    // === زر ملاحظات (جديد) ===
-const btnNotes = CE('button','i-btn');
-btnNotes.innerHTML = `
-  <i class="fa-regular fa-note-sticky"></i>
-  <span>ملاحظات</span>
-  <b class="badge notes-count" hidden>0</b>
-`;
-btnNotes.title = 'إضافة/استعراض ملاحظات البطاقة';
-btnNotes.onclick = () => openNotesModal(card);
 
-// تحديث العدّاد أول ما ينتهي بناء الزر
-updateNotesBadge(btnNotes, card);
+    // زر ملاحظات (المودال الرئيسي مالت الملاحظات)
+    const btnNotes = CE('button', 'i-btn');
+    btnNotes.innerHTML = `
+      <i class="fa-regular fa-note-sticky"></i>
+      <span>ملاحظات</span>
+      <b class="badge notes-count" hidden>0</b>
+    `;
+    btnNotes.title = 'إضافة/استعراض ملاحظات البطاقة';
+    btnNotes.onclick = () => openNotesModal(card);
 
+    // حدّث عداد الملاحظات
+    updateNotesBadge(btnNotes, card);
 
-
-   right.append(btnPdf, btnPayAll, btnNotes, btnDel);
-    foot.append(left,right);
+    right.append(btnPdf, btnPayAll, btnNotes, btnDelCard);
+    foot.append(left, right);
     box.appendChild(foot);
 
     host.appendChild(box);
   });
 
-  // زر عرض المزيد للبحث الشامل
-  if(global && totalCount > arr.length){
-    const more = CE('button','i-btn');
+  // زر "عرض المزيد" إذا جاي تستعرض كل الأيام
+  if (global && totalCount > arr.length) {
+    const more = CE('button', 'i-btn');
     more.style.margin = '8px auto 0';
     more.innerHTML = '<i class="fa-solid fa-angles-down"></i><span>عرض المزيد</span>';
-    more.onclick = ()=>{ globalLimit += 20; renderBoard(); };
+    more.onclick = () => {
+      globalLimit += 20;
+      renderBoard();
+    };
     host.appendChild(more);
   }
+
+  // ✨ مهم لمشكلتك الثانية:
+  // كل مرة نرسم البورد، نرجع نربط أزرار "آخر تاريخ نقل الديون"
+  wireTransferHeaderButtons();
 }
+
 
 
 
