@@ -1993,16 +1993,18 @@ body{ padding-top: var(--hdr-h); }
       
       <div class="r-right">
         
+        <!-- زر عرض آخر تاريخ نقل -->
+  <div id="btnTransferToast" class="icon" title="عرض آخر تاريخ نقل الديون">
+    <i class="fa-solid fa-clock-rotate-left"></i>
+  </div>
+        
+        
         
         <div id="btnTransferOpen" class="icon" title="إنجاز عمل (تحديد آخر تاريخ نقل الديون)">
-    <i class="fa-solid fa-clipboard-check"></i>
-  </div>
-
-  <!-- زر عرض آخر تاريخ نقل -->
-  <div id="btnTransferToast" class="icon" title="عرض آخر تاريخ نقل الديون">
     <i class="fa-solid fa-calendar-check"></i>
   </div>
-        
+
+  
         
         
   <button class="icon" id="btnRefresh" title="تحديث الصفحة" aria-label="تحديث الصفحة">
@@ -3247,7 +3249,8 @@ function closeTransferModal(){
 }
 
 /* حفظ التاريخ المختار */
-function saveTransferDate(){
+/* حفظ التاريخ المختار + رفعه فوراً للسيرفر */
+async function saveTransferDate(){
   const selDay   = document.getElementById('transferDay');
   const selMonth = document.getElementById('transferMonth');
   const selYear  = document.getElementById('transferYear');
@@ -3263,15 +3266,31 @@ function saveTransferDate(){
     return;
   }
 
+  // نبني التاريخ بصيغة ISO: YYYY-MM-DD
   const iso = `${y}-${m}-${d}`;
 
+  // خزّنه محلياً (localStorage)
   setTransferDateIso(iso);
 
-  // خليه يحس بالنجاح
+  // سكّر المودال مباشرة حتى المستخدم يحس كلشي خلص
+  closeTransferModal();
+
+  // خبر المستخدم شنو آخر تاريخ نقل
   showToast('success', formatTransferToastMsg(iso));
 
-  closeTransferModal();
+  // جداً مهم:
+  // فوراً نرفع النسخة (اليوم/الكروت/الأسماء + تاريخ النقل) إلى السيرفر
+  // حتى الأجهزة الثانية من تستورد تشوف نفس التاريخ
+  try{
+    await smartExportToServer();
+    // إذا تحب تبينله أنه التاريخ اتسنتر على السيرفر فعلاً، خليه هذا التوست:
+    showToast('info','تم تحديث تاريخ نقل الديون على السيرفر');
+  }catch(err){
+    console.error('فشل رفع تاريخ النقل للسيرفر:', err);
+    showToast('warn','انحفظ التاريخ هنا محلي بس فشل الرفع للسيرفر');
+  }
 }
+
 
 /* عرض توست "آخر تاريخ نقل" بدون فتح المودال */
 function showTransferToast(){
@@ -6177,103 +6196,94 @@ function sumCardAmounts(card){
 /* ====== Smart Export / Import ====== */
 
 
-// ===== تصدير/رفع ذكي لكل الفواتير إلى السيرفر (نهائي بعد الدمج) =====
-// ===== تصدير/رفع ذكي لكل الفواتير إلى السيرفر (نهائي بعد الدمج + تاريخ نقل الديون) =====
-let __EXPORTING__ = false;
-
+// تصدير ذكي: يدمج المحلي مع السيرفر ويرفع نسخة موحّدة
+// ويضمن أيضاً رفع transferDate (آخر تاريخ نقل ديون)
 async function smartExportToServer(){
-  // حماية: لا تسمح باستدعاء متزامن
-  if(__EXPORTING__){
-    showToast?.('info','جاري الرفع بالفعل… انتظر انتهاء العملية الحالية');
-    return;
-  }
-
   if(!window.IS_SIGNED_IN){
-    showToast?.('warn','سجّل دخول أولاً');
+    showToast('warn','سجّل دخول أولاً');
     return;
   }
-  
-  __EXPORTING__ = true;
+
   try{
-    showToast('info','جاري تحضير النسخة للرفع (دمج+تسوية)…', 2000);
+    showToast('info','جاري مزامنة النسخة مع السيرفر...', 1800);
 
-    // لقطة سلامة: أعلى توقيت تحديث محلي قبل أي عملية
-    const preTs = getUpdatedAtMax(days || {});
+    // 1) جيب النسخة الحالية من السيرفر
+    const server = await serverGetBackup();
 
-    // 1) حاول تجيب نسخة السيرفر (قد لا تكون موجودة أول مرة)
-    let server = null;
-    try{
-      server = await serverGetBackup();
-    }catch(_){
-      server = null; // ماكو نسخة على السيرفر — نعدّها فارغة
-    }
+    // 2) حضّر نسخة نظيفة من بياناتك الحالية (بس الفعّال، بدون المحذوف)
+    const { days: cleanDays, names: cleanNames } = prepareCleanPayload(days, names);
 
-    // 2) دمج قبل الرفع لتقليل التعارض (محلي × سيرفر)
-    const localDays  = days || {};
-    const remoteDays = server?.days || {};
-    const { days: mergedDays, report } = mergeAllDays(localDays, remoteDays);
-
-    // 3) تثبيت المعرّفات + إزالة التكرارات
-    normalizeIdsInAllDays(mergedDays);
-    dedupeAllDays(mergedDays);
-
-    // 4) وحّد أسماء الزبائن (إن وجِدت على السيرفر)
-    const curNames = Array.isArray(names) ? names : [];
-    const srvNames = Array.isArray(server?.names) ? server.names : [];
-    const mergedNames = Array.from(new Set([...curNames, ...srvNames]));
-
-    // 5) خزّن نتيجة الدمج محليًا حتى تظل الواجهة متوافقة مع اللي راح ينرفع
-    localStorage.setItem(STORAGE, JSON.stringify(mergedDays));
-    localStorage.setItem(NAMES,   JSON.stringify(mergedNames));
-    // حدّث الحالة بالذاكرة
-    days  = load(STORAGE, {});
-    names = load(NAMES,   []);
-
-    // 6) حضّر الحمولة للرفع (نضيف transferDate)
-    const now = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
+    // هذا الباي لود اللي نريد نرفعه
+    // IMPORTANT: نبعث transferDate حتى الأجهزة الثانية تعرف آخر تاريخ نقل الديون
     const payload = {
-      version      : 3,
-      exportedAt   : now,
-      updatedAtMax : getUpdatedAtMax(mergedDays),
-      days         : mergedDays,
-      names        : mergedNames,
-      transferDate : getTransferDateIso() || ""  // <-- جديد
+      days: cleanDays,
+      names: cleanNames,
+      updatedAt: Date.now(),
+      transferDate: getTransferDateIso() || ''  // ← هذا أهم سطر للمشكلة مالك
     };
 
-    // 7) تحاشي الرفع إذا لا تغييرات فعلية مقارنةً بالسيرفر
-    const sameDays  = JSON.stringify(remoteDays)  === JSON.stringify(mergedDays);
-    const sameNames = JSON.stringify(srvNames)    === JSON.stringify(mergedNames);
-    const sameTDate = (server?.transferDate || "") === (payload.transferDate || "");
-    if (sameDays && sameNames && sameTDate){
-      showToast('info','لا توجد تغييرات تُرفع — البيانات متطابقة مع السيرفر');
-      return;
+    let report = [];
+
+    if(server && server.days){
+      // السيرفر مو فاضي، سوّي دمج آمن بين "المحلّي" و "السيرفر"
+      const localDays  = days || {};
+      const remoteDays = server.days || {};
+
+      const merged = mergeAllDays(localDays, remoteDays);
+      const mergedDays  = merged.days;
+      const mergeReport = merged.report || [];
+
+      // نظّف الـ IDs وكرّر إزالة المكررات مثل ما عندك بالسيستم
+      normalizeIdsInAllDays(mergedDays);
+      dedupeAllDays(mergedDays);
+
+      // بعد الدمج، خلي النسخة النهائية هي اللي نصعدها
+      payload.days  = mergedDays;
+
+      // وحّد الأسماء (names)
+      const curNames = Array.isArray(names) ? names : [];
+      const srvNames = Array.isArray(server.names) ? server.names : [];
+      payload.names  = Array.from(new Set([...curNames, ...srvNames]));
+
+      // إذا السيرفر عنده transferDate واحنا ماعندنا بعد، خليه لايروح
+      if(!payload.transferDate && server.transferDate){
+        payload.transferDate = server.transferDate;
+      }
+
+      report = mergeReport;
     }
 
-    // 8) فحص سباق التعديل: إذا تغيّرت البيانات محليًا أثناء التحضير — ألغِ العملية
-    const postTs = getUpdatedAtMax(days || {});
-    if(postTs !== preTs){
-      showToast('warn','تغيّرت البيانات أثناء التحضير — أعد المحاولة بعد اكتمال التعديلات');
-      return;
+    // 3) ودّي النسخة النهائية للسيرفر (POST / PUT / whatever بالسيرفرPostBackup)
+    await serverPostBackup(payload);
+
+    // 4) خزّن محلياً آخر باك اب مرفوع (حتى التطبيق يعرف إنو هذا آخر إصدار)
+    localStorage.setItem(STORAGE, JSON.stringify(payload.days || {}));
+    localStorage.setItem(NAMES,   JSON.stringify(payload.names || []));
+    if(payload.transferDate){
+      setTransferDateIso(payload.transferDate);
     }
 
-    // 9) الرفع
-    const r = await serverPostBackup(payload);
+    // حدّث الذاكرة الحية / الواجهة
+    days  = load(STORAGE, {});
+    names = load(NAMES,   []);
+    renderBoard();
+    renderRail();
+    refreshStats();
 
-    if(r?.status === 'ok' || r?.status === undefined){
-      const ch = report?.length || 0;
-      showToast('success', ch ? `انرفع النسخة بعد دمج (${ch} تغيير)` : 'انرفع النسخة — لا تغييرات كبيرة');
-      // (اختياري) اطبع تقرير الدمج
-      console.groupCollapsed?.('ASSAL MERGE REPORT (EXPORT)');
-      (report || []).forEach(row => console.log(row));
-      console.groupEnd?.();
-    }else{
-      showToast('error','فشل التصدير للسيرفر');
-    }
+    // خليه يحس بالنجاح
+    showToast(
+      'success',
+      report.length
+        ? `تمت المزامنة (دمج ${report.length} تغيير)`
+        : 'تم رفع النسخة إلى السيرفر'
+    );
+
+    console.groupCollapsed?.('ASSAL MERGE REPORT (EXPORT)');
+    (report||[]).forEach(r => console.log(r));
+    console.groupEnd?.();
   }catch(err){
     console.error(err);
-    showToast('error','تعذّر الدمج/الرفع إلى السيرفر');
-  }finally{
-    __EXPORTING__ = false;
+    showToast('error','تعذّر رفع/دمج النسخة مع السيرفر');
   }
 }
 
@@ -6517,9 +6527,6 @@ out[dayKey] = mergedCards;
 
 
 
-
-// استيراد ذكي: يسحب من السيرفر إذا هو أحدث (أو إذا المحلي فارغ)
-
 // استيراد ذكي: يسحب من السيرفر إذا هو أحدث (أو إذا المحلي فارغ)
 // + يجلب ويخزن آخر تاريخ نقل ديون (transferDate)
 async function smartImportFromServer(){
@@ -6587,7 +6594,6 @@ async function smartImportFromServer(){
     showToast('error','تعذّر جلب/دمج النسخة من السيرفر');
   }
 }
-
 
 
 
