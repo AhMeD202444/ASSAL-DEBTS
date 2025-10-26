@@ -1941,6 +1941,33 @@ body{ padding-top: var(--hdr-h); }
   background:#0e1b36;
 }
 
+/* ===== مودال نقل الديون (اختيار اليوم/الشهر/السنة) ===== */
+.transfer-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+  width:100%;
+}
+
+.transfer-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  justify-content:center;
+  width:100%;
+  margin-top:10px;
+}
+
+.transfer-hint{
+  font-size:12px;
+  color:#9aa4b2;
+  line-height:1.4;
+  text-align:center;
+  max-width:360px;
+  margin-inline:auto;
+}
+
+
 
 
 
@@ -1965,6 +1992,19 @@ body{ padding-top: var(--hdr-h); }
 
       
       <div class="r-right">
+        
+        
+        <div id="btnTransferOpen" class="icon" title="إنجاز عمل (تحديد آخر تاريخ نقل الديون)">
+    <i class="fa-solid fa-clipboard-check"></i>
+  </div>
+
+  <!-- زر عرض آخر تاريخ نقل -->
+  <div id="btnTransferToast" class="icon" title="عرض آخر تاريخ نقل الديون">
+    <i class="fa-solid fa-calendar-check"></i>
+  </div>
+        
+        
+        
   <button class="icon" id="btnRefresh" title="تحديث الصفحة" aria-label="تحديث الصفحة">
     <i class="fa-solid fa-rotate-right"></i>
   </button>
@@ -2283,6 +2323,45 @@ body{ padding-top: var(--hdr-h); }
 
 
 
+<!-- مودال تحديد تاريخ نقل الديون -->
+<div id="transferModalBackdrop" class="modal-backdrop"></div>
+<div id="transferModal" class="modal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="transferModalTitle">
+    
+    <div class="modal-head" id="transferModalTitle" style="display:flex;align-items:center;gap:8px;justify-content:center;">
+      <i class="fa-solid fa-clipboard-check"></i>
+      <span>تحديد آخر تاريخ نقل الديون</span>
+    </div>
+
+    <div class="modal-body" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:12px;">
+      
+      <div class="transfer-hint">
+        اختار اليوم / الشهر / السنة اللي تعتبره "آخر يوم الدين منقول ومسدّد لحده".
+        بعدين اضغط Enter بالتسلسل (يوم → شهر → سنة → حفظ).
+      </div>
+
+      <!-- القوائم المسندلة -->
+      <div class="transfer-grid" style="text-align:start;">
+        <select id="transferDay"   class="field" style="text-align:center;font-weight:800;" aria-label="اليوم"></select>
+        <select id="transferMonth" class="field" style="text-align:center;font-weight:800;" aria-label="الشهر"></select>
+        <select id="transferYear"  class="field" style="text-align:center;font-weight:800;" aria-label="السنة"></select>
+      </div>
+
+      <!-- أزرار حفظ/إغلاق -->
+      <div class="transfer-actions">
+        <button id="transferSaveBtn"  class="btn primary" style="min-width:120px;">
+          <i class="fa-solid fa-floppy-disk"></i>
+          <span>حفظ</span>
+        </button>
+
+        <button id="transferCloseBtn" class="btn ghost" style="min-width:80px;">
+          <i class="fa-solid fa-xmark"></i>
+          <span>إغلاق</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 
 
@@ -3037,6 +3116,272 @@ Object.defineProperty(window, 'selectedDay', { get(){ return selectedDay; } });
   localStorage.setItem(STORAGE, JSON.stringify(days));
   LAST_EDIT_TS = Date.now(); // ← حتى نمنع المزامنة مباشرة بعد أي تعديل
 }
+
+
+
+
+
+
+/* ===================== تاريخ نقل الديون ===================== */
+
+/* مفتاح التخزين المحلي للتاريخ */
+const TRANSFER_DATE_KEY = 'ASSAL_TRANSFER_DATE';
+
+/* helper: قراءة التاريخ من localStorage كـ 'YYYY-MM-DD' أو '' */
+function getTransferDateIso(){
+  return load(TRANSFER_DATE_KEY, '');
+}
+
+/* helper: حفظ التاريخ */
+function setTransferDateIso(iso){
+  localStorage.setItem(TRANSFER_DATE_KEY, JSON.stringify(iso || ''));
+}
+
+/* helper: صفرين */
+function _pad2Local(n){
+  n = Number(n)||0;
+  return n < 10 ? ('0' + n) : String(n);
+}
+
+/* helper: رجع ستايل التوست مثل:
+   تم النقل لغاية (الأحد | 26-10-2025)
+*/
+function formatTransferToastMsg(isoStr){
+  if(!isoStr){
+    return 'ما محدد تاريخ نقل ديون بعد';
+  }
+  // isoStr شكلها "YYYY-MM-DD"
+  const [y,m,d] = isoStr.split('-');
+  const dt = new Date(`${y}-${m}-${d}T00:00:00`);
+  if(!Number.isFinite(dt.getTime())){
+    return 'تاريخ غير صالح';
+  }
+
+  // اسم اليوم بالعربي من نفس المتصفح
+  const weekdayAr = dt.toLocaleDateString('ar-EG',{ weekday:'long' });
+
+  return `تم النقل لغاية (${weekdayAr} | ${d}-${m}-${y})`;
+}
+
+/* نملأ اللستات (اليوم/الشهر/السنة) كل مرة نفتح المودال */
+function populateTransferSelects(){
+  const selDay   = document.getElementById('transferDay');
+  const selMonth = document.getElementById('transferMonth');
+  const selYear  = document.getElementById('transferYear');
+
+  if(!selDay || !selMonth || !selYear) return;
+
+  // حضّر اليوم 1..31
+  selDay.innerHTML = '';
+  for(let dd=1; dd<=31; dd++){
+    const opt = document.createElement('option');
+    opt.value = String(dd);
+    opt.textContent = dd; // نخليها رقم عربي عادي
+    selDay.appendChild(opt);
+  }
+
+  // حضّر الشهر 1..12
+  selMonth.innerHTML = '';
+  for(let mm=1; mm<=12; mm++){
+    const opt = document.createElement('option');
+    opt.value = String(mm);
+    opt.textContent = mm;
+    selMonth.appendChild(opt);
+  }
+
+  // حضّر السنة (خلي نطاق محترم، تكدر توسعه براحتك)
+  selYear.innerHTML = '';
+  const currentY = (new Date()).getFullYear();
+  for(let yy=currentY-5; yy<=currentY+5; yy++){
+    const opt = document.createElement('option');
+    opt.value = String(yy);
+    opt.textContent = yy;
+    selYear.appendChild(opt);
+  }
+
+  // حاول تهيئة القيم من آخر تاريخ مخزَّن، إذا موجود
+  let iso = getTransferDateIso();
+  let initY, initM, initD;
+  if(iso){
+    const parts = iso.split('-'); // [YYYY,MM,DD]
+    initY = Number(parts[0]||0);
+    initM = Number(parts[1]||0);
+    initD = Number(parts[2]||0);
+  }else{
+    // إذا ماكو شي مخزون، خلّي اليوم الحالي
+    const now = new Date();
+    initY = now.getFullYear();
+    initM = now.getMonth()+1; // 1..12
+    initD = now.getDate();    // 1..31
+  }
+
+  selYear.value  = String(initY);
+  selMonth.value = String(initM);
+  selDay.value   = String(initD);
+}
+
+/* فتح المودال */
+function openTransferModal(){
+  populateTransferSelects();
+
+  document.getElementById('transferModalBackdrop')?.classList.add('active');
+  document.getElementById('transferModal')?.classList.add('active');
+
+  // قفل السكرول على الخلفية (نفس نمط notesModal) :contentReference[oaicite:14]{index=14}
+  document.body.classList.add('modal-open');
+
+  // فوكس أول شي على اليوم
+  const selDay = document.getElementById('transferDay');
+  if(selDay){
+    requestAnimationFrame(()=>{
+      selDay.focus();
+    });
+  }
+}
+
+/* غلق المودال */
+function closeTransferModal(){
+  document.getElementById('transferModalBackdrop')?.classList.remove('active');
+  document.getElementById('transferModal')?.classList.remove('active');
+  document.body.classList.remove('modal-open');
+}
+
+/* حفظ التاريخ المختار */
+function saveTransferDate(){
+  const selDay   = document.getElementById('transferDay');
+  const selMonth = document.getElementById('transferMonth');
+  const selYear  = document.getElementById('transferYear');
+
+  if(!selDay || !selMonth || !selYear) return;
+
+  const d  = _pad2Local(selDay.value);
+  const m  = _pad2Local(selMonth.value);
+  const y  = String(selYear.value||'').trim();
+
+  if(!d || !m || !y){
+    showToast?.('warn','اختيار التاريخ غير كامل');
+    return;
+  }
+
+  const iso = `${y}-${m}-${d}`;
+
+  setTransferDateIso(iso);
+
+  // خليه يحس بالنجاح
+  showToast('success', formatTransferToastMsg(iso));
+
+  closeTransferModal();
+}
+
+/* عرض توست "آخر تاريخ نقل" بدون فتح المودال */
+function showTransferToast(){
+  const iso = getTransferDateIso();
+  showToast('info', formatTransferToastMsg(iso));
+}
+
+/* ====== تحكم الكيبورد داخل المودال (Enter → التالي) ====== */
+/*
+  sequence:
+    transferDay   + Enter   → transferMonth.focus()
+    transferMonth + Enter   → transferYear.focus()
+    transferYear  + Enter   → transferSaveBtn.focus()
+    transferSaveBtn + Enter → saveTransferDate()
+  Escape بأي مكان → closeTransferModal()
+*/
+function wireTransferModalKeyNav(){
+  const d = document.getElementById('transferDay');
+  const m = document.getElementById('transferMonth');
+  const y = document.getElementById('transferYear');
+  const s = document.getElementById('transferSaveBtn');
+  const c = document.getElementById('transferCloseBtn');
+
+  if(d){
+    d.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){
+        e.preventDefault();
+        m?.focus();
+      }else if(e.key==='Escape'){
+        e.preventDefault();
+        closeTransferModal();
+      }
+    });
+  }
+
+  if(m){
+    m.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){
+        e.preventDefault();
+        y?.focus();
+      }else if(e.key==='Escape'){
+        e.preventDefault();
+        closeTransferModal();
+      }
+    });
+  }
+
+  if(y){
+    y.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){
+        e.preventDefault();
+        s?.focus();
+      }else if(e.key==='Escape'){
+        e.preventDefault();
+        closeTransferModal();
+      }
+    });
+  }
+
+  if(s){
+    s.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){
+        e.preventDefault();
+        saveTransferDate();
+      }else if(e.key==='Escape'){
+        e.preventDefault();
+        closeTransferModal();
+      }
+    });
+  }
+
+  if(c){
+    c.addEventListener('keydown', e=>{
+      if(e.key==='Enter' || e.key==='Escape'){
+        e.preventDefault();
+        closeTransferModal();
+      }
+    });
+  }
+
+  // كليك طبيعي للأزرار
+  s?.addEventListener('click', saveTransferDate);
+  c?.addEventListener('click', closeTransferModal);
+}
+
+/* ====== ربط الأزرار في الهيدر مع المودال/التوست ====== */
+function wireTransferHeaderButtons(){
+  const btnOpen  = document.getElementById('btnTransferOpen');
+  const btnToast = document.getElementById('btnTransferToast');
+
+  if(btnOpen){
+    btnOpen.addEventListener('click', openTransferModal);
+  }
+  if(btnToast){
+    btnToast.addEventListener('click', showTransferToast);
+  }
+}
+
+/* استدعِ هذا بعد ما الـDOM يجهز (عندك اصلاً نهاية الملف تربط واي أزرار مثل btnImportAll.onclick = smartImportFromServer وغيره) :contentReference[oaicite:15]{index=15} */
+function initTransferFeature(){
+  wireTransferHeaderButtons();
+  wireTransferModalKeyNav();
+}
+
+/* ناديناها */
+initTransferFeature();
+
+
+
+
     
     
     function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
@@ -5714,16 +6059,19 @@ function getUpdatedAtMax(daysObj){
 }
 
 // حضّر بايلود النسخة الاحتياطية (نفس فورماتك + updatedAtMax)
+// حضّر بايلود النسخة الاحتياطية (نفس فورماتك + updatedAtMax + transferDate)
 function buildBackupPayload(){
   const payload = {
-    version: 3,
-    exportedAt: new Date().toISOString(),
-    updatedAtMax: getUpdatedAtMax(days || {}),
-    days : days || {},
-    names: names || []
+    version      : 3,
+    exportedAt   : new Date().toISOString(),
+    updatedAtMax : getUpdatedAtMax(days || {}),
+    days         : days  || {},
+    names        : names || [],
+    transferDate : getTransferDateIso() || ""   // <-- جديد: آخر تاريخ نقل ديون
   };
   return payload;
 }
+
 
 
 async function serverGetBackup(){
@@ -5830,6 +6178,7 @@ function sumCardAmounts(card){
 
 
 // ===== تصدير/رفع ذكي لكل الفواتير إلى السيرفر (نهائي بعد الدمج) =====
+// ===== تصدير/رفع ذكي لكل الفواتير إلى السيرفر (نهائي بعد الدمج + تاريخ نقل الديون) =====
 let __EXPORTING__ = false;
 
 async function smartExportToServer(){
@@ -5880,20 +6229,22 @@ async function smartExportToServer(){
     days  = load(STORAGE, {});
     names = load(NAMES,   []);
 
-    // 6) حضّر الحمولة للرفع
+    // 6) حضّر الحمولة للرفع (نضيف transferDate)
     const now = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
     const payload = {
-      version     : 3,
-      exportedAt  : now,
-      updatedAtMax: getUpdatedAtMax(mergedDays),
-      days        : mergedDays,
-      names       : mergedNames
+      version      : 3,
+      exportedAt   : now,
+      updatedAtMax : getUpdatedAtMax(mergedDays),
+      days         : mergedDays,
+      names        : mergedNames,
+      transferDate : getTransferDateIso() || ""  // <-- جديد
     };
 
     // 7) تحاشي الرفع إذا لا تغييرات فعلية مقارنةً بالسيرفر
     const sameDays  = JSON.stringify(remoteDays)  === JSON.stringify(mergedDays);
     const sameNames = JSON.stringify(srvNames)    === JSON.stringify(mergedNames);
-    if (sameDays && sameNames){
+    const sameTDate = (server?.transferDate || "") === (payload.transferDate || "");
+    if (sameDays && sameNames && sameTDate){
       showToast('info','لا توجد تغييرات تُرفع — البيانات متطابقة مع السيرفر');
       return;
     }
@@ -6169,6 +6520,8 @@ out[dayKey] = mergedCards;
 
 // استيراد ذكي: يسحب من السيرفر إذا هو أحدث (أو إذا المحلي فارغ)
 
+// استيراد ذكي: يسحب من السيرفر إذا هو أحدث (أو إذا المحلي فارغ)
+// + يجلب ويخزن آخر تاريخ نقل ديون (transferDate)
 async function smartImportFromServer(){
   if(!window.IS_SIGNED_IN){
     showToast('warn','سجّل دخول أولاً');
@@ -6191,20 +6544,41 @@ async function smartImportFromServer(){
     normalizeIdsInAllDays(mergedDays);
     dedupeAllDays(mergedDays);
 
-    // خزن محلي
+    // خزن الفواتير/الأيام محلي
     localStorage.setItem(STORAGE, JSON.stringify(mergedDays));
+
+    // وحّد أسماء الزبائن
     const curNames = Array.isArray(names) ? names : [];
     const srvNames = Array.isArray(server.names) ? server.names : [];
     const mergedNames = Array.from(new Set([...curNames, ...srvNames]));
     localStorage.setItem(NAMES, JSON.stringify(mergedNames));
 
+    // خزن تاريخ نقل الديون إذا السيرفر عنده واحد
+    if(server.transferDate){
+      setTransferDateIso(server.transferDate);
+    }
+
     // حدّث الذاكرة والواجهة
     days  = load(STORAGE, {});
     names = load(NAMES,   {});
-    renderBoard(); renderRail(); refreshStats();
+    renderBoard(); 
+    renderRail(); 
+    refreshStats();
 
     const changes = report.length;
-    showToast('success', changes ? `تم الدمج الآمن (${changes} تغيير)` : 'لا تغييرات — البيانات متطابقة');
+    showToast(
+      'success', 
+      changes 
+        ? `تم الدمج الآمن (${changes} تغيير)` 
+        : 'لا تغييرات — البيانات متطابقة'
+    );
+
+    // بعدين خبرنا آخر تاريخ نقل ديون اللي جبناه
+    const iso = getTransferDateIso();
+    if(iso){
+      showToast('info', formatTransferToastMsg(iso));
+    }
+
     console.groupCollapsed?.('ASSAL MERGE REPORT (IMPORT)');
     (report||[]).forEach(r => console.log(r));
     console.groupEnd?.();
@@ -6213,6 +6587,7 @@ async function smartImportFromServer(){
     showToast('error','تعذّر جلب/دمج النسخة من السيرفر');
   }
 }
+
 
 
 
