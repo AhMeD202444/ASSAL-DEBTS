@@ -1959,13 +1959,42 @@ body{ padding-top: var(--hdr-h); }
 }
 
 .transfer-hint{
-  font-size:12px;
-  color:#9aa4b2;
-  line-height:1.4;
-  text-align:center;
+  
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: #ffffff !important;
+  text-align: center;
+  line-height: 1.6;
   max-width:360px;
   margin-inline:auto;
 }
+
+
+
+/* زر إغلاق أحمر غامق لكل المودالات */
+.close-red{
+  background: linear-gradient(180deg,#7f1d1d,#4c0b0b) !important;
+  color:#fecaca !important;
+  border:1px solid rgba(127,29,29,.6) !important;
+  box-shadow:0 10px 26px rgba(127,29,29,.4);
+  font-weight:800;
+  cursor:pointer;
+  border-radius:10px;
+  height:36px;
+  padding:0 12px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+}
+
+.close-red:hover{
+  filter:brightness(1.05);
+  transform:translateY(-1px);
+  box-shadow:0 12px 30px rgba(127,29,29,.5);
+  transition:.18s ease;
+}
+
 
 
 
@@ -1995,13 +2024,13 @@ body{ padding-top: var(--hdr-h); }
         
         <!-- زر عرض آخر تاريخ نقل -->
   <div id="btnTransferToast" class="icon" title="عرض آخر تاريخ نقل الديون">
-    <i class="fa-solid fa-clock-rotate-left"></i>
+   <i class="fa-solid fa-arrow-right-arrow-left"></i>
   </div>
         
         
         
         <div id="btnTransferOpen" class="icon" title="إنجاز عمل (تحديد آخر تاريخ نقل الديون)">
-    <i class="fa-solid fa-calendar-check"></i>
+     <i class="fa-solid fa-hand-holding-dollar"></i>
   </div>
 
   
@@ -2318,7 +2347,7 @@ body{ padding-top: var(--hdr-h); }
     </div>
 
     <div class="modal-actions">
-      <button id="notesModalClose" class="modal-btn ghost">إغلاق</button>
+     <button id="notesModalClose" class="modal-btn close-red">إغلاق</button>
     </div>
   </div>
 </div>
@@ -2338,9 +2367,9 @@ body{ padding-top: var(--hdr-h); }
     <div class="modal-body" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:12px;">
       
       <div class="transfer-hint">
-        اختار اليوم / الشهر / السنة اللي تعتبره "آخر يوم الدين منقول ومسدّد لحده".
-        بعدين اضغط Enter بالتسلسل (يوم → شهر → سنة → حفظ).
-      </div>
+  هذا هو تاريخ إقفال الديون السابقة. اختره ثم احفظ.
+</div>
+
 
       <!-- القوائم المسندلة -->
       <div class="transfer-grid" style="text-align:start;">
@@ -2356,10 +2385,13 @@ body{ padding-top: var(--hdr-h); }
           <span>حفظ</span>
         </button>
 
-        <button id="transferCloseBtn" class="btn ghost" style="min-width:80px;">
-          <i class="fa-solid fa-xmark"></i>
-          <span>إغلاق</span>
-        </button>
+        <button id="transferCloseBtn" class="btn close-red" style="min-width:80px;">
+  <i class="fa-solid fa-xmark"></i>
+  <span>إغلاق</span>
+</button>
+
+        
+        
       </div>
     </div>
   </div>
