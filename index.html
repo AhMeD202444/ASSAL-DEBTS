@@ -3377,21 +3377,64 @@ function wireTransferModalKeyNav(){
 }
 
 /* ====== ربط الأزرار في الهيدر مع المودال/التوست ====== */
-function wireTransferHeaderButtons() {
-  const btnOpen  = document.getElementById('btnTransferOpen');
-  const btnToast = document.getElementById('btnTransferToast');
+/* ====== ربط أزرار الهيدر بأسلوب التفويض + إعادة الربط الذكي ====== */
+function wireTransferHeaderButtons(){
+  // عنصر الهيدر (حاوية ثابتة)
+  const ribbon = document.querySelector('.ribbon');
+  if (!ribbon) return;
 
-  // نستخدم onclick بدل addEventListener
-  // - إذا الدالة تنعاد أكثر من مرة ما راح يصير تكديس أحداث
-  // - وإذا DOM انبنى من جديد، نثبت الهاندلر من جديد
-  if (btnOpen) {
-    btnOpen.onclick = openTransferModal;
+  // تخلّص من أي هاندلر قديم حتى ما يصير تكرار
+  if (window.__ribbonClickHandlerBound) {
+    ribbon.removeEventListener('click', window.__ribbonClickHandlerBound, { capture: false });
   }
 
-  if (btnToast) {
-    btnToast.onclick = showTransferToast;
+  // هاندلر تفويض: يلقط الكلكات ويقرر حسب الهدف
+  const onRibbonClick = (e) => {
+    const target = e.target.closest('#btnTransferOpen, #btnTransferToast');
+    if (!target) return;
+
+    // امنع أي سلوك غريب من عناصر داخلية
+    e.preventDefault();
+
+    if (target.id === 'btnTransferOpen') {
+      // افتح المودال + نعيد تهيئة مفاتيح الإدخال والحفظ كل مرة
+      try { openTransferModal(); } catch(_) {}
+      try { wireTransferModalKeyNav(); } catch(_) {}
+      return;
+    }
+
+    if (target.id === 'btnTransferToast') {
+      try { showTransferToast(); } catch(_) {}
+      return;
+    }
+  };
+
+  // اربط التفويض مرة واحدة
+  ribbon.addEventListener('click', onRibbonClick, { passive: true });
+  window.__ribbonClickHandlerBound = onRibbonClick;
+
+  // راقب أي تغيّر داخل الهيدر (استبدال/إعادة بناء) وأعد الربط تلقائياً
+  if (!window.__ribbonObserver) {
+    const mo = new MutationObserver(() => {
+      // لو تبدّل شيء كبير، أعد نصب الهاندلر (بحذف القديم وربط الجديد فوق)
+      try { wireTransferHeaderButtons(); } catch(_) {}
+    });
+    mo.observe(ribbon, { childList: true, subtree: true });
+    window.__ribbonObserver = mo;
+  }
+
+  // ضمان إضافي: لما ترجع للتاب بعد وقت طويل، نعيد تهيئة الربط
+  if (!window.__visHandlerBound) {
+    const onVis = () => {
+      if (document.visibilityState === 'visible') {
+        try { wireTransferHeaderButtons(); } catch(_) {}
+      }
+    };
+    document.addEventListener('visibilitychange', onVis, { passive: true });
+    window.__visHandlerBound = onVis;
   }
 }
+
 
 
 /* استدعِ هذا بعد ما الـDOM يجهز (عندك اصلاً نهاية الملف تربط واي أزرار مثل btnImportAll.onclick = smartImportFromServer وغيره) :contentReference[oaicite:15]{index=15} */
