@@ -6665,27 +6665,46 @@ async function smartImportFromServer(){
 
 /* ===== Dedupe Helpers (Lines/Notes) ===== */
 function dedupeCardLines(card){
-  if(!card || !Array.isArray(card.lines)) return;
+  if (!card || !Array.isArray(card.lines)) return;
 
-  // احتفظ بالأحدث لكل lineKey
-  const byKey = new Map();
-  for(const ln of card.lines){
-    const k = lineKey(ln);
-    const cur = byKey.get(k);
-    if(!cur){
-      byKey.set(k, ln);
-    }else{
+  // نستخدم lineId حتى نعرف السطر
+  const byId = new Map();
+
+  for (const ln of card.lines){
+    // إذا الخط عنده lineId نستخدمه كمفتاح
+    // إذا (نادر) ما عنده lineId لأن قديم، نسوي fallback بسيط حتى ما نضيعه
+    const key = ln.lineId || (
+      (ln.item || '') + '|' +
+      (ln.cat || '')  + '|' +
+      (ln.price ?? '')+ '|' +
+      (ln.qty ?? '')  + '|' +
+      (ln.note || '') + '|' +
+      (ln.at || ln.createdAt || ln.updatedAt || '')
+    );
+
+    const cur = byId.get(key);
+    if (!cur){
+      byId.set(key, ln);
+    } else {
+      // إذا نفس السطر إجه بنسختين (مثلاً من sync)، خَل الأحدث
       const curTs = new Date(cur.updatedAt || cur.at || 0).getTime();
       const newTs = new Date(ln.updatedAt || ln.at || 0).getTime();
-      // خذ الأحدث
-      if(newTs > curTs) byKey.set(k, ln);
+      if (newTs > curTs) {
+        byId.set(key, ln);
+      }
     }
   }
-  card.lines = Array.from(byKey.values());
 
-  // رتب نزولياً بالأحدث
-  card.lines.sort((a,b)=> new Date(b.updatedAt||b.createdAt||0) - new Date(a.updatedAt||a.createdAt||0));
+  // رجّع السطور النظيفة
+  card.lines = Array.from(byId.values());
+
+  // رتب الأحدث أولاً (نفس شغلك القديم)
+  card.lines.sort((a,b)=>
+    new Date(b.updatedAt || b.createdAt || 0) -
+    new Date(a.updatedAt || a.createdAt || 0)
+  );
 }
+
 
 function dedupeCardNotes(card){
   if(!card || !Array.isArray(card.notes)) return;
