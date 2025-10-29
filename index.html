@@ -4973,56 +4973,110 @@ function getMutableCard(viewCard){
 
 
 function addCardNote(viewCard, text){
-  if(!viewCard || !text) return false;
+  // viewCard هو البطاقة اللي ظاهرة على الشاشة حالياً
+  // text هو نص الملاحظة
 
-  // اشتغل على الأصل داخل days (حتى ينحفظ فعليًا)
-  const real = getMutableCard(viewCard);
-  if(!real) return false;
+  if (!viewCard) return false;
+  const noteText = (text || '').trim();
+  if (!noteText) return false;
 
-  real.notes ||= [];
-  // وحّد المرجع مع الكارت المعروض حتى تتحدّث الواجهة فورًا
-  viewCard.notes = real.notes;
+  // اشتغل دايمًا على الأصل الحقيقي المخزَّن داخل days
+  const realCard = (typeof getMutableCard === 'function' ? getMutableCard(viewCard) : null) || viewCard;
+  if (!realCard) return false;
 
- const t = nowISO();
-real.notes.push({
-  id: genId(),
-  text,
-  at: t,
-  updatedAt: t,
-  deletedAt: null
-});
-real.updatedAt = t;
+  if (!Array.isArray(realCard.notes)) {
+    realCard.notes = [];
+  }
 
+  const ts = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
 
-  // حدّث آخر نشاط (يفيد بالفرز حسب updatedAt إن موجود)
-  real.updatedAt = new Date().toISOString();
+  realCard.notes.push({
+    id: (typeof crypto !== 'undefined' && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : (Date.now() + '-' + Math.random().toString(16).slice(2)),
+    text: noteText,
+    at: ts
+  });
 
-  save();
+  // حدّث آخر تعديل للبطاقة
+  realCard.updatedAt = ts;
+
+  // خزّن حتى الملاحظة تصير ثابتة ومستحيل تختفي بعد إعادة رسم
+  if (typeof save === 'function') save();
+
+  // حتى البادج مال عدد الملاحظات وواجهة البطاقات تتحدّث فوراً
+  if (typeof renderBoard === 'function') renderBoard();
+  if (typeof renderRail === 'function') renderRail();
+  if (typeof refreshStats === 'function') refreshStats?.();
+
   return true;
 }
 
-function deleteCardNote(viewCard, noteId){
-  if(!viewCard) return false;
 
-  const real = getMutableCard(viewCard);
-  if(!real || !Array.isArray(real.notes)) return false;
+async function deleteCardNote(viewCard, noteObj){
+  // viewCard: البطاقة اللي ظاهرة هسه (card)
+  // noteObj: نفس الملاحظة اللي نريد نحذفها (الكائن نفسه اللي بيه text و id و at ...)
 
-  const i = real.notes.findIndex(n => n.id === noteId);
-  if(i === -1) return false;
+  if (!viewCard || !noteObj) return false;
 
- const n = real.notes[i];
-if(n){
-  n.deletedAt = nowISO();
-  n.updatedAt = n.deletedAt;
-}
-real.updatedAt = nowISO();
+  // تأكيد قبل الحذف حتى ما ينمسح بالغلط
+  const ok = await showConfirm({
+    title: 'حذف ملاحظة',
+    message: 'متأكد تريد تحذف هذي الملاحظة؟',
+    okText: 'حذف',
+    cancelText: 'رجوع',
+    danger: true
+  });
+  if (!ok) return false;
 
+  // نجيب النسخة الأصلية الحقيقية المخزَّنة داخل days
+  const realCard = (typeof getMutableCard === 'function' ? getMutableCard(viewCard) : null) || viewCard;
+  if (!realCard) return false;
 
-  // وحّد المرجع مع الكارت المعروض
-  viewCard.notes = real.notes;
-  save();
+  if (!Array.isArray(realCard.notes)) {
+    // ماكو ملاحظات أصلاً
+    return false;
+  }
+
+  // نحاول نلكى نفس الملاحظة بالأصل
+  let realNote = realCard.notes.find(n =>
+    n === noteObj ||
+    (noteObj.id && n.id === noteObj.id)
+  );
+  if (!realNote) {
+    // fallback: إذا بالعرض جبنا نسخة بدون ربط، استعمل noteObj نفسه
+    realNote = noteObj;
+  }
+
+  const ts = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
+
+  // soft delete: نعلمها محذوفة بدل ما نقصها نهائياً
+  realNote.deletedAt = ts;
+  realNote.updatedAt = ts;
+
+  // حدّث وقت تعديل البطاقة
+  realCard.updatedAt = ts;
+
+  // خزّن تا يبقى الحذف ثابت بعدين
+  if (typeof save === 'function') save();
+
+  // نعيد رسم الواجهة كاملة:
+  if (typeof renderBoard === 'function') renderBoard();
+  if (typeof renderRail === 'function') renderRail();
+  if (typeof refreshStats === 'function') refreshStats?.();
+
+  // إذا المودال مفتوح، جدّد قائمته فوراً حتى تختفي الملاحظة من هناك هم
+  if (typeof renderNotesModalList === 'function') {
+    try { renderNotesModalList(); } catch(_){}
+  }
+
+  if (typeof showToast === 'function') {
+    showToast('error', 'تم حذف الملاحظة');
+  }
+
   return true;
 }
+
 
 
  
@@ -5671,7 +5725,7 @@ function exportDayPDF_Vector(){
 
   if(!cards.length){ showToast('warn','ماكو بطاقات اليوم للتصدير'); return; }
 
-const dateStr = (function(iso){
+  const dateStr = (function(iso){
   try {
     return new Date(iso).toLocaleDateString('ar-EG', {
       weekday: 'long',
@@ -5683,7 +5737,6 @@ const dateStr = (function(iso){
     return document.getElementById('dateBadge')?.textContent || '';
   }
 })(selectedDay);
-
 
   // نحضر بايلود + نمرر قائمة الزبائن المعروفة
   const payload = { dateStr, cards, known: CUSTOMERS || [] };
@@ -7887,4 +7940,3 @@ function addPayment(){
   
 </body>
 </html>
-
