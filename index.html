@@ -1995,6 +1995,287 @@ body{ padding-top: var(--hdr-h); }
   transition:.18s ease;
 }
 
+/* ===== Payments Modal (الحسابات المالية) ===== */
+
+/* تغليف المودال: ناخذ اغلب الشاشة مو مثل المودال الصغير */
+.payments-shell{
+  width: min(1100px, 96vw);
+  max-height: min(90vh, 800px);
+
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+
+  background:linear-gradient(135deg, rgba(20,30,55,.92), rgba(17,25,45,.92));
+  border:1px solid rgba(124,58,237,.35);
+  border-radius:16px;
+  box-shadow:0 24px 70px rgba(0,0,0,.6);
+
+  padding:16px;
+  overflow:hidden;
+  position:relative;
+}
+
+/* الرأس */
+.payments-head{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+
+  border:1px solid var(--stroke);
+  background:linear-gradient(180deg,#0f1a33,#0d172d);
+  border-radius:12px;
+  padding:10px 12px;
+  box-shadow:0 12px 28px rgba(0,0,0,.45);
+  color:#e7eef9;
+}
+.payments-title{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-weight:900;
+  font-size:15px;
+  letter-spacing:.2px;
+  color:#fff;
+}
+.payments-title i{
+  width:28px;height:28px;border-radius:8px;
+  display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--brand,#12d1b4),var(--brand-2,#7c3aed));
+  color:#fff;
+  box-shadow:0 8px 24px rgba(124,58,237,.35);
+  font-size:13px;
+  font-weight:900;
+}
+.payments-actions{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:6px;
+}
+.payments-export{
+  border:1px solid var(--stroke);
+  background:linear-gradient(180deg,#0c1426,#0e1830);
+  color:#e2e8f0;
+  border-radius:10px;
+  box-shadow:0 10px 24px rgba(0,0,0,.4);
+  font-size:13px;
+  font-weight:800;
+  min-width:90px;
+  height:36px;
+}
+.payments-close{
+  background:linear-gradient(135deg,var(--brand,#12d1b4),var(--brand-2,#7c3aed));
+  color:#fff;
+  border:0;
+  border-radius:10px;
+  box-shadow:0 12px 28px rgba(124,58,237,.35);
+  font-size:13px;
+  font-weight:800;
+  min-width:90px;
+  height:36px;
+}
+
+/* الفورم */
+.payments-form{
+  display:grid;
+  grid-template-columns: repeat(5, 1fr) auto;
+  gap:10px;
+  border:1px solid var(--stroke);
+  border-radius:12px;
+  background:#0b1327;
+  box-shadow:0 18px 40px rgba(0,0,0,.45);
+  padding:12px;
+}
+.pf-field{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  min-width:0;
+}
+.pf-label{
+  font-size:12px;
+  font-weight:800;
+  color:#cbd5e1;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.pf-add{
+  display:flex;
+  align-items:flex-end;
+}
+.pf-add-btn{
+  width:100%;
+  height:36px;
+  border-radius:10px;
+  justify-content:center;
+  font-size:13px;
+  font-weight:900;
+  box-shadow:0 12px 28px rgba(124,58,237,.35);
+}
+
+/* اقتراحات الاسماء */
+.pf-cust{
+  position:relative;
+}
+.pf-suggestions{
+  position:absolute;
+  inset-inline-start:0;
+  inset-inline-end:0;
+  top:100%;
+  z-index:20;
+  max-height:160px;
+  overflow-y:auto;
+  border:1px solid var(--stroke);
+  border-radius:10px;
+  background:linear-gradient(180deg,#0f1a33,#0d172d);
+  box-shadow:0 18px 40px rgba(0,0,0,.6);
+  display:none;
+}
+.pf-suggestions .sugg-item{
+  position:relative;
+  cursor:pointer;
+  padding:10px 12px;
+  line-height:1.4;
+  font-size:13px;
+  color:#e7eef9;
+}
+.pf-suggestions .sugg-item + .sugg-item::before{
+  content:"";
+  position:absolute;
+  top:0;
+  inset-inline:12px;
+  height:1px;
+  background:linear-gradient(90deg,
+    rgba(255,255,255,.06),
+    rgba(255,255,255,.12),
+    rgba(255,255,255,.06)
+  );
+  pointer-events:none;
+}
+.pf-suggestions .sugg-item:hover{
+  background:#0e1b36;
+}
+
+/* اللستة/الجدول */
+.payments-list-wrap{
+  border:1px solid var(--stroke);
+  border-radius:12px;
+  background:#0c1529;
+  box-shadow:0 18px 40px rgba(0,0,0,.45);
+  padding:10px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  min-height:180px;
+  max-height:300px;
+  overflow-y:auto;
+  font-size:12.5px;
+  color:#e7eef9;
+}
+
+/* الراس */
+.payments-header-row{
+  display:grid;
+  grid-template-columns: 40px 1fr 80px 120px 1fr 100px 90px 40px;
+  gap:6px;
+  font-weight:900;
+  color:#cbd5e1;
+  border:1px solid var(--stroke);
+  border-radius:10px;
+  background:#0a1327;
+  padding:6px 8px;
+  font-size:12px;
+}
+
+/* السطور المدخولة */
+.payments-rows{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.payment-row{
+  display:grid;
+  grid-template-columns: 40px 1fr 80px 120px 1fr 100px 90px 40px;
+  align-items:center;
+  gap:6px;
+  border:1px solid var(--stroke);
+  border-radius:10px;
+  background:#0c1529;
+  padding:8px;
+  font-size:12px;
+  line-height:1.3;
+  color:#e7eef9;
+}
+
+.payment-row .pay-amt{
+  font-weight:900;
+  text-align:center;
+  background:#0a1020;
+  border:1px solid var(--stroke);
+  border-radius:999px;
+  padding:2px 8px;
+  white-space:nowrap;
+}
+.payment-row .pay-type.pay-in{
+  color:#a7f3d0;
+  background:linear-gradient(180deg,#064e3b,#052e2a);
+  border:1px solid rgba(16,185,129,.35);
+  border-radius:999px;
+  padding:2px 8px;
+  text-align:center;
+  font-weight:800;
+  font-size:11px;
+}
+.payment-row .pay-type.pay-out{
+  color:#fecaca;
+  background:linear-gradient(180deg,#7f1d1d,#4c0b0b);
+  border:1px solid rgba(239,68,68,.35);
+  border-radius:999px;
+  padding:2px 8px;
+  text-align:center;
+  font-weight:800;
+  font-size:11px;
+}
+.payment-del-btn{
+  width:28px;
+  height:28px;
+  border-radius:8px;
+  border:1px solid rgba(239,68,68,.45);
+  background:linear-gradient(135deg,#7f1d1d,#4c0b0b);
+  color:#fecaca;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+  font-size:12px;
+  line-height:0;
+}
+.payment-del-btn:hover{
+  filter:brightness(1.06);
+  transform:scale(1.04);
+  transition:.18s ease;
+}
+
+/* ريسبونسيف تلفونات */
+@media (max-width:700px){
+  .payments-form{
+    grid-template-columns: 1fr 1fr;
+  }
+  .pf-add{
+    grid-column: 1 / -1;
+  }
+  .payments-header-row,
+  .payment-row{
+    grid-template-columns: 28px 1fr 60px 100px 1fr 70px 32px;
+    font-size:11px;
+  }
+}
+
+
 
 
 
@@ -2021,6 +2302,14 @@ body{ padding-top: var(--hdr-h); }
 
       
       <div class="r-right">
+        
+        
+        <!-- زر الحسابات المالية الجديد -->
+  <button id="openPaymentsBtn" class="icon" title="الحسابات المالية">
+    <i class="fa-solid fa-money-bill-transfer"></i>
+  </button>
+        
+        
         
         <!-- زر عرض آخر تاريخ نقل -->
   <div id="btnTransferToast" class="icon" title="عرض آخر تاريخ نقل الديون">
@@ -2397,6 +2686,126 @@ body{ padding-top: var(--hdr-h); }
   </div>
 </div>
 
+<!-- خلفية تغطي الصفحة وتمنع لمس الخلفية -->
+<div id="paymentsBackdrop" class="modal-backdrop"></div>
+
+<!-- مودال الحسابات المالية -->
+<div id="paymentsModal" class="modal">
+  <div class="payments-shell nice-scroll">
+    <!-- رأس النافذة -->
+    <div class="payments-head">
+      <div class="payments-title">
+        <i class="fa-solid fa-wallet"></i>
+        <span>الحسابات المالية</span>
+      </div>
+
+      <div class="payments-actions">
+        <!-- زر التصدير -->
+        <button id="exportPaymentsBtn" class="btn ghost payments-export">
+          <i class="fa-solid fa-file-export"></i>
+          <span>تصدير</span>
+        </button>
+
+        <!-- زر اغلاق -->
+        <button id="closePaymentsBtn" class="btn primary payments-close">
+          <i class="fa-solid fa-xmark"></i>
+          <span>إغلاق</span>
+        </button>
+      </div>
+    </div>
+
+   <form id="paymentsForm" class="payments-form">
+
+  <!-- التاريخ -->
+  <div class="pf-field pf-date">
+    <input
+      id="payDate"
+      class="field"
+      type="date"
+    />
+  </div>
+
+  <!-- اسم الزبون + الاقتراحات -->
+  <div class="pf-field pf-cust">
+    <!-- هنشيل الـ label بعد شوي -->
+    <input
+      id="payCustomer"
+      class="field"
+      type="text"
+      placeholder="اسم الزبون"
+      autocomplete="off"
+    />
+    <div id="payCustSuggestions" class="pf-suggestions nice-scroll"></div>
+  </div>
+
+  <!-- النوع -->
+  <div class="pf-field pf-type">
+    <select id="payType" class="field">
+      <option value="تسديد">تسديد</option>
+      <option value="سحب">سحب</option>
+    </select>
+  </div>
+
+  <!-- المبلغ -->
+  <div class="pf-field pf-amount">
+    <input
+      id="payAmount"
+      class="field"
+      type="text"
+      inputmode="numeric"
+      placeholder="100,000"
+    />
+  </div>
+
+  <!-- الملاحظات -->
+  <div class="pf-field pf-notes">
+    <input
+      id="payNotes"
+      class="field"
+      type="text"
+      placeholder="ملاحظة (اختياري)"
+    />
+  </div>
+
+  <!-- زر إضافة -->
+  <div class="pf-field pf-add">
+    <button id="addPaymentBtn" type="submit" class="btn primary pf-add-btn">
+      <i class="fa-solid fa-plus"></i>
+      <span>إضافة</span>
+    </button>
+  </div>
+
+</form>
+
+
+ <!-- جدول المعاملات المدخولة (نفس فكرة العناصر اللي انت ترتبها بكارت/جدول داخل نفس النافذة بدون ما تطلع برا) :contentReference[oaicite:5]{index=5} -->
+    <div class="payments-list-wrap nice-scroll">
+     
+     
+     <div class="payments-header-row">
+  <div>#</div>
+  <div>الاسم</div>
+  <div>النوع</div>
+  <div>المبلغ (د.ع)</div>
+  <div>ملاحظات</div>
+  <div>تاريخ</div>   <!-- جديد -->
+  <div>وقت</div>
+  <div>حذف</div>
+</div>
+     
+      <div id="paymentsRows" class="payments-rows">
+        <!-- السطور تندفع هنا بالدالة renderPaymentsRows() -->
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
 
 
 
@@ -2454,6 +2863,19 @@ async function loadExcelFiles(){
   }
 }
 
+
+// 👇 جديد
+// آخر مرة المستخدم عدّل بيها شي (إضافة مادة, حذف سطر, تسديد, تغيير ملاحظة, ...)
+// أول ما تفتح الصفحة نخليها 0
+let LAST_EDIT_TS = 0;
+
+// كم نطي "هدنة" قبل ما نسمح بالأوتو-مزامنة بعد أي تعديل محلي
+// يعني خلال هالفترة، أي Sync خارجي ممنوع
+const AUTO_SYNC_GRACE_MS = 10 * 1000; // 10 ثواني. تكدر تخليها 15000 = 15 ثانية.
+
+
+
+
 /* ===== Auto Sync (every 15 min, no toast on load) ===== */
 
 // مدة التزامن الدوري
@@ -2473,21 +2895,27 @@ let __autoSyncTimer   = null;
 function canAutoSyncNow(){
   const now = Date.now();
 
-  // لحد يشتغل قبل أول موعد محدد
+  // 1) لا تشتغل قبل ما يجي وقت أول مزامنة مجدولة
   if (now < firstAutoSyncAt) return false;
 
-  // ما يصير أقل من الثروتل
+  // 2) إذا صار تعديل محلي قبل شوي → لا تسوي Sync
+  //    يعني لا تروح تندمج ويا السيرفر وتجيب حالة أقدم من اللي هسه عدّلناها
+  if (now - LAST_EDIT_TS < AUTO_SYNC_GRACE_MS) {
+    return false;
+  }
+
+  // 3) ثروتل عام (حتى ما نزعج السيرفر كل دقيقة)
   if (now - __lastAutoSyncAt < AUTO_SYNC_THROTTLE_MS) return false;
 
-  // لازم داخل السيشن ومسجّل دخول
+  // 4) شروط البيئة: لازم أنت داخل، أونلاين، والتبويب قدامك
   if (!window.IS_SIGNED_IN) return false;
-
-  // لازم اونلاين وبالواجهة مرئية
   if (!navigator.onLine) return false;
   if (document.visibilityState !== 'visible') return false;
 
+  // 5) كلشي تمام، نسمح بالمزامنة
   return true;
 }
+
 
 // شغّل المزامنة، واظهر توست فقط لو كانت "تلقائية" ونجحت
 // شغّل المزامنة، واظهر توست واحد فقط بعد النجاح
@@ -6687,6 +7115,7 @@ function dedupeCardLines(card){
   card.lines.sort((a,b)=> new Date(b.updatedAt||b.createdAt||0) - new Date(a.updatedAt||a.createdAt||0));
 }
 
+
 function dedupeCardNotes(card){
   if(!card || !Array.isArray(card.notes)) return;
   const byKey = new Map();
@@ -6790,7 +7219,6 @@ function dedupeAllDays(daysObj){
     }
   }, 3000);
 })();
-
 
 
   </script>
@@ -7087,6 +7515,279 @@ onAuthStateChanged(auth, async (user)=>{
 
 
 </script>
+
+<script>
+(function(){
+  // عناصر DOM
+  const body = document.body;
+  const paymentsBackdrop = document.getElementById('paymentsBackdrop');
+  const paymentsModal    = document.getElementById('paymentsModal');
+  const openBtn          = document.getElementById('openPaymentsBtn');
+  const closeBtn         = document.getElementById('closePaymentsBtn');
+  const exportBtn        = document.getElementById('exportPaymentsBtn');
+
+  const inpDate     = document.getElementById('payDate');
+  const form             = document.getElementById('paymentsForm');
+  const inpCustomer      = document.getElementById('payCustomer');
+  const inpType          = document.getElementById('payType');
+  const inpAmount        = document.getElementById('payAmount');
+  const inpNotes         = document.getElementById('payNotes');
+  const addBtn           = document.getElementById('addPaymentBtn');
+
+  const suggBox          = document.getElementById('payCustSuggestions');
+  const rowsWrap         = document.getElementById('paymentsRows');
+
+  // البيانات بالذاكرة
+  let paymentsData = [];
+ // لا تنسَ تصلّح getAllCustomers فوق بالمشروع كله
+function getAllCustomers(){
+  return Array.isArray(CUSTOMERS) ? [...CUSTOMERS] : [];
+}
+
+
+  // ========== فتح / غلق ==========
+ 
+ function openPayments(){
+  paymentsBackdrop.classList.add('active');
+  paymentsModal.classList.add('active');
+  body.classList.add('modal-open');
+
+  // عبّي التاريخ اليوم بصيغة YYYY-MM-DD
+  const todayISO = new Date().toISOString().slice(0,10);
+  if (inpDate && !inpDate.value) {
+    inpDate.value = todayISO;
+  }
+
+  inpCustomer.focus();
+}
+
+ 
+  function closePayments(){
+    paymentsBackdrop.classList.remove('active');
+    paymentsModal.classList.remove('active');
+    body.classList.remove('modal-open');
+  }
+
+  openBtn.addEventListener('click', openPayments);
+  closeBtn.addEventListener('click', closePayments);
+  paymentsBackdrop.addEventListener('click', closePayments);
+
+  // ========== تنسيق المبلغ (فوارز د.ع) ==========
+ function formatIQD(v){
+  const n = Number(String(v||'').replace(/[^\d.]/g,''));
+  if(!isFinite(n)) return '';
+  return n.toLocaleString('en-US'); // يطلع "12,500"
+}
+
+// ربطها بحقل المبلغ
+inpAmount.addEventListener('input', ()=>{
+  const caretPos = inpAmount.selectionStart;
+  const oldLen   = inpAmount.value.length;
+  inpAmount.value = formatIQD(inpAmount.value);
+  const newLen   = inpAmount.value.length;
+  inpAmount.selectionStart = inpAmount.selectionEnd = caretPos + (newLen-oldLen);
+});
+
+  inpAmount.addEventListener('input', ()=>{
+    const caretPos = inpAmount.selectionStart;
+    const oldLen   = inpAmount.value.length;
+    inpAmount.value = formatIQD(inpAmount.value);
+    // رجع الكارِت تقريبياً حتى ما يقفز المؤشر لنهاية بعنف
+    const newLen   = inpAmount.value.length;
+    inpAmount.selectionStart = inpAmount.selectionEnd = caretPos + (newLen-oldLen);
+  });
+
+  // ========== اقتراحات الاسم ==========
+function showCustSuggestions(prefix){
+  const q = prefix.trim();
+  if(!q){
+    suggBox.style.display='none';
+    return;
+  }
+
+  const allNames = getAllCustomers();
+  const list = allNames.filter(n => n.includes(q)); // بدون slice
+
+  let html = '';
+  if(list.length){
+    list.forEach(n=>{
+      html += `<div class="sugg-item" data-name="${n}">${n}</div>`;
+    });
+  }
+
+  suggBox.innerHTML = html;
+  suggBox.style.display = list.length ? 'block' : 'none';
+}
+
+
+
+  inpCustomer.addEventListener('input', e=>{
+    showCustSuggestions(e.target.value);
+  });
+
+  // اختيار من الاقتراح
+  suggBox.addEventListener('click', e=>{
+    const item = e.target.closest('.sugg-item');
+    if(!item) return;
+    const name = item.getAttribute('data-name') || '';
+    inpCustomer.value = name;
+    suggBox.style.display='none';
+    inpType.focus();
+  });
+
+  // لو يطلع برّه، نخفيها شوي
+  document.addEventListener('click', e=>{
+    if(!paymentsModal.contains(e.target)){ return; }
+    if(e.target===inpCustomer || e.target.closest('.pf-cust')) return;
+    suggBox.style.display='none';
+  });
+
+  // ========== إضافة دفعة ==========
+function addPayment(){
+  const cust   = inpCustomer.value.trim();
+  const kind   = inpType.value;
+  const amtStr = inpAmount.value.replace(/[^\d.]/g,''); // نفس طريقتك بالتنظيف
+  const notes  = inpNotes.value.trim();
+  const day    = inpDate.value || new Date().toISOString().slice(0,10);
+
+  if(!cust || !amtStr){
+    // هنا تقدر تحط توست تحذير اذا تحب
+    return;
+  }
+
+  const amountNum = Number(amtStr) || 0;
+
+  const now  = new Date();
+  const time = now.toLocaleTimeString('ar-IQ', { hour:'2-digit', minute:'2-digit' });
+
+  paymentsData.push({
+    cust,
+    kind,
+    amount: amountNum,
+    notes,
+    date: day,   // <-- جديد
+    time
+  });
+
+  renderPaymentsRows();
+
+  // نفرغ الحقول للمدخل التالي (سلوكك الحالي)
+  inpCustomer.value='';
+  inpAmount.value='';
+  inpNotes.value='';
+  // خليه ما يمسح التاريخ، حتى اذا قاعد تدخّل أكثر من صف بنفس اليوم
+  // inpDate.value = day;  // إذا تريد تثبت التاريخ، خليه. إذا تريد يصفّر، سوّي inpDate.value='';
+
+  suggBox.style.display='none';
+  inpCustomer.focus();
+}
+
+
+  function deletePayment(idx){
+    paymentsData.splice(idx,1);
+    renderPaymentsRows();
+  }
+
+ function renderPaymentsRows(){
+  rowsWrap.innerHTML = paymentsData.map((row,idx)=>{
+    const formattedAmt = row.amount.toLocaleString('ar-IQ');
+    const isIn  = row.kind === 'تسديد';
+    return `
+      <div class="payment-row">
+        <div>${idx+1}</div>
+        <div>${row.cust}</div>
+        <div>
+          <div class="pay-type ${isIn ? 'pay-in':'pay-out'}">${row.kind}</div>
+        </div>
+        <div class="pay-amt">${formattedAmt}</div>
+        <div>${row.notes || ''}</div>
+        <div>${row.date || ''}</div>   <!-- تاريخ جديد -->
+        <div>${row.time}</div>
+        <div>
+          <button class="payment-del-btn" data-idx="${idx}">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+
+  rowsWrap.addEventListener('click', e=>{
+    const btn = e.target.closest('.payment-del-btn');
+    if(!btn) return;
+    const idx = Number(btn.getAttribute('data-idx'));
+    deletePayment(idx);
+  });
+
+  // ========== Enter flow ==========
+  // ترتيب الإدخال: اسم -> نوع -> مبلغ -> ملاحظات -> إضافة
+  function focusNext(current){
+    if(current===inpCustomer){ inpType.focus(); return; }
+    if(current===inpType){ inpAmount.focus(); return; }
+    if(current===inpAmount){ inpNotes.focus(); return; }
+    if(current===inpNotes){ addPayment(); return; }
+  }
+
+  [inpCustomer, inpType, inpAmount, inpNotes].forEach(el=>{
+    el.addEventListener('keydown', e=>{
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        focusNext(el);
+      }
+    });
+  });
+
+  // الفورم نفسه (اضافة)
+  form.addEventListener('submit', e=>{
+    e.preventDefault();
+    addPayment();
+  });
+
+  addBtn.addEventListener('click', e=>{
+    e.preventDefault();
+    addPayment();
+  });
+
+  // ========== تصدير ==========
+  // انت اصلاً محمل xlsx و html2pdf فوق بالـ<HEAD> :contentReference[oaicite:15]{index=15}
+  // هنا نخليك دالة بسيطة تصدّر Excel (تقدر تعدلها تتماشى مع دوالك الحالية 1:1)
+  exportBtn.addEventListener('click', ()=>{
+    if(!paymentsData.length){
+      // triggerToast("ماكو بيانات للتصدير","warn")
+      return;
+    }
+
+    // نبني صفوف للإكسل
+    const sheetData = [
+      ["#", "الاسم", "النوع", "المبلغ (د.ع)", "ملاحظات", "وقت"]
+    ];
+
+    paymentsData.forEach((row,idx)=>{
+      sheetData.push([
+        idx+1,
+        row.cust,
+        row.kind,
+        row.amount, // رقم خام بدون فوارز حتى يقرأه Excel عدد
+        row.notes || "",
+        row.time
+      ]);
+    });
+
+    // XLSX Utils
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    XLSX.utils.book_append_sheet(wb, ws, "الحسابات");
+    XLSX.writeFile(wb, "payments.xlsx");
+  });
+
+})();
+</script>
+
+
+
+
   
 </body>
 </html>
