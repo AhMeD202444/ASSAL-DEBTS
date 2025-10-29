@@ -4120,7 +4120,7 @@ document.getElementById('btnAdd').onclick = () => {
   }
 
   // اضف السطر الجديد
-  card.lines.push({
+ card.lines.unshift({
     lineId    : genId(),
     item, cat,
     price     : priceVal,
@@ -7242,27 +7242,11 @@ async function smartImportFromServer(){
 
 /* ===== Dedupe Helpers (Lines/Notes) ===== */
 function dedupeCardLines(card){
-  if(!card || !Array.isArray(card.lines)) return;
-
-  // احتفظ بالأحدث لكل lineKey
-  const byKey = new Map();
-  for(const ln of card.lines){
-    const k = lineKey(ln);
-    const cur = byKey.get(k);
-    if(!cur){
-      byKey.set(k, ln);
-    }else{
-      const curTs = new Date(cur.updatedAt || cur.at || 0).getTime();
-      const newTs = new Date(ln.updatedAt || ln.at || 0).getTime();
-      // خذ الأحدث
-      if(newTs > curTs) byKey.set(k, ln);
-    }
-  }
-  card.lines = Array.from(byKey.values());
-
-  // رتب نزولياً بالأحدث
-  card.lines.sort((a,b)=> new Date(b.updatedAt||b.createdAt||0) - new Date(a.updatedAt||a.createdAt||0));
+  // لا تدمج ولا تحذف أي سطر
+  // نخلي كل السطور مثل ما هي
+  return;
 }
+
 
 
 function dedupeCardNotes(card){
