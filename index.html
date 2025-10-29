@@ -4056,19 +4056,21 @@ async function processToastQueueUnified(){
       });
     }
 
-
+    /* ====== إضافة سطر (نظيف) ====== */
 /* ====== إضافة سطر (نظيف) ====== */
 document.getElementById('btnAdd').onclick = () => {
-  const customer = (document.getElementById('cust').value  || '').trim();
-  const item     = (document.getElementById('item').value  || '').trim();
+  const customer = (document.getElementById('cust').value || '').trim();
+  const item     = (document.getElementById('item').value || '').trim();
+ 
+ const priceVal = Number(parseIQD(document.getElementById('price').value) || 0);
 
-  // السعر يندخل نص مثل "12,000" فنحوّله رقم فعلي باستخدام parseIQD
-  const priceVal = Number(parseIQD(document.getElementById('price').value) || 0);
 
-  let   qty   = String(document.getElementById('qty').value  || '1').trim();
-  const cat   = (document.getElementById('cat').value  || '').trim();
-  const type  = (document.getElementById('type').value || 'بيع').trim(); // "بيع" أو "راجع"
-  const note  = (document.getElementById('note').value || '').trim();
+ 
+ 
+  let   qty      = String(document.getElementById('qty').value || '1').trim();
+  const cat      = (document.getElementById('cat').value || '').trim();
+  const type     = (document.getElementById('type').value || 'بيع').trim(); // بيع / راجع
+  const note     = (document.getElementById('note').value || '').trim();
 
   if (!customer || !item) return;
   if (!/^\d+$/.test(qty)) qty = '1';
@@ -4077,96 +4079,80 @@ document.getElementById('btnAdd').onclick = () => {
 
   let createdNewCard = false;
 
-  // نحاول نلكه بطاقة لنفس الزبون بشرط ما تكون محذوفة
-  let cardIndex = days[selectedDay].findIndex(c => c.customer === customer && !c.deletedAt);
-  let card      = days[selectedDay][cardIndex];
 
-  const now = nowISO();
+// ابحث عن البطاقة وموقعها (استبعد المحذوفة)
+let cardIndex = days[selectedDay].findIndex(c => c.customer === customer && !c.deletedAt);
+let card = days[selectedDay][cardIndex];
 
-  if (!card) {
-    // ماكو بطاقة؟ سوّ بطاقة جديدة ودفّعها للأعلى
-    card = {
-      id        : Date.now(),
-      customer,
-      lines     : [],
-      createdAt : now,
-      updatedAt : now,
-      paidAll   : false,
-      billType  : type   // بيع / راجع
-    };
-    days[selectedDay].unshift(card);
-    createdNewCard = true;
-  } else {
-    // إذا كانت محذوفة منطقيًا رجّعها
-    if (card.deletedAt) {
-      delete card.deletedAt;
-    }
-
-    // نوع الفاتورة: لو اختلف بين سطور مختلفة نصير "مختلط"
-    if (card.billType && card.billType !== type) card.billType = 'مختلط';
-    if (!card.billType) card.billType = type;
-
-    // تحديت آخر نشاط وارفعها فوق
-    card.updatedAt = now;
-    days[selectedDay].splice(cardIndex, 1);
-    days[selectedDay].unshift(card);
+if (!card) {
+  // إنشاء بطاقة جديدة + updatedAt
+  card = {
+    id: Date.now(),
+    customer,
+    lines: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    paidAll: false,
+    billType: type
+  };
+  days[selectedDay].unshift(card);
+  createdNewCard = true;
+} else {
+  // ✅ إنعاش البطاقة إذا كانت محذوفة منطقيًا (حالة نادرة لو لقّطتها من مصدر قديم)
+  if (card.deletedAt) {
+    delete card.deletedAt;
   }
+
+  // لو نوع مختلف يصير مختلط
+  if (card.billType && card.billType !== type) card.billType = 'مختلط';
+  if (!card.billType) card.billType = type;
+
+  // حدّث آخر نشاط وارفع البطاقة للأعلى
+  card.updatedAt = new Date().toISOString();
+  days[selectedDay].splice(cardIndex, 1);
+  days[selectedDay].unshift(card);
+}
+
 
   const isReturn = (type === 'راجع');
+  
+const now = nowISO();
 
-  // إذا هاي أول مادة "حية" بالبطاقة (حتى لو البطاقة قديمة فاضية أو كل سطورها محذوفة)
-  if (!Array.isArray(card.lines) || !card.lines.some(l => !l.deletedAt)) {
-    card.createdAt = now;
-  }
+if (card && (!Array.isArray(card.lines) || !card.lines.some(l => !l.deletedAt))) {
+  card.createdAt = now;
+}
 
-  // اضف السطر الجديد
-  card.lines.push({
-    lineId    : genId(),
-    item, cat,
-    price     : priceVal,
-    qty,
-    note,
-    type,                         // "بيع"/"راجع"
-    paid      : false,
-    returned  : isReturn,
-    createdAt : now,
-    updatedAt : now,
-    at        : now,              // توافق قديم
-    deletedAt : null
-  });
+card.lines.push({
+  lineId   : genId(),
+  item, cat, price: priceVal, qty, note, type,
+  paid:false, returned:isReturn,
+  createdAt: now,
+  updatedAt: now,
+  at: now,                 // <— إضافة لضمان التوافق القديم
+  deletedAt: null
+});
 
-  // حدّث آخر تعديل للبطاقة
-  card.updatedAt = now;
+card.updatedAt = now;
 
-  // بعد إضافة السطر، حدّث حالة paidAll (يمكن تكون false دايمًا بالبداية بس نخليها صح)
-  card.paidAll = allActivePaid(card);
 
-  // خزّن باللوكال ستوريج
   save();
 
-  // نظّف الحقول بعد الإدخال
-  document.getElementById('item').value  = '';
-  document.getElementById('price').value = '';
-  document.getElementById('qty').value   = '';
-  document.getElementById('note').value  = '';
+
+  document.getElementById('item').value = '';
+  document.getElementById('price').value = '';   // <-- نظّف السعر
+  document.getElementById('qty').value  = '';
+  document.getElementById('note').value = '';
   document.getElementById('item').focus();
 
-  // أعد رسم البورد والريل والإحصائيات
   renderBoard();
   renderRail();
   refreshStats();
 
-  // سكرول ووميض للبطاقة اللي تتحرك للأعلى حتى تشوفها
+  // اسحب الكارت أسفل شريط البحث بمسافة أنيقة دائمًا
   focusNewCard(card);
 
-  showToast(
-    'success',
-    createdNewCard
-      ? 'تم إنشاء بطاقة وإضافة مادة'
-      : 'تم إضافة مادة وتحريك البطاقة للأعلى'
-  );
+  showToast('success', createdNewCard ? 'تم إنشاء بطاقة وإضافة مادة' : 'تم إضافة مادة وتحريك البطاقة للأعلى');
 };
-
 
 
 
@@ -4405,133 +4391,85 @@ function renderBoard() {
         );
 
         // ===== تبديل "راجع" للسطر =====
- btnReturn.onclick = () => {
-  // اشتغل على الكارت الحقيقي
-  const realCard = getMutableCard(card) || card;
+        btnReturn.onclick = () => {
+          ln.returned = !ln.returned;
+          if (ln.returned) ln.paid = false;
 
-  // لاقي نفس السطر بداخل البطاقة الأصلية (حسب lineId أو المرجع المباشر)
-  let realLine = (realCard.lines || []).find(
-    l => l === ln || l.lineId === ln.lineId
-  );
-  if (!realLine) {
-    realLine = ln; // احتياط
-  }
+          ln.updatedAt = nowISO();
 
-  // قلب حالة الراجع
-  realLine.returned = !realLine.returned;
-  if (realLine.returned) {
-    realLine.paid = false; // راجع ما يصير مدفوع
-  }
+          // مهم: حدّث البطاقة الأصلية الحقيقة (مو بس نسخة العرض) حتى ما يصير تناقض بعدين
+          const realCard = getMutableCard(card) || card;
+          realCard.updatedAt = ln.updatedAt;
 
-  const t = nowISO();
-  realLine.updatedAt = t;
+          save();
+          renderBoard();
+          renderRail();
+          refreshStats();
 
-  // عطّل نسخة العرض حتى تبقى الواجهة متزامنة فوراً
-  ln.returned  = realLine.returned;
-  ln.paid      = realLine.paid;
-  ln.updatedAt = realLine.updatedAt;
-
-  // حدّث بطاقة الأصل
-  realCard.updatedAt = t;
-
-  // بعد أي تعديل على سطر، لازم نعيد حساب paidAll للبطاقة
-  realCard.paidAll = allActivePaid(realCard);
-
-  save();
-  renderBoard();
-  renderRail();
-  refreshStats();
-
-  showToast(
-    realLine.returned ? 'warn' : 'info',
-    realLine.returned ? 'تم تعليمها راجع' : 'تم إلغاء الراجع'
-  );
-};
-
+          showToast(
+            ln.returned ? 'warn' : 'info',
+            ln.returned ? 'تم تعليمها راجع' : 'تم إلغاء الراجع'
+          );
+        };
 
         // ===== تبديل "مدفوع" للسطر =====
-btnPay.onclick = () => {
-  const realCard = getMutableCard(card) || card;
+        btnPay.onclick = () => {
+          ln.paid = !ln.paid;
+          if (ln.paid) ln.returned = false;
 
-  let realLine = (realCard.lines || []).find(
-    l => l === ln || l.lineId === ln.lineId
-  );
-  if (!realLine) {
-    realLine = ln;
-  }
+          ln.updatedAt = nowISO();
 
-  // قلب حالة المدفوع
-  realLine.paid = !realLine.paid;
+          const realCard = getMutableCard(card) || card;
+          realCard.updatedAt = ln.updatedAt;
 
-  // إذا صار مدفوع = لازم ما يكون راجع
-  if (realLine.paid) {
-    realLine.returned = false;
-  }
+          save(); // بنفس فكرتك، بعدين ممكن يصير export للسيرفر
+          renderBoard();
+          renderRail();
+          refreshStats();
 
-  const t = nowISO();
-  realLine.updatedAt = t;
-
-  // حدث نسخة العرض
-  ln.paid      = realLine.paid;
-  ln.returned  = realLine.returned;
-  ln.updatedAt = realLine.updatedAt;
-
-  // حدث البطاقة
-  realCard.updatedAt = t;
-
-  // حدّث حالة "تسديد الكل" على مستوى البطاقة
-  realCard.paidAll = allActivePaid(realCard);
-
-  save();
-  renderBoard();
-  renderRail();
-  refreshStats();
-
-  showToast(
-    realLine.paid ? 'success' : 'info',
-    realLine.paid ? 'تم تسديد المادة' : 'تم إلغاء التسديد'
-  );
-};
-
+          showToast(
+            ln.paid ? 'success' : 'info',
+            ln.paid ? 'تم تسديد المادة' : 'تم إلغاء التسديد'
+          );
+        };
 
         // ===== حذف السطر (الإصلاح الحقيقي تبع مشكلتك الأولى) =====
-  del.onclick = async () => {
-  const ok = await showConfirm({
-    title     : 'تأكيد حذف السطر',
-    message   : `هل تريد حذف "${ln.item}"؟`,
-    okText    : 'حذف',
-    cancelText: 'إلغاء',
-    danger    : true
-  });
-  if (!ok) return;
+        del.onclick = async () => {
+          const ok = await showConfirm({
+            title: 'تأكيد حذف السطر',
+            message: `هل تريد حذف "${ln.item}"؟`,
+            okText: 'حذف',
+            cancelText: 'إلغاء',
+            danger: true
+          });
+          if (!ok) return;
 
-  const realCard = getMutableCard(card) || card;
+          // نجيب النسخة الحقيقية من البطاقة (حتى لو انت فاتح بحث شامل لكل الأيام)
+          const realCard = getMutableCard(card) || card;
 
-  let realLine = (realCard.lines || []).find(
-    l => l === ln || l.lineId === ln.lineId
-  );
-  if (!realLine) {
-    realLine = ln;
-  }
+          // نحدد نفس السطر جوّا البطاقة الحقيقية
+          let realLine = (realCard.lines || []).find(
+            l => l === ln || l.lineId === ln.lineId
+          );
+          if (!realLine) {
+            // احتياط إذا لأي سبب ما لقيناه
+            realLine = ln;
+          }
 
-  const delTs = nowISO();
-  realLine.deletedAt = delTs;
-  realLine.updatedAt = delTs;
+          const delTs = nowISO();
+          realLine.deletedAt = delTs;
+          realLine.updatedAt = delTs;
 
-  // حدث البطاقة
-  realCard.updatedAt = delTs;
+          // حدّث وقت البطاقة الحقيقية حتى الدمج/الفرز يحترم آخر تعديل
+          realCard.updatedAt = delTs;
 
-  // بعد حذف السطر، لازم نرجع نحسب paidAll من جديد
-  realCard.paidAll = allActivePaid(realCard);
+          save();
+          renderBoard();
+          renderRail();
+          refreshStats();
 
-  save();
-  renderBoard();
-  renderRail();
-  refreshStats();
-
-  showToast('error', 'تم حذف المادة');
-};
-
+          showToast('error', 'تم تعليم السطر كمحذوف');
+        };
 
         itemsWrap.appendChild(it);
       });
@@ -4650,79 +4588,61 @@ btnPay.onclick = () => {
     card.paidAll = allActivePaid(card);
     stylePayAll(btnPayAll, card);
 
-btnPayAll.onclick = () => {
-  // مهم: اشتغل على النسخة الحقيقية حتى لو الكارت اللي تشوفه جاي من بحث كل الأيام
-  const realCard = getMutableCard(card) || card;
+    btnPayAll.onclick = () => {
+      if (!card.lines.length) return;
+      const active = activeLines(card);
+      if (active.length === 0) return;
 
-  // نجيب فقط السطور النشطة (مو محذوفة ومو راجعة)
-  const active = activeLines(realCard);
-  if (active.length === 0) return;
+      const allPaidBefore = active.every(l => l.paid);
+      const makePaid = !allPaidBefore;
 
-  // نشوف هل كلها كانت مدفوعة قبل؟
-  const allPaidBefore = active.every(l => l.paid);
-  const makePaid      = !allPaidBefore;
+      active.forEach(l => { l.paid = makePaid; });
+      card.paidAll = allActivePaid(card);
 
-  const t = nowISO();
+      card.updatedAt = new Date().toISOString();
 
-  // قلب الدفع لكل سطر فعلي
-  active.forEach(l => {
-    l.paid = makePaid;
-    if (makePaid) {
-      // اذا احنا دا نعتبرها مدفوعة جماعياً، أكيد مو راجعة
-      l.returned = false;
-    }
-    l.updatedAt = t;
-  });
+      save();
+      renderBoard();
+      renderRail();
+      refreshStats();
 
-  // سجل حالة البطاقة
-  realCard.paidAll   = allActivePaid(realCard);
-  realCard.updatedAt = t;
-
-  save();
-  renderBoard();
-  renderRail();
-  refreshStats();
-
-  showToast(
-    makePaid ? 'success' : 'info',
-    makePaid ? 'تم تسديد كل المواد' : 'تم إلغاء تسديد الكل'
-  );
-};
-
+      showToast(
+        makePaid ? 'success' : 'info',
+        makePaid ? 'تم تسديد كل المواد' : 'تم إلغاء تسديد الكل'
+      );
+    };
 
     // زر حذف البطاقة كاملة
     const btnDelCard = CE('button', 'i-btn');
     btnDelCard.innerHTML = '<i class="fa-regular fa-trash-can"></i><span>حذف البطاقة</span>';
     btnDelCard.title = 'حذف البطاقة';
-btnDelCard.onclick = async () => {
-  const ok = await showConfirm({
-    title     : 'تأكيد حذف البطاقة',
-    message   : `سيتم حذف بطاقة "${card.customer}" بكافة موادها.`,
-    okText    : 'حذف البطاقة',
-    cancelText: 'إلغاء',
-    danger    : true
-  });
-  if (!ok) return;
+    btnDelCard.onclick = async () => {
+      const ok = await showConfirm({
+        title: 'تأكيد حذف البطاقة',
+        message: `سيتم حذف بطاقة "${card.customer}" بكافة موادها.`,
+        okText: 'حذف البطاقة',
+        cancelText: 'إلغاء',
+        danger: true
+      });
+      if (!ok) return;
 
-  // لازم نحذف من اليوم الحقيقي مال البطاقة (مهم إذا احنا بعرض بحث كل الأيام)
-  const dayKey = card.__day || selectedDay;
-  const arrRef = (days[dayKey] || []);
-  const real   = arrRef.find(c => c.id === card.id);
+      // إذا انت بوضع البحث الشامل، لازم نحذف من يومها الحقيقي
+      const dayKey = card.__day || selectedDay;
+      const arrRef = (days[dayKey] || []);
+      const real = arrRef.find(c => c.id === card.id);
+      if (real) {
+        const tsDel = nowISO();
+        real.deletedAt = tsDel;
+        real.updatedAt = tsDel;
+        save();
+      }
 
-  if (real) {
-    const tsDel = nowISO();
-    real.deletedAt = tsDel;
-    real.updatedAt = tsDel;
-    save();
-  }
+      renderBoard();
+      renderRail();
+      refreshStats();
 
-  renderBoard();
-  renderRail();
-  refreshStats();
-
-  showToast('error', 'تم حذف البطاقة');
-};
-
+      showToast('error', 'تم حذف البطاقة');
+    };
 
     // زر ملاحظات (المودال الرئيسي مالت الملاحظات)
     const btnNotes = CE('button', 'i-btn');
@@ -4960,123 +4880,65 @@ function focusNewCard(card){
     
     
    // (جديد) رجّع الكارت الأصلي المخزَّن داخل days اعتمادًا على __day + id
-// يرجّع نسخة "حية" من البطاقة الأصلية داخل days حتى لو اللي تشوفه نسخة بحث
 function getMutableCard(viewCard){
-  if (!viewCard) return null;
-
+  if(!viewCard) return null;
   const dayKey = viewCard.__day || selectedDay;
-  const arr    = days[dayKey] || [];
-
+  const arr = days[dayKey] || [];
   const idx = arr.findIndex(c => c.id === viewCard.id);
   return idx >= 0 ? arr[idx] : null;
 }
 
-
 function addCardNote(viewCard, text){
-  // viewCard هو البطاقة اللي ظاهرة على الشاشة حالياً
-  // text هو نص الملاحظة
+  if(!viewCard || !text) return false;
 
-  if (!viewCard) return false;
-  const noteText = (text || '').trim();
-  if (!noteText) return false;
+  // اشتغل على الأصل داخل days (حتى ينحفظ فعليًا)
+  const real = getMutableCard(viewCard);
+  if(!real) return false;
 
-  // اشتغل دايمًا على الأصل الحقيقي المخزَّن داخل days
-  const realCard = (typeof getMutableCard === 'function' ? getMutableCard(viewCard) : null) || viewCard;
-  if (!realCard) return false;
+  real.notes ||= [];
+  // وحّد المرجع مع الكارت المعروض حتى تتحدّث الواجهة فورًا
+  viewCard.notes = real.notes;
 
-  if (!Array.isArray(realCard.notes)) {
-    realCard.notes = [];
-  }
+ const t = nowISO();
+real.notes.push({
+  id: genId(),
+  text,
+  at: t,
+  updatedAt: t,
+  deletedAt: null
+});
+real.updatedAt = t;
 
-  const ts = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
 
-  realCard.notes.push({
-    id: (typeof crypto !== 'undefined' && crypto.randomUUID)
-          ? crypto.randomUUID()
-          : (Date.now() + '-' + Math.random().toString(16).slice(2)),
-    text: noteText,
-    at: ts
-  });
+  // حدّث آخر نشاط (يفيد بالفرز حسب updatedAt إن موجود)
+  real.updatedAt = new Date().toISOString();
 
-  // حدّث آخر تعديل للبطاقة
-  realCard.updatedAt = ts;
-
-  // خزّن حتى الملاحظة تصير ثابتة ومستحيل تختفي بعد إعادة رسم
-  if (typeof save === 'function') save();
-
-  // حتى البادج مال عدد الملاحظات وواجهة البطاقات تتحدّث فوراً
-  if (typeof renderBoard === 'function') renderBoard();
-  if (typeof renderRail === 'function') renderRail();
-  if (typeof refreshStats === 'function') refreshStats?.();
-
+  save();
   return true;
 }
 
+function deleteCardNote(viewCard, noteId){
+  if(!viewCard) return false;
 
-async function deleteCardNote(viewCard, noteObj){
-  // viewCard: البطاقة اللي ظاهرة هسه (card)
-  // noteObj: نفس الملاحظة اللي نريد نحذفها (الكائن نفسه اللي بيه text و id و at ...)
+  const real = getMutableCard(viewCard);
+  if(!real || !Array.isArray(real.notes)) return false;
 
-  if (!viewCard || !noteObj) return false;
+  const i = real.notes.findIndex(n => n.id === noteId);
+  if(i === -1) return false;
 
-  // تأكيد قبل الحذف حتى ما ينمسح بالغلط
-  const ok = await showConfirm({
-    title: 'حذف ملاحظة',
-    message: 'متأكد تريد تحذف هذي الملاحظة؟',
-    okText: 'حذف',
-    cancelText: 'رجوع',
-    danger: true
-  });
-  if (!ok) return false;
+ const n = real.notes[i];
+if(n){
+  n.deletedAt = nowISO();
+  n.updatedAt = n.deletedAt;
+}
+real.updatedAt = nowISO();
 
-  // نجيب النسخة الأصلية الحقيقية المخزَّنة داخل days
-  const realCard = (typeof getMutableCard === 'function' ? getMutableCard(viewCard) : null) || viewCard;
-  if (!realCard) return false;
 
-  if (!Array.isArray(realCard.notes)) {
-    // ماكو ملاحظات أصلاً
-    return false;
-  }
-
-  // نحاول نلكى نفس الملاحظة بالأصل
-  let realNote = realCard.notes.find(n =>
-    n === noteObj ||
-    (noteObj.id && n.id === noteObj.id)
-  );
-  if (!realNote) {
-    // fallback: إذا بالعرض جبنا نسخة بدون ربط، استعمل noteObj نفسه
-    realNote = noteObj;
-  }
-
-  const ts = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
-
-  // soft delete: نعلمها محذوفة بدل ما نقصها نهائياً
-  realNote.deletedAt = ts;
-  realNote.updatedAt = ts;
-
-  // حدّث وقت تعديل البطاقة
-  realCard.updatedAt = ts;
-
-  // خزّن تا يبقى الحذف ثابت بعدين
-  if (typeof save === 'function') save();
-
-  // نعيد رسم الواجهة كاملة:
-  if (typeof renderBoard === 'function') renderBoard();
-  if (typeof renderRail === 'function') renderRail();
-  if (typeof refreshStats === 'function') refreshStats?.();
-
-  // إذا المودال مفتوح، جدّد قائمته فوراً حتى تختفي الملاحظة من هناك هم
-  if (typeof renderNotesModalList === 'function') {
-    try { renderNotesModalList(); } catch(_){}
-  }
-
-  if (typeof showToast === 'function') {
-    showToast('error', 'تم حذف الملاحظة');
-  }
-
+  // وحّد المرجع مع الكارت المعروض
+  viewCard.notes = real.notes;
+  save();
   return true;
 }
-
 
 
  
@@ -5725,18 +5587,7 @@ function exportDayPDF_Vector(){
 
   if(!cards.length){ showToast('warn','ماكو بطاقات اليوم للتصدير'); return; }
 
-  const dateStr = (function(iso){
-  try {
-    return new Date(iso).toLocaleDateString('ar-EG', {
-      weekday: 'long',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    });
-  } catch (e) {
-    return document.getElementById('dateBadge')?.textContent || '';
-  }
-})(selectedDay);
+  const dateStr = document.getElementById('dateBadge')?.textContent || '';
 
   // نحضر بايلود + نمرر قائمة الزبائن المعروفة
   const payload = { dateStr, cards, known: CUSTOMERS || [] };
