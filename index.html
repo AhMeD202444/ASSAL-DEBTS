@@ -5049,29 +5049,41 @@ function renderRail(){
   if(isFiltering){
     daysToShow = allDays.filter(k => match(k));
   }else{
-    // نبني شجرة: year -> month -> [days...]
-    const tree = {};
-    allDays.forEach(k=>{
-      const [y,m] = [k.slice(0,4), k.slice(5,7)];
-      (tree[y] ||= {});
-      (tree[y][m] ||= []);
-      tree[y][m].push(k);
-    });
+    
+    // نعرض "شهر واحد فقط" = الشهر الحالي من TODAY، ويومين فقط من هذا الشهر
+const tree = {};
+allDays.forEach(k=>{
+  const [y,m] = [k.slice(0,4), k.slice(5,7)];
+  (tree[y] ||= {});
+  (tree[y][m] ||= []);
+  tree[y][m].push(k);
+});
 
-    // لكل سنة: أخذ آخر شهرين فقط
-    const years = Object.keys(tree).sort().reverse();
-    years.forEach(y=>{
-      const months = Object.keys(tree[y]).sort().reverse(); // '12','11',...
-      const lastTwoMonths = months.slice(0,2);
-      lastTwoMonths.forEach(m=>{
-        const daysList = tree[y][m].sort().reverse();       // 'YYYY-MM-DD' نزولياً
-        const lastTwoDays = daysList.slice(0,2);
-        daysToShow.push(...lastTwoDays);
-      });
-    });
+// حدّد شهر اليوم الحالي (يتحدّث تلقائياً بحكم TODAY)
+const curYear  = TODAY.slice(0,4);
+const curMonth = TODAY.slice(5,7);
 
-    // تأكد نظل محافظين على الترتيب العام نزولياً
-    daysToShow.sort().reverse();
+// لو ماكو بيانات لهذا الشهر (فارغ)، جرّب أحدث شهر فعلي موجود بالبيانات
+let targetYear  = curYear;
+let targetMonth = curMonth;
+if (!tree[curYear] || !tree[curYear][curMonth]) {
+  const monthKeys = Object.keys(tree)
+    .flatMap(y => Object.keys(tree[y]).map(m => `${y}-${m}`))
+    .sort().reverse(); // أحدث شهر أولاً
+  if (monthKeys.length) {
+    targetYear  = monthKeys[0].slice(0,4);
+    targetMonth = monthKeys[0].slice(5,7);
+  }
+}
+
+// خذ آخر يومين فقط من الشهر المستهدف
+const monthDays = (tree[targetYear]?.[targetMonth] || []).sort().reverse();
+const lastTwoDays = monthDays.slice(0,2);
+daysToShow = [...lastTwoDays];
+
+// حافظ على الترتيب العام نزولياً
+daysToShow.sort().reverse();
+
   }
 
   if(!daysToShow.length){
