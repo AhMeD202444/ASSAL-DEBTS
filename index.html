@@ -2277,6 +2277,298 @@ body{ padding-top: var(--hdr-h); }
 
 
 
+/* تظليل العنصر المحدَّد بالكيبورد */
+.pf-suggestions .sugg-item.active{
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  color: #fff; /* نفس الدوك */
+  border-inline-start: 3px solid var(--brand-3); /* نخليها مثل ما كانت */
+}
+
+
+/* خلي زر إغلاق نافذة الحسابات المالية أحمر غامق */
+#paymentsModal .payments-close,
+#closePaymentsBtn{
+  background: linear-gradient(180deg,#7f1d1d,#4c0b0b) !important;
+  color: #fecaca !important;
+  border: 1px solid rgba(127,29,29,0.6) !important;
+  box-shadow: 0 10px 26px rgba(127,29,29,0.4) !important;
+}
+#paymentsModal .payments-close:hover,
+#closePaymentsBtn:hover{
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 30px rgba(127,29,29,0.5);
+  transition: .18s ease;
+}
+
+/* ترويسة جدول الحاسبات المالية: خطوط بين الأعمدة + توسيط كامل */
+.payments-header-row{
+  display: grid;
+  grid-template-columns: 40px 1.2fr .9fr 1fr 1.2fr .9fr .8fr 60px; /* # | الاسم | النوع | المبلغ | ملاحظات | تاريخ | وقت | حذف */
+  background: #0b1630;
+  border: 1px solid var(--stroke, #253250);
+  border-radius: 10px;
+  overflow: hidden;     /* حتى الزوايا تنقص صح */
+  gap: 0;               /* حتى نرسم حدود بدل الفراغ */
+}
+
+
+
+
+
+
+/* ترويسة جدول الحاسبات المالية: أقل ارتفاع + ألوان أجمل */
+.payments-header-row{
+  display: grid;
+  grid-template-columns: 40px 1.2fr .9fr 1fr 1.2fr .9fr .8fr 60px;
+  background: linear-gradient(135deg, #0e1b36, #0a1327); /* تدرّج كحلي أنيق */
+  border: 1px solid rgba(80,110,160,.35);
+  border-radius: 10px;
+  overflow: hidden;
+  gap: 0;
+}
+
+/* خلايا الترويسة: توسيط كامل + ارتفاع أقل */
+.payments-header-row > div{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;             /* كان 8px 10px → قلّلناه */
+  min-height: 30px;             /* ارتفاع أنحف */
+  font-weight: 800;
+  font-size: 11.5px;            /* أصغر شوية */
+  letter-spacing: .2px;
+  color: #e6efff;               /* نص أفتح ومتباين */
+  border-inline-start: 1px solid rgba(80,110,160,.35);
+}
+
+/* أول خانة بدون خط يسار */
+.payments-header-row > div:first-child{
+  border-inline-start: none;
+}
+
+
+/* نفس شبكة الأعمدة للترويسة وصفوف التسديد */
+.payments-header-row,
+.payment-row{
+  display: grid;
+  grid-template-columns: 40px 1fr 80px 120px 1fr 100px 90px 40px; 
+  /* # | الاسم | النوع | المبلغ (د.ع) | ملاحظات | تاريخ | وقت | حذف */
+  gap: 0;                     /* مهم: بدون فجوات */
+}
+
+
+/* --- خلايا الترويسة عندك جاهزة (تبقى مثل ما هي) --- */
+
+/* خلايا صف التسديد: نفس حدود الترويسة وتوسيط كامل */
+.payment-row > div{
+  display: flex;
+  align-items: center;
+  justify-content: center;     /* يضمن الاسم بالنص */
+  padding: 6px 8px;
+  min-height: 34px;
+  color: #e7eef9;
+  font-size: 12px;
+  border-inline-start: 1px solid rgba(80,110,160,.35); /* نفس خط الترويسة */
+  box-sizing: border-box;
+}
+
+/* أول خلية بدون خط يسار (مثل الترويسة) */
+.payment-row > div:first-child{
+  border-inline-start: none;
+}
+
+/* (اختياري) قص الملاحظات لسطر واحد */
+.payment-row > div:nth-child(5){
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* فاصل بسيط بين الصفوف */
+.payment-row + .payment-row{
+  border-top: 1px solid rgba(80,110,160,.35);
+}
+
+
+
+
+
+
+
+
+/* ===== 1) تطابق الصفوف مع الترويسة: خطوط عمودية بين كل عمود ===== */
+
+/* خلي الترويسة بدون فجوات، والحشوة جوّا الخلايا */
+.payments-header-row{
+  gap: 0 !important;
+  padding: 0 !important;
+}
+.payments-header-row > div{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  min-height: 30px;
+  font-weight: 800;
+  font-size: 11.5px;
+  letter-spacing: .2px;
+  color: #e6efff;
+  border-inline-start: 1px solid rgba(80,110,160,.35);
+}
+.payments-header-row > div:first-child{ border-inline-start: none; }
+
+/* الصفوف بنفس الشبكة وبدون فجوات، والحدود داخل الخلايا */
+.payment-row{
+  display: grid;
+  grid-template-columns: 40px 1fr 80px 120px 1fr 100px 90px 40px; /* # | الاسم | النوع | المبلغ | ملاحظات | تاريخ | وقت | حذف */
+  gap: 0 !important;
+  padding: 0 !important;
+  background: #0a1327;          /* قريب من الترويسة */
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.payment-row > div{
+  display: flex;
+  align-items: center;
+  justify-content: center;      /* يضمن الاسم بالنص */
+  padding: 6px 8px;
+  min-height: 34px;
+  color: #e7eef9;
+  font-size: 12px;
+  border-inline-start: 1px solid rgba(80,110,160,.35);
+  box-sizing: border-box;
+}
+.payment-row > div:first-child{ border-inline-start: none; }
+
+/* ملاحظات كسطر واحد (اختياري) */
+.payment-row > div:nth-child(5){
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ===== 2) إلغاء بادج النوع والمبلغ وتحويلهم نص عادي متوسّط ===== */
+
+/* توسيط نص العمودين 3 و4 */
+.payment-row > div:nth-child(3),
+.payment-row > div:nth-child(4){
+  text-align: center;
+  justify-content: center;
+}
+
+/* شيل تنسيق البادجات/الأزرار داخل العمودين وخليها نص */
+.payment-row > div:nth-child(3) *,
+.payment-row > div:nth-child(4) *{
+  all: unset !important;
+  display: inline !important;
+  color: inherit !important;
+  font: inherit !important;
+  pointer-events: none !important;  /* يتصرف كنص */
+  text-align: center !important;
+}
+
+/* إلغاء ستايلات البادجات الأصلية (لو تأثّروا بمكان آخر) */
+.payment-row .pay-amt,
+.payment-row .pay-type{ 
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  font-weight: inherit !important;
+  font-size: inherit !important;
+  color: inherit !important;
+}
+
+/* خط بين النوع والمبلغ داخل صف التسديد فقط */
+.payment-row > div:nth-child(4){
+  position: relative; /* حتى نرسم الفاصل فوق محتوى الخلية */
+}
+.payment-row > div:nth-child(4)::before{
+  content: "";
+  position: absolute;
+  inset-block: 0;             /* top:0; bottom:0; بنسخة منطقية */
+  inset-inline-start: 0;      /* بداية الخلية (RTL/LTR) */
+  width: 1px;
+  background: rgba(80,110,160,.35);  /* نفس لون خطوط الترويسة */
+  pointer-events: none;
+  z-index: 1;                 /* فوق أي بادج/خلفية داخل الخلية */
+}
+
+
+
+/* علّي ارتفاع ترويسة الجدول قليلاً */
+.payments-header-row > div{
+  padding: 6px 10px;   /* كان 4px 8px */
+  min-height: 36px;    /* كان 30px */
+}
+
+/* قلّل ارتفاع صف التسديد قليلاً */
+.payment-row > div{
+  padding: 4px 8px;    /* كان 6px 8px */
+  min-height: 28px;    /* كان 34px */
+}
+
+
+/* ترويسة الجدول: لون أوضح وبروز أعلى */
+.payments-header-row{
+  background: linear-gradient(135deg, #162b52, #0f2143); /* لون أوضح من قبل */
+  border: 1px solid #35507e;                              /* إطار أقوى */
+}
+.payments-header-row > div{
+  color: #f0f6ff;                                         /* نص أفتح */
+  border-inline-start: 1px solid rgba(90,130,190,.55);    /* فواصل أوضح */
+}
+
+/* صف التسديد: حدّ أسمك وأغمق */
+.payment-row{
+  border: 2px solid #2a3b5f !important;                   /* كان 1px → صار 2px */
+  border-radius: 10px;
+}
+.payment-row > div{
+  /* نفس الفاصل الداخلي لكن أغمق شوي */
+  border-inline-start: 1px solid rgba(90,130,190,.45);
+}
+
+/* فاصل بين الصفوف (لو عندك صفوف متتالية) */
+.payment-row + .payment-row{
+  margin-top: 6px;
+  border-color: #243556;                                   /* أغمق شوية */
+}
+
+/* تقوية الكتابة بكل صف التسديد */
+.payment-row > div{
+  font-weight: 700;     /* أغمق */
+  font-size: 13px;      /* أكبر شوي */
+  color: #e9f1ff;       /* وضوح أعلى */
+}
+
+/* إبراز قوي لعمود "المبلغ (د.ع)" — هو العمود الرابع */
+.payment-row.payment-row > div:nth-child(4),
+.payment-row > div:nth-child(4),
+.payment-row > div:nth-child(4) *{
+  font-weight: 900 !important;
+  font-size: 15px !important;
+  line-height: 1.2 !important;
+  color: #ffe8bf !important;            /* لون أوضح */
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" 1 !important;
+}
+
+/* شيل أي تزيين يغطي التنسيق داخل عمود المبلغ */
+.payment-row > div:nth-child(4) .pay-amt,
+.payment-row > div:nth-child(4) .amount-chip,
+.payment-row > div:nth-child(4) .badge,
+.payment-row > div:nth-child(4) button,
+.payment-row > div:nth-child(4) .btn{
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  color: inherit !important;
+  font: inherit !important;
+}
 
 
 
@@ -7555,6 +7847,130 @@ onAuthStateChanged(auth, async (user)=>{
 function getAllCustomers(){
   return Array.isArray(CUSTOMERS) ? [...CUSTOMERS] : [];
 }
+
+
+
+
+
+// ===== تنقّل بأسهم الكيبورد داخل اقتراحات "اسم الزبون" في نافذة الحسابات المالية =====
+
+// مؤشر العنصر المتظلّل حاليًا
+let __payCustIdx = -1;
+
+// إرجاع عناصر <li> للّستة
+function getPayCustLis(){
+  const host = document.getElementById('payCustSuggestions');
+  return host ? Array.from(host.querySelectorAll('.sugg-item')) : [];
+}
+
+// إبراز العنصر المحدَّد والتمرير له
+function highlightPayCustItem(){
+  const items = getPayCustLis();
+  items.forEach(li => li.classList.remove('active'));
+  if (__payCustIdx >= 0 && items[__payCustIdx]) {
+    items[__payCustIdx].classList.add('active');
+    items[__payCustIdx].scrollIntoView({ block: 'nearest' });
+  }
+}
+
+// إخفاء اللستة
+function hidePayCustSuggestions(){
+  const host = document.getElementById('payCustSuggestions');
+  if (host){
+    host.style.display = 'none';
+    host.innerHTML = '';
+    __payCustIdx = -1;
+  }
+}
+
+// رسم/تحديث الاقتراحات حسب النص المكتوب
+function renderPayCustSuggestions(){
+  const host = document.getElementById('payCustSuggestions');
+  const inp  = document.getElementById('payCustomer');
+  if(!host || !inp) return;
+
+  const q = String(inp.value || '').trim().toLowerCase();
+  const all = (typeof getAllCustomers === 'function') ? getAllCustomers() : [];
+  // بدون كتابة → لا تعرض شي
+  if(!q){
+    hidePayCustSuggestions();
+    return;
+  }
+
+  const data = all.filter(n => n.toLowerCase().includes(q));
+
+  host.innerHTML = '';
+  __payCustIdx = -1;
+
+  data.forEach(name=>{
+    const li = document.createElement('li');
+    li.className = 'sugg-item';
+    li.textContent = name;
+    li.onclick = ()=>{
+      inp.value = name;
+      hidePayCustSuggestions();
+      // بعد الاختيار: ننقلك على نوع الحركة
+      const target = document.getElementById('payType');
+      if (target){
+        target.focus();
+        if (typeof target.showPicker === 'function') target.showPicker();
+      }
+    };
+    host.appendChild(li);
+  });
+
+  host.style.display = data.length ? 'block' : 'none';
+}
+
+// إظهار/تحديث اللستة أثناء الكتابة
+inpCustomer.addEventListener('input', ()=>{
+  renderPayCustSuggestions();
+});
+
+// تنقّل بالأسهم + Enter/Esc
+inpCustomer.addEventListener('keydown', (e)=>{
+  const hasQuery = String(inpCustomer.value||'').trim().length > 0;
+
+  // إذا اللستة مخفية ونضغط أسهم/إنتر مع نص → افتح/حدّث
+  const host = document.getElementById('payCustSuggestions');
+  const isHidden = !host || host.style.display === 'none';
+
+  if(isHidden){
+    if((e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter') && hasQuery){
+      e.preventDefault();
+      renderPayCustSuggestions();
+    }
+    return;
+  }
+
+  // اللستة ظاهرة: تنقّل واختيار
+  const items = getPayCustLis();
+  if(!items.length) return;
+
+  if(e.key === 'ArrowDown'){
+    e.preventDefault();
+    __payCustIdx = (__payCustIdx < 0) ? 0 : Math.min(items.length - 1, __payCustIdx + 1);
+    highlightPayCustItem();
+  }else if(e.key === 'ArrowUp'){
+    e.preventDefault();
+    __payCustIdx = (__payCustIdx < 0) ? items.length - 1 : Math.max(0, __payCustIdx - 1);
+    highlightPayCustItem();
+  }else if(e.key === 'Enter'){
+    e.preventDefault();
+    if(__payCustIdx >= 0) items[__payCustIdx].click();
+  }else if(e.key === 'Escape'){
+    e.preventDefault();
+    hidePayCustSuggestions();
+  }
+});
+
+// إغلاق اللستة إذا نقرّت برّه
+document.addEventListener('click', (ev)=>{
+  const host = document.getElementById('payCustSuggestions');
+  if(!host) return;
+  const inside = host.contains(ev.target) || inpCustomer.contains(ev.target);
+  if(!inside) hidePayCustSuggestions();
+});
 
 
   // ========== فتح / غلق ==========
