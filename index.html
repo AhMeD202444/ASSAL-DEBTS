@@ -6058,11 +6058,23 @@ function exportDayPDF_Vector(){
 
   // ✅ استبعاد البطاقات المحذوفة فقط
   const source = (days[selectedDay] || []);
-  const cards  = source.filter(c => !c?.deletedAt);
+ 
+ const cards  = source
+  .filter(c => !c?.deletedAt)
+  .filter(c =>
+    Array.isArray(c.lines) &&
+    c.lines.some(ln =>
+      !ln?.deletedAt &&
+      !ln?.paid              // يستبعد المدفوعة فقط
+      // ما نتحقق من returned نهائياً حتى نسمح بطباعة المواد الراجعة
+    )
+  );
+ 
 
   if(!cards.length){ showToast('warn','ماكو بطاقات اليوم للتصدير'); return; }
 
-  const dateStr = document.getElementById('dateBadge')?.textContent || '';
+ const dateStr = new Date(selectedDay)
+  .toLocaleDateString('ar-EG', { weekday:'long', year:'numeric', month:'2-digit', day:'2-digit' });
 
   // نحضر بايلود + نمرر قائمة الزبائن المعروفة
   const payload = { dateStr, cards, known: CUSTOMERS || [] };
