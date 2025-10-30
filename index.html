@@ -2570,6 +2570,16 @@ body{ padding-top: var(--hdr-h); }
   font: inherit !important;
 }
 
+/* تقليل الفراغ بين الصفوف */
+.payment-row{ margin: 0; }
+
+.payment-row + .payment-row{
+  margin-top: 2px;              /* كان 6px → صار 2px */
+  /* (اختياري) خط فاصل خفيف بدل الفراغ الكبير */
+  border-top: 1px solid rgba(80,110,160,.35);
+}
+
+
 
 
 
