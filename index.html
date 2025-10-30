@@ -2581,6 +2581,149 @@ body{ padding-top: var(--hdr-h); }
 
 
 
+/* ============ إعدادات ارتفاعات ثابتة ============ */
+:root{
+  --payments-header-h: 44px;   /* ارتفاع الترويسة ثابت */
+  --payments-row-h:    42px;   /* ارتفاع صف واحد ثابت */
+  --payments-row-gap:  0px;    /* بدون فراغات بين الصفوف حتى نحافظ على الحساب */
+  --payments-max-rows: 5;      /* فقط 5 صفوف مرئية */
+}
+
+/* غلاف القائمة كله */
+.payments-list-wrap{
+  position: relative;
+  border: 1px solid var(--stroke, #24304a);
+  border-radius: 10px;
+  overflow: hidden;            /* نخلي السكرول على جسم الصفوف فقط */
+  background: #0b1327;
+}
+
+/* ترويسة الأعمدة — تبقى ثابتة */
+.payments-header-row{
+  display: grid;
+  grid-template-columns: 40px 1fr 120px 140px 1.2fr 130px 100px 70px;
+  align-items: center;
+  height: var(--payments-header-h);
+  min-height: var(--payments-header-h);
+  max-height: var(--payments-header-h);
+  padding: 0 8px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #0f1a36;        /* خلفية مميّزة للترويسة */
+  border-bottom: 1px solid var(--stroke, #24304a);
+  font-weight: 700;
+}
+
+/* جسم الصفوف — هنا يكون السكرول */
+.payments-rows{
+  display: flex;
+  flex-direction: column;
+  gap: var(--payments-row-gap);
+  max-height: calc( var(--payments-row-h) * var(--payments-max-rows)
+                    + max(0px, (var(--payments-max-rows) - 1) * var(--payments-row-gap)) );
+  overflow-y: auto;           /* يظهر سكرول فقط للجسم */
+  overflow-x: hidden;
+}
+
+/* صف واحد */
+.payment-row{
+  display: grid;
+  grid-template-columns: 40px 1fr 120px 140px 1.2fr 130px 100px 70px;
+  align-items: center;
+  height: var(--payments-row-h);
+  min-height: var(--payments-row-h);
+  max-height: var(--payments-row-h);   /* يمنع التمدد */
+  padding: 0 8px;
+  border-bottom: 1px dashed rgba(255,255,255,0.06);
+  background: #0b152e;
+}
+
+/* خلايا داخل الصف — تمنع تغيّر الارتفاع وتقصّ النص */
+.payment-row > div{
+  display: flex;
+  align-items: center;
+  height: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;         /* يمنع سطر ثاني */
+}
+
+/* عمود المبلغ لو عندك صندوق إدخال داخله */
+.payment-row .pay-amt,
+.payment-row .pay-amt input{
+  height: 28px;
+  line-height: 28px;
+}
+
+/* زر الحذف/الآيكونات */
+.payment-row .payment-del-btn{
+  height: 28px;
+  min-width: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--stroke, #24304a);
+  background: #0e1a34;
+  cursor: pointer;
+}
+
+/* شريط سكرول أنيق لجسم الصفوف فقط (اختياري) */
+.payments-rows{
+  scrollbar-width: thin;       /* Firefox */
+}
+.payments-rows::-webkit-scrollbar{ width: 10px; }
+.payments-rows::-webkit-scrollbar-track{
+  background: #0a1020; border-radius: 999px; border: 1px solid var(--stroke,#24304a);
+}
+.payments-rows::-webkit-scrollbar-thumb{
+  background: #243a73; border-radius: 999px;
+}
+
+
+
+
+
+
+
+
+/* ===== صف السحب بلون أحمر غامق مثل "الآيتم الراجع" ===== */
+.payment-row.withdraw{
+  /* خلفية أحمر داكنة ولمسة حدود مثل تنسيق السطر الراجع */
+  background: #2a0c12 !important;
+  border-bottom-color: rgba(127,29,29,0.45) !important;
+}
+.payment-row.withdraw > div{
+  color: #fca5a5;              /* نص وردي فاتح حتى يبان */
+}
+.payment-row.withdraw .pay-amt{
+  background: #200a0f;         /* حقل المبلغ يبان ضمن التظليل */
+  border: 1px solid #7f1d1d;
+  color: #fecaca;
+  font-weight: 800;
+}
+
+/* ===== زر حذف التسديد يرجع أحمر غامق (التنسيق القديم) ===== */
+.payments-list-wrap .payment-del-btn{
+  background: #4c0e12;                 /* أحمر غامق */
+  border: 1px solid #7f1d1d;
+  color: #ffd7d7;
+}
+.payments-list-wrap .payment-del-btn:hover{
+  background: #6b1217;                 /* أفتح شوي عند الهوفر */
+  border-color: #9f2a2a;
+  color: #fff0f0;
+}
+.payments-list-wrap .payment-del-btn:active{
+  background: #3a0b0e;                 /* ضغطة */
+  border-color: #7f1d1d;
+}
+
+
+
+
+
 
 
 
@@ -3083,21 +3226,23 @@ body{ padding-top: var(--hdr-h); }
  <!-- جدول المعاملات المدخولة (نفس فكرة العناصر اللي انت ترتبها بكارت/جدول داخل نفس النافذة بدون ما تطلع برا) :contentReference[oaicite:5]{index=5} -->
     <div class="payments-list-wrap nice-scroll">
      
-     
-     <div class="payments-header-row">
-  <div>#</div>
-  <div>الاسم</div>
-  <div>النوع</div>
-  <div>المبلغ (د.ع)</div>
-  <div>ملاحظات</div>
-  <div>تاريخ</div>   <!-- جديد -->
-  <div>وقت</div>
-  <div>حذف</div>
+     <div class="payments-list-wrap">
+  <!-- ترويسة ثابتة -->
+  <div class="payments-header-row">
+    <div>#</div>
+    <div>الاسم</div>
+    <div>النوع</div>
+    <div>المبلغ (د.ع)</div>
+    <div>ملاحظات</div>
+    <div>التاريخ</div>
+    <div>الوقت</div>
+    <div>حذف</div>
+  </div>
+
+  <!-- جسم الصفوف: هنا فقط يصير السكرول -->
+  <div id="paymentsRows" class="payments-rows"></div>
 </div>
-     
-      <div id="paymentsRows" class="payments-rows">
-        <!-- السطور تندفع هنا بالدالة renderPaymentsRows() -->
-      </div>
+
     </div>
   </div>
 </div>
@@ -8180,9 +8325,7 @@ function deletePayment(idx){
 
 
 function renderPaymentsRows(){
-  
-  
-   // حوّل أرقام ٠١٢٣… إلى 0123 حتى نكدر نحلّلها
+  // حوّل أرقام ٠١٢٣… إلى 0123 حتى نكدر نحلّلها
   function toLatinDigits(s){
     if (!s) return '';
     return s.replace(/[\u0660-\u0669\u06F0-\u06F9]/g, ch => String('٠١٢٣٤٥٦٧٨٩'.indexOf(ch)));
@@ -8209,22 +8352,27 @@ function renderPaymentsRows(){
     return minutesFrom12h(b.time) - minutesFrom12h(a.time);
   });
 
-  
-  
   rowsWrap.innerHTML = paymentsData.map((row,idx)=>{
-    const formattedAmt = row.amount.toLocaleString('ar-IQ');
+    // تنسيق المبلغ بأمان (لو كان نص/فارغ/أرقام عربية)
+    const amtNum = Number(
+      toLatinDigits(String(row?.amount ?? '0')).replace(/[^\d.]/g,'')
+    );
+    const formattedAmt = (isFinite(amtNum) ? amtNum : 0).toLocaleString('ar-IQ');
+
     const isIn  = row.kind === 'تسديد';
+    const isOut = row.kind === 'سحب';
+
     return `
-      <div class="payment-row">
+      <div class="payment-row ${isOut ? 'withdraw' : ''}">
         <div>${idx+1}</div>
-        <div>${row.cust}</div>
+        <div>${row.cust ?? ''}</div>
         <div>
-          <div class="pay-type ${isIn ? 'pay-in':'pay-out'}">${row.kind}</div>
+          <div class="pay-type ${isIn ? 'pay-in':'pay-out'}">${row.kind ?? ''}</div>
         </div>
         <div class="pay-amt">${formattedAmt}</div>
         <div>${row.notes || ''}</div>
         <div>${row.date || ''}</div>   <!-- تاريخ جديد -->
-        <div>${row.time}</div>
+        <div>${row.time || ''}</div>
         <div>
           <button class="payment-del-btn" data-idx="${idx}">
             <i class="fa-solid fa-trash-can"></i>
@@ -8234,6 +8382,7 @@ function renderPaymentsRows(){
     `;
   }).join('');
 }
+
 
 
 
@@ -8291,18 +8440,25 @@ function exportPayments_Print(){
       document.getElementById('payDate')?.value ||
       document.getElementById('dateBadge')?.textContent || '';
 
-    // نبني صفوف الجدول من paymentsData
-    const rows = paymentsData.map((r, i)=> `
-      <tr>
+    // نبني صفوف الجدول من paymentsData + كلاس withdraw إذا النوع "سحب"
+    const rows = paymentsData.map((r, i)=> {
+      const kind = (r?.kind ?? '').trim();
+      const isWithdraw = (kind === 'سحب');
+      const amt = String(r.amount ?? '')
+        .replace(/[^\d.]/g,'')
+        .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      return `
+      <tr class="payment-row${isWithdraw ? ' withdraw' : ''}">
         <td>${i+1}</td>
         <td>${r.cust ?? ''}</td>
-        <td>${r.kind ?? ''}</td>
-        <td class="num">${String(r.amount ?? '').replace(/[^\d.]/g,'').replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</td>
+        <td>${kind}</td>
+        <td class="num">${amt}</td>
         <td style="text-align:start">${r.notes ?? ''}</td>
         <td>${r.date ?? ''}</td>
         <td>${r.time ?? ''}</td>
       </tr>
-    `).join('');
+      `;
+    }).join('');
 
     const title = 'حركة الحسابات — مكتب عسل';
     const w = window.open('', '_blank');
@@ -8332,6 +8488,25 @@ function exportPayments_Print(){
   td{ text-align:center; }
   .num{ font-variant-numeric: tabular-nums; font-feature-settings:"tnum" 1; font-weight:900; }
   tbody tr:nth-child(even){ background:#fafafa; }
+
+  /* ===== تظليل صف "سحب" للطباعة ===== */
+  .payment-row.withdraw{
+    background:#2a0c12 !important;                   /* أحمر غامق مثل الراجع */
+    color:#fca5a5;                                    /* يبان النص */
+  }
+  .payment-row.withdraw td{
+    border-color: rgba(127,29,29,0.45) !important;    /* حدود أغمق شوي */
+  }
+  /* إبراز خانة المبلغ داخل صف السحب (نفس الروح) */
+  .payment-row.withdraw td:nth-child(4){
+    background:#200a0f;
+    border:1px solid #7f1d1d !important;
+    color:#fecaca;
+    font-weight:800;
+  }
+
+  /* نضمن طباعة الألوان كما هي */
+  *{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
   @media print{ @page{ size:auto; margin:10mm; } }
 </style>
@@ -8383,4 +8558,3 @@ function exportPayments_Print(){
   
 </body>
 </html>
-
