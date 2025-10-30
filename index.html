@@ -7860,6 +7860,58 @@ function getAllCustomers(){
 
 
 
+// [A] ===== تخزين محلي + إدارة أيام =====
+const PAYMENTS_KEY = 'assal.payments.v1';      // مفتاح التخزين
+let   paymentsStore = JSON.parse(localStorage.getItem(PAYMENTS_KEY) || '{}');
+
+// ترجيع مفاتيح أيام بصيغة YYYY-MM-DD
+function getDayKey(d){
+  return (d ? String(d) : new Date().toISOString().slice(0,10));
+}
+
+// قائمة التسديدات ليوم معيّن
+function listPayments(day){
+  const k = getDayKey(day);
+  return Array.isArray(paymentsStore[k]) ? paymentsStore[k] : [];
+}
+
+// حفظ يوم معيّن
+function savePayments(day, arr){
+  const k = getDayKey(day);
+  paymentsStore[k] = arr;
+  localStorage.setItem(PAYMENTS_KEY, JSON.stringify(paymentsStore));
+}
+
+// اليوم الحالي المعروض داخل النافذة
+let currentDay = null;
+
+// ضبط اليوم الحالي + تحميل بياناته
+function setCurrentDay(day){
+  currentDay   = getDayKey(day);
+  paymentsData = listPayments(currentDay);
+  renderPaymentsRows(); // عندك موجودة، تبقى تعرض فقط تسديدات اليوم الحالي
+}
+
+
+
+
+// [B] ===== تهيئة تاريخ الافتراضي + تحميل اليوم المختار =====
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+// عند فتح نافذة الحسابات المالية: ثبّت تاريخ اليوم إذا فارغ، وحمّل بياناته
+openBtn?.addEventListener('click', ()=>{
+  if(!inpDate.value) inpDate.value = todayStr();
+  setCurrentDay(inpDate.value);
+});
+
+// لما يغيّر التاريخ من داخل النافذة: بدّل اليوم المعروض
+inpDate?.addEventListener('change', ()=>{
+  setCurrentDay(inpDate.value || todayStr());
+});
+
+
+
+
 
 
 // ===== تنقّل بأسهم الكيبورد داخل اقتراحات "اسم الزبون" في نافذة الحسابات المالية =====
@@ -8084,49 +8136,81 @@ function showCustSuggestions(prefix){
 function addPayment(){
   const cust   = inpCustomer.value.trim();
   const kind   = inpType.value;
-  const amtStr = inpAmount.value.replace(/[^\d.]/g,''); // نفس طريقتك بالتنظيف
+  const amtStr = inpAmount.value.replace(/[^\d.]/g,'');
   const notes  = inpNotes.value.trim();
   const day    = inpDate.value || new Date().toISOString().slice(0,10);
+  const time12 = new Date().toLocaleTimeString('ar-IQ', { hour:'numeric', minute:'2-digit' });
 
-  if(!cust || !amtStr){
-    // هنا تقدر تحط توست تحذير اذا تحب
-    return;
-  }
+  if(!cust || !amtStr){ return; }
 
   const amountNum = Number(amtStr) || 0;
-
   const now  = new Date();
   const time = now.toLocaleTimeString('ar-IQ', { hour:'2-digit', minute:'2-digit' });
 
   paymentsData.push({
-    cust,
-    kind,
-    amount: amountNum,
-    notes,
-    date: day,   // <-- جديد
-    time
+    cust, kind, amount: amountNum, notes,
+    date: day,                        // عندك أصلاً تضيف التاريخ
+   time: time12      // فقط هذا، ما نضيف time24
   });
 
+  savePayments(day, paymentsData);    // [جديد]: خزّن يوم الإدخال
   renderPaymentsRows();
 
-  // نفرغ الحقول للمدخل التالي (سلوكك الحالي)
-  inpCustomer.value='';
-  inpAmount.value='';
-  inpNotes.value='';
-  // خليه ما يمسح التاريخ، حتى اذا قاعد تدخّل أكثر من صف بنفس اليوم
-  // inpDate.value = day;  // إذا تريد تثبت التاريخ، خليه. إذا تريد يصفّر، سوّي inpDate.value='';
-
+  // تفريغ بسيط كما بكودك
+  inpCustomer.value=''; inpAmount.value=''; inpNotes.value='';
+  // نخلي التاريخ ثابت لليوم الحالي حتى تواصل إدخال نفس اليوم
+  // inpDate.value = day;
   suggBox.style.display='none';
   inpCustomer.focus();
 }
 
+// [E] تشغيل الإضافة من زر الفورم
+form?.addEventListener('submit', (e)=>{
+  e.preventDefault();       // يمنع إعادة تحميل الصفحة
+  addPayment();             // ينفّذ الإضافة
+});
 
-  function deletePayment(idx){
-    paymentsData.splice(idx,1);
-    renderPaymentsRows();
+
+
+function deletePayment(idx){
+  paymentsData.splice(idx,1);
+  savePayments(currentDay, paymentsData);  // [جديد]
+  renderPaymentsRows();
+}
+
+
+function renderPaymentsRows(){
+  
+  
+   // حوّل أرقام ٠١٢٣… إلى 0123 حتى نكدر نحلّلها
+  function toLatinDigits(s){
+    if (!s) return '';
+    return s.replace(/[\u0660-\u0669\u06F0-\u06F9]/g, ch => String('٠١٢٣٤٥٦٧٨٩'.indexOf(ch)));
   }
 
- function renderPaymentsRows(){
+  // حوّل "HH:MM ص/م" إلى دقائق من بداية اليوم
+  function minutesFrom12h(timeStr){
+    const raw = toLatinDigits(String(timeStr||'')).trim();
+    const m = raw.match(/(\d{1,2}):(\d{1,2})/);   // يشتغل حتى لو دقيقة/ساعة خانة وحدة
+    if(!m) return -1;                             // لو ماكو وقت، نزّله لآخر القائمة
+    let h = Number(m[1]), mi = Number(m[2]);
+
+    const isPM = /م/.test(raw) || /PM/i.test(raw);
+    const isAM = /ص/.test(raw) || /AM/i.test(raw);
+
+    // تحويل 12h إلى 0..23
+    if (isPM && h < 12) h += 12;   // 1م..11م => 13..23
+    if (isAM && h === 12) h = 0;   // 12ص => 00
+    return h*60 + mi;
+  }
+
+  // ترتيب تنازلي (الأحدث أولاً) اعتمادًا على الوقت فقط
+  paymentsData.sort((a,b)=>{
+    return minutesFrom12h(b.time) - minutesFrom12h(a.time);
+  });
+
+  
+  
   rowsWrap.innerHTML = paymentsData.map((row,idx)=>{
     const formattedAmt = row.amount.toLocaleString('ar-IQ');
     const isIn  = row.kind === 'تسديد';
@@ -8150,6 +8234,8 @@ function addPayment(){
     `;
   }).join('');
 }
+
+
 
 
   rowsWrap.addEventListener('click', e=>{
