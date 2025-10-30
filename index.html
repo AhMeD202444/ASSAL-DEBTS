@@ -2722,8 +2722,24 @@ body{ padding-top: var(--hdr-h); }
 
 
 
+/* فيروزي داكن هادئ ينسجم ويا الخلفية الداكنة */
+:root{
+  /* تقدر تغيّرها لاحقًا بس هذي درجة ناعمة مو فاقعة */
+  --head-color: #0e7490; /* teal-700 */
+  --head-text: #eaf6f8;  /* أبيض مائل لفيروزي حتى النص ما يصير حاد */
+}
 
+/* ترويسة الجدول في واجهة العرض فقط */
+.payments-header-row{
+  background: var(--head-color) !important;
+  color: var(--head-text) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
 
+/* (اختياري) خفّف حواف خلايا الترويسة شوي حتى يكون أنعم */
+.payments-header-row > div{
+  border-color: rgba(255,255,255,0.10);
+}
 
 
 
