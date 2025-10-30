@@ -8188,39 +8188,107 @@ function addPayment(){
     addPayment();
   });
 
-  // ========== تصدير ==========
-  // انت اصلاً محمل xlsx و html2pdf فوق بالـ<HEAD> :contentReference[oaicite:15]{index=15}
-  // هنا نخليك دالة بسيطة تصدّر Excel (تقدر تعدلها تتماشى مع دوالك الحالية 1:1)
-  exportBtn.addEventListener('click', ()=>{
-    if(!paymentsData.length){
-      // triggerToast("ماكو بيانات للتصدير","warn")
-      return;
-    }
+ // ========== تصدير ==========
+exportBtn.addEventListener('click', ()=>{
+  if (!Array.isArray(paymentsData) || !paymentsData.length){
+    (typeof showToast === 'function') && showToast('warn','ماكو بيانات للطباعة');
+    return;
+  }
+  exportPayments_Print();
+});
 
-    // نبني صفوف للإكسل
-    const sheetData = [
-      ["#", "الاسم", "النوع", "المبلغ (د.ع)", "ملاحظات", "وقت"]
-    ];
+// === طباعة جدول الحسابات (نفس أسلوب طباعة البطاقة: نافذة نظيفة + print) ===
+function exportPayments_Print(){
+  try{
+    // تاريخ للطباعة (من نافذة الحسابات إذا موجود)
+    const dateStr =
+      document.getElementById('payDate')?.value ||
+      document.getElementById('dateBadge')?.textContent || '';
 
-    paymentsData.forEach((row,idx)=>{
-      sheetData.push([
-        idx+1,
-        row.cust,
-        row.kind,
-        row.amount, // رقم خام بدون فوارز حتى يقرأه Excel عدد
-        row.notes || "",
-        row.time
-      ]);
-    });
+    // نبني صفوف الجدول من paymentsData
+    const rows = paymentsData.map((r, i)=> `
+      <tr>
+        <td>${i+1}</td>
+        <td>${r.cust ?? ''}</td>
+        <td>${r.kind ?? ''}</td>
+        <td class="num">${String(r.amount ?? '').replace(/[^\d.]/g,'').replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</td>
+        <td style="text-align:start">${r.notes ?? ''}</td>
+        <td>${r.date ?? ''}</td>
+        <td>${r.time ?? ''}</td>
+      </tr>
+    `).join('');
 
-    // XLSX Utils
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(sheetData);
-    XLSX.utils.book_append_sheet(wb, ws, "الحسابات");
-    XLSX.writeFile(wb, "payments.xlsx");
-  });
+    const title = 'حركة الحسابات — مكتب عسل';
+    const w = window.open('', '_blank');
+    if(!w){ (typeof showToast==='function') && showToast('error','المتصفح منع فتح نافذة الطباعة'); return; }
+
+    w.document.write(`<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>${title}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root{ --ink:#111827; --muted:#6b7280; --stroke:#e5e7eb; }
+  html,body{ margin:0; padding:0; font-family:"Cairo",system-ui; color:var(--ink); background:#fff; }
+  .wrap{ padding:18px; }
+  .head{
+    display:flex; align-items:center; justify-content:space-between;
+    border:1px solid var(--stroke); border-radius:12px; padding:10px 12px; margin-bottom:14px; background:#fafafa;
+  }
+  .title{ font-weight:900; }
+  .date{ font-size:12px; color:var(--muted); }
+
+  table{ width:100%; border-collapse:collapse; }
+  th,td{ border:1px solid var(--stroke); padding:6px 8px; font-size:12px; }
+  th{ background:#f3f4f6; font-weight:900; text-align:center; }
+  td{ text-align:center; }
+  .num{ font-variant-numeric: tabular-nums; font-feature-settings:"tnum" 1; font-weight:900; }
+  tbody tr:nth-child(even){ background:#fafafa; }
+
+  @media print{ @page{ size:auto; margin:10mm; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head">
+      <div class="title">${title}</div>
+      <div class="date">${dateStr || ''}</div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>الاسم</th>
+          <th>النوع</th>
+          <th>المبلغ (د.ع)</th>
+          <th>ملاحظات</th>
+          <th>تاريخ</th>
+          <th>وقت</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>
+  <script>
+    window.addEventListener('load', ()=>{ window.print(); });
+  <\/script>
+</body>
+</html>`);
+
+    w.document.close();
+    w.focus();
+  }catch(err){
+    console.error('exportPayments_Print error:', err);
+    (typeof showToast==='function') && showToast('error','فشل إنشاء صفحة الطباعة');
+  }
+}
 
 })();
+
+
+
 </script>
 
 
