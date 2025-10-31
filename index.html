@@ -7188,8 +7188,12 @@ async function smartExportToServer(){
     // 1) جيب النسخة الحالية من السيرفر
     const server = await serverGetBackup();
 
+    // (إضافة 1) خذ لقطة طازة من الستورج حتى نتجنب السباق/نسخة الذاكرة
+    const latestDays  = load(STORAGE, {});
+    const latestNames = load(NAMES,   []);
+
     // 2) حضّر نسخة نظيفة من بياناتك الحالية (بس الفعّال، بدون المحذوف)
-    const { days: cleanDays, names: cleanNames } = prepareCleanPayload(days, names);
+    const { days: cleanDays, names: cleanNames } = prepareCleanPayload(latestDays, latestNames);
 
     // هذا الباي لود اللي نريد نرفعه
     // IMPORTANT: نبعث transferDate حتى الأجهزة الثانية تعرف آخر تاريخ نقل الديون
@@ -7204,7 +7208,7 @@ async function smartExportToServer(){
 
     if(server && server.days){
       // السيرفر مو فاضي، سوّي دمج آمن بين "المحلّي" و "السيرفر"
-      const localDays  = days || {};
+      const localDays  = latestDays || {};
       const remoteDays = server.days || {};
 
       const merged = mergeAllDays(localDays, remoteDays);
@@ -7219,7 +7223,7 @@ async function smartExportToServer(){
       payload.days  = mergedDays;
 
       // وحّد الأسماء (names)
-      const curNames = Array.isArray(names) ? names : [];
+      const curNames = Array.isArray(latestNames) ? latestNames : [];
       const srvNames = Array.isArray(server.names) ? server.names : [];
       payload.names  = Array.from(new Set([...curNames, ...srvNames]));
 
@@ -7229,6 +7233,12 @@ async function smartExportToServer(){
       }
 
       report = mergeReport;
+    }
+
+    // (إضافة 2) منع رفع نسخة صفرية نهائيًا
+    if (!payload.days || Object.keys(payload.days).length === 0) {
+      showToast('warn','ماكو بيانات فعّالة للتصدير. تأكّد التحميل من التخزين تم قبل الرفع.');
+      return;
     }
 
     // 3) ودّي النسخة النهائية للسيرفر (POST / PUT / whatever بالسيرفرPostBackup)
