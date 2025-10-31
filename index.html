@@ -2743,6 +2743,126 @@ body{ padding-top: var(--hdr-h); }
 
 
 
+
+/* ====== Modal Bigger + Clearer Typography ====== */
+/* طبّق هالكلاسات لما تمرّر { modalClass: 'modal-confirm-lg', bodyClass: 'text-base md:text-lg leading-7' } إلى showConfirm */
+
+.modal-confirm-lg .modal-dialog {
+  max-width: 720px;       /* أكبر من الافتراضي */
+  width: 96vw;            /* يستغل العرض بالموبايل */
+  margin: 1.25rem auto;   /* مسافة من الأعلى */
+}
+
+.modal-confirm-lg .modal-content {
+  border-radius: 16px;
+  border: 1px solid rgba(0,0,0,.06);
+  box-shadow: 0 10px 30px rgba(0,0,0,.12);
+  overflow: hidden;
+  background: #fff;
+}
+
+.modal-confirm-lg .modal-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(0,0,0,.06);
+}
+
+.modal-confirm-lg .modal-title {
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.modal-confirm-lg .modal-body {
+  padding: 18px;
+  direction: rtl;          /* عربي */
+  text-align: start;       /* احترم اتجاه RTL */
+  color: #0f172a;          /* slate-900 */
+}
+
+.modal-confirm-lg .modal-footer {
+  padding: 14px 18px;
+  border-top: 1px solid rgba(0,0,0,.06);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ====== Utility classes (تماثل اللي استخدمناها بالدالة) ====== */
+.text-base { font-size: 16px; }
+.leading-7 { line-height: 1.75; }
+
+/* md:text-lg */
+@media (min-width: 768px) {
+  .md\:text-lg { font-size: 18px; }
+}
+
+/* ====== Buttons styling ====== */
+.btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  transition: transform .05s ease, box-shadow .2s ease, background-color .2s ease, opacity .2s ease;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn:active { transform: translateY(1px); }
+
+/* موافقة = أخضر */
+.btn-success {
+  background: #16a34a;        /* green-600 */
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(22,163,74,.25);
+}
+.btn-success:hover { background: #15803d; } /* green-700 */
+.btn-success:focus { outline: 2px solid rgba(22,163,74,.35); outline-offset: 2px; }
+
+/* إلغاء = رمادي غامق */
+.btn-dark {
+  background: #374151;        /* gray-700 */
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,.2);
+}
+.btn-dark:hover { background: #1f2937; }    /* gray-800 */
+.btn-dark:focus { outline: 2px solid rgba(31,41,55,.35); outline-offset: 2px; }
+
+/* Ghost = درجة أخف (مثل ظلّ خفيف) */
+.btn-ghost {
+  background: rgba(255,255,255,.08);
+  border-color: rgba(0,0,0,.08);
+}
+
+/* ترتيب الأزرار إذا المودال ما يستعمل gap */
+.modal-confirm-lg .modal-footer .btn + .btn { margin-inline-start: 8px; }
+
+/* ====== Responsive tweaks ====== */
+@media (max-width: 480px) {
+  .modal-confirm-lg .modal-dialog { width: 98vw; }
+  .modal-confirm-lg .modal-body { padding: 16px; }
+  .text-base { font-size: 15px; }
+  .md\:text-lg { font-size: 16px; } /* بالموبايل تقريباً نفس الـbase */
+}
+
+/* ====== دعم وضع الليل (اختياري) ====== */
+@media (prefers-color-scheme: dark) {
+  .modal-confirm-lg .modal-content { background: #0b1220; color: #e5e7eb; }
+  .modal-confirm-lg .modal-body { color: #e5e7eb; }
+  .modal-confirm-lg .modal-header, .modal-confirm-lg .modal-footer { border-color: rgba(255,255,255,.08); }
+  .btn-dark { background: #111827; }         /* gray-900 */
+  .btn-dark:hover { background: #0b1220; }
+}
+
+
+
+
   </style>
 </head>
 
@@ -4519,102 +4639,148 @@ async function processToastQueueUnified(){
       });
     }
 
-    /* ====== إضافة سطر (نظيف) ====== */
-/* ====== إضافة سطر (نظيف) ====== */
-document.getElementById('btnAdd').onclick = () => {
+/* ====== إضافة سطر (ذكي لليوم السابق) ====== */
+// ==== إضافة سطر مع تحذير عند الإضافة ليوم سابق (نسخة مُحدَّثة جاهزة للاستبدال) ====
+document.getElementById('btnAdd').onclick = async () => {
   const customer = (document.getElementById('cust').value || '').trim();
   const item     = (document.getElementById('item').value || '').trim();
- 
- const priceVal = Number(parseIQD(document.getElementById('price').value) || 0);
 
+  const priceVal = Number(parseIQD(document.getElementById('price').value) || 0);
 
- 
- 
-  let   qty      = String(document.getElementById('qty').value || '1').trim();
-  const cat      = (document.getElementById('cat').value || '').trim();
-  const type     = (document.getElementById('type').value || 'بيع').trim(); // بيع / راجع
-  const note     = (document.getElementById('note').value || '').trim();
+  let   qty  = String(document.getElementById('qty').value || '1').trim();
+  const cat  = (document.getElementById('cat').value || '').trim();
+  const type = (document.getElementById('type').value || 'بيع').trim(); // بيع / راجع
+  const note = (document.getElementById('note').value || '').trim();
 
   if (!customer || !item) return;
   if (!/^\d+$/.test(qty)) qty = '1';
 
   if (!days[selectedDay]) days[selectedDay] = [];
 
+  // ===== أعلام تحذير مرّة وحدة لكل جلسة =====
+  const warnedCreate = (window.__warnedPastCardCreate ||= new Set()); // key: day::customer
+  const warnedAppend = (window.__warnedPastCardAppend ||= new Set()); // key: day::cardId
+
+  // ===== تاريخ اليوم (محلي) بصيغة YYYY-MM-DD بدل UTC =====
+  const todayKey = (() => {
+    const now = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    return `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+  })();
+
+  // مقارنة نصية آمنة لأن الصيغة موحّدة YYYY-MM-DD
+  const isPastDay = (selectedDay < todayKey);
+
   let createdNewCard = false;
 
+  // ابحث عن بطاقة موجودة لنفس الزبون (غير محذوفة)
+  let cardIndex = days[selectedDay].findIndex(c => c.customer === customer && !c.deletedAt);
+  let card = days[selectedDay][cardIndex];
 
-// ابحث عن البطاقة وموقعها (استبعد المحذوفة)
-let cardIndex = days[selectedDay].findIndex(c => c.customer === customer && !c.deletedAt);
-let card = days[selectedDay][cardIndex];
-
-if (!card) {
-  // إنشاء بطاقة جديدة + updatedAt
-  card = {
-    id: Date.now(),
-    customer,
-    lines: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    paidAll: false,
-    billType: type
-  };
-  days[selectedDay].unshift(card);
-  createdNewCard = true;
-} else {
-  // ✅ إنعاش البطاقة إذا كانت محذوفة منطقيًا (حالة نادرة لو لقّطتها من مصدر قديم)
-  if (card.deletedAt) {
-    delete card.deletedAt;
+  // ——— تحذير قبل إنشاء بطاقة جديدة في يوم سابق ———
+  if (!card && isPastDay) {
+    const createKey = `${selectedDay}::${customer}`;
+    if (!warnedCreate.has(createKey)) {
+      const ok = await (typeof showConfirm === 'function'
+        ? showConfirm({
+            title: 'تأكيد إضافة إلى يوم سابق',
+            message: 'أنت حاليًا سوف تُضيف بطاقة جديدة إلى يوم سابق. هل تود المتابعة؟',
+            okText: 'نعم، تابع',
+            cancelText: 'لا',
+            danger: false
+          })
+        : Promise.resolve(true) // لو ماكو showConfirm نسمح ونكمل
+      );
+      if (!ok) return; // إلغاء
+      warnedCreate.add(createKey);
+    }
   }
 
-  // لو نوع مختلف يصير مختلط
+  if (!card) {
+    // إنشاء بطاقة جديدة
+    const nowISOVal = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
+    card = {
+      id: Date.now(),
+      customer,
+      lines: [],
+      createdAt: nowISOVal,
+      updatedAt: nowISOVal,
+      paidAll: false,
+      billType: type
+    };
+    days[selectedDay].unshift(card);
+    createdNewCard = true;
+    cardIndex = 0;
+  } else {
+    // ——— تحذير قبل إضافة سطر لبطاقة موجودة في يوم سابق ———
+    if (isPastDay) {
+      const appendKey = `${selectedDay}::${card.id}`;
+      if (!warnedAppend.has(appendKey)) {
+        const ok = await (typeof showConfirm === 'function'
+          ? showConfirm({
+              title: 'تأكيد إضافة إلى يوم سابق',
+              message: 'أنت حاليًا سوف تُضيف سطرًا إلى بطاقة في يوم سابق. هل تود المتابعة؟',
+              okText: 'نعم، تابع',
+              cancelText: 'لا',
+              danger: false
+            })
+          : Promise.resolve(true)
+        );
+        if (!ok) return; // إلغاء
+        warnedAppend.add(appendKey);
+      }
+    }
+  }
+
+  // توحيد نوع الفاتورة بحالة الخلط
+  if (card.deletedAt) { delete card.deletedAt; }
   if (card.billType && card.billType !== type) card.billType = 'مختلط';
   if (!card.billType) card.billType = type;
 
+  const isReturn   = (type === 'راجع');
+  const nowISOVal2 = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
+  const makeId     = (typeof genId  === 'function') ? genId  : (() => String(Date.now()));
+
+  // إذا البطاقة كانت فاضية قبل هالسطر، حدّث createdAt للآن
+  if (!Array.isArray(card.lines) || !card.lines.some(l => !l.deletedAt)) {
+    card.createdAt = nowISOVal2;
+  }
+
+  // أضف السطر
+  card.lines ||= [];
+  card.lines.push({
+    lineId   : makeId(),
+    item, cat, price: priceVal, qty, note, type,
+    paid: false, returned: isReturn,
+    createdAt: nowISOVal2,
+    updatedAt: nowISOVal2,
+    at: nowISOVal2,   // توافق قديم
+    deletedAt: null
+  });
+
   // حدّث آخر نشاط وارفع البطاقة للأعلى
-  card.updatedAt = new Date().toISOString();
+  card.updatedAt = nowISOVal2;
   days[selectedDay].splice(cardIndex, 1);
   days[selectedDay].unshift(card);
-}
 
+  if (typeof save === 'function') save();
 
-  const isReturn = (type === 'راجع');
-  
-const now = nowISO();
-
-if (card && (!Array.isArray(card.lines) || !card.lines.some(l => !l.deletedAt))) {
-  card.createdAt = now;
-}
-
-card.lines.push({
-  lineId   : genId(),
-  item, cat, price: priceVal, qty, note, type,
-  paid:false, returned:isReturn,
-  createdAt: now,
-  updatedAt: now,
-  at: now,                 // <— إضافة لضمان التوافق القديم
-  deletedAt: null
-});
-
-card.updatedAt = now;
-
-
-  save();
-
-
-  document.getElementById('item').value = '';
-  document.getElementById('price').value = '';   // <-- نظّف السعر
-  document.getElementById('qty').value  = '';
-  document.getElementById('note').value = '';
+  // تنظيف الحقول
+  document.getElementById('item').value  = '';
+  document.getElementById('price').value = '';
+  document.getElementById('qty').value   = '';
+  document.getElementById('note').value  = '';
   document.getElementById('item').focus();
 
-  renderBoard();
-  renderRail();
-  refreshStats();
+  if (typeof renderBoard  === 'function') renderBoard();
+  if (typeof renderRail   === 'function') renderRail();
+  if (typeof refreshStats === 'function') refreshStats();
 
-  // اسحب الكارت أسفل شريط البحث بمسافة أنيقة دائمًا
-  focusNewCard(card);
+  if (typeof focusNewCard === 'function') focusNewCard(card);
 
-  showToast('success', createdNewCard ? 'تم إنشاء بطاقة وإضافة مادة' : 'تم إضافة مادة وتحريك البطاقة للأعلى');
+  if (typeof showToast === 'function') {
+    showToast('success', createdNewCard ? 'تم إنشاء بطاقة وإضافة مادة' : 'تم إضافة مادة وتحريك البطاقة للأعلى');
+  }
 };
 
 
@@ -5487,121 +5653,155 @@ function makeFilterPredicate(fraw){
     
     
     
-
-    /* ===== Rail (تجميع شهري) ===== */
-
-
+// ===== Rail — شهر واحد فقط + منطق العبور (آخر يوم ↔ أول يوم) =====
 function renderRail(){
-  const host = document.getElementById('rail'); host.innerHTML='';
+  const host = document.getElementById('rail');
+  host.innerHTML = '';
 
-  const allDays = Object.keys(days).sort().reverse();
+  // الافتراضي: نعرض يومين فقط (تقدر تخليها 5 إذا تريد)
+  const DAYS_LIMIT = 2;
 
-  // ثبّت TODAY أعلى السكة دائماً حتى لو المستخدم واقف على يوم سابق
-  if (!allDays.includes(TODAY)) {
+  // كل الأيام المتوفرة (بنزول)
+  const allDays = Object.keys(days || {}).sort().reverse();
+
+  // نضمن TODAY ضمن القائمة حتى لو مو موجود ببيانات days
+  if (typeof TODAY === 'string' && !allDays.includes(TODAY)) {
     allDays.unshift(TODAY);
   }
 
-  const fraw = (document.getElementById('dayFilter').value||'').trim();
-  const match = makeFilterPredicate(fraw);
+  // فلترة البحث (إن وجدت)
+  const fraw = (document.getElementById('dayFilter')?.value || '').trim();
+  const match = (typeof makeFilterPredicate === 'function') ? makeFilterPredicate(fraw) : (() => true);
   const isFiltering = !!fraw;
 
-  // لو فلترة: نختار الأيام المطابقة فقط
-  // لو لا: نطبق سياسة "آخر يومين لكل شهر" و"آخر شهرين لكل سنة"
+  // أدوات تواريخ
+  const pad2 = n => String(n).padStart(2,'0');
+  const toStr = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+
+  const parseYMD = (s) => {
+    const y = +s.slice(0,4);
+    const m = +s.slice(5,7);
+    const d = +s.slice(8,10);
+    return {y, m, d};
+  };
+  const firstOfMonthStr = (y,m) => `${y}-${pad2(m)}-01`;
+  const lastOfPrevMonthStr = (y,m) => {
+    const dt = new Date(`${y}-${pad2(m)}-01T00:00:00`);
+    dt.setDate(0); // يوم 0 = آخر يوم من الشهر السابق
+    return toStr(dt);
+  };
+  const firstOfNextMonthStr = (y,m) => {
+    const dt = new Date(`${y}-${pad2(m)}-01T00:00:00`);
+    dt.setMonth(dt.getMonth() + 1); // أول يوم للشهر القادم
+    return toStr(dt);
+  };
+  const lastOfMonthStr = (y,m) => {
+    const dt = new Date(`${y}-${pad2(m)}-01T00:00:00`);
+    dt.setMonth(dt.getMonth() + 1);
+    dt.setDate(0);
+    return toStr(dt);
+  };
+
+  // نبني شجرة [سنة -> شهر -> أيام]
+  const tree = {};
+  allDays.forEach(k => {
+    const yy = k.slice(0,4);
+    const mm = k.slice(5,7);
+    (tree[yy] ||= {});
+    (tree[yy][mm] ||= []);
+    tree[yy][mm].push(k);
+  });
+
+  // نحدد يوم الأساس: إذا عندك selectedDay نستعمله، وإلا TODAY
+  const baseDay = (typeof selectedDay === 'string' && selectedDay) ? selectedDay : TODAY;
+  const {y, m, d} = parseYMD(baseDay);
+
+  // دوال فحص أول/آخر يوم
+  const isFirstOfMonth = d === 1;
+  const isLastOfMonth  = (baseDay === lastOfMonthStr(y,m));
+
   let daysToShow = [];
 
-  if(isFiltering){
+  if (isFiltering) {
+    // إذا أكو فلترة، نعرض المطابق فقط (بدون تقييد)
     daysToShow = allDays.filter(k => match(k));
-  }else{
-    
-    // نعرض "شهر واحد فقط" = الشهر الحالي من TODAY، ويومين فقط من هذا الشهر
-const tree = {};
-allDays.forEach(k=>{
-  const [y,m] = [k.slice(0,4), k.slice(5,7)];
-  (tree[y] ||= {});
-  (tree[y][m] ||= []);
-  tree[y][m].push(k);
-});
+  } else {
+    // —— منطق العبور —— 
+    // إذا واقفين على أول يوم من الشهر -> اعرض [أول يوم من الشهر الحالي, آخر يوم من الشهر السابق]
+    // إذا واقفين على آخر يوم من الشهر -> اعرض [أول يوم من الشهر القادم, آخر يوم من الشهر الحالي]
+    if (isFirstOfMonth) {
+      const pair = [
+        firstOfMonthStr(y, m),
+        lastOfPrevMonthStr(y, m)
+      ];
+      daysToShow = Array.from(new Set(pair)).sort().reverse();
+    } else if (isLastOfMonth) {
+      const pair = [
+        firstOfNextMonthStr(y, m),
+        lastOfMonthStr(y, m)
+      ];
+      daysToShow = Array.from(new Set(pair)).sort().reverse();
+    } else {
+      // الحالة الاعتيادية: شهر واحد فقط (شهر baseDay) وأعلى DAYS_LIMIT أيام من هذا الشهر
+      const yy = baseDay.slice(0,4);
+      const mm = baseDay.slice(5,7);
+      const monthDays = ((tree[yy] && tree[yy][mm]) ? tree[yy][mm] : []).sort().reverse();
 
-// حدّد شهر اليوم الحالي (يتحدّث تلقائياً بحكم TODAY)
-const curYear  = TODAY.slice(0,4);
-const curMonth = TODAY.slice(5,7);
+      // نضمن baseDay بالبداية لو مو موجود ضمن بيانات days
+      if (!monthDays.includes(baseDay)) monthDays.unshift(baseDay);
 
-// لو ماكو بيانات لهذا الشهر (فارغ)، جرّب أحدث شهر فعلي موجود بالبيانات
-let targetYear  = curYear;
-let targetMonth = curMonth;
-if (!tree[curYear] || !tree[curYear][curMonth]) {
-  const monthKeys = Object.keys(tree)
-    .flatMap(y => Object.keys(tree[y]).map(m => `${y}-${m}`))
-    .sort().reverse(); // أحدث شهر أولاً
-  if (monthKeys.length) {
-    targetYear  = monthKeys[0].slice(0,4);
-    targetMonth = monthKeys[0].slice(5,7);
-  }
-}
+      daysToShow = monthDays.slice(0, DAYS_LIMIT);
+    }
 
-// خذ آخر يومين فقط من الشهر المستهدف
-const monthDays = (tree[targetYear]?.[targetMonth] || []).sort().reverse();
-const lastTwoDays = monthDays.slice(0,2);
-daysToShow = [...lastTwoDays];
-
-// حافظ على الترتيب العام نزولياً
-daysToShow.sort().reverse();
-
+    // ضمان عدم التكرار
+    daysToShow = Array.from(new Set(daysToShow));
   }
 
-  if(!daysToShow.length){
+  // لا يوجد شيء لعرضه
+  if (!daysToShow.length) {
     host.innerHTML = '<div style="color:#9aa4b2">لا يوجد أيام لعرضها</div>';
     return;
   }
 
-  // نجمع بالشهور (YYYY-MM)
+  // تجميع حسب الشهر (YYYY-MM)
   const groups = {};
-  daysToShow.forEach(d=>{
-    const key = d.slice(0,7); // YYYY-MM
+  daysToShow.forEach(d => {
+    const key = d.slice(0,7);
     (groups[key] ||= []).push(d);
   });
 
-  // نحتاج أيضاً تجميع بالسنة لفرز الأشهر صح
-  const monthKeys = Object.keys(groups).sort().reverse(); // '2025-10', '2025-09', ...
-  const yearsSet = new Set(monthKeys.map(mk=> mk.slice(0,4)));
+  // ترتيب الأشهر نزوليًا
+  const monthKeys = Object.keys(groups).sort().reverse();
+  const yearsSet  = new Set(monthKeys.map(mk => mk.slice(0,4)));
   const yearsOrdered = Array.from(yearsSet).sort().reverse();
 
-  yearsOrdered.forEach(yyyy=>{
-    // الأشهر التابعة لهذه السنة، بالأحدث أولاً
-    const monthsOfYear = monthKeys.filter(mk => mk.startsWith(yyyy+'-')).sort().reverse();
+  yearsOrdered.forEach(yyyy => {
+    const monthsOfYear = monthKeys.filter(mk => mk.startsWith(yyyy + '-')).sort().reverse();
 
-    monthsOfYear.forEach(monthKey=>{
+    monthsOfYear.forEach(monthKey => {
       const monthBox = CE('div','month');
 
-      const mTitle = CE('div','month-title');
-      const niceMonth = arMonthName(monthKey+'-01');
-     
-     const mCount = groups[monthKey].reduce((n,k)=> n + activeCardsOfDay(k).length, 0);
-
-     
+      // عنوان الشهر + عدد البطاقات
+      const mTitle    = CE('div','month-title');
+      const niceMonth = arMonthName(monthKey + '-01');
+      const mCount    = groups[monthKey].reduce((n, k) => n + activeCardsOfDay(k).length, 0);
       mTitle.innerHTML = `<span>${niceMonth}</span><span class="mchip">${mCount} بطاقة</span>`;
       monthBox.appendChild(mTitle);
 
-      // الأيام داخل هذا الشهر
+      // الأيام داخل هذا الشهر (أحدث أولاً)
       const daysInMonth = groups[monthKey].sort().reverse();
-      daysInMonth.forEach(k=>{
-        const row = CE('div','day'+(k===selectedDay?' active':'')); 
-       row.innerHTML = `
-  <div class="title">${arDateWithDay(k)}</div>
-  <div class="meta">${activeCardsOfDay(k).length} بطاقة</div>
-`;
-
-       
-      row.onclick = ()=>{
-  selectedDay = k;
-  renderBoard();
-  renderRail();      // <-- أضفها حتى يتأشر اليوم المختار
-  refreshStats();
-  // لا تحدّث الهيدر هنا حتى يبقى ثابت على TODAY
-  // document.getElementById('dateBadge').textContent = arDateWithDay(selectedDay);
-};
-       
-       
+      daysInMonth.forEach(k => {
+        const row = CE('div','day' + (k === selectedDay ? ' active' : ''));
+        row.innerHTML = `
+          <div class="title">${arDateWithDay(k)}</div>
+          <div class="meta">${activeCardsOfDay(k).length} بطاقة</div>
+        `;
+        row.onclick = () => {
+          selectedDay = k;
+          renderBoard();
+          renderRail();
+          refreshStats();
+        };
         monthBox.appendChild(row);
       });
 
@@ -7648,6 +7848,9 @@ function dedupeAllDays(daysObj){
 
 
     /* ===== Init ===== */
+    
+    
+   
 
 
 (function init(){
@@ -8589,6 +8792,56 @@ function exportPayments_Print(){
 
 
 </script>
+
+
+<script>
+// ==== مزامنة آمنة تعتمد على selectedDay فقط (ما نلمس TODAY حتى لو const) ====
+// ضع هذه الكتلة في نهاية ملفك بعد كل شيء.
+
+// اسماء فريدة حتى ما نصطدم بتعاريف ثانية
+(function __railDayAutoSync__(){
+  // إرجاع تاريخ اليوم بصيغة YYYY-MM-DD
+  function __getTodayYMD__(){
+    const pad2 = n => String(n).padStart(2,'0');
+    const now = new Date();
+    return `${now.getFullYear()}-${pad2(now.getMonth()+1)}-${pad2(now.getDate())}`;
+  }
+
+  // نحتفظ بآخر يوم شفناه (من selectedDay أو TODAY إذا selectedDay مو معرف)
+  var __lastSeenDay__ = (typeof selectedDay === 'string' && selectedDay) 
+                          ? selectedDay 
+                          : (typeof TODAY === 'string' ? TODAY : __getTodayYMD__());
+
+  function __tickSync__(){
+    try{
+      const today = __getTodayYMD__();
+
+      // إذا اختلف تاريخ اليوم عن آخر يوم شغال عندنا → نحدّث selectedDay فقط
+      if (today !== __lastSeenDay__) {
+        __lastSeenDay__ = today;
+        // لا نقترب من TODAY حتى لو كانت const
+        if (typeof selectedDay === 'undefined') { window.selectedDay = today; }
+        else { selectedDay = today; }
+
+        // نعيد الرسم إذا الدوال موجودة
+        if (typeof renderBoard === 'function') renderBoard();
+        if (typeof renderRail  === 'function') renderRail();
+        if (typeof refreshStats=== 'function') refreshStats();
+      }
+    } catch(e){
+      // ما نسوي شي، نخليها صامتة حتى لا تكسر الصفحة لو صار استثناء
+      // console.error('[rail sync]', e);
+    }
+  }
+
+  // تشغيل أولي + مؤقت كل 60 ثانية
+  __tickSync__();
+  if (!window.__railDayAutoSyncInterval__) {
+    window.__railDayAutoSyncInterval__ = setInterval(__tickSync__, 60 * 1000);
+  }
+})();
+</script>
+
 
 
 
