@@ -2941,6 +2941,13 @@ body{ padding-top: var(--hdr-h); }
       <div class="r-right">
         
         
+        
+        <!-- [NEW] زر تحديد هوية الحاسبة -->
+<button class="icon" id="btnDeviceRole" title="تحديد هوية الحاسبة" aria-label="تحديد هوية الحاسبة">
+  <i class="fa-solid fa-id-badge"></i>
+</button>
+
+        
         <!-- زر الحسابات المالية الجديد -->
   <button id="openPaymentsBtn" class="icon" title="الحسابات المالية">
     <i class="fa-solid fa-money-bill-transfer"></i>
@@ -3435,6 +3442,24 @@ body{ padding-top: var(--hdr-h); }
   <div id="paymentsRows" class="payments-rows"></div>
 </div>
 
+    </div>
+  </div>
+</div>
+
+
+
+
+
+<!-- [NEW] نافذة اختيار هوية الحاسبة -->
+<div id="roleBackdrop" class="modal-backdrop"></div>
+<div id="roleModal" class="modal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-labelledby="roleTitle">
+    <div class="modal-head" id="roleTitle">تحديد هوية الحاسبة</div>
+    <div class="modal-body" id="roleMsg">اختر نوع هذه الحاسبة:</div>
+    <div class="modal-actions">
+      <button class="modal-btn" id="setRoleMain"  title="حاسبة رئيسية">حاسبة رئيسية</button>
+      <button class="modal-btn danger" id="setRoleSub"  title="حاسبة فرعية (حفظ محلي فقط)">حاسبة فرعية (حفظ محلي فقط)</button>
+      <button class="modal-btn ghost" id="closeRole">إغلاق</button>
     </div>
   </div>
 </div>
@@ -4058,6 +4083,94 @@ document.addEventListener('click', (ev)=>{
     const STORAGE = 'assal:board:v3';
     const NAMES   = 'assal:names:v3';
     let globalLimit = 20;
+    
+    
+    
+    
+    /* ================= [NEW] Device Role (Main/Sub) ================= */
+const ROLE_KEY = 'assal:deviceRole'; // 'main' | 'sub'
+
+// helpers
+function getDeviceRole(){
+  const r = (localStorage.getItem(ROLE_KEY) || '').trim();
+  return (r === 'sub' ? 'sub' : (r === 'main' ? 'main' : '')); // فاضي = غير محدد
+}
+function isSubDevice(){ return getDeviceRole() === 'sub'; }
+function setDeviceRole(role){
+  localStorage.setItem(ROLE_KEY, role === 'sub' ? 'sub' : 'main');
+  updateRoleUIState();
+  showToast('success', role === 'sub' ? 'تم ضبط الهوية: حاسبة فرعية (حفظ محلي فقط)' : 'تم ضبط الهوية: حاسبة رئيسية');
+}
+
+// تحديث الواجهة (تعطيل زر الرفع عند الفرعية + توضيح التولتيب)
+function updateRoleUIState(){
+  const exportBtn = document.getElementById('btnExportAll');
+  const importBtn = document.getElementById('btnImportAll');
+  const roleBtn   = document.getElementById('btnDeviceRole');
+
+  if(exportBtn){
+    exportBtn.disabled = isSubDevice();          // منع رفع
+    exportBtn.title = isSubDevice()
+      ? 'غير متاح في الحاسبة الفرعية (حفظ محلي فقط)'
+      : 'رفع النسخة للسيرفر';
+  }
+  if(importBtn){
+    importBtn.disabled = false;                  // السحب دايمًا مسموح
+    importBtn.title = isSubDevice()
+      ? 'سحب نسخة السيرفر (سيتم استبدال المحلية)'
+      : 'سحب النسخة من السيرفر (دمج ذكي)';
+  }
+  if(roleBtn){
+    const r = getDeviceRole() || 'غير محددة';
+    roleBtn.title = `تحديد هوية الحاسبة (الحالية: ${r === 'sub' ? 'فرعية' : (r === 'main' ? 'رئيسية' : 'غير محددة')})`;
+  }
+}
+
+// نافذة الهوية (فتح/إغلاق + خيارات)
+/* نافذة الهوية (فتح/إغلاق + خيارات) — [UPDATED: بدون أي confirm] */
+(function initRoleModal(){
+  const bd   = document.getElementById('roleBackdrop');
+  const md   = document.getElementById('roleModal');
+  const msg  = document.getElementById('roleMsg');
+  const open = document.getElementById('btnDeviceRole');
+  const close= document.getElementById('closeRole');
+  const btnM = document.getElementById('setRoleMain');
+  const btnS = document.getElementById('setRoleSub');
+
+  function openModal(){
+    // [CHANGED] نخلي الرسالة عامة دائمًا بدون تلميح للتحويل/تأكيد
+    msg.textContent = 'اختر نوع هذه الحاسبة: رئيسية أو فرعية (الحفظ محلي فقط للفرعية).';
+    bd.classList.add('active');
+    md.classList.add('active');
+    document.body.classList.add('modal-open');
+  }
+  function closeModal(){
+    bd.classList.remove('active');
+    md.classList.remove('active');
+    document.body.classList.remove('modal-open');
+  }
+
+  open?.addEventListener('click', openModal);
+  close?.addEventListener('click', closeModal);
+  bd?.addEventListener('click', (e)=>{ if(e.target === bd) closeModal(); });
+
+  // [CHANGED] بدون أي confirm — تغيير فوري
+  btnM?.addEventListener('click', ()=>{
+    setDeviceRole('main');   // يحدّث الواجهة ويعرض toast جاهز
+    closeModal();
+  });
+
+  // [CHANGED] بدون أي confirm — تغيير فوري
+  btnS?.addEventListener('click', ()=>{
+    setDeviceRole('sub');    // يحدّث الواجهة ويعرض toast جاهز
+    closeModal();
+  });
+
+  // تهيئة أولية لحالة الأزرار
+  updateRoleUIState();
+})();
+
+
     
     
     
@@ -7025,6 +7138,12 @@ const btnExportAll = document.getElementById('btnExportAll');
 const btnImportAll = document.getElementById('btnImportAll');
 const importInput  = document.getElementById('importFile');
 
+
+
+// بعد ربط الأزرار مباشرةً:
+updateRoleUIState();
+
+
 document.getElementById('btnNextDay')?.addEventListener('click', openNextDayFromToday);
 
 // التصدير الآن يرفع إلى السيرفر (ويب آب)
@@ -7456,6 +7575,12 @@ function sumCardAmounts(card){
 // تصدير ذكي: يدمج المحلي مع السيرفر ويرفع نسخة موحّدة
 // ويضمن أيضاً رفع transferDate (آخر تاريخ نقل ديون)
 async function smartExportToServer(){
+  // [NEW] منع تام للرفع إذا الحاسبة "فرعية"
+  if (typeof isSubDevice === 'function' && isSubDevice()){
+    showToast('warn','هذه حاسبة فرعية: الرفع للسيرفر غير مسموح. كل التخزين محلي فقط.');
+    return;
+  }
+
   if(!window.IS_SIGNED_IN){
     showToast('warn','سجّل دخول أولاً');
     return;
@@ -7480,7 +7605,7 @@ async function smartExportToServer(){
       days: cleanDays,
       names: cleanNames,
       updatedAt: Date.now(),
-      transferDate: getTransferDateIso() || ''  // ← هذا أهم سطر للمشكلة مالك
+      transferDate: getTransferDateIso() || ''  // ← لا تمسّه
     };
 
     let report = [];
@@ -7494,11 +7619,11 @@ async function smartExportToServer(){
       const mergedDays  = merged.days;
       const mergeReport = merged.report || [];
 
-      // نظّف الـ IDs وكرّر إزالة المكررات مثل ما عندك بالسيستم
+      // نظّف الـ IDs وامسح المكررات
       normalizeIdsInAllDays(mergedDays);
       dedupeAllDays(mergedDays);
 
-      // بعد الدمج، خلي النسخة النهائية هي اللي نصعدها
+      // بعد الدمج، خلّي النسخة النهائية هي اللي نصعدها
       payload.days  = mergedDays;
 
       // وحّد الأسماء (names)
@@ -7506,7 +7631,7 @@ async function smartExportToServer(){
       const srvNames = Array.isArray(server.names) ? server.names : [];
       payload.names  = Array.from(new Set([...curNames, ...srvNames]));
 
-      // إذا السيرفر عنده transferDate واحنا ماعندنا بعد، خليه لايروح
+      // إذا السيرفر عنده transferDate واحنا ماعندنا بعد، لا تضيّعه
       if(!payload.transferDate && server.transferDate){
         payload.transferDate = server.transferDate;
       }
@@ -7516,28 +7641,27 @@ async function smartExportToServer(){
 
     // (إضافة 2) منع رفع نسخة صفرية نهائيًا
     if (!payload.days || Object.keys(payload.days).length === 0) {
-      showToast('warn','ماكو بيانات فعّالة للتصدير. تأكّد التحميل من التخزين تم قبل الرفع.');
+      showToast('warn','ماكو بيانات فعّالة للتصدير.');
       return;
     }
 
-    // 3) ودّي النسخة النهائية للسيرفر (POST / PUT / whatever بالسيرفرPostBackup)
+    // 3) ودّي النسخة النهائية للسيرفر
     await serverPostBackup(payload);
 
-    // 4) خزّن محلياً آخر باك اب مرفوع (حتى التطبيق يعرف إنو هذا آخر إصدار)
+    // 4) خزّن محلياً آخر باك اب مرفوع
     localStorage.setItem(STORAGE, JSON.stringify(payload.days || {}));
     localStorage.setItem(NAMES,   JSON.stringify(payload.names || []));
     if(payload.transferDate){
       setTransferDateIso(payload.transferDate);
     }
 
-    // حدّث الذاكرة الحية / الواجهة
+    // حدّث الواجهة
     days  = load(STORAGE, {});
     names = load(NAMES,   []);
     renderBoard();
     renderRail();
     refreshStats();
 
-    // خليه يحس بالنجاح
     showToast(
       'success',
       report.length
@@ -7553,6 +7677,7 @@ async function smartExportToServer(){
     showToast('error','تعذّر رفع/دمج النسخة مع السيرفر');
   }
 }
+
 
 
 
@@ -7795,7 +7920,6 @@ out[dayKey] = mergedCards;
 
 
 // استيراد ذكي: يسحب من السيرفر إذا هو أحدث (أو إذا المحلي فارغ)
-// + يجلب ويخزن آخر تاريخ نقل ديون (transferDate)
 async function smartImportFromServer(){
   if(!window.IS_SIGNED_IN){
     showToast('warn','سجّل دخول أولاً');
@@ -7803,7 +7927,11 @@ async function smartImportFromServer(){
   }
 
   try{
-    showToast('info','جاري جلب آخر نسخة من السيرفر…', 1800);
+    // فرق برسالة التوست حسب الهوية
+    const subMode = (typeof isSubDevice === 'function' && isSubDevice());
+    showToast('info', subMode
+      ? 'جاري سحب نسخة السيرفر (سيتم استبدال المحلية بالكامل)...'
+      : 'جاري جلب آخر نسخة من السيرفر…', 1800);
 
     const server = await serverGetBackup();
     if(!server || !server.days){
@@ -7811,6 +7939,30 @@ async function smartImportFromServer(){
       return;
     }
 
+    if(subMode){
+      // ========= وضع "حاسبة فرعية": استبدال كامل =========
+      localStorage.setItem(STORAGE, JSON.stringify(server.days || {}));
+      localStorage.setItem(NAMES,   JSON.stringify(Array.isArray(server.names) ? server.names : []));
+      if(server.transferDate){ setTransferDateIso(server.transferDate); }
+
+      // حدّث الذاكرة والواجهة
+      days  = load(STORAGE, {});
+      names = load(NAMES,   []);   // ← تصليح: نحمل كـ Array
+      renderBoard();
+      renderRail();
+      refreshStats();
+
+      showToast('success','تم الاستبدال الكامل من السيرفر (الحفظ محلي فقط).');
+
+      // خبرنا آخر تاريخ نقل ديون إذا موجود
+      const iso = getTransferDateIso();
+      if(iso){
+        showToast('info', formatTransferToastMsg(iso));
+      }
+      return; // خلصنا بالفرعية
+    }
+
+    // ========= وضع "حاسبة رئيسية": دمج ذكي مثل طريقتك =========
     const localDays  = days || {};
     const remoteDays = server.days || {};
 
@@ -7834,16 +7986,16 @@ async function smartImportFromServer(){
 
     // حدّث الذاكرة والواجهة
     days  = load(STORAGE, {});
-    names = load(NAMES,   {});
-    renderBoard(); 
-    renderRail(); 
+    names = load(NAMES,   []);   // ← تصليح: نحمل كـ Array
+    renderBoard();
+    renderRail();
     refreshStats();
 
-    const changes = report.length;
+    const changes = (report && report.length) ? report.length : 0;
     showToast(
-      'success', 
-      changes 
-        ? `تم الدمج الآمن (${changes} تغيير)` 
+      'success',
+      changes
+        ? `تم الدمج الآمن (${changes} تغيير)`
         : 'لا تغييرات — البيانات متطابقة'
     );
 
@@ -7861,6 +8013,7 @@ async function smartImportFromServer(){
     showToast('error','تعذّر جلب/دمج النسخة من السيرفر');
   }
 }
+
 
 
 
@@ -8280,7 +8433,16 @@ onAuthStateChanged(auth, async (user)=>{
       setSignedInUI(user);
 
       // ← هنا فقط: أول استيراد ذكي بعد تسجيل الدخول
-      await smartImportFromServer();
+      
+      if(getDeviceRole() !== 'sub'){
+  await smartImportFromServer();
+} else {
+  showToast('info','هذه الحاسبة فرعية: لا مزامنة تلقائية. استعمل زر "سحب النسخة" عند الحاجة.');
+}
+
+      
+      
+      
     }else{
       await signOut(auth);
       setSignedOutUI();
