@@ -2860,6 +2860,62 @@ body{ padding-top: var(--hdr-h); }
   .btn-dark:hover { background: #0b1220; }
 }
 
+/* ——— نافذة التأكيد: خط أكبر شوية وموحّد مع الواجهة ——— */
+.modal-card{
+  width: min(620px, calc(100vw - 40px)) !important; /* تكبير واضح */
+  border-radius: 16px !important;
+  font-family: inherit !important;                   /* نفس خط الواجهة */
+}
+.modal-head{ font-size: 18.5px !important; font-weight: 900 !important; }
+.modal-body{ font-size: 16.5px !important; line-height: 1.85 !important; }
+
+/* زر "نعم" = أحمر غامق واضح (يشتغل لما danger=true) */
+.modal-btn.danger{
+  background: linear-gradient(180deg, #5f0b0b, #7a0e0e) !important;
+  color: #fff !important;
+  border-color: #7f1d1d !important;
+  box-shadow: 0 12px 28px rgba(127,29,29,.35) !important;
+}
+.modal-btn.danger:hover{ filter: brightness(1.06) !important; transform: translateY(-1px) !important; }
+.modal-btn.danger:focus{ outline: 2px solid rgba(127,29,29,.55) !important; outline-offset: 1px !important; }
+
+/* إبراز "يوم سابق" داخل النص */
+.prev-day{ color:#7f1d1d !important; font-weight:900 !important; }
+
+
+
+
+/* تكبير أزرار التأكيد/الإلغاء */
+.modal-actions{
+  display:flex;
+  gap:10px;
+  justify-content:center;
+  width:100%;
+}
+
+.modal-btn{
+  height:44px;                 /* كان 36px */
+  min-width:120px;             /* يخليها كبار شوي */
+  padding:0 16px;
+  border-radius:12px;          /* أنعم */
+  font-size:16px;              /* خط أوضح */
+  font-weight:900;
+}
+
+
+/* أخيرًا وبشكل حاسم: خلّي زر التأكيد أحمر غامق */
+#modal-confirm.modal-btn.danger{
+  background: linear-gradient(180deg, #5f0b0b, #7a0e0e) !important;
+  color:#fff !important;
+  border-color:#7f1d1d !important;
+  box-shadow:0 12px 28px rgba(127,29,29,.35) !important;
+}
+#modal-confirm.modal-btn.danger:hover{
+  filter:brightness(1.06) !important;
+  transform:translateY(-1px) !important;
+}
+
+
 
 
 
@@ -4615,10 +4671,26 @@ async function processToastQueueUnified(){
     function showConfirm({title='تأكيد', message='هل أنت متأكد؟', okText='تأكيد', cancelText='إلغاء', danger=true}={}){
       return new Promise((resolve)=>{
         $mtitle.textContent = title;
-        $mbody.textContent  = message;
+        $mbody.innerHTML    = message;
         $mok.textContent    = okText;
         $mcancel.textContent= cancelText;
         $mok.classList.toggle('danger', !!danger);
+        
+        
+        if (danger) {
+  $mok.style.setProperty('background','linear-gradient(180deg,#5f0b0b,#7a0e0e)','important');
+  $mok.style.setProperty('color','#fff','important');
+  $mok.style.setProperty('border-color','#7f1d1d','important');
+  $mok.style.setProperty('box-shadow','0 12px 28px rgba(127,29,29,.35)','important');
+} else {
+  $mok.style.removeProperty('background');
+  $mok.style.removeProperty('color');
+  $mok.style.removeProperty('border-color');
+  $mok.style.removeProperty('box-shadow');
+}
+
+        
+        
 
         $back.classList.add('active');
         $modal.classList.add('active');
@@ -4681,16 +4753,23 @@ document.getElementById('btnAdd').onclick = async () => {
   if (!card && isPastDay) {
     const createKey = `${selectedDay}::${customer}`;
     if (!warnedCreate.has(createKey)) {
-      const ok = await (typeof showConfirm === 'function'
-        ? showConfirm({
-            title: 'تأكيد إضافة إلى يوم سابق',
-            message: 'أنت حاليًا سوف تُضيف بطاقة جديدة إلى يوم سابق. هل تود المتابعة؟',
-            okText: 'نعم، تابع',
-            cancelText: 'لا',
-            danger: false
-          })
-        : Promise.resolve(true) // لو ماكو showConfirm نسمح ونكمل
-      );
+     
+     const ok = await (typeof showConfirm === 'function'
+  
+  ? showConfirm({
+  title: 'تأكيد إضافة إلى يوم سابق',
+  message: 'أنت حاليًا سوف تُضيف سطرًا إلى بطاقة في يوم سابق. هل تود المتابعة؟',
+  okText: 'نعم',
+  cancelText: 'لا',
+  danger: true
+})
+
+  
+  
+  : Promise.resolve(true)
+);
+     
+     
       if (!ok) return; // إلغاء
       warnedCreate.add(createKey);
     }
@@ -4722,7 +4801,7 @@ document.getElementById('btnAdd').onclick = async () => {
               message: 'أنت حاليًا سوف تُضيف سطرًا إلى بطاقة في يوم سابق. هل تود المتابعة؟',
               okText: 'نعم، تابع',
               cancelText: 'لا',
-              danger: false
+              danger: true
             })
           : Promise.resolve(true)
         );
