@@ -3557,53 +3557,40 @@ let __autoSyncTimer   = null;
 
 // شروط جاهزية المزامنة التلقائية
 function canAutoSyncNow(){
+  // NEW: ممنوع مزامنة تلقائية إذا الجهاز فرعي
+  if (typeof isSubDevice === 'function' && isSubDevice()) return false;
+
   const now = Date.now();
-
-  // 1) لا تشتغل قبل ما يجي وقت أول مزامنة مجدولة
   if (now < firstAutoSyncAt) return false;
-
-  // 2) إذا صار تعديل محلي قبل شوي → لا تسوي Sync
-  //    يعني لا تروح تندمج ويا السيرفر وتجيب حالة أقدم من اللي هسه عدّلناها
-  if (now - LAST_EDIT_TS < AUTO_SYNC_GRACE_MS) {
-    return false;
-  }
-
-  // 3) ثروتل عام (حتى ما نزعج السيرفر كل دقيقة)
+  if (now - LAST_EDIT_TS < AUTO_SYNC_GRACE_MS) return false;
   if (now - __lastAutoSyncAt < AUTO_SYNC_THROTTLE_MS) return false;
-
-  // 4) شروط البيئة: لازم أنت داخل، أونلاين، والتبويب قدامك
   if (!window.IS_SIGNED_IN) return false;
   if (!navigator.onLine) return false;
   if (document.visibilityState !== 'visible') return false;
-
-  // 5) كلشي تمام، نسمح بالمزامنة
   return true;
 }
+
 
 
 // شغّل المزامنة، واظهر توست فقط لو كانت "تلقائية" ونجحت
 // شغّل المزامنة، واظهر توست واحد فقط بعد النجاح
 async function runAutoSync(){
-  // نحفظ الدالة الأصلية ونكمّمها مؤقتًا
+  // NEW: لا تشغّل أي مزامنة تلقائية على الفرعية
+  if (typeof isSubDevice === 'function' && isSubDevice()) return;
+
   const prevShowToast = window.showToast;
   try{
-    window.showToast = function(){ /* mute toasts during auto-sync */ };
-
-    await smartExportToServer();   // رفع/دمج بصمت
-
+    window.showToast = function(){};
+    await smartExportToServer();
     __lastAutoSyncAt = Date.now();
   }catch(e){
     console.error('AutoSync failed:', e);
-    // (اختياري) إذا تريد تظهر فشل واحد فقط، فكّ التعليق التالي:
-    // prevShowToast && prevShowToast('warn','تعذّرت المزامنة التلقائية');
   }finally{
-    // نرجّع دالة التوست الأصلية
     window.showToast = prevShowToast;
   }
-
-  // نطلع توست واحد فقط بعد انتهاء المزامنة التلقائية
   prevShowToast && prevShowToast('info','تمت المزامنة التلقائية');
 }
+
 
 
 // حلقة تفقد خفيفة (كل 5 ثواني) لنشوف إذا حان وقت المزامنة
