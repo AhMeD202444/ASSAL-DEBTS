@@ -6662,6 +6662,12 @@ function sumCard(card){
             tag.textContent = (type==='راجع') ? 'فاتورة راجع' : (type==='بيع') ? 'فاتورة بيع' : 'فاتورة مختلطة';
             right.appendChild(tag);
 
+            // NEW: التاريخ يمّ نوع الفاتورة
+            const dateTag = document.createElement('span');   // NEW
+            dateTag.className = 'tag';                        // NEW
+            dateTag.textContent = PAYLOAD.dateStr || '';      // NEW
+            right.appendChild(dateTag);                       // NEW
+
             head.append(left,right);
             box.appendChild(head);
 
@@ -6775,6 +6781,7 @@ function sumCard(card){
   w.document.close();
   showToast('success','جاهز للطباعة — اختر "حفظ كـ PDF"');
 }
+
 
 
 
