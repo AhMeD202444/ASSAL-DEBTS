@@ -7494,16 +7494,23 @@ function minuteBucket(ts){
 }
 
 // --- تعريف lineKey الوحيد المعتمد في النظام (لا تنسخه مرتين) ---
+// يستخدم lineId حصراً. إذا ناقص، يولّد واحد ويثبّته على السطر.
 function lineKey(l){
-  if(l?.lineId) return l.lineId;
-  const item = safeStr(l?.item);
-  const cat  = safeStr(l?.cat);
-  const price= String(l?.price ?? '');
-  const qty  = String(l?.qty   ?? '');
-  const note = safeStr(l?.note);
-  const t    = minuteBucket(l?.createdAt || l?.at || l?.updatedAt || '');
-  return `SYN::${item}|${cat}|${price}|${qty}|${note}|${t}`;
+  try{
+    if(!l) return '';
+    if(l.lineId && String(l.lineId).trim() !== '') return l.lineId;
+    // توليد وتثبيت هوية دائمة للسطر
+    const id = (typeof genId === 'function') ? genId() : ('id-' + Math.random().toString(36).slice(2) + Date.now().toString(36));
+    l.lineId = id;
+    return id;
+  }catch{
+    // fallback آمن
+    const id = (typeof genId === 'function') ? genId() : ('id-' + Math.random().toString(36).slice(2) + Date.now().toString(36));
+    if(l) l.lineId = id;
+    return id;
+  }
 }
+
 
 
 
@@ -7511,12 +7518,21 @@ function lineKey(l){
 
 
 // نفس الفكرة للملاحظة
+// يستخدم id للملاحظة حصراً. إذا ناقص، يولّد واحد ويثبّته على الملاحظة.
 function noteKey(n){
-  if(n?.id) return n.id;
-  const text = safeStr(n?.text);
-  const t    = minuteBucket(n?.at || n?.updatedAt || '');
-  return `SYNNOTE::${text}|${t}`;
+  try{
+    if(!n) return '';
+    if(n.id && String(n.id).trim() !== '') return n.id;
+    const id = (typeof genId === 'function') ? genId() : ('id-' + Math.random().toString(36).slice(2) + Date.now().toString(36));
+    n.id = id;
+    return id;
+  }catch{
+    const id = (typeof genId === 'function') ? genId() : ('id-' + Math.random().toString(36).slice(2) + Date.now().toString(36));
+    if(n) n.id = id;
+    return id;
+  }
 }
+
 
 
 
@@ -7561,88 +7577,167 @@ function sumCardAmounts(card){
 
 // تصدير ذكي: يدمج المحلي مع السيرفر ويرفع نسخة موحّدة
 // ويضمن أيضاً رفع transferDate (آخر تاريخ نقل ديون)
+
+
+/* ===== Idempotency Helpers (جديد) ===== */
+const IDEM_LOG_KEY   = 'ASSAL_IDEM_LOG';       // آخر طلبات ناجحة: { [requestId]: ts }
+const IDEM_PENDING_K = 'ASSAL_IDEM_PENDING';   // طلب جارٍ: { requestId, payload }
+
+function loadJSON(k, d){ try{ return JSON.parse(localStorage.getItem(k) || JSON.stringify(d)); }catch{ return d; } }
+function saveJSON(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
+
+function makeRequestId(){
+  // يستعمل genId إذا موجود (نفس مشروعك)، وإلا يولّد واحد قوي
+  try{ if (typeof genId === 'function') return 'req_'+genId(); }catch{}
+  return 'req_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function markPending(requestId, payload){
+  saveJSON(IDEM_PENDING_K, { requestId, payload, ts: Date.now() });
+}
+
+function clearPending(){
+  localStorage.removeItem(IDEM_PENDING_K);
+}
+
+function getPending(){
+  const obj = loadJSON(IDEM_PENDING_K, null);
+  if (!obj || !obj.requestId) return null;
+  return obj;
+}
+
+function markProcessed(requestId){
+  const log = loadJSON(IDEM_LOG_KEY, {});
+  log[requestId] = Date.now();
+  // أبقِ السجل صغير (نمسح الأقدم بعد 200 إدخال)
+  const ids = Object.keys(log);
+  if (ids.length > 200){
+    ids.sort((a,b)=> log[a]-log[b]);
+    ids.slice(0, ids.length-200).forEach(id => delete log[id]);
+  }
+  saveJSON(IDEM_LOG_KEY, log);
+}
+
+function isProcessed(requestId){
+  const log = loadJSON(IDEM_LOG_KEY, {});
+  return !!log[requestId];
+}
+
+
+
+// تصدير ذكي: يدمج المحلي مع السيرفر ويرفع نسخة موحّدة + (Idempotency)
 async function smartExportToServer(){
-  // [NEW] منع تام للرفع إذا الحاسبة "فرعية"
+  // ممنوع على الحاسبة الفرعية (نفس كودك)
   if (typeof isSubDevice === 'function' && isSubDevice()){
     showToast('warn','هذه حاسبة فرعية: الرفع للسيرفر غير مسموح. كل التخزين محلي فقط.');
     return;
   }
-
   if(!window.IS_SIGNED_IN){
     showToast('warn','سجّل دخول أولاً');
     return;
   }
 
   try{
-    showToast('info','جاري مزامنة النسخة مع السيرفر...', 1800);
+    showToast('info','جاري مزامنة النسخة مع السيرفر.', 1800);
 
-    // 1) جيب النسخة الحالية من السيرفر
+    // 0) حمل pending سابق إذا موجود (نفس requestId)
+    let pending = getPending();
+    let requestId = pending?.requestId || makeRequestId();
+
+    // 1) جيب نسخة السيرفر
     const server = await serverGetBackup();
 
-    // (إضافة 1) خذ لقطة طازة من الستورج حتى نتجنب السباق/نسخة الذاكرة
+    // خذ لقطة طازة من الستورج (نفس أسلوبك) :contentReference[oaicite:2]{index=2}
     const latestDays  = load(STORAGE, {});
     const latestNames = load(NAMES,   []);
 
-    // 2) حضّر نسخة نظيفة من بياناتك الحالية (بس الفعّال، بدون المحذوف)
+    // 2) حضّر نسخة نظيفة (تجاهل المحذوف) :contentReference[oaicite:3]{index=3}
     const { days: cleanDays, names: cleanNames } = prepareCleanPayload(latestDays, latestNames);
 
-    // هذا الباي لود اللي نريد نرفعه
-    // IMPORTANT: نبعث transferDate حتى الأجهزة الثانية تعرف آخر تاريخ نقل الديون
-    const payload = {
+    // أساس البايـلود
+    let payload = pending?.payload || {
       days: cleanDays,
       names: cleanNames,
       updatedAt: Date.now(),
-      transferDate: getTransferDateIso() || ''  // ← لا تمسّه
+      transferDate: getTransferDateIso() || ''
     };
 
     let report = [];
 
+    // 2.5) دمج آمن إذا السيرفر مو فاضي (نفس منطقك) :contentReference[oaicite:4]{index=4}
     if(server && server.days){
-      // السيرفر مو فاضي، سوّي دمج آمن بين "المحلّي" و "السيرفر"
-      const localDays  = latestDays || {};
-      const remoteDays = server.days || {};
-
-      const merged = mergeAllDays(localDays, remoteDays);
+      const merged = mergeAllDays(latestDays || {}, server.days || {});
       const mergedDays  = merged.days;
       const mergeReport = merged.report || [];
 
-      // نظّف الـ IDs وامسح المكررات
+      // نظّف الـIDs وديدوب (نفس دوالك) :contentReference[oaicite:5]{index=5}
       normalizeIdsInAllDays(mergedDays);
       dedupeAllDays(mergedDays);
 
-      // بعد الدمج، خلّي النسخة النهائية هي اللي نصعدها
-      payload.days  = mergedDays;
-
-      // وحّد الأسماء (names)
+      payload.days   = mergedDays;
       const curNames = Array.isArray(latestNames) ? latestNames : [];
       const srvNames = Array.isArray(server.names) ? server.names : [];
       payload.names  = Array.from(new Set([...curNames, ...srvNames]));
-
-      // إذا السيرفر عنده transferDate واحنا ماعندنا بعد، لا تضيّعه
       if(!payload.transferDate && server.transferDate){
         payload.transferDate = server.transferDate;
       }
-
       report = mergeReport;
     }
 
-    // (إضافة 2) منع رفع نسخة صفرية نهائيًا
+    // لو صفرية لا ترفع (نفس سلوكك) :contentReference[oaicite:6]{index=6}
     if (!payload.days || Object.keys(payload.days).length === 0) {
       showToast('warn','ماكو بيانات فعّالة للتصدير.');
       return;
     }
 
-    // 3) ودّي النسخة النهائية للسيرفر
-    await serverPostBackup(payload);
+    // 3) ————— Idempotency —————
+    // لو كان requestId متعلّم "Processed" نوقف؛ هذا يعني سيرفر قبله سابقاً
+    if (isProcessed(requestId)){
+      clearPending();
+      showToast('info','تمت مزامنة سابقة بنفس العملية (تجاهل التكرار).');
+      return;
+    }
 
-    // 4) خزّن محلياً آخر باك اب مرفوع
+    // خزّن pending قبل الإرسال (حتى لو انفصل النت بعد الحفظ) 
+    payload.requestId = requestId;
+    markPending(requestId, payload);
+
+    // 3.1) إرسال مع إعادة محاولة بسيطة بنفس requestId
+    const MAX_ATTEMPTS = 3;
+    let attempt = 0, sentOk = false, lastErr = null;
+
+    while(attempt < MAX_ATTEMPTS && !sentOk){
+      attempt++;
+      try{
+        // ملاحظة: نمرر payload كما هو إلى دالتك الأصلية serverPostBackup
+        await serverPostBackup(payload);
+        sentOk = true;
+      }catch(e){
+        lastErr = e;
+        // باك-أوف بسيط
+        await new Promise(r => setTimeout(r, attempt * 700));
+      }
+    }
+
+    if(!sentOk){
+      // لا تمسح ال-pending حتى إعادة المحاولة الجاية تستخدم نفس requestId
+      console.error('Export failed (kept pending for idempotent retry):', lastErr);
+      showToast('warn','تعذّر رفع النسخة، سيتم استخدام نفس العملية بالمحاولة القادمة.');
+      return;
+    }
+
+    // 4) علامة "تمت" لنفس requestId + إزالة pending
+    markProcessed(requestId);
+    clearPending();
+
+    // 5) خزّن محلي آخر نسخة رفعت (نفس سلوكك) :contentReference[oaicite:7]{index=7}
     localStorage.setItem(STORAGE, JSON.stringify(payload.days || {}));
     localStorage.setItem(NAMES,   JSON.stringify(payload.names || []));
     if(payload.transferDate){
       setTransferDateIso(payload.transferDate);
     }
 
-    // حدّث الواجهة
+    // 6) حدّث الواجهة (نفسك) :contentReference[oaicite:8]{index=8}
     days  = load(STORAGE, {});
     names = load(NAMES,   []);
     renderBoard();
@@ -7659,11 +7754,14 @@ async function smartExportToServer(){
     console.groupCollapsed?.('ASSAL MERGE REPORT (EXPORT)');
     (report||[]).forEach(r => console.log(r));
     console.groupEnd?.();
+
   }catch(err){
     console.error(err);
-    showToast('error','تعذّر رفع/دمج النسخة مع السيرفر');
+    showToast('error','تعذّر رفع النسخة إلى السيرفر');
+    // نبقي الـpending كما هو (لو موجود) حتى المحاولة القادمة تستعمل نفس requestId
   }
 }
+
 
 
 
@@ -7792,115 +7890,134 @@ function mergeNote(a, b, report, path){
 }
 
 /* دمج بطاقة cardId */
+/* دمج بطاقة cardId — مطابق لكودك لكن الدمج داخله على lineId/id فقط */
 function mergeCard(a, b, report, path){
   const x = a || {};
   const y = b || {};
 
-  if(!a && b){ report.push({ path, type:'card-add', before:null, after:y }); return {...y}; }
-  if(a && !b){ report.push({ path, type:'card-keep', before:null, after:x }); return {...x}; }
+  if (!a && b) { report.push({ path, type:'card-add',  before:null, after:y }); return { ...y }; }
+  if ( a && !b) { report.push({ path, type:'card-keep', before:null, after:x }); return { ...x }; }
 
-  const merged = {...x};
+  const merged = { ...x };
 
-  // اسم الزبون بالأحدث (نادرًا يتغيّر)
+  // اسم الزبون بالأحدث
   const custPick = pickNewerField(x.customer, x.updatedAt, y.customer, y.updatedAt);
   merged.customer = custPick.val;
 
-  // حذف مقابل تعديل
+  // حذف مقابل تعديل (تومبستون آمن)
   const delA = x.deletedAt || null, delB = y.deletedAt || null;
   const newestEditTs = isNewer(x.updatedAt, y.updatedAt) ? y.updatedAt : x.updatedAt;
-  const newestDelTs  = isNewer(delA, delB) ? delB : delA;
-  merged.deletedAt = (newestDelTs && !isNewer(newestEditTs, newestDelTs)) ? newestDelTs : null;
+  const newestDelTs  = isNewer(delA,       delB)         ? delB       : delA;
+  merged.deletedAt   = (newestDelTs && !isNewer(newestEditTs, newestDelTs)) ? newestDelTs : null;
 
-  // الدمج سطر-بسطر بالـ lineId
- // مطابقة بمفتاح ثابت
-const linesByKey = {};
-(a.lines||[]).forEach(l => { linesByKey[lineKey(l)] = l; });
-(b.lines||[]).forEach(l => {
-  const k = lineKey(l);
-  linesByKey[k] = mergeLine(linesByKey[k], l, report, path+'.line:'+k);
-});
-merged.lines = Object.values(linesByKey).map(l => {
-  // ضمن وجود lineId بعد الدمج
-  if(!l.lineId) l.lineId = lineKey(l);
-  return l;
-});
+  /* ===== دمج السطور: بالـ lineId حصراً ===== */
+  const linesById = {};
 
+  (x.lines || []).forEach(l => {
+    const id = (l.lineId && String(l.lineId).trim()) ? l.lineId : (l.lineId = genId());
+    linesById[id] = l;
+  });
 
-  // دمج الملاحظات noteId
-  const notesByKey = {};
-(a.notes||[]).forEach(n => { notesByKey[noteKey(n)] = n; });
-(b.notes||[]).forEach(n => {
-  const k = noteKey(n);
-  notesByKey[k] = mergeNote(notesByKey[k], n, report, path+'.note:'+k);
-});
-merged.notes = Object.values(notesByKey).map(n => {
-  if(!n.id) n.id = noteKey(n);
-  return n;
-});
+  (y.lines || []).forEach(l => {
+    const id = (l.lineId && String(l.lineId).trim()) ? l.lineId : (l.lineId = genId());
+    linesById[id] = mergeLine(linesById[id], l, report, `${path}.line:${id}`);
+  });
 
+  merged.lines = Object.values(linesById).map(l => {
+    if (!l.lineId) l.lineId = genId();
+    return l;
+  });
 
-  // updatedAt الأحدث
+  /* ===== دمج الملاحظات: بالـ id حصراً ===== */
+  const notesById = {};
+
+  (x.notes || []).forEach(n => {
+    const nid = (n.id && String(n.id).trim()) ? n.id : (n.id = genId());
+    notesById[nid] = n;
+  });
+
+  (y.notes || []).forEach(n => {
+    const nid = (n.id && String(n.id).trim()) ? n.id : (n.id = genId());
+    notesById[nid] = mergeNote(notesById[nid], n, report, `${path}.note:${nid}`);
+  });
+
+  merged.notes = Object.values(notesById).map(n => {
+    if (!n.id) n.id = genId();
+    return n;
+  });
+
+  // أزمنة ومشتقات
   merged.updatedAt = isNewer(x.updatedAt, y.updatedAt) ? y.updatedAt : x.updatedAt;
   merged.createdAt = x.createdAt || y.createdAt || merged.updatedAt || nowISO();
 
-  // billType يعاد احتسابه من السطور
-  const types = Array.from(new Set((merged.lines||[]).filter(l=>!l.deletedAt).map(l=> l.returned ? 'راجع' : 'بيع')));
-  merged.billType = (types.length===1) ? types[0] : (types.length===0 ? (x.billType||y.billType||'بيع') : 'مختلط');
+  // billType يُعاد احتسابه من السطور الفعّالة
+  const types = Array.from(
+    new Set((merged.lines || []).filter(l => !l.deletedAt).map(l => (l.returned ? 'راجع' : 'بيع')))
+  );
+  merged.billType = (types.length === 1)
+    ? types[0]
+    : (types.length === 0 ? (x.billType || y.billType || 'بيع') : 'مختلط');
 
-  // paidAll يُعاد احتسابه
+  // paidAll يُعاد احتسابه (مطابق لنمطك)
   merged.paidAll = (function(){
-    const active = (merged.lines||[]).filter(l=> !l.deletedAt && !l.returned);
-    return active.length>0 && active.every(l=> !!l.paid);
+    const active = (merged.lines || []).filter(l => !l.deletedAt && !l.returned);
+    return active.length > 0 && active.every(l => !!l.paid);
   })();
 
+  // تقرير تغيّر
   const before = JSON.stringify(x);
   const after  = JSON.stringify(merged);
-  if(before !== after){
+  if (before !== after) {
     report.push({ path, type:'card-merge', before:x, after:merged });
   }
   return merged;
 }
 
+
+
+/* دمج أيام: local مقابل remote (سيرفر) — يرجّع {days: merged, report:[] } */
 /* دمج أيام: local مقابل remote (سيرفر) — يرجّع {days: merged, report:[] } */
 function mergeAllDays(localDays, remoteDays){
   const out = {};
   const report = [];
 
-  const allKeys = new Set([...Object.keys(localDays||{}), ...Object.keys(remoteDays||{})]);
+  const allKeys = new Set([
+    ...Object.keys(localDays || {}),
+    ...Object.keys(remoteDays || {})
+  ]);
   const keysSorted = Array.from(allKeys).sort(); // ترتيب ثابت
 
-  keysSorted.forEach(dayKey=>{
+  keysSorted.forEach(dayKey => {
     const a = localDays?.[dayKey] || [];
     const b = remoteDays?.[dayKey] || [];
 
-    // بطاقات حسب card.id (هو موجود عندك)
+    // بطاقات حسب card.id (نفس أسلوبك)
     const byId = {};
     a.forEach(c => { byId[c.id] = c; });
     b.forEach(c => {
       byId[c.id] = mergeCard(byId[c.id], c, report, `day:${dayKey}.card:${c.id}`);
     });
 
-    // لو بطاقات في A فقط
-    a.forEach(c=>{
-      if(!(b.find(x=>x.id===c.id))){
+    // بطاقات موجودة محلّيًا فقط
+    a.forEach(c => {
+      if (!b.find(x => x.id === c.id)) {
         byId[c.id] = mergeCard(c, null, report, `day:${dayKey}.card:${c.id}`);
       }
     });
 
-    
+    // لا نحذف التومبستون—نحتفظ بيه
     const mergedCards = Object.values(byId)
-  .map(c => {
-    // لا نحذف المحذوف—نخليه لأجل سجلات/تومبستون
-    return c;
-  })
-  .sort((x,y)=> new Date(y.updatedAt||y.createdAt||0) - new Date(x.updatedAt||x.createdAt||0));
-out[dayKey] = mergedCards;
+      .map(c => c)
+      .sort((x, y) =>
+        new Date(y.updatedAt || y.createdAt || 0) - new Date(x.updatedAt || x.createdAt || 0)
+      );
 
-    
+    out[dayKey] = mergedCards;
   });
 
   return { days: out, report };
 }
+
 
 
 
@@ -8011,57 +8128,87 @@ async function smartImportFromServer(){
 function dedupeCardLines(card){
   if(!card || !Array.isArray(card.lines)) return;
 
-  // احتفظ بالأحدث لكل lineKey
-  const byKey = new Map();
-  for(const ln of card.lines){
-    const k = lineKey(ln);
-    const cur = byKey.get(k);
-    if(!cur){
-      byKey.set(k, ln);
-    }else{
-      const curTs = new Date(cur.updatedAt || cur.at || 0).getTime();
-      const newTs = new Date(ln.updatedAt || ln.at || 0).getTime();
-      // خذ الأحدث
-      if(newTs > curTs) byKey.set(k, ln);
-    }
-  }
-  card.lines = Array.from(byKey.values());
+  // نجمع حسب lineId فقط
+  const byId = new Map();
 
-  // رتب نزولياً بالأحدث
+  for(const ln of card.lines){
+    // ثبّت lineId إن ناقص
+    const k = lineKey(ln);
+    const cur = byId.get(k);
+
+    if(!cur){
+      byId.set(k, ln);
+      continue;
+    }
+
+    // فض نزاع النسخ المكررة لنفس الـlineId (منطقيًا يشبه mergeLine)
+    const curEditTs = new Date(cur.updatedAt || cur.at || 0).getTime();
+    const newEditTs = new Date(ln.updatedAt  || ln.at  || 0).getTime();
+    const curDelTs  = cur.deletedAt ? new Date(cur.deletedAt).getTime() : null;
+    const newDelTs  = ln.deletedAt  ? new Date(ln.deletedAt ).getTime() : null;
+
+    // إذا عندنا حذف مقابل تعديل لنفس الهوية
+    const newestEdit = Math.max(curEditTs || 0, newEditTs || 0);
+    const newestDel  = Math.max(curDelTs  || 0, newDelTs  || 0);
+
+    let winner = ln;
+
+    if(newestDel && newestDel >= newestEdit){
+      // الأحدث "حذف" ⇒ خزن نسخة محذوفة (تومبستون)
+      winner = (curDelTs && curDelTs >= newDelTs) ? cur : ln;
+    }else{
+      // الأحدث "تعديل" ⇒ خزن الأحدث عدلًا
+      winner = (curEditTs >= newEditTs) ? cur : ln;
+      winner.deletedAt = null;
+    }
+
+    byId.set(k, winner);
+  }
+
+  card.lines = Array.from(byId.values());
+  // ترتيب حديث نزولياً
   card.lines.sort((a,b)=> new Date(b.updatedAt||b.createdAt||0) - new Date(a.updatedAt||a.createdAt||0));
 }
 
 
+
 function dedupeCardNotes(card){
   if(!card || !Array.isArray(card.notes)) return;
-  const byKey = new Map();
+
+  const byId = new Map();
+
   for(const n of card.notes){
     const k = noteKey(n);
-    const cur = byKey.get(k);
+    const cur = byId.get(k);
     if(!cur){
-      byKey.set(k, n);
-    }else{
-      const curTs = new Date(cur.updatedAt || cur.at || 0).getTime();
-      const newTs = new Date(n.updatedAt || n.at || 0).getTime();
-      if(newTs > curTs) byKey.set(k, n);
+      byId.set(k, n);
+      continue;
     }
+    const curTs = new Date(cur.updatedAt || cur.at || 0).getTime();
+    const newTs = new Date(n.updatedAt   || n.at  || 0).getTime();
+    byId.set(k, (newTs > curTs) ? n : cur);
   }
-  card.notes = Array.from(byKey.values());
+
+  card.notes = Array.from(byId.values());
   card.notes.sort((a,b)=> new Date(b.at||b.updatedAt||0) - new Date(a.at||a.updatedAt||0));
 }
+
 
 /* طبّق الديدوب على كل الأيام/البطاقات */
 function dedupeAllDays(daysObj){
   Object.values(daysObj||{}).forEach(cards=>{
     (cards||[]).forEach(c=>{
-      // ثبّت lineId / id لو ناقصة
+      // ثبّت الهويات لو ناقصة
       (c.lines||[]).forEach(l => { if(!l.lineId) l.lineId = lineKey(l); });
       (c.notes||[]).forEach(n => { if(!n.id)     n.id     = noteKey(n); });
+
+      // ديدوب آمن (حسب الهوية فقط)
       dedupeCardLines(c);
       dedupeCardNotes(c);
     });
   });
 }
+
 
 
 
