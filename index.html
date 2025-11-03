@@ -7464,27 +7464,50 @@ function buildBackupPayload(){
 
 
 async function serverGetBackup(){
-  const resp = await fetch(SYNC.BASE_URL, {
+  const base = SYNC.BASE_URL;               // لازم يكون رابط الويب آب وينتهي بـ /exec
+  const sep  = base.includes('?') ? '&' : '?';
+  const url  = `${base}${sep}token=${encodeURIComponent(SYNC.TOKEN)}&_=${Date.now()}`;
+
+  const resp = await fetch(url, {
     method: 'GET',
-    cache : 'no-store',
-    headers: { 'Authorization': `Bearer ${SYNC.TOKEN}` }
+    cache : 'no-store'
   });
   if(!resp.ok) throw new Error('GET failed');
   return await resp.json();
 }
 
+
+// نفس الاسم ونفس المتغيرات SYNC.BASE_URL و SYNC.TOKEN
 async function serverPostBackup(payload){
-  const resp = await fetch(SYNC.BASE_URL, {
+  // حضّر الجسم + الحجم + الهاش
+  const body = JSON.stringify(payload);
+  const size = new TextEncoder().encode(body).length;
+  const hash = await sha256(body);
+
+  // نضيف token/size/hash بالكويري (Apps Script يقرأهم)
+  const base = SYNC.BASE_URL; // لازم يكون رابط الويب آب (…/exec)
+  const sep  = base.includes('?') ? '&' : '?';
+  const url  = `${base}${sep}token=${encodeURIComponent(SYNC.TOKEN)}&size=${encodeURIComponent(size)}&hash=${encodeURIComponent(hash)}`;
+
+  const resp = await fetch(url, {
     method : 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SYNC.TOKEN}`
+      'Authorization': `Bearer ${SYNC.TOKEN}` // تبقى مثل ما هي، ما تضر
     },
-    body: JSON.stringify(payload)
+    body
   });
   if(!resp.ok) throw new Error('POST failed');
   return await resp.json();
 }
+
+async function sha256(text){
+  const enc = new TextEncoder().encode(text);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  const arr = Array.from(new Uint8Array(buf));
+  return arr.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 
 
 
