@@ -4870,86 +4870,123 @@ async function processToastQueueUnified(){
 /* ====== إضافة سطر (ذكي لليوم السابق) ====== */
 // ==== إضافة سطر مع تحذير عند الإضافة ليوم سابق (نسخة مُحدَّثة جاهزة للاستبدال) ====
 document.getElementById('btnAdd').onclick = async () => {
-const customer = (document.getElementById('cust').value || '').trim();
-const item = (document.getElementById('item').value || '').trim();
-const priceVal = Number(parseIQD(document.getElementById('price').value) || 0);
-let qty = String(document.getElementById('qty').value || '1').trim();
-const cat = (document.getElementById('cat').value || '').trim();
-const type = (document.getElementById('type').value || 'بيع').trim(); // بيع / راجع
-const note = (document.getElementById('note').value || '').trim();
+  const customer = (document.getElementById('cust').value || '').trim();
+  const item     = (document.getElementById('item').value || '').trim();
+  const priceVal = Number(parseIQD(document.getElementById('price').value) || 0);
+  let   qty  = String(document.getElementById('qty').value || '1').trim();
+  const cat  = (document.getElementById('cat').value || '').trim();
+  const type = (document.getElementById('type').value || 'بيع').trim(); // بيع / راجع
+  const note = (document.getElementById('note').value || '').trim();
 
+  if (!customer || !item) return;
+  if (!/^\d+$/.test(qty)) qty = '1';
+  if (!days[selectedDay]) days[selectedDay] = [];
 
-if (!customer || !item) return;
-if (!/^\d+$/.test(qty)) qty = '1';
-if (!days[selectedDay]) days[selectedDay] = [];
+  // ===== تحذير اليوم السابق (نفس رسائل الكود القديم) =====
+  const warnedCreate = (window.__warnedPastCardCreate ||= new Set()); // key: day::customer
+  const warnedAppend = (window.__warnedPastCardAppend ||= new Set()); // key: day::cardId
+  const todayKey = (() => { const now=new Date(); const pad=n=>String(n).padStart(2,'0'); return `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`; })();
+  const isPastDay = (selectedDay < todayKey);
 
+  // ابحث عن البطاقة
+  let cardIndex = days[selectedDay].findIndex(c => c.customer === customer && !c.deletedAt);
+  let card = days[selectedDay][cardIndex];
 
-// ابحث عن البطاقة
-let cardIndex = days[selectedDay].findIndex(c => c.customer === customer && !c.deletedAt);
-let card = days[selectedDay][cardIndex];
+  // ——— تحذير قبل إنشاء بطاقة جديدة في يوم سابق ———
+  if (!card && isPastDay) {
+    const createKey = `${selectedDay}::${customer}`;
+    if (!warnedCreate.has(createKey)) {
+      const ok = await (typeof showConfirm === 'function'
+        ? showConfirm({
+            title: 'تأكيد إضافة إلى يوم سابق',
+            message: 'أنت حاليًا سوف تُضيف سطرًا إلى بطاقة في يوم سابق. هل تود المتابعة؟',
+            okText: 'نعم',
+            cancelText: 'لا',
+            danger: true
+          })
+        : Promise.resolve(true));
+      if (!ok) return; // إلغاء
+      warnedCreate.add(createKey);
+    }
+  }
 
+  const nowISOVal2 = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
+  const makeId     = (typeof genId  === 'function') ? genId  : (() => String(Date.now()));
 
-const nowISOVal2 = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
-const makeId = (typeof genId === 'function') ? genId : (() => String(Date.now()));
+  if (!card){
+    // إنشاء بطاقة جديدة (سلوكك الآمن الحالي)
+    card = { id: Date.now(), customer, lines: [], createdAt: nowISOVal2, updatedAt: nowISOVal2, paidAll:false, billType: type };
+    days[selectedDay].unshift(card);
+    cardIndex = 0;
+  }else{
+    // ——— تحذير قبل إضافة سطر لبطاقة موجودة في يوم سابق ———
+    if (isPastDay) {
+      const appendKey = `${selectedDay}::${card.id}`;
+      if (!warnedAppend.has(appendKey)) {
+        const ok = await (typeof showConfirm === 'function'
+          ? showConfirm({
+              title: 'تأكيد إضافة إلى يوم سابق',
+              message: 'أنت حاليًا سوف تُضيف سطرًا إلى بطاقة في يوم سابق. هل تود المتابعة؟',
+              okText: 'نعم، تابع',
+              cancelText: 'لا',
+              danger: true
+            })
+          : Promise.resolve(true));
+        if (!ok) return; // إلغاء
+        warnedAppend.add(appendKey);
+      }
+    }
+    // توحيد نوع الفاتورة بحالة الخلط (مثل كودك)
+    if (card.billType && card.billType !== type) card.billType = 'مختلط';
+    if (!card.billType) card.billType = type;
+  }
 
+  // إذا البطاقة كانت فاضية قبل هالسطر، حدّث createdAt
+  if (!Array.isArray(card.lines) || !card.lines.some(l => !l.deletedAt)) {
+    card.createdAt = nowISOVal2;
+  }
 
-if (!card){
-card = { id: Date.now(), customer, lines: [], createdAt: nowISOVal2, updatedAt: nowISOVal2, paidAll:false, billType: type };
-days[selectedDay].unshift(card);
-cardIndex = 0;
-}else{
-if (card.billType && card.billType !== type) card.billType = 'مختلط';
-if (!card.billType) card.billType = type;
-}
+  // أضف السطر
+  card.lines ||= [];
+  card.lines.push({
+    lineId   : makeId(),
+    item, cat, price: priceVal, qty, note, type,
+    paid: false, returned: (type==='راجع'),
+    createdAt: nowISOVal2,
+    updatedAt: nowISOVal2,
+    at: nowISOVal2,
+    deletedAt: null
+  });
 
+  // حدّث آخر نشاط وارفع البطاقة للأعلى (حذرًا)
+  card.updatedAt = nowISOVal2;
 
-if (!Array.isArray(card.lines) || !card.lines.some(l => !l.deletedAt)) {
-card.createdAt = nowISOVal2;
-}
+  if (typeof cardIndex !== 'number') {
+    cardIndex = (days[selectedDay]||[]).findIndex(c => c && c.id === card.id);
+  }
+  if (cardIndex > 0) {
+    days[selectedDay].splice(cardIndex, 1);
+    days[selectedDay].unshift(card);
+  } else if (cardIndex === -1) {
+    if (!days[selectedDay].includes(card)) days[selectedDay].unshift(card);
+  }
 
+  save();
 
-card.lines ||= [];
-card.lines.push({
-lineId : makeId(),
-item, cat, price: priceVal, qty, note, type,
-paid: false, returned: (type==='راجع'),
-createdAt: nowISOVal2,
-updatedAt: nowISOVal2,
-at: nowISOVal2,
-deletedAt: null
-});
+  // تنظيف الحقول
+  document.getElementById('item').value  = '';
+  document.getElementById('price').value = '';
+  document.getElementById('qty').value   = '';
+  document.getElementById('note').value  = '';
+  document.getElementById('item').focus();
 
-
-card.updatedAt = nowISOVal2;
-
-
-if (typeof cardIndex !== 'number') {
-cardIndex = (days[selectedDay]||[]).findIndex(c => c && c.id === card.id);
-}
-if (cardIndex > 0) {
-days[selectedDay].splice(cardIndex, 1);
-days[selectedDay].unshift(card);
-} else if (cardIndex === -1) {
-if (!days[selectedDay].includes(card)) days[selectedDay].unshift(card);
-}
-
-
-save();
-
-
-document.getElementById('item').value = '';
-document.getElementById('price').value = '';
-document.getElementById('qty').value = '';
-document.getElementById('note').value = '';
-document.getElementById('item').focus();
-
-
-renderBoard?.();
-renderRail?.();
-refreshStats?.();
-focusNewCard?.(card);
-showToast?.('success','تمت الإضافة');
+  renderBoard?.();
+  renderRail?.();
+  refreshStats?.();
+  focusNewCard?.(card);
+  showToast?.('success','تمت الإضافة');
 };
+
 
 
 
