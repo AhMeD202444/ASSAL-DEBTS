@@ -8911,10 +8911,20 @@ function setCurrentDay(day){
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 
 // عند فتح نافذة الحسابات المالية: ثبّت تاريخ اليوم إذا فارغ، وحمّل بياناته
+
 openBtn?.addEventListener('click', ()=>{
-  if(!inpDate.value) inpDate.value = todayStr();
-  setCurrentDay(inpDate.value);
+  // رجّع الحقل دائماً إلى تاريخ اليوم
+  inpDate.value = todayStr();
+  setCurrentDay(inpDate.value); // يحمل بيانات يوم اليوم ويعرضها
 });
+
+closeBtn?.addEventListener('click', ()=>{
+  // حضّر الحالة للفتح القادم: رجّع التاريخ والداتا لليوم
+  inpDate.value = todayStr();
+  setCurrentDay(inpDate.value);
+  // إذا عندك كود يغلق المودال هنا، يبقى كما هو (مثلاً إخفاء الـ modal)
+});
+
 
 // لما يغيّر التاريخ من داخل النافذة: بدّل اليوم المعروض
 inpDate?.addEventListener('change', ()=>{
@@ -9220,7 +9230,6 @@ async function deletePayment(idx){
 }
 
 
-
 function renderPaymentsRows(){
   // حوّل أرقام ٠١٢٣… إلى 0123 حتى نكدر نحلّلها
   function toLatinDigits(s){
@@ -9244,34 +9253,73 @@ function renderPaymentsRows(){
     return h*60 + mi;
   }
 
-  // نسخة للعمل + ترتيب تنازلي بالوقت (الأحدث أولاً)
-  let view = Array.isArray(paymentsData) ? [...paymentsData] : [];
+  // حوّل التاريخ إلى قيمة رقمية آمنة للمقارنة (يدعم "YYYY-MM-DD" و "DD/MM/YYYY")
+  function dateValue(d){
+    const s = toLatinDigits(String(d || '')).trim();
+    if (!s) return 0;
+    // إذا الصيغة DD/MM/YYYY
+    if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(s)){
+      const [dd, mm, yy] = s.split('/');
+      const yyyy = yy.length === 2 ? ('20' + yy) : yy;
+      const iso = `${yyyy}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+      const t = new Date(iso).getTime();
+      return isNaN(t) ? 0 : t;
+    }
+    const t = new Date(s).getTime();
+    return isNaN(t) ? 0 : t;
+  }
+
+  // ❶ جهّز المصدر:
+  // - إذا ماكو بحث: اعرض اليوم الحالي فقط (نفس سلوكك القديم).
+  // - إذا اكو بحث: اجمع كل الأيام من paymentsStore وخلّ الفلترة تمشي عليها.
+  let view;
+  if (!paymentsSearchQuery){
+    view = Array.isArray(paymentsData) ? [...paymentsData] : [];
+  } else {
+    const all = [];
+    if (paymentsStore && typeof paymentsStore === 'object'){
+      Object.keys(paymentsStore).forEach(dayKey=>{
+        const arr = paymentsStore[dayKey];
+        if (Array.isArray(arr)) all.push(...arr);
+      });
+    } else {
+      // احتياط: لو ماكو paymentsStore نرجع لبيانات اليوم الحالي
+      if (Array.isArray(paymentsData)) all.push(...paymentsData);
+    }
+    view = all;
+  }
+
+  // ❷ ترتيب مبدئي (رح نعيد الترتيب بعد الفلترة همين)
   view.sort((a,b)=> minutesFrom12h(b?.time) - minutesFrom12h(a?.time));
 
-  
-// إذا اكو نص بحث: يشمل تسديد وسحب + مطابقة الاسم/الملاحظة/المبلغ
-if (paymentsSearchQuery){
-  const q = toLatinDigits(paymentsSearchQuery).toLowerCase();
-  view = view.filter(r=>{
-    const cust  = String(r?.cust  || '').toLowerCase();
-    const notes = String(r?.notes || '').toLowerCase();
+  // ❸ إذا اكو نص بحث: يشمل تسديد وسحب + مطابقة الاسم/الملاحظة/المبلغ
+  if (paymentsSearchQuery){
+    const q = toLatinDigits(paymentsSearchQuery).toLowerCase();
+    view = view.filter(r=>{
+      const cust  = String(r?.cust  || '').toLowerCase();
+      const notes = String(r?.notes || '').toLowerCase();
 
-    const amtNum = Number(
-      toLatinDigits(String(r?.amount ?? '')).replace(/[^\d.]/g,'')
-    );
-    const amtStr = isFinite(amtNum) ? String(amtNum) : '';
+      const amtNum = Number(
+        toLatinDigits(String(r?.amount ?? '')).replace(/[^\d.]/g,'')
+      );
+      const amtStr = isFinite(amtNum) ? String(amtNum) : '';
 
-    return (
-      cust.includes(q) ||
-      notes.includes(q) ||
-      amtStr.includes(q)
-    );
+      return (
+        cust.includes(q) ||
+        notes.includes(q) ||
+        amtStr.includes(q)
+      );
+    });
+  }
+
+  // ❹ ترتيب نهائي: التاريخ نزولاً ثم الوقت نزولاً
+  view.sort((a,b)=>{
+    const byDate = dateValue(b?.date) - dateValue(a?.date);
+    if (byDate !== 0) return byDate;
+    return minutesFrom12h(b?.time) - minutesFrom12h(a?.time);
   });
-}
 
-
-
-  // بناء الصفوف (نفس تنسيقك القديم)
+  // ❺ بناء الصفوف (نفس تنسيقك القديم)
   rowsWrap.innerHTML = view.map((row,idx)=>{
     // تنسيق المبلغ بأمان (لو كان نص/فارغ/أرقام عربية)
     const amtNum = Number(
@@ -9302,6 +9350,7 @@ if (paymentsSearchQuery){
     `;
   }).join('');
 }
+
 
 
 
