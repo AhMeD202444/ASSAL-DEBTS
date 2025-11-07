@@ -2917,6 +2917,48 @@ body{ padding-top: var(--hdr-h); }
 
 
 
+/* شريط البحث يم الأزرار */
+.payments-actions { display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
+
+.payments-search{
+  display:flex; align-items:center; gap:6px;
+  border:1px solid var(--stroke);
+  background:#0b1327;
+  border-radius:10px;
+  padding:4px 6px;
+}
+
+#paymentsSearchInput{
+  height:32px; min-width:220px;
+  background:#0c1426; color:#e7eef9; border:1px solid var(--stroke);
+  border-radius:8px; padding:0 10px; outline:none;
+}
+#paymentsSearchInput:focus{
+  border-color:rgba(18,209,180,.6);
+  box-shadow:0 0 0 3px rgba(18,209,180,.14);
+}
+
+
+/* زر مسح البحث يخلي X أحمر */
+#paymentsSearchClear{
+  border:1px solid #7a1616;
+  background:#2a0c0c;
+  border-radius:8px;
+  height:32px;
+  padding:0 10px;
+}
+#paymentsSearchClear i{
+  color:#ff4d4f;
+}
+#paymentsSearchClear:hover{
+  background:#3a0f0f;
+  border-color:#a61e1e;
+  box-shadow:0 0 0 3px rgba(255,77,79,.18);
+}
+
+
+
+
 
 
   </style>
@@ -3344,6 +3386,26 @@ body{ padding-top: var(--hdr-h); }
       </div>
 
       <div class="payments-actions">
+        
+        
+         <!-- زر البحث -->
+<button id="searchPaymentsBtn" class="btn ghost payments-search-btn" title="بحث">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <span>بحث</span>
+</button>
+
+<!-- شريط البحث (مخفي افتراضياً) -->
+<div id="paymentsSearchBar" class="payments-search" style="display:none;">
+  <input id="paymentsSearchInput" class="field" type="text"
+         placeholder="بحث بالتسديدات: اسم / ملاحظة / مبلغ…" autocomplete="off"/>
+  <button id="paymentsSearchClear" class="btn ghost" title="مسح البحث">
+    <i class="fa-solid fa-xmark"></i>
+  </button>
+</div>
+
+        
+        
+        
         <!-- زر التصدير -->
         <button id="exportPaymentsBtn" class="btn ghost payments-export">
           <i class="fa-solid fa-file-export"></i>
@@ -3355,6 +3417,11 @@ body{ padding-top: var(--hdr-h); }
           <i class="fa-solid fa-xmark"></i>
           <span>إغلاق</span>
         </button>
+        
+        
+       
+        
+        
       </div>
     </div>
 
@@ -8730,6 +8797,48 @@ onAuthStateChanged(auth, async (user)=>{
 
   const suggBox          = document.getElementById('payCustSuggestions');
   const rowsWrap         = document.getElementById('paymentsRows');
+  
+  
+  
+  
+  // عناصر البحث
+const searchBtn   = document.getElementById('searchPaymentsBtn');
+const searchWrap  = document.getElementById('paymentsSearchBar');
+const searchInput = document.getElementById('paymentsSearchInput');
+const searchClear = document.getElementById('paymentsSearchClear');
+
+// حالة نص البحث
+let paymentsSearchQuery = '';
+
+// إظهار/إخفاء شريط البحث
+searchBtn?.addEventListener('click', ()=>{
+  const nowOpen = !(searchWrap && searchWrap.style.display === 'flex');
+  if (searchWrap) {
+    searchWrap.style.display = nowOpen ? 'flex' : 'none';
+    // بدّل الأيقونة حسب الحالة
+    searchBtn.innerHTML = nowOpen
+      ? '<i class="fa-solid fa-arrow-left"></i><span>بحث</span>'
+      : '<i class="fa-solid fa-magnifying-glass"></i><span>بحث</span>';
+    if (nowOpen) searchInput?.focus();
+  }
+});
+
+
+// كتابة البحث → فلترة فورية
+searchInput?.addEventListener('input', (e)=>{
+  paymentsSearchQuery = String(e.target.value || '').trim();
+  renderPaymentsRows();
+});
+
+// مسح البحث
+searchClear?.addEventListener('click', ()=>{
+  paymentsSearchQuery = '';
+  if (searchInput) searchInput.value = '';
+  renderPaymentsRows();
+});
+
+  
+  
 
   // البيانات بالذاكرة
   let paymentsData = [];
@@ -9082,32 +9191,55 @@ function renderPaymentsRows(){
     return h*60 + mi;
   }
 
-  // ترتيب تنازلي (الأحدث أولاً) اعتمادًا على الوقت فقط
-  paymentsData.sort((a,b)=>{
-    return minutesFrom12h(b.time) - minutesFrom12h(a.time);
-  });
+  // نسخة للعمل + ترتيب تنازلي بالوقت (الأحدث أولاً)
+  let view = Array.isArray(paymentsData) ? [...paymentsData] : [];
+  view.sort((a,b)=> minutesFrom12h(b?.time) - minutesFrom12h(a?.time));
 
-  rowsWrap.innerHTML = paymentsData.map((row,idx)=>{
+  
+// إذا اكو نص بحث: يشمل تسديد وسحب + مطابقة الاسم/الملاحظة/المبلغ
+if (paymentsSearchQuery){
+  const q = toLatinDigits(paymentsSearchQuery).toLowerCase();
+  view = view.filter(r=>{
+    const cust  = String(r?.cust  || '').toLowerCase();
+    const notes = String(r?.notes || '').toLowerCase();
+
+    const amtNum = Number(
+      toLatinDigits(String(r?.amount ?? '')).replace(/[^\d.]/g,'')
+    );
+    const amtStr = isFinite(amtNum) ? String(amtNum) : '';
+
+    return (
+      cust.includes(q) ||
+      notes.includes(q) ||
+      amtStr.includes(q)
+    );
+  });
+}
+
+
+
+  // بناء الصفوف (نفس تنسيقك القديم)
+  rowsWrap.innerHTML = view.map((row,idx)=>{
     // تنسيق المبلغ بأمان (لو كان نص/فارغ/أرقام عربية)
     const amtNum = Number(
       toLatinDigits(String(row?.amount ?? '0')).replace(/[^\d.]/g,'')
     );
     const formattedAmt = (isFinite(amtNum) ? amtNum : 0).toLocaleString('ar-IQ');
 
-    const isIn  = row.kind === 'تسديد';
-    const isOut = row.kind === 'سحب';
+    const isIn  = row?.kind === 'تسديد';
+    const isOut = row?.kind === 'سحب';
 
     return `
       <div class="payment-row ${isOut ? 'withdraw' : ''}">
         <div>${idx+1}</div>
-        <div>${row.cust ?? ''}</div>
+        <div>${row?.cust ?? ''}</div>
         <div>
-          <div class="pay-type ${isIn ? 'pay-in':'pay-out'}">${row.kind ?? ''}</div>
+          <div class="pay-type ${isIn ? 'pay-in':'pay-out'}">${row?.kind ?? ''}</div>
         </div>
         <div class="pay-amt">${formattedAmt}</div>
-        <div>${row.notes || ''}</div>
-        <div>${row.date || ''}</div>   <!-- تاريخ جديد -->
-        <div>${row.time || ''}</div>
+        <div>${row?.notes || ''}</div>
+        <div>${row?.date || ''}</div>
+        <div>${row?.time || ''}</div>
         <div>
           <button class="payment-del-btn" data-idx="${idx}">
             <i class="fa-solid fa-trash-can"></i>
@@ -9117,6 +9249,7 @@ function renderPaymentsRows(){
     `;
   }).join('');
 }
+
 
 
 
