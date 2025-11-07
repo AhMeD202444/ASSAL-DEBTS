@@ -2957,8 +2957,19 @@ body{ padding-top: var(--hdr-h); }
 }
 
 
-
-
+/* يخلي نافذة التأكيد فوق الكل مهما كان */
+#modal-backdrop{
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483646 !important; /* أعلى من أي عنصر عندك */
+}
+#modal{
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  z-index: 2147483647 !important;
+}
 
 
   </style>
@@ -6532,6 +6543,18 @@ document.addEventListener('click', (ev)=>{
 
 
 
+
+document.addEventListener('DOMContentLoaded', () => {
+  const m  = document.getElementById('modal');
+  const mb = document.getElementById('modal-backdrop');
+  if (mb && mb.parentNode !== document.body) document.body.appendChild(mb);
+  if (m  && m.parentNode  !== document.body) document.body.appendChild(m);
+});
+
+
+
+
+
 /* ==== Helper: HTML Escaper (للاحتياط لو احتجت نص داخل template) ==== */
 function escHtml(s){
   return String(s||'')
@@ -9161,11 +9184,41 @@ form?.addEventListener('submit', (e)=>{
 
 
 
-function deletePayment(idx){
-  paymentsData.splice(idx,1);
-  savePayments(currentDay, paymentsData);  // [جديد]
+// ==== حذف حركة تسديد/سحب مع تأكيد ====
+// (بدّل الدالة القديمة بهذه نفسها)
+async function deletePayment(idx){
+  const row = paymentsData[idx];
+  if (!row) return;
+
+  const isWithdraw = (row?.kind === 'سحب');
+  const title   = isWithdraw ? 'تأكيد حذف عملية سحب' : 'تأكيد حذف عملية تسديد';
+  const amount  = Number(String(row?.amount ?? 0).replace(/[^\d.]/g,''));
+  const amtTxt  = (isFinite(amount) ? amount : 0).toLocaleString('ar-IQ');
+  const whenTxt = [row?.date, row?.time].filter(Boolean).join(' — ');
+
+  const ok = await showConfirm({
+    title,
+    message: `
+      هل تريد حذف ${isWithdraw ? 'السحب' : 'التسديد'}
+      للزبون "<strong>${row?.cust || ''}</strong>"
+      بمبلغ <strong>${amtTxt}</strong> د.ع
+      ${whenTxt ? `(<em>${whenTxt}</em>)` : ''} ؟
+    `,
+    okText: 'حذف',
+    cancelText: 'رجوع',
+    danger: true
+  });
+  if (!ok) return;
+
+  // تنفيذ الحذف بعد التأكيد
+  paymentsData.splice(idx, 1);
+  savePayments(currentDay, paymentsData);   // تبقى مثل ما هي
   renderPaymentsRows();
+
+  // نفس أسلوب التوستات عندك
+  (typeof showToast === 'function') && showToast('error', 'تم حذف الحركة من الحسابات');
 }
+
 
 
 function renderPaymentsRows(){
