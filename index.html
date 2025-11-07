@@ -5207,8 +5207,9 @@ function renderBoard() {
         price.textContent =
           (ln.price === 0 || ln.price) ? formatIQD(ln.price) : '—';
 
-        const qty = CE('div', 'iqty');
-        qty.textContent = `× ${ln.qty}`;
+       const qty = CE('div', 'iqty');
+       qty.textContent = `× ${ln.qty}`;
+
 
         const note = CE('div', 'inote');
         note.textContent =
@@ -6718,8 +6719,8 @@ function sumCard(card){
                 <tr>
                   <th>الصنف</th>
                   <th>اسم المادة</th>
-                  <th>السعر</th>
                   <th>العدد</th>
+                  <th>السعر</th>
                   <th>ملاحظات</th>
                   <th>الوقت</th>
                   <th>الحالة</th>
@@ -6741,8 +6742,8 @@ function sumCard(card){
               tr.innerHTML = \`
                 <td class="center">\${ln.cat || '—'}</td>
                 <td class="center">\${nameHTML}</td>
-                <td class="center">\${price}</td>
                 <td class="center">× \${ln.qty || '1'}</td>
+                <td class="center">\${price}</td>
                 <td class="center">\${(ln.note && ln.note.trim()) ? ln.note : '—'}</td>
                 <td class="center">\${arTime(ln.at || ln.createdAt || ln.updatedAt)}</td>
                 <td class="center">\${state}</td>\`;
@@ -7053,8 +7054,8 @@ function sumCard(card){
               <tr>
                 <th>الصنف</th>
                 <th>اسم المادة</th>
-                <th>السعر</th>
                 <th>العدد</th>
+                <th>السعر</th>
                 <th>ملاحظات</th>
                 <th>الوقت</th>
                 <th>الحالة</th>
@@ -7074,12 +7075,13 @@ function sumCard(card){
 
             const nmClass = isReturned ? 'return' : (isPaid ? 'paid' : '');
             const nameHTML = \`<span class="nm \${nmClass}">\${ln.item || ''}</span>\`;
+            
 
             tr.innerHTML = \`
               <td class="center">\${ln.cat || '—'}</td>
               <td class="center">\${nameHTML}</td>
-              <td class="center">\${price}</td>
               <td class="center">× \${ln.qty || '1'}</td>
+              <td class="center">\${price}</td>
               <td class="center">\${(ln.note && ln.note.trim()) ? ln.note : '—'}</td>
               <td class="center">\${arTime(ln.at || ln.createdAt || ln.updatedAt)}</td>
               <td class="center">\${state}</td>\`;
@@ -9341,4 +9343,3 @@ function exportPayments_Print(){
   
 </body>
 </html>
-
