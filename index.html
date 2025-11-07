@@ -9059,12 +9059,20 @@ document.addEventListener('click', (ev)=>{
 
   // ========== فتح / غلق ==========
  
- function openPayments(){
+function openPayments(){
   paymentsBackdrop.classList.add('active');
   paymentsModal.classList.add('active');
   body.classList.add('modal-open');
 
-  // عبّي التاريخ اليوم بصيغة YYYY-MM-DD
+  // ✨ تأكد الشريط مخفي ومصفّر عند الفتح
+  if (searchWrap) searchWrap.style.display = 'none';
+  if (searchBtn) {
+    searchBtn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i><span>بحث</span>';
+    searchBtn.setAttribute('aria-expanded','false');
+  }
+  if (typeof paymentsSearchQuery !== 'undefined') paymentsSearchQuery = '';
+  if (searchInput) searchInput.value = '';
+
   const todayISO = new Date().toISOString().slice(0,10);
   if (inpDate && !inpDate.value) {
     inpDate.value = todayISO;
@@ -9073,12 +9081,28 @@ document.addEventListener('click', (ev)=>{
   inpCustomer.focus();
 }
 
+
  
-  function closePayments(){
-    paymentsBackdrop.classList.remove('active');
-    paymentsModal.classList.remove('active');
-    body.classList.remove('modal-open');
+function closePayments(){
+  paymentsBackdrop.classList.remove('active');
+  paymentsModal.classList.remove('active');
+  body.classList.remove('modal-open');
+
+  // ✨ رجّع شريط البحث للوضع الافتراضي
+  if (searchWrap) {
+    searchWrap.style.display = 'none';
   }
+  if (searchBtn) {
+    searchBtn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i><span>بحث</span>';
+    searchBtn.setAttribute('aria-expanded','false');
+  }
+  if (typeof paymentsSearchQuery !== 'undefined') paymentsSearchQuery = '';
+  if (searchInput) searchInput.value = '';
+
+  // إن تحب ترجّع الجدول بدون فلترة فورًا (اختياري):
+  if (typeof renderPaymentsRows === 'function') renderPaymentsRows();
+}
+
 
   openBtn.addEventListener('click', openPayments);
   closeBtn.addEventListener('click', closePayments);
