@@ -8454,6 +8454,7 @@ async function smartImportFromServer(){
         const srvPaysRaw = (server && server.payments && typeof server.payments === 'object') ? server.payments : {};
         const cleanSrvPays = __dedupePaymentsObject__(srvPaysRaw);
         localStorage.setItem('assal.payments.v1', JSON.stringify(cleanSrvPays));
+        window.refreshPaymentsUI?.();   // <<< أضف هذا السطر
       })();
       // [END NEW]
 
@@ -8515,6 +8516,7 @@ async function smartImportFromServer(){
         })(localPays, srvPays);
         const cleanMergedPays = __dedupePaymentsObject__(mergedPays);
         localStorage.setItem('assal.payments.v1', JSON.stringify(cleanMergedPays));
+        window.refreshPaymentsUI?.();   // <<< أضف هذا السطر
       }catch{
         // إذا صار خطأ بالتحويل JSON نخليها فارغة بدون ما نكسر التدفق
         localStorage.setItem('assal.payments.v1', JSON.stringify({}));
@@ -9130,6 +9132,33 @@ function setCurrentDay(day){
   paymentsData = listPayments(currentDay);
   renderPaymentsRows(); // عندك موجودة، تبقى تعرض فقط تسديدات اليوم الحالي
 }
+
+// بعد تعريف setCurrentDay() مباشرةً
+window.refreshPaymentsUI = function(){
+  try {
+    // اقرأ المخزن من localStorage من جديد
+    paymentsStore = (function loadPaymentsStore(){
+      try {
+        const raw = localStorage.getItem('assal.payments.v1') || '{}';
+        const obj = JSON.parse(raw);
+        return (obj && typeof obj === 'object') ? obj : {};
+      } catch { return {}; }
+    })();
+
+    // حدّد اليوم المعروض وأعد تحميل البيانات + الرسم
+    const day = (typeof todayStr === 'function' ? (document.getElementById('payDate')?.value || todayStr())
+                                                : new Date().toISOString().slice(0,10));
+    setCurrentDay(day);
+  } catch (e) {
+    console.warn('refreshPaymentsUI failed', e);
+  }
+};
+
+// (اختياري مفيد لو عندك تبويبات): حدّث تلقائيًا إذا تغيّر التخزين
+window.addEventListener('storage', (e)=>{
+  if (e.key === 'assal.payments.v1') window.refreshPaymentsUI?.();
+});
+
 
 
 
