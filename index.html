@@ -7624,19 +7624,53 @@ function getUpdatedAtMax(daysObj){
   return maxTs || 0;
 }
 
-// حضّر بايلود النسخة الاحتياطية (نفس فورماتك + updatedAtMax)
+
 // حضّر بايلود النسخة الاحتياطية (نفس فورماتك + updatedAtMax + transferDate)
+// (REPLACED) حضّر بايلود النسخة الاحتياطية (نفس فورماتك + updatedAtMax + transferDate + payments)
 function buildBackupPayload(){
   const payload = {
     version      : 3,
     exportedAt   : new Date().toISOString(),
-    updatedAtMax : getUpdatedAtMax(days || {}),
-    days         : days  || {},
-    names        : names || [],
-    transferDate : getTransferDateIso() || ""   // <-- جديد: آخر تاريخ نقل ديون
+    updatedAtMax : getUpdatedAtMax(days || {}),   // باقي نفسه
+    days         : days  || {},                   // باقي نفسه
+    names        : names || [],                   // باقي نفسه
+    transferDate : getTransferDateIso() || "",    // باقي نفسه (آخر تاريخ نقل)
+    payments     : loadPaymentsStore()            // [NEW] مخزن الحسابات المالية بالكامل
   };
   return payload;
 }
+
+
+// [NEW] حمل مخزن الحسابات المالية (بدون الاعتماد على سكوب الـ IIFE)
+function loadPaymentsStore(){
+  try{
+    const raw = localStorage.getItem('assal.payments.v1') || '{}';
+    const obj = JSON.parse(raw);
+    return (obj && typeof obj === 'object') ? obj : {};
+  }catch{
+    return {};
+  }
+}
+
+
+// [NEW] دمج payments per-day: نلمّ بيانات السيرفر والمحلي
+function mergePaymentsStores(localStore, remoteStore){
+  const out = { ...(remoteStore || {}) };
+  const loc = (localStore  && typeof localStore  === 'object') ? localStore  : {};
+  const rem = (remoteStore && typeof remoteStore === 'object') ? remoteStore : {};
+
+  Object.keys(loc).forEach(dayKey=>{
+    const L = Array.isArray(loc[dayKey]) ? loc[dayKey] : [];
+    const R = Array.isArray(rem[dayKey]) ? rem[dayKey] : [];
+    // نستسهل: نخلي (سيرفر ثم محلي) حتى ما نخسر أي سجل
+    out[dayKey] = [...R, ...L];
+  });
+
+  return out;
+}
+
+
+
 
 
 async function serverGetBackup(signal){
@@ -7856,11 +7890,18 @@ async function smartExportToServer(){
     // 1) جيب نسخة السيرفر
     const server = await serverGetBackup();
 
-    // خذ لقطة طازة من الستورج (نفس أسلوبك) :contentReference[oaicite:2]{index=2}
+    // خذ لقطة طازة من الستورج (نفس أسلوبك)
     const latestDays  = load(STORAGE, {});
     const latestNames = load(NAMES,   []);
+    const latestPays  = (function(){                  // [NEW] حمل مخزن الحسابات المالية
+      try{
+        const raw = localStorage.getItem('assal.payments.v1') || '{}';
+        const obj = JSON.parse(raw);
+        return (obj && typeof obj === 'object') ? obj : {};
+      }catch{ return {}; }
+    })();
 
-    // 2) حضّر نسخة نظيفة (تجاهل المحذوف) :contentReference[oaicite:3]{index=3}
+    // 2) حضّر نسخة نظيفة (تجاهل المحذوف)
     const { days: cleanDays, names: cleanNames } = prepareCleanPayload(latestDays, latestNames);
 
     // أساس البايـلود
@@ -7868,18 +7909,19 @@ async function smartExportToServer(){
       days: cleanDays,
       names: cleanNames,
       updatedAt: Date.now(),
-      transferDate: getTransferDateIso() || ''
+      transferDate: getTransferDateIso() || '',
+      payments: latestPays                              // [NEW] أضفنا الحسابات المالية للبايلود
     };
 
     let report = [];
 
-    // 2.5) دمج آمن إذا السيرفر مو فاضي (نفس منطقك) :contentReference[oaicite:4]{index=4}
+    // 2.5) دمج آمن إذا السيرفر مو فاضي (نفس منطقك)
     if(server && server.days){
       const merged = mergeAllDays(latestDays || {}, server.days || {});
       const mergedDays  = merged.days;
       const mergeReport = merged.report || [];
 
-      // نظّف الـIDs وديدوب (نفس دوالك) :contentReference[oaicite:5]{index=5}
+      // نظّف الـIDs وديدوب (نفس دوالك)
       normalizeIdsInAllDays(mergedDays);
       dedupeAllDays(mergedDays);
 
@@ -7890,10 +7932,28 @@ async function smartExportToServer(){
       if(!payload.transferDate && server.transferDate){
         payload.transferDate = server.transferDate;
       }
+
+      // [NEW] دمج الحسابات المالية (per-day arrays)
+      const srvPays = (server && server.payments && typeof server.payments === 'object') ? server.payments : {};
+      const locPays = latestPays && typeof latestPays === 'object' ? latestPays : {};
+      const mergedPays = (function mergePaymentsStores(localStore, remoteStore){
+        const out = { ...(remoteStore || {}) };
+        const loc = localStore  && typeof localStore  === 'object' ? localStore  : {};
+        const rem = remoteStore && typeof remoteStore === 'object' ? remoteStore : {};
+        Object.keys(loc).forEach(dayKey=>{
+          const L = Array.isArray(loc[dayKey]) ? loc[dayKey] : [];
+          const R = Array.isArray(rem[dayKey]) ? rem[dayKey] : [];
+          out[dayKey] = [...R, ...L]; // نحافظ على بيانات السيرفر ثم نلحق المحلي
+        });
+        return out;
+      })(locPays, srvPays);
+      payload.payments = mergedPays;
+      // [END NEW]
+
       report = mergeReport;
     }
 
-    // لو صفرية لا ترفع (نفس سلوكك) :contentReference[oaicite:6]{index=6}
+    // لو صفرية لا ترفع (نفس سلوكك)
     if (!payload.days || Object.keys(payload.days).length === 0) {
       showToast('warn','ماكو بيانات فعّالة للتصدير.');
       return;
@@ -7939,14 +7999,15 @@ async function smartExportToServer(){
     markProcessed(requestId);
     clearPending();
 
-    // 5) خزّن محلي آخر نسخة رفعت (نفس سلوكك) :contentReference[oaicite:7]{index=7}
+    // 5) خزّن محلي آخر نسخة رفعت (نفس سلوكك)
     localStorage.setItem(STORAGE, JSON.stringify(payload.days || {}));
     localStorage.setItem(NAMES,   JSON.stringify(payload.names || []));
     if(payload.transferDate){
       setTransferDateIso(payload.transferDate);
     }
+    localStorage.setItem('assal.payments.v1', JSON.stringify(payload.payments || {})); // [NEW] خزّن الحسابات المالية بعد الرفع
 
-    // 6) حدّث الواجهة (نفسك) :contentReference[oaicite:8]{index=8}
+    // 6) حدّث الواجهة (نفسك)
     days  = load(STORAGE, {});
     names = load(NAMES,   []);
     renderBoard();
@@ -7970,6 +8031,7 @@ async function smartExportToServer(){
     // نبقي الـpending كما هو (لو موجود) حتى المحاولة القادمة تستعمل نفس requestId
   }
 }
+
 
 
 
@@ -8257,6 +8319,7 @@ async function smartImportFromServer(){
       localStorage.setItem(STORAGE, JSON.stringify(server.days || {}));
       localStorage.setItem(NAMES,   JSON.stringify(Array.isArray(server.names) ? server.names : []));
       if(server.transferDate){ setTransferDateIso(server.transferDate); }
+      localStorage.setItem('assal.payments.v1', JSON.stringify(server.payments || {})); // [NEW] استبدال كامل للحسابات المالية أيضًا
 
       // حدّث الذاكرة والواجهة
       days  = load(STORAGE, {});
@@ -8297,6 +8360,31 @@ async function smartImportFromServer(){
       setTransferDateIso(server.transferDate);
     }
 
+    // [NEW] دمج مخزن الحسابات المالية (محلي + سيرفر) وخزّنه
+    (function(){
+      try{
+        const rawLocal = localStorage.getItem('assal.payments.v1') || '{}';
+        const localPays = JSON.parse(rawLocal) || {};
+        const srvPays = (server && server.payments && typeof server.payments === 'object') ? server.payments : {};
+        const mergedPays = (function mergePaymentsStores(localStore, remoteStore){
+          const out = { ...(remoteStore || {}) };
+          const loc = localStore  && typeof localStore  === 'object' ? localStore  : {};
+          const rem = remoteStore && typeof remoteStore === 'object' ? remoteStore : {};
+          Object.keys(loc).forEach(dayKey=>{
+            const L = Array.isArray(loc[dayKey]) ? loc[dayKey] : [];
+            const R = Array.isArray(rem[dayKey]) ? rem[dayKey] : [];
+            out[dayKey] = [...R, ...L]; // نحافظ على بيانات السيرفر ثم نلحق المحلي
+          });
+          return out;
+        })(localPays, srvPays);
+        localStorage.setItem('assal.payments.v1', JSON.stringify(mergedPays));
+      }catch{
+        // إذا صار خطأ بالتحويل JSON نخليها فارغة بدون ما نكسر التدفق
+        localStorage.setItem('assal.payments.v1', JSON.stringify({}));
+      }
+    })();
+    // [END NEW]
+
     // حدّث الذاكرة والواجهة
     days  = load(STORAGE, {});
     names = load(NAMES,   []);   // ← تصليح: نحمل كـ Array
@@ -8326,6 +8414,7 @@ async function smartImportFromServer(){
     showToast('error','تعذّر جلب/دمج النسخة من السيرفر');
   }
 }
+
 
 
 
