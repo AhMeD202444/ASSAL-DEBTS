@@ -7631,14 +7631,21 @@ function buildBackupPayload(){
   const payload = {
     version      : 3,
     exportedAt   : new Date().toISOString(),
-    updatedAtMax : getUpdatedAtMax(days || {}),   // باقي نفسه
-    days         : days  || {},                   // باقي نفسه
-    names        : names || [],                   // باقي نفسه
-    transferDate : getTransferDateIso() || "",    // باقي نفسه (آخر تاريخ نقل)
-    payments     : loadPaymentsStore()            // [NEW] مخزن الحسابات المالية بالكامل
+    updatedAtMax : getUpdatedAtMax(days || {}),
+    days         : days  || {},
+    names        : names || [],
+    transferDate : getTransferDateIso() || "",
+    payments     : (function(){ // [NEW]
+      try{
+        const raw = localStorage.getItem('assal.payments.v1') || '{}';
+        const obj = JSON.parse(raw);
+        return (obj && typeof obj === 'object') ? obj : {};
+      }catch{ return {}; }
+    })()
   };
   return payload;
 }
+
 
 
 // [NEW] حمل مخزن الحسابات المالية (بدون الاعتماد على سكوب الـ IIFE)
