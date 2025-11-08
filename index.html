@@ -5122,6 +5122,13 @@ function updateNotesBadge(btnNotes, card){
 
 
 
+try{ window.__assalPayments = (function(){ 
+  const raw = localStorage.getItem('assal.payments.v1') || '{}';
+  return JSON.parse(raw) || {};
+})(); }catch{}
+
+
+
     /* ====== رسم اللوح ====== */
     
 function renderBoard() {
@@ -7625,6 +7632,53 @@ function getUpdatedAtMax(daysObj){
 }
 
 
+
+// [NEW] مفتاح تطبيع موحد لكل عنصر تسديد (يدعم وجود id أو بدونه)
+function __paymentKey__(p){
+  try{
+    // إذا عندك id ثابت استعمله
+    if (p && (p.id || p._id)) return String(p.id || p._id);
+    // إذا ماكو id: سوّي مفتاح مركّب من الحقول الاعتيادية (عدّل الأسماء إذا عندك غيرها)
+    const obj = {
+      date      : p.date      ?? p.day      ?? "",
+      time      : p.time      ?? "",
+      amount    : p.amount    ?? p.value    ?? p.qty ?? "",
+      type      : p.type      ?? p.kind     ?? "",
+      note      : p.note      ?? p.desc     ?? p.text ?? ""
+    };
+    // تطبيع بسيط حتى ما تختلف المسافات/الأحرف
+    return JSON.stringify(obj);
+  }catch{
+    return JSON.stringify(p ?? {});
+  }
+}
+
+// [NEW] إزالة التكرار لكل يوم
+function __dedupePaymentList__(list){
+  const seen = new Set();
+  const out  = [];
+  (Array.isArray(list) ? list : []).forEach(p=>{
+    const k = __paymentKey__(p);
+    if(!seen.has(k)){
+      seen.add(k);
+      out.push(p);
+    }
+  });
+  return out;
+}
+
+// [NEW] إزالة التكرار لكائن كل الأيام { 'YYYY-MM-DD': [ ... ] }
+function __dedupePaymentsObject__(payObj){
+  const src = (payObj && typeof payObj === 'object') ? payObj : {};
+  const out = {};
+  Object.keys(src).forEach(day=>{
+    out[day] = __dedupePaymentList__(src[day]);
+  });
+  return out;
+}
+
+
+
 // حضّر بايلود النسخة الاحتياطية (نفس فورماتك + updatedAtMax + transferDate)
 // (REPLACED) حضّر بايلود النسخة الاحتياطية (نفس فورماتك + updatedAtMax + transferDate + payments)
 function buildBackupPayload(){
@@ -7908,6 +7962,40 @@ async function smartExportToServer(){
       }catch{ return {}; }
     })();
 
+    // [NEW] أدوات إزالة التكرار لتسديدات قائمة الحسابات المالية
+    const __paymentKey__ = function(p){
+      try{
+        if (p && (p.id || p._id)) return String(p.id || p._id);
+        const obj = {
+          date   : p?.date ?? p?.day ?? "",
+          time   : p?.time ?? "",
+          amount : p?.amount ?? p?.value ?? p?.qty ?? "",
+          type   : p?.type ?? p?.kind ?? "",
+          note   : p?.note ?? p?.desc ?? p?.text ?? ""
+        };
+        return JSON.stringify(obj);
+      }catch{
+        return JSON.stringify(p ?? {});
+      }
+    };
+    const __dedupePaymentList__ = function(list){
+      const seen = new Set(); const out = [];
+      (Array.isArray(list) ? list : []).forEach(p=>{
+        const k = __paymentKey__(p);
+        if(!seen.has(k)){ seen.add(k); out.push(p); }
+      });
+      return out;
+    };
+    const __dedupePaymentsObject__ = function(payObj){
+      const src = (payObj && typeof payObj === 'object') ? payObj : {};
+      const out = {};
+      Object.keys(src).forEach(day=>{
+        out[day] = __dedupePaymentList__(src[day]);
+      });
+      return out;
+    };
+    // [END NEW]
+
     // 2) حضّر نسخة نظيفة (تجاهل المحذوف)
     const { days: cleanDays, names: cleanNames } = prepareCleanPayload(latestDays, latestNames);
 
@@ -7940,7 +8028,7 @@ async function smartExportToServer(){
         payload.transferDate = server.transferDate;
       }
 
-      // [NEW] دمج الحسابات المالية (per-day arrays)
+      // [NEW] دمج الحسابات المالية (per-day arrays) + إزالة التكرار
       const srvPays = (server && server.payments && typeof server.payments === 'object') ? server.payments : {};
       const locPays = latestPays && typeof latestPays === 'object' ? latestPays : {};
       const mergedPays = (function mergePaymentsStores(localStore, remoteStore){
@@ -7950,11 +8038,11 @@ async function smartExportToServer(){
         Object.keys(loc).forEach(dayKey=>{
           const L = Array.isArray(loc[dayKey]) ? loc[dayKey] : [];
           const R = Array.isArray(rem[dayKey]) ? rem[dayKey] : [];
-          out[dayKey] = [...R, ...L]; // نحافظ على بيانات السيرفر ثم نلحق المحلي
+          out[dayKey] = __dedupePaymentList__([ ...R, ...L ]); // [NEW] ندمج وننظّف يوميًا
         });
         return out;
       })(locPays, srvPays);
-      payload.payments = mergedPays;
+      payload.payments = __dedupePaymentsObject__(mergedPays); // [NEW] تنظيف نهائي على كل الأيام
       // [END NEW]
 
       report = mergeReport;
@@ -8038,6 +8126,7 @@ async function smartExportToServer(){
     // نبقي الـpending كما هو (لو موجود) حتى المحاولة القادمة تستعمل نفس requestId
   }
 }
+
 
 
 
@@ -8321,12 +8410,52 @@ async function smartImportFromServer(){
       return;
     }
 
+    // [NEW] أدوات إزالة التكرار لتسديدات قائمة الحسابات المالية
+    const __paymentKey__ = function(p){
+      try{
+        if (p && (p.id || p._id)) return String(p.id || p._id);
+        const obj = {
+          date   : p?.date ?? p?.day ?? "",
+          time   : p?.time ?? "",
+          amount : p?.amount ?? p?.value ?? p?.qty ?? "",
+          type   : p?.type ?? p?.kind ?? "",
+          note   : p?.note ?? p?.desc ?? p?.text ?? ""
+        };
+        return JSON.stringify(obj);
+      }catch{
+        return JSON.stringify(p ?? {});
+      }
+    };
+    const __dedupePaymentList__ = function(list){
+      const seen = new Set(); const out = [];
+      (Array.isArray(list) ? list : []).forEach(p=>{
+        const k = __paymentKey__(p);
+        if(!seen.has(k)){ seen.add(k); out.push(p); }
+      });
+      return out;
+    };
+    const __dedupePaymentsObject__ = function(payObj){
+      const src = (payObj && typeof payObj === 'object') ? payObj : {};
+      const out = {};
+      Object.keys(src).forEach(day=>{
+        out[day] = __dedupePaymentList__(src[day]);
+      });
+      return out;
+    };
+    // [END NEW]
+
     if(subMode){
       // ========= وضع "حاسبة فرعية": استبدال كامل =========
       localStorage.setItem(STORAGE, JSON.stringify(server.days || {}));
       localStorage.setItem(NAMES,   JSON.stringify(Array.isArray(server.names) ? server.names : []));
       if(server.transferDate){ setTransferDateIso(server.transferDate); }
-      localStorage.setItem('assal.payments.v1', JSON.stringify(server.payments || {})); // [NEW] استبدال كامل للحسابات المالية أيضًا
+      // [NEW] استبدال كامل للحسابات المالية + تنظيف تكرارات
+      (function(){
+        const srvPaysRaw = (server && server.payments && typeof server.payments === 'object') ? server.payments : {};
+        const cleanSrvPays = __dedupePaymentsObject__(srvPaysRaw);
+        localStorage.setItem('assal.payments.v1', JSON.stringify(cleanSrvPays));
+      })();
+      // [END NEW]
 
       // حدّث الذاكرة والواجهة
       days  = load(STORAGE, {});
@@ -8367,12 +8496,12 @@ async function smartImportFromServer(){
       setTransferDateIso(server.transferDate);
     }
 
-    // [NEW] دمج مخزن الحسابات المالية (محلي + سيرفر) وخزّنه
+    // [NEW] دمج مخزن الحسابات المالية (محلي + سيرفر) مع إزالة التكرار
     (function(){
       try{
-        const rawLocal = localStorage.getItem('assal.payments.v1') || '{}';
+        const rawLocal  = localStorage.getItem('assal.payments.v1') || '{}';
         const localPays = JSON.parse(rawLocal) || {};
-        const srvPays = (server && server.payments && typeof server.payments === 'object') ? server.payments : {};
+        const srvPays   = (server && server.payments && typeof server.payments === 'object') ? server.payments : {};
         const mergedPays = (function mergePaymentsStores(localStore, remoteStore){
           const out = { ...(remoteStore || {}) };
           const loc = localStore  && typeof localStore  === 'object' ? localStore  : {};
@@ -8380,11 +8509,12 @@ async function smartImportFromServer(){
           Object.keys(loc).forEach(dayKey=>{
             const L = Array.isArray(loc[dayKey]) ? loc[dayKey] : [];
             const R = Array.isArray(rem[dayKey]) ? rem[dayKey] : [];
-            out[dayKey] = [...R, ...L]; // نحافظ على بيانات السيرفر ثم نلحق المحلي
+            out[dayKey] = __dedupePaymentList__([ ...R, ...L ]); // دمج + ديدوب لكل يوم
           });
           return out;
         })(localPays, srvPays);
-        localStorage.setItem('assal.payments.v1', JSON.stringify(mergedPays));
+        const cleanMergedPays = __dedupePaymentsObject__(mergedPays);
+        localStorage.setItem('assal.payments.v1', JSON.stringify(cleanMergedPays));
       }catch{
         // إذا صار خطأ بالتحويل JSON نخليها فارغة بدون ما نكسر التدفق
         localStorage.setItem('assal.payments.v1', JSON.stringify({}));
@@ -8421,6 +8551,7 @@ async function smartImportFromServer(){
     showToast('error','تعذّر جلب/دمج النسخة من السيرفر');
   }
 }
+
 
 
 
