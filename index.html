@@ -9622,7 +9622,8 @@ function renderPaymentsRows(){
         <div>${row?.date || ''}</div>
         <div>${row?.time || ''}</div>
         <div>
-          <button class="payment-del-btn" data-idx="${idx}">
+         <button class="payment-del-btn" data-idx="${paymentsData.indexOf(row)}">
+
             <i class="fa-solid fa-trash-can"></i>
           </button>
         </div>
