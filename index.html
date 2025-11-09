@@ -7724,11 +7724,49 @@ function mergePaymentsStores(localStore, remoteStore){
     const L = Array.isArray(loc[dayKey]) ? loc[dayKey] : [];
     const R = Array.isArray(rem[dayKey]) ? rem[dayKey] : [];
     // نستسهل: نخلي (سيرفر ثم محلي) حتى ما نخسر أي سجل
-    out[dayKey] = [...R, ...L];
+    // out[dayKey] = [...R, ...L];
+
+    // ✅ تعديل: دمج ذكي حسب الهوية، والأحدث بين updatedAt/deletedAt يغلب
+    const map = new Map();
+
+    const keyOf = (row)=>{
+      try {
+        return String(
+          row?.id || row?._id ||
+          (typeof __paymentKey__ === 'function' ? __paymentKey__(row) :
+            JSON.stringify([row?.cust, row?.date, row?.time, row?.amount, row?.kind]))
+        );
+      } catch {
+        return String(Math.random());
+      }
+    };
+
+    const stamp = (row)=>{
+      const t = new Date(row?.updatedAt || row?.deletedAt || 0).getTime();
+      return isNaN(t) ? 0 : t;
+    };
+
+    const put = (row)=>{
+      const k = keyOf(row);
+      if (!map.has(k)){
+        map.set(k, { ...row });
+      } else {
+        const cur = map.get(k);
+        // الأحدث يربح (يأخذ بالاعتبار deletedAt أيضاً)
+        map.set(k, stamp(row) > stamp(cur) ? { ...row } : cur);
+      }
+    };
+
+    // نحافظ على أسبقية السيرفر ثم ندمج المحلي مع فضّ النزاع
+    R.forEach(put);
+    L.forEach(put);
+
+    out[dayKey] = Array.from(map.values());
   });
 
   return out;
 }
+
 
 
 
@@ -7929,6 +7967,92 @@ function isProcessed(requestId){
 
 
 
+
+function cleanupAllTombstones(ttlDays = 14){
+  const stats = {
+    removed: { payments: 0, cards: 0, lines: 0, notes: 0, daysEmptied: 0 },
+    kept:    { payments: 0, cards: 0, lines: 0, notes: 0 },
+    errors:  []
+  };
+  const now = Date.now();
+  const cutoff = now - (ttlDays * 24 * 60 * 60 * 1000);
+  const isOldDeleted = (obj) => {
+    if (!obj || !obj.deletedAt) return false;
+    const t = new Date(obj.deletedAt).getTime();
+    return !isNaN(t) && t <= cutoff;
+  };
+
+  // 1) assal.payments.v1
+  try{
+    const raw = localStorage.getItem('assal.payments.v1') || '{}';
+    const store = JSON.parse(raw) || {};
+    const out = {};
+    Object.keys(store).forEach(day=>{
+      const arr = Array.isArray(store[day]) ? store[day] : [];
+      const keptArr = [];
+      arr.forEach(row=>{
+        if (isOldDeleted(row)) {
+          stats.removed.payments += 1;
+        } else {
+          keptArr.push(row);
+          if (row && row.deletedAt) stats.kept.payments += 1;
+        }
+      });
+      if (keptArr.length > 0) out[day] = keptArr;
+      else stats.removed.daysEmptied += 1;
+    });
+    localStorage.setItem('assal.payments.v1', JSON.stringify(out));
+  }catch(e){ stats.errors.push('payments: ' + (e?.message || String(e))); }
+
+  // 2) STORAGE (الأيام/البطاقات/الخطوط/الملاحظات)
+  try{
+    const rawDays = localStorage.getItem(STORAGE) || '{}';
+    const daysObj = JSON.parse(rawDays) || {};
+    const outDays = {};
+    Object.keys(daysObj).forEach(dayKey=>{
+      const dayVal = daysObj[dayKey];
+      const cards = Array.isArray(dayVal?.cards) ? dayVal.cards : [];
+      let removedAnyInDay = false;
+
+      const keptCards = [];
+      cards.forEach(card=>{
+        if (isOldDeleted(card)) {
+          stats.removed.cards += 1;
+          removedAnyInDay = true;
+          return;
+        }
+        const lines = Array.isArray(card?.lines) ? card.lines : [];
+        const notes = Array.isArray(card?.notes) ? card.notes : [];
+        const keptLines = [];
+        const keptNotes = [];
+
+        lines.forEach(line=>{
+          if (isOldDeleted(line)) { stats.removed.lines += 1; removedAnyInDay = true; }
+          else { keptLines.push(line); if (line?.deletedAt) stats.kept.lines += 1; }
+        });
+        notes.forEach(note=>{
+          if (isOldDeleted(note)) { stats.removed.notes += 1; removedAnyInDay = true; }
+          else { keptNotes.push(note); if (note?.deletedAt) stats.kept.notes += 1; }
+        });
+
+        const newCard = { ...card };
+        if (Array.isArray(card.lines)) newCard.lines = keptLines;
+        if (Array.isArray(card.notes)) newCard.notes = keptNotes;
+        if (card?.deletedAt && !isOldDeleted(card)) stats.kept.cards += 1;
+
+        keptCards.push(newCard);
+      });
+
+      if (keptCards.length > 0) outDays[dayKey] = { ...dayVal, cards: keptCards };
+      else if (removedAnyInDay) stats.removed.daysEmptied += 1;
+    });
+    localStorage.setItem(STORAGE, JSON.stringify(outDays));
+  }catch(e){ stats.errors.push('days/cards: ' + (e?.message || String(e))); }
+
+  return stats;
+}
+
+
 // تصدير ذكي: يدمج المحلي مع السيرفر ويرفع نسخة موحّدة + (Idempotency)
 async function smartExportToServer(){
   // ممنوع على الحاسبة الفرعية (نفس كودك)
@@ -8035,11 +8159,48 @@ async function smartExportToServer(){
         const out = { ...(remoteStore || {}) };
         const loc = localStore  && typeof localStore  === 'object' ? localStore  : {};
         const rem = remoteStore && typeof remoteStore === 'object' ? remoteStore : {};
-        Object.keys(loc).forEach(dayKey=>{
+
+        // ✅ تعديل: فضّ نزاع ذكي حسب الهوية، والأحدث بين updatedAt/deletedAt يغلب
+        const keyOf = (row)=>{
+          try {
+            return String(
+              row?.id || row?._id ||
+              (typeof __paymentKey__ === 'function' ? __paymentKey__(row) :
+                JSON.stringify([row?.cust, row?.date, row?.time, row?.amount, row?.kind]))
+            );
+          } catch {
+            return String(Math.random());
+          }
+        };
+        const stamp = (row)=>{
+          const t = new Date(row?.updatedAt || row?.deletedAt || 0).getTime();
+          return isNaN(t) ? 0 : t;
+        };
+
+        // ادمج يوم-بيوم
+        const allDays = new Set([...Object.keys(rem), ...Object.keys(loc)]);
+        allDays.forEach(dayKey=>{
           const L = Array.isArray(loc[dayKey]) ? loc[dayKey] : [];
           const R = Array.isArray(rem[dayKey]) ? rem[dayKey] : [];
-          out[dayKey] = __dedupePaymentList__([ ...R, ...L ]); // [NEW] ندمج وننظّف يوميًا
+
+          const map = new Map();
+          const put = (row)=>{
+            const k = keyOf(row);
+            if (!map.has(k)){
+              map.set(k, { ...row });
+            } else {
+              const cur = map.get(k);
+              map.set(k, stamp(row) > stamp(cur) ? { ...row } : cur);
+            }
+          };
+
+          // نحافظ على أسبقية السيرفر بالمرور أولاً، وبعدين المحلي مع فضّ النزاع
+          R.forEach(put);
+          L.forEach(put);
+
+          out[dayKey] = Array.from(map.values());
         });
+
         return out;
       })(locPays, srvPays);
       payload.payments = __dedupePaymentsObject__(mergedPays); // [NEW] تنظيف نهائي على كل الأيام
@@ -8102,6 +8263,9 @@ async function smartExportToServer(){
     }
     localStorage.setItem('assal.payments.v1', JSON.stringify(payload.payments || {})); // [NEW] خزّن الحسابات المالية بعد الرفع
 
+    // [NEW] حذف التومبستونات القديمة بعد الرفع مباشرةً (إن وُجدت الدالة)
+    if (typeof cleanupAllTombstones === 'function') cleanupAllTombstones(14);
+
     // 6) حدّث الواجهة (نفسك)
     days  = load(STORAGE, {});
     names = load(NAMES,   []);
@@ -8126,8 +8290,6 @@ async function smartExportToServer(){
     // نبقي الـpending كما هو (لو موجود) حتى المحاولة القادمة تستعمل نفس requestId
   }
 }
-
-
 
 
 
@@ -9475,7 +9637,6 @@ form?.addEventListener('submit', (e)=>{
 
 
 // ==== حذف حركة تسديد/سحب مع تأكيد ====
-// (بدّل الدالة القديمة بهذه نفسها)
 async function deletePayment(idx){
   const row = paymentsData[idx];
   if (!row) return;
@@ -9500,8 +9661,13 @@ async function deletePayment(idx){
   });
   if (!ok) return;
 
-  // تنفيذ الحذف بعد التأكيد
-  paymentsData.splice(idx, 1);
+  // تنفيذ الحذف بعد التأكيد (تومبستون بدل الإزالة الفعلية)
+  // paymentsData.splice(idx, 1);
+  const nowIso = new Date().toISOString();
+  row.id = row.id || row._id || __paymentKey__(row); // تثبيت هوية السطر
+  row.deletedAt = nowIso;  // علامة حذف للمزامنة
+  row.updatedAt = nowIso;  // آخر تعديل
+
   savePayments(currentDay, paymentsData);   // تبقى مثل ما هي
   renderPaymentsRows();
 
@@ -9569,6 +9735,9 @@ function renderPaymentsRows(){
     view = all;
   }
 
+  // ✅ تعديل مضاف: اخفِ السطور المعلّمة كمحذوفة (deletedAt)
+  view = (view || []).filter(r => !r?.deletedAt);
+
   // ❷ ترتيب مبدئي (رح نعيد الترتيب بعد الفلترة همين)
   view.sort((a,b)=> minutesFrom12h(b?.time) - minutesFrom12h(a?.time));
 
@@ -9631,6 +9800,7 @@ function renderPaymentsRows(){
     `;
   }).join('');
 }
+
 
 
 
