@@ -9853,23 +9853,32 @@ function renderPaymentsRows(){
 
  // ========== تصدير ==========
 exportBtn.addEventListener('click', ()=>{
-  if (!Array.isArray(paymentsData) || !paymentsData.length){
+  // 🔥 نفلتر أي سجل بيه deletedAt حتى لا يظهر بالتصدير
+  const printable = (Array.isArray(paymentsData) ? paymentsData : [])
+    .filter(r => !r?.deletedAt);
+
+  if (!printable.length){
     (typeof showToast === 'function') && showToast('warn','ماكو بيانات للطباعة');
     return;
   }
-  exportPayments_Print();
+
+  exportPayments_Print(printable); // نرسل البيانات المفلترة فقط
 });
 
+
 // === طباعة جدول الحسابات (نفس أسلوب طباعة البطاقة: نافذة نظيفة + print) ===
-function exportPayments_Print(){
+function exportPayments_Print(list){
   try{
+    // نضمن أن البيانات مفلترة من المحذوفين (في حال أحد نادانا بدون فلترة)
+    const data = (Array.isArray(list) ? list : []).filter(r => !r?.deletedAt);
+
     // تاريخ للطباعة (من نافذة الحسابات إذا موجود)
     const dateStr =
       document.getElementById('payDate')?.value ||
       document.getElementById('dateBadge')?.textContent || '';
 
-    // نبني صفوف الجدول من paymentsData + كلاس withdraw إذا النوع "سحب"
-    const rows = paymentsData.map((r, i)=> {
+    // نبني صفوف الجدول من القائمة المفلترة فقط
+    const rows = data.map((r, i)=> {
       const kind = (r?.kind ?? '').trim();
       const isWithdraw = (kind === 'سحب');
       const amt = String(r.amount ?? '')
@@ -9890,7 +9899,10 @@ function exportPayments_Print(){
 
     const title = 'حركة الحسابات — مكتب عسل';
     const w = window.open('', '_blank');
-    if(!w){ (typeof showToast==='function') && showToast('error','المتصفح منع فتح نافذة الطباعة'); return; }
+    if(!w){
+      (typeof showToast==='function') && showToast('error','المتصفح منع فتح نافذة الطباعة');
+      return;
+    }
 
     w.document.write(`<!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -9919,13 +9931,12 @@ function exportPayments_Print(){
 
   /* ===== تظليل صف "سحب" للطباعة ===== */
   .payment-row.withdraw{
-    background:#2a0c12 !important;                   /* أحمر غامق مثل الراجع */
-    color:#fca5a5;                                    /* يبان النص */
+    background:#2a0c12 !important;
+    color:#fca5a5;
   }
   .payment-row.withdraw td{
-    border-color: rgba(127,29,29,0.45) !important;    /* حدود أغمق شوي */
+    border-color: rgba(127,29,29,0.45) !important;
   }
-  /* إبراز خانة المبلغ داخل صف السحب (نفس الروح) */
   .payment-row.withdraw td:nth-child(4){
     background:#200a0f;
     border:1px solid #7f1d1d !important;
@@ -9933,7 +9944,6 @@ function exportPayments_Print(){
     font-weight:800;
   }
 
-  /* نضمن طباعة الألوان كما هي */
   *{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
   @media print{ @page{ size:auto; margin:10mm; } }
@@ -9973,6 +9983,7 @@ function exportPayments_Print(){
     (typeof showToast==='function') && showToast('error','فشل إنشاء صفحة الطباعة');
   }
 }
+
 
 })();
 
@@ -10036,4 +10047,3 @@ function exportPayments_Print(){
   
 </body>
 </html>
-
