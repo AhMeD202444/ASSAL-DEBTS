@@ -2972,6 +2972,103 @@ body{ padding-top: var(--hdr-h); }
 }
 
 
+
+
+/* هيدر الكرت: مربع أحمر + نص التوافق على سطر واحد */
+.compat-card__head{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:6px;
+}
+
+/* المربع الأحمر لاسم التوافق (من الكاجوري) */
+.compat-cat-box{
+  background:linear-gradient(135deg,#7f1d1d,#b91c1c);
+  border-radius:10px;
+  border:1px solid #ef4444;
+  color:#fee2e2;
+  font-weight:900;
+  font-size:13px;
+  padding:6px 10px;
+  min-width:120px;
+  text-align:center;
+  white-space:nowrap;
+}
+
+/* النص اللي يم المربع الأحمر: حقل "التوافق" */
+.compat-main-text{
+  font-size:13px;
+  color:#e5e7eb;
+  font-weight:700;
+  padding:6px 10px;
+  border-radius:10px;
+  background:#020617;
+  border:1px solid rgba(148,163,184,.3);
+  flex:1;
+  text-align:right;
+}
+
+
+
+
+/* شريط البحث */
+.compat-search-row{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+/* خليه يتمدّد، والزر يبقى بحجمه الطبيعي */
+#compatSearchInput{
+  flex:1;
+  min-width:0;
+}
+
+.compat-search-row .field{
+  height:34px;
+}
+
+#compatSearchBtn{
+  white-space:nowrap;
+}
+
+
+.compat-suggestions{
+  display:none !important; /* خلاص ماكو اقتراحات */
+}
+
+
+.compat-results{
+  flex:1;
+  min-height:0;
+  margin-top:14px;              /* مسافة أنيقة تحت شريط البحث */
+  border-radius:12px;
+  border:1px solid var(--stroke);
+  background:#020617;
+  padding:10px;
+  overflow-y:auto;               /* سكروول عمودي */
+  max-height:calc(100vh - 260px);/* حتى ما تلزك بالقاع */
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+/* الكرت المحدد بالسهم ↑↓ */
+.compat-card.is-active{
+  
+  
+  outline: none !important;
+  box-shadow: none !important;
+  
+}
+
+
+
+
+
+
+
   </style>
 </head>
 
@@ -2992,6 +3089,14 @@ body{ padding-top: var(--hdr-h); }
 
       
       <div class="r-right">
+        
+        
+        <!-- [NEW] زر بحث توافقات قطع الغيار -->
+<button class="icon" id="btnCompatSearch"
+        title="توافقات قطع الغيار"
+        aria-label="توافقات قطع الغيار">
+  <i class="fa-solid fa-screwdriver-wrench"></i>
+</button>
         
         
         
@@ -3527,6 +3632,62 @@ body{ padding-top: var(--hdr-h); }
 
 
 
+<!-- نافذة توافقات قطع الغيار -->
+<div id="compatBackdrop" class="modal-backdrop"></div>
+
+<div id="compatModal" class="modal" aria-hidden="true">
+  <div class="payments-shell compat-shell nice-scroll">
+    <!-- رأس النافذة -->
+    <div class="payments-head">
+      <div class="payments-title">
+        <i class="fa-solid fa-screwdriver-wrench"></i>
+        <span>توافقات قطع الغيار</span>
+      </div>
+
+      <div class="payments-actions">
+        <span id="compatCount" class="chip">—</span>
+
+        <button id="closeCompatBtn" class="btn close-red">
+          <i class="fa-solid fa-xmark"></i>
+          <span>إغلاق</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- جسم النافذة -->
+    <div class="compat-body">
+      <!-- شريط البحث -->
+      <div class="compat-search-row">
+        <input
+          id="compatSearchInput"
+          class="field"
+          type="text"
+          placeholder="اكتب اسم الجهاز أو القطعة…"
+          autocomplete="off"
+        />
+        <button id="compatSearchBtn" class="btn primary">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <span>بحث</span>
+        </button>
+      </div>
+
+      <!-- الاقتراحات -->
+      <div id="compatSuggestions" class="compat-suggestions nice-scroll"></div>
+
+      <!-- النتائج -->
+      <div id="compatResults" class="compat-results nice-scroll">
+        <div class="compat-empty">
+          <i class="fa-regular fa-lightbulb"></i>
+          <p>ابدأ بكتابة جزء من الاسم لعرض التوافقات.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
 
 <!-- [NEW] نافذة اختيار هوية الحاسبة -->
 <div id="roleBackdrop" class="modal-backdrop"></div>
@@ -3604,6 +3765,134 @@ async function loadExcelFiles(){
     showToast?.('error','تعذر تحميل بيانات الأصناف');
   }
 }
+
+
+
+
+
+
+
+
+
+// ===== Compat Excel (توافقات قطع الغيار) =====
+
+// صفوف التوافقات
+let compatRows    = [];
+let compatIndex   = [];
+let compatLoaded  = false;
+let compatLoading = null;
+
+// رابط ملف التوافقات اللي انت عطيتني ياه
+const compatFileUrl =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vRRZZFGe3dDXCCb9L5HtgpnXoj-H6kvqWeMS_tvYyWAL2VqpJh64rCMqRpoTaMw3v9fdazd5fWB5E2d/pub?output=xlsx"
+  + "&t=" + new Date().getTime();
+
+// تبسيط للنص (بحث أنظف)
+function compatNormText(s){
+  return String(s || '')
+    .toLowerCase()
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+// نبني نص البحث لكل سطر
+function buildCompatIndex(){
+  compatIndex = (Array.isArray(compatRows) ? compatRows : []).map(row => ({
+    row,
+    text: compatNormText(
+      Object.values(row || {})
+        .map(v => String(v ?? '').trim())
+        .filter(Boolean)
+        .join(' | ')
+    )
+  }));
+}
+
+// تحميل ملف التوافقات
+async function loadCompatExcel(){
+  if (compatLoaded && compatRows.length) return compatRows;
+  if (compatLoading) return compatLoading;
+
+  compatLoading = (async () => {
+    try{
+      const resp = await fetch(compatFileUrl, { cache: 'no-store' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+      const buffer = await resp.arrayBuffer();
+      const wb     = XLSX.read(buffer, { type:"array" });
+
+      const sheetName = wb.SheetNames[0];
+      if (!sheetName){
+        compatRows   = [];
+        compatLoaded = true;
+        compatIndex  = [];
+        return compatRows;
+      }
+
+      compatRows = XLSX.utils.sheet_to_json(
+        wb.Sheets[sheetName] || {},
+        { defval: '' }
+      );
+
+      compatLoaded = true;
+      buildCompatIndex();
+      // console.log('Compat DB loaded:', compatRows.length);
+      return compatRows;
+
+    }catch(err){
+      console.error("❌ خطأ تحميل ملف التوافقات:", err);
+      if (typeof showToast === 'function'){
+        showToast('error','ما قدرنا نحمّل ملف توافقات قطع الغيار');
+      }
+      compatLoaded = false;
+      compatRows   = [];
+      compatIndex  = [];
+      throw err;
+    }finally{
+      compatLoading = null;
+    }
+  })();
+
+  return compatLoading;
+}
+
+// إرجاع كل الصفوف التي تحتوي نص البحث
+function findCompatMatches(term){
+  const q = compatNormText(term);
+  if (!q || !compatIndex.length) return [];
+  return compatIndex
+    .filter(rec => rec.text.includes(q))
+    .map(rec => rec.row);
+}
+
+// اقتراحات مبسّطة (نستخرج أول حقلين من كل سطر ونركب Label حلو)
+function buildCompatSuggestions(term, limit = 12){
+  const q = compatNormText(term);
+  if (!q || !compatIndex.length) return [];
+
+  const out  = [];
+  const seen = new Set();
+
+  for (const rec of compatIndex){
+    if (!rec.text.includes(q)) continue;
+
+    const values   = Object.values(rec.row || {});
+    const primary  = values[0] != null ? String(values[0]).trim() : '';
+    const secondary= values[1] != null ? String(values[1]).trim() : '';
+    const label    = [primary, secondary].filter(Boolean).join(' — ') || primary || secondary || '';
+
+    const key = label || rec.text;
+    if (!key || seen.has(key)) continue;
+
+    seen.add(key);
+    out.push({ label, row: rec.row });
+
+    if (out.length >= limit) break;
+  }
+
+  return out;
+}
+
 
 
 
@@ -7270,6 +7559,375 @@ function sumCard(card){
 
 
 
+// خريطة أرقام الكاجوري → اسم التوافق
+const COMPAT_CATEGORY_MAP = {
+  '1':  'شاشات',
+  '2':  'بطاريات',
+  '3':  'جرس النغمات',
+  '4':  'سماعة الاتصال',
+  '5':  'كاميرات',
+  '6':  'عدسة الكاميرا',
+  '7':  'بورد الشحن',
+  '8':  'قواعد الشحن',
+  '9':  'كونكتر الشاشة',
+  '10': 'بصمات',
+  '11': 'شريط الهيتفون',
+  '12': 'شريط البور والصوت',
+  '13': 'گلاسات',
+  '14': 'شريط الهوم',
+  '15': 'آيسيات',
+  '16': 'فلاتات الشاشة',
+  '17': 'هولدر السيم كارت',
+  '18': 'بصمات تحت الشاشة',
+  '19': 'كيبلات الإشارة'
+};
+
+
+
+
+/* ===== توافقات قطع الغيار: واجهة المودال ===== */
+
+function initCompatModal(){
+  const bd        = document.getElementById('compatBackdrop');
+  const md        = document.getElementById('compatModal');
+  const btnOpen   = document.getElementById('btnCompatSearch');
+  const btnClose  = document.getElementById('closeCompatBtn');
+  const inp       = document.getElementById('compatSearchInput');
+  const btnSearch = document.getElementById('compatSearchBtn');
+  const suggBox   = document.getElementById('compatSuggestions');
+  const resultsBox= document.getElementById('compatResults');
+  const countChip = document.getElementById('compatCount');
+
+  if (!bd || !md || !btnOpen || !inp || !resultsBox) return;
+
+  function setCount(n){
+    if (!countChip) return;
+    if (!Number.isFinite(n) || n < 0){
+      countChip.textContent = '—';
+    }else{
+      countChip.textContent =
+        (n === 0)
+          ? '0 نتيجة'
+          : `${n.toLocaleString('ar-IQ')} نتيجة`;
+    }
+  }
+
+  function renderEmpty(messageHtml){
+    resultsBox.innerHTML = `
+      <div class="compat-empty">
+        <i class="fa-regular fa-face-frown"></i>
+        <p>${messageHtml}</p>
+      </div>
+    `;
+  }
+
+  function renderInitial(){
+    resultsBox.innerHTML = `
+      <div class="compat-empty">
+        <i class="fa-regular fa-lightbulb"></i>
+        <p>ابدأ بكتابة جزء من الاسم لعرض التوافقات.</p>
+      </div>
+    `;
+    if (suggBox){
+      suggBox.innerHTML = '';
+      suggBox.style.display = 'none';
+    }
+    setCount(null);
+  }
+
+  function openModal(){
+    bd.classList.add('active');
+    md.classList.add('active');
+    document.body.classList.add('modal-open');
+
+    renderInitial();
+    inp.value = '';
+
+    // نحمل ملف التوافقات بالخلفية
+    loadCompatExcel().catch(()=>{ /* الخطأ ينعرض بتوست */ });
+
+    setTimeout(() => inp.focus(), 40);
+  }
+
+  function closeModal(){
+    bd.classList.remove('active');
+    md.classList.remove('active');
+    document.body.classList.remove('modal-open');
+  }
+
+
+  // Helper: نحاول نجيب قيمة حقل حسب مجموعة مفاتيح محتملة
+  function getCompatField(row, keys){
+    if (!row) return '';
+    for (const k of keys){
+      if (k in row && row[k] != null && String(row[k]).trim() !== ''){
+        return row[k];
+      }
+    }
+    return '';
+  }
+
+
+
+
+  let compatCards = [];
+  let activeCardIndex = -1;
+
+  function setActiveCard(idx){
+    compatCards.forEach((el, i) => {
+      el.classList.toggle('is-active', i === idx);
+    });
+    if (idx >= 0 && compatCards[idx]){
+      compatCards[idx].scrollIntoView({
+        block: 'nearest',
+        inline: 'nearest',
+        behavior: 'smooth'
+      });
+    }
+  }
+
+
+
+
+function renderCompatResults(rows, term){
+  resultsBox.innerHTML = '';
+
+  if (!rows || !rows.length){
+    renderEmpty(
+      `ماكو توافقات مطابقة لـ "<strong>${escHtml(term)}</strong>".`
+    );
+    setCount(0);
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+
+  // الحقول اللي ما نريد لا تنعرض بالـ grid ولا تنستخدم كـ fallback
+  const HIDDEN_KEYS = new Set([
+    'Item',                 // التوافق المفصّل (إحنا طالعينه فوق بالمستطيل)
+    'New', 'الحالة',        // نخفي حقل New
+    'Category','الكاجوري','CAT','cat','category', // نستخدمه للكاجوري بس نخفيه من العرض
+    'التوافق','توافق',
+    'Compat','compat','Compatibility','COMPAT',
+    'match'
+  ]);
+
+  rows.forEach((row) => {
+    const card = document.createElement('div');
+    card.className = 'compat-card';
+
+    // ===== الهيدر: مربع أحمر + مستطيل التوافق =====
+    const head = document.createElement('div');
+    head.className = 'compat-card__head';
+
+    // رقم الكاجوري
+    const rawCatCode = getCompatField(row, [
+      'الكاجوري','Category','CAT','cat','category'
+    ]);
+    const catCodeStr = String(rawCatCode ?? '').trim();
+
+    // اسم التوافق من الماب
+    const catName = COMPAT_CATEGORY_MAP[catCodeStr] ||
+      (catCodeStr ? `كود ${catCodeStr}` : 'غير مصنّف');
+
+    const catBox = document.createElement('div');
+    catBox.className = 'compat-cat-box';
+    catBox.textContent = catName;
+
+    // نحاول نجيب حقل "التوافق"
+    let rawCompat = getCompatField(row, [
+      'التوافق','توافق',
+      'Compat','compat','Compatibility','COMPAT','match',
+      'الوصف','Description','Desc',
+      'Item' // احتياط لأن هواية ملفات تخلي التوافق جوّا الـ Item
+    ]);
+
+    // لو ماكو أي من الأسماء فوق، نطيح على أول قيمة نصية من الحقول غير المخفية
+    if (!rawCompat){
+      for (const [k, v] of Object.entries(row || {})){
+        if (HIDDEN_KEYS.has(k)) continue;
+        const txt = String(v ?? '').trim();
+        if (!txt) continue;
+        rawCompat = txt;
+        break;
+      }
+    }
+
+    const compatText = String(rawCompat ?? '').trim() || '—';
+
+    const compatEl = document.createElement('div');
+    compatEl.className = 'compat-main-text';
+    compatEl.textContent = compatText;
+
+    head.append(catBox, compatEl);
+
+    // ===== باقي الحقول بنفس الـ grid، بدون الكاجوري/التوافق/New/Category/Item =====
+    const grid = document.createElement('div');
+    grid.className = 'compat-card__grid';
+
+    Object.entries(row || {}).forEach(([key, val]) => {
+      if (HIDDEN_KEYS.has(key)) return;
+
+      const txt = String(val ?? '').trim();
+      if (!txt) return;
+
+      const item = document.createElement('div');
+      item.className = 'compat-attr';
+
+      const kEl = document.createElement('div');
+      kEl.className = 'compat-attr__label';
+      kEl.textContent = key;
+
+      const vEl = document.createElement('div');
+      vEl.className = 'compat-attr__value';
+      vEl.textContent = txt;
+
+      item.append(kEl, vEl);
+      grid.append(item);
+    });
+
+    card.append(head, grid);
+    frag.append(card);
+  });
+
+  resultsBox.append(frag);
+
+  // خزن الكروت للتحكم بيها من الكيبورد
+  compatCards = Array.from(resultsBox.querySelectorAll('.compat-card'));
+  activeCardIndex = compatCards.length ? 0 : -1;
+  if (activeCardIndex >= 0){
+    setActiveCard(activeCardIndex);
+  }
+
+  setCount(rows.length);
+}
+
+
+
+
+  async function runSearch(){
+    const term = inp.value.trim();
+    if (!term){
+      if (typeof showToast === 'function'){
+        showToast('warn','اكتب كلمة بحث أولاً');
+      }
+      inp.focus();
+      return;
+    }
+
+    // نضمن تحميل الملف قبل البحث
+    if (!compatLoaded){
+      try{
+        await loadCompatExcel();
+      }catch{
+        return; // خطأ تم عرضه
+      }
+    }
+
+    const matches = findCompatMatches(term);
+    renderCompatResults(matches, term);
+
+    if (suggBox){
+      suggBox.style.display = 'none';
+      suggBox.innerHTML = '';
+    }
+  }
+
+  function updateSuggestions(){
+    // ما نستخدم الاقتراحات بعد
+    if (suggBox){
+      suggBox.style.display = 'none';
+      suggBox.innerHTML = '';
+    }
+  }
+
+
+  // ربط الأزرار والأحداث
+  btnOpen.onclick  = openModal;
+  btnClose && (btnClose.onclick = closeModal);
+
+  bd.addEventListener('click', (e) => {
+    if (e.target === bd) closeModal();
+  });
+
+  btnSearch && btnSearch.addEventListener('click', (e) => {
+    e.preventDefault();
+    runSearch();
+  });
+
+  inp.addEventListener('input', () => {
+    // نحاول نحمّل الملف أول مرة بصمت
+    if (!compatLoaded && !compatLoading){
+      loadCompatExcel().catch(()=>{});
+    }
+    // ماكو اقتراحات بعد
+  });
+
+
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter'){
+      e.preventDefault();
+      runSearch();
+
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      if (!compatCards.length) return;
+      e.preventDefault();
+
+      if (e.key === 'ArrowDown'){
+        activeCardIndex = Math.min(
+          activeCardIndex + 1,
+          compatCards.length - 1
+        );
+      }else{
+        activeCardIndex = Math.max(
+          activeCardIndex - 1,
+          0
+        );
+      }
+      setActiveCard(activeCardIndex);
+
+    } else if (e.key === 'Escape'){
+      if (suggBox && suggBox.style.display === 'block'){
+        suggBox.style.display = 'none';
+        suggBox.innerHTML = '';
+      }else{
+        closeModal();
+      }
+    }
+  });
+
+
+
+  // كليك على الاقتراح
+  suggBox && suggBox.addEventListener('click', (e) => {
+    const item = e.target.closest('.sugg-item');
+    if (!item) return;
+    const label = item.getAttribute('data-label') || '';
+    inp.value = label;
+    runSearch();
+  });
+
+  // إخفاء الاقتراحات لو نقرنا برّه
+  document.addEventListener('click', (e) => {
+    if (!md.classList.contains('active') || !suggBox) return;
+    const inside = suggBox.contains(e.target) || inp.contains(e.target);
+    if (!inside){
+      suggBox.style.display = 'none';
+    }
+  });
+
+  // Esc يغلق المودال لو مفتوح
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && md.classList.contains('active')){
+      e.preventDefault();
+      closeModal();
+    }
+  });
+}
+
+
+
+
 
 
 
@@ -7283,6 +7941,7 @@ const importInput  = document.getElementById('importFile');
 
 // بعد ربط الأزرار مباشرةً:
 updateRoleUIState();
+initCompatModal();
 
 
 document.getElementById('btnNextDay')?.addEventListener('click', openNextDayFromToday);
@@ -8858,6 +9517,13 @@ function dedupeAllDays(daysObj){
   const note = document.getElementById('note');   // الملاحظات (Dock) → عربي
   const cardSearch = document.getElementById('cardSearch'); // فلترة الكروت → عربي
 
+  // ===== نافذة الحسابات المالية =====
+  const payCustomer = document.getElementById('payCustomer');  // اسم الزبون (الحسابات المالية) → عربي
+  const payNotes    = document.getElementById('payNotes');     // الملاحظات (الحسابات المالية) → عربي
+
+  // ===== نافذة توافقات قطع الغيار =====
+  const compatSearchInput = document.getElementById('compatSearchInput'); // بحث التوافقات → إنكليزي
+
   cust && cust.addEventListener('focus', ()=> markTag('[cust]'));
   cust && cust.addEventListener('blur',  ()=> clearTag());
 
@@ -8869,6 +9535,17 @@ function dedupeAllDays(daysObj){
 
   cardSearch && cardSearch.addEventListener('focus', ()=> markTag('[filter]'));
   cardSearch && cardSearch.addEventListener('blur',  ()=> clearTag());
+
+  // --- الحسابات المالية (دائماً عربي) ---
+  payCustomer && payCustomer.addEventListener('focus', ()=> markTag('[cust]'));
+  payCustomer && payCustomer.addEventListener('blur',  ()=> clearTag());
+
+  payNotes && payNotes.addEventListener('focus', ()=> markTag('[note]'));
+  payNotes && payNotes.addEventListener('blur',  ()=> clearTag());
+
+  // --- بحث توافقات قطع الغيار (دائماً إنكليزي) ---
+  compatSearchInput && compatSearchInput.addEventListener('focus', ()=> markTag('[item]'));
+  compatSearchInput && compatSearchInput.addEventListener('blur',  ()=> clearTag());
 
   // ===== ملاحظات داخل الكروت (تنشأ ديناميكياً) =====
   // عنصر الإدخال داخل البطاقة: input.note-input-sm
@@ -8892,6 +9569,7 @@ function dedupeAllDays(daysObj){
     }
   }, 3000);
 })();
+
 
 
   </script>
