@@ -3006,7 +3006,7 @@ body{ padding-top: var(--hdr-h); }
   background:#020617;
   border:1px solid rgba(148,163,184,.3);
   flex:1;
-  text-align:right;
+  text-align:center; /* بدل right */
 }
 
 
@@ -3052,6 +3052,7 @@ body{ padding-top: var(--hdr-h); }
   display:flex;
   flex-direction:column;
   gap:10px;
+  text-align:center; /* بدل right */
 }
 
 /* الكرت المحدد بالسهم ↑↓ */
@@ -3065,7 +3066,33 @@ body{ padding-top: var(--hdr-h); }
 
 
 
+/* عدّاد النتائج في نافذة توافقات قطع الغيار */
+#compatCount{
+  min-width:80px;
+  text-align:center;
+  font-size:11px;
+  font-weight:600;
+  padding:3px 10px;
+  border-radius:10px;   /* نفس شكل close-red تقريبا */
+  border:1px solid rgba(148,163,184,.5);
+  background:#020617;
+  color:#9ca3af;
+  letter-spacing:0.5px;
+}
 
+/* لما تكون أكو نتائج */
+#compatCount.has-results{
+  border-color:rgba(34,197,94,.7);
+  background:rgba(22,163,74,.12);
+  color:#bbf7d0;
+}
+
+/* لما تكون 0 نتيجة */
+#compatCount.has-zero{
+  border-color:rgba(248,113,113,.55);
+  background:rgba(127,29,29,.2);
+  color:#fecaca;
+}
 
 
 
@@ -7600,17 +7627,29 @@ function initCompatModal(){
 
   if (!bd || !md || !btnOpen || !inp || !resultsBox) return;
 
-  function setCount(n){
-    if (!countChip) return;
-    if (!Number.isFinite(n) || n < 0){
-      countChip.textContent = '—';
+ function setCount(n){
+  if (!countChip) return;
+
+  // نشيل الكلاسات كل مرة قبل التحديث
+  countChip.classList.remove('has-results', 'has-zero');
+
+  if (!Number.isFinite(n) || n < 0){
+    countChip.textContent = '—';
+  }else{
+    countChip.textContent =
+      (n === 0)
+        ? '0 نتيجة'
+        : `${n.toLocaleString('ar-IQ')} نتيجة`;
+
+    // نضيف الكلاس حسب عدد النتائج
+    if (n === 0){
+      countChip.classList.add('has-zero');
     }else{
-      countChip.textContent =
-        (n === 0)
-          ? '0 نتيجة'
-          : `${n.toLocaleString('ar-IQ')} نتيجة`;
+      countChip.classList.add('has-results');
     }
   }
+}
+
 
   function renderEmpty(messageHtml){
     resultsBox.innerHTML = `
