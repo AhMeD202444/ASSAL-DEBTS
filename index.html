@@ -3038,6 +3038,55 @@ body{ padding-top: var(--hdr-h); }
   display:none !important; /* خلاص ماكو اقتراحات */
 }
 
+/* صف البحث */
+.compat-search-row{
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* غلاف حقل البحث + زر X */
+.compat-search-input-wrap{
+  position: relative;
+  flex: 1;
+}
+
+/* حقل البحث نفسه */
+#compatSearchInput{
+  width: 100%;
+  padding-left: 40px;  /* مساحة للزر من اليسار */
+  box-sizing: border-box;
+}
+
+/* زر X داخل الشريد أقصى اليسار */
+.compat-clear-btn{
+  position: absolute;
+  left: 8px;              /* أقصى اليسار جوّه الحقل */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid #7a1616;
+  background: #2a0c0c;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+}
+
+.compat-clear-btn i{
+  font-size: 13px;
+  color: #ff4d4f;
+}
+
+.compat-clear-btn:hover{
+  background: #3a0f0f;
+  border-color: #a61e1e;
+  box-shadow: 0 0 0 3px rgba(255,77,79,.18);
+}
+
+
 
 .compat-results{
   flex:1;
@@ -3686,18 +3735,29 @@ body{ padding-top: var(--hdr-h); }
     <div class="compat-body">
       <!-- شريط البحث -->
       <div class="compat-search-row">
-        <input
-          id="compatSearchInput"
-          class="field"
-          type="text"
-          placeholder="اكتب اسم الجهاز أو القطعة…"
-          autocomplete="off"
-        />
-        <button id="compatSearchBtn" class="btn primary">
-          <i class="fa-solid fa-magnifying-glass"></i>
-          <span>بحث</span>
-        </button>
-      </div>
+  <!-- غلاف لحقل البحث + زر X داخله -->
+  <div class="compat-search-input-wrap">
+    <input
+      id="compatSearchInput"
+      class="field"
+      type="text"
+      placeholder="اكتب اسم الجهاز أو القطعة…"
+      autocomplete="off"
+    />
+
+    <!-- زر مسح البحث X داخل الشريد -->
+    <button id="compatSearchClear" class="compat-clear-btn" type="button" title="مسح البحث">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+
+  <!-- زر البحث يبقى مثل ما هو -->
+  <button id="compatSearchBtn" class="btn primary">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span>بحث</span>
+  </button>
+</div>
+
 
       <!-- الاقتراحات -->
       <div id="compatSuggestions" class="compat-suggestions nice-scroll"></div>
@@ -3819,9 +3879,13 @@ const compatFileUrl =
 function compatNormText(s){
   return String(s || '')
     .toLowerCase()
-    .replace(/\s+/g,' ')
+    // شيل كل أنواع المسافات
+    .replace(/\s+/g, '')
+    // لو تحب بعد تشيل شخوط / فواصل حتى يصير أذكى
+    // .replace(/[-_/]+/g, '')
     .trim();
 }
+
 
 // نبني نص البحث لكل سطر
 function buildCompatIndex(){
@@ -7622,6 +7686,7 @@ function initCompatModal(){
   const btnClose  = document.getElementById('closeCompatBtn');
   const inp       = document.getElementById('compatSearchInput');
   const btnSearch = document.getElementById('compatSearchBtn');
+  const btnClear  = document.getElementById('compatSearchClear'); // زر X الجديد
   const suggBox   = document.getElementById('compatSuggestions');
   const resultsBox= document.getElementById('compatResults');
   const countChip = document.getElementById('compatCount');
@@ -7894,6 +7959,15 @@ function renderCompatResults(rows, term){
     e.preventDefault();
     runSearch();
   });
+  
+    // زر مسح البحث (X) — يصفر الحقل ويرجع الشاشة الابتدائية
+  btnClear && btnClear.addEventListener('click', (e) => {
+    e.preventDefault();
+    inp.value = '';
+    renderInitial();   // يرجع رسالة "ابدأ بكتابة جزء من الاسم…" + يصفر العداد
+    inp.focus();
+  });
+
 
   inp.addEventListener('input', () => {
     // نحاول نحمّل الملف أول مرة بصمت
