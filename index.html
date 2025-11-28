@@ -7682,6 +7682,10 @@ function exportCardPDF_Vector(card, dayKey){
         .totals-main .totals-value{
           font-size:13px;
         }
+        /* ✅ قيمة بالسالب باللون الأحمر */
+        .totals-value-minus{
+          color:var(--danger);
+        }
 
         /* فوتر */
         .inv-footer{
@@ -7733,20 +7737,31 @@ function exportCardPDF_Vector(card, dayKey){
           return n.toLocaleString('en-US');
         }
 
+        // ✅ عدّلناها: نحسب إجمالي المواد الراجعة returned
         function sumCard(card){
           let total = 0;
           let unpaid = 0;
+          let returned = 0;
+
           (card.lines || []).forEach(function(ln){
             if(!ln || ln.deletedAt) return;
-            if(ln.returned) return;
-            if(ln.paid) return;
+
             const price = Number(String(ln.price ?? '').replace(/[^\\d.]/g,'')) || 0;
             const qty   = parseInt(String(ln.qty || '1'),10) || 1;
             const sub   = price * qty;
+
+            if(ln.returned){
+              returned += sub;   // المواد المسترجعة تنحسب هنا فقط
+              return;           // وما تدخل على الدين
+            }
+
+            if(ln.paid) return; // المدفوع ما يدخل ضمن الدين
+
             total  += sub;
             unpaid += sub;
           });
-          return { total, unpaid };
+
+          return { total, unpaid, returned };
         }
 
         function escHtmlLocal(s){
@@ -7789,7 +7804,7 @@ function exportCardPDF_Vector(card, dayKey){
             billType === 'بيع'  ? 'فاتورة بيع'  : 'فاتورة ديون';
 
           const isKnownCustomer = card.customer && KNOWN.indexOf(card.customer) !== -1;
-          const totals = sumCard(card);
+          const totals = sumCard(card); // فيها unpaid + returned
           const createdAt = card.createdAt || card.at || null;
           const timeStr   = createdAt ? tinyTime(createdAt) : '';
           const invoiceId = card.id ? String(card.id) : '';
@@ -7838,7 +7853,7 @@ function exportCardPDF_Vector(card, dayKey){
                 '</tr>';
             });
 
-          // الملاحظات (نضيف جملة "المواد المسترجعة لا تحتسب...")
+          // الملاحظات (نفسها مع التوضيح)
           var notesHtml = '';
           const notesArr = Array.isArray(card.notes)
             ? card.notes
@@ -7922,7 +7937,7 @@ function exportCardPDF_Vector(card, dayKey){
                   '<span class="badge '+ typeClass +'">'+ billLabel +'</span>' +
                 '</div>' +
                 '<div class="inv-card-text">' +
-                  ' عدد سطور الفاتورة : ' +
+                  ' عدد سطور الفاتورة (دين فقط) : ' +
                   '<strong>'+ effectiveCount +'</strong>' +
                 '</div>' +
               '</div>' +
@@ -7954,8 +7969,12 @@ function exportCardPDF_Vector(card, dayKey){
               '<div class="totals-card">' +
                 '<div class="totals-title">مجموع الفاتورة</div>' +
                 '<div class="totals-row totals-main">' +
-                  '<div class="totals-label">اجمالي الفاتورة</div>' +
+                  '<div class="totals-label">اجمالي الفاتورة (دين فقط)</div>' +
                   '<div class="totals-value">'+ formatIQD(totals.unpaid) +'</div>' +
+                '</div>' +
+                '<div class="totals-row">' +
+                  '<div class="totals-label">إجمالي المواد المسترجعة</div>' +
+                  '<div class="totals-value totals-value-minus">'+ (totals.returned ? ('-' + formatIQD(totals.returned)) : '0') +'</div>' +
                 '</div>' +
               '</div>' +
             '</div>' +
@@ -7981,6 +8000,9 @@ function exportCardPDF_Vector(card, dayKey){
   w.document.close();
   showToast('success','جاهز لطباعة البطاقة — اختر "حفظ كـ PDF"');
 }
+
+
+
 
 
 
