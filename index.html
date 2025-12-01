@@ -3144,6 +3144,18 @@ body{ padding-top: var(--hdr-h); }
 }
 
 
+/* زر اليوم التالي من يكون مفعّل يصير أحمر غامق */
+.icon.nextday-active,
+.icon.nextday-active:hover{
+  background: linear-gradient(180deg,#7f1d1d,#450a0a); /* أحمر غامق */
+  border-color: #450a0a;
+  color: #fee2e2; /* لون الأيقونة أفتح حتى تبين */
+  box-shadow: 0 0 0 2px rgba(127,29,29,.5);
+  transform: translateY(-1px);
+}
+
+
+
 
   </style>
 </head>
@@ -8423,7 +8435,8 @@ updateRoleUIState();
 initCompatModal();
 
 
-document.getElementById('btnNextDay')?.addEventListener('click', openNextDayFromToday);
+document.getElementById('btnNextDay')?.addEventListener('click', toggleNextDayFromToday);
+
 
 // التصدير الآن يرفع إلى السيرفر (ويب آب)
 btnExportAll && (btnExportAll.onclick = smartExportToServer);
@@ -8746,6 +8759,62 @@ function openNextDayFromToday(){
 
   showToast('info','تم فتح فاتورة اليوم التالي');
 }
+
+
+
+// زر "اليوم التالي" يشتغل كتبديل (أول كلك يفتح، ثاني كلك يلغي إذا فارغ)
+function toggleNextDayFromToday(){
+  const nextISO = addDaysISO(TODAY, 1);   // باجر
+  const btn     = document.getElementById('btnNextDay');
+
+  // إذا إحنا واقفين أصلاً على اليوم التالي → هذي تعتبر "الضغطة الثانية"
+  if (selectedDay === nextISO){
+    // نتأكد إذا بيه بطائق فعّالة
+    let hasCards = false;
+    try{
+      if (typeof activeCardsOfDay === 'function'){
+        hasCards = activeCardsOfDay(nextISO).length > 0;
+      }else{
+        hasCards = Array.isArray(days[nextISO]) && days[nextISO].length > 0;
+      }
+    }catch(e){
+      hasCards = Array.isArray(days[nextISO]) && days[nextISO].length > 0;
+    }
+
+    // إذا بيه بطائق → لا نسمح نحذفه
+    if (hasCards){
+      showToast?.('error','لا يمكن مسح اليوم التالي لوجود بطائق فيه');
+      return;
+    }
+
+    // ماكو بطائق → نحذف اليوم ونرجّع لليوم الحقيقي
+    if (days[nextISO]){
+      delete days[nextISO];
+      save();
+    }
+
+    // رجع لليوم الحالي (TODAY)
+    selectedDay = TODAY;
+
+    const badge = document.getElementById('dateBadge');
+    if (badge){
+      badge.textContent = arDateWithDay(selectedDay);
+    }
+
+    if (btn) btn.classList.remove('nextday-active');
+
+    renderBoard();
+    renderRail();
+    refreshStats();
+
+    showToast?.('info','تم إلغاء فتح اليوم التالي (ما بيه بطائق)');
+  }else{
+    // أول ضغطة → نفس سلوكك القديم: يفتح يوم باچر
+    openNextDayFromToday();
+    if (btn) btn.classList.add('nextday-active');
+  }
+}
+
 
 
 
