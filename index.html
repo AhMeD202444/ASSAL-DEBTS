@@ -3253,6 +3253,249 @@ body{ padding-top: var(--hdr-h); }
 
 
 
+
+
+
+/* ===== Storage usage modal – نفس ألوان الواجهة الداكنة ===== */
+.storage-modal-card{
+  max-width: 520px;
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(124,58,237,.18), transparent 55%),
+    linear-gradient(145deg, var(--paper), var(--surface));
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow);
+  padding: 14px 16px 12px;
+  color: var(--ink);
+}
+
+.storage-body{
+  padding-top: 6px;
+}
+
+/* header */
+.storage-header{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.storage-header-main{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.storage-icon-circle{
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  color: #f9fafb;
+  box-shadow:
+    0 9px 22px rgba(15, 23, 42, .65),
+    0 0 0 1px rgba(15, 23, 42, .7);
+  font-size: 18px;
+}
+
+.storage-title{
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.storage-subtitle{
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+.code-chip{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, .7);
+  border: 1px solid rgba(148, 163, 184, .5);
+  font-size: 11px;
+  color: #e5e7eb;
+}
+
+/* badge */
+.storage-badge{
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.storage-badge::before{
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.storage-badge-safe{
+  background: rgba(22, 163, 74, .08);
+  color: #bbf7d0;
+  border: 1px solid rgba(22, 163, 74, .6);
+}
+
+.storage-badge-safe::before{
+  background: var(--good);
+}
+
+.storage-badge-warn{
+  background: rgba(245, 158, 11, .08);
+  color: #fed7aa;
+  border: 1px solid rgba(245, 158, 11, .6);
+}
+
+.storage-badge-warn::before{
+  background: var(--warn);
+}
+
+.storage-badge-danger{
+  background: rgba(239, 68, 68, .1);
+  color: #fecaca;
+  border: 1px solid rgba(239, 68, 68, .7);
+}
+
+.storage-badge-danger::before{
+  background: var(--danger);
+}
+
+/* bar */
+.storage-bar-outer{
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: #020617;
+  border: 1px solid rgba(15, 23, 42, .9);
+  overflow: hidden;
+  position: relative;
+  margin: 4px 0 12px;
+}
+
+.storage-bar-inner{
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--good), var(--warn), #f97316, var(--danger));
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, .5);
+  transition: width .45s cubic-bezier(.23,1,.32,1);
+}
+
+/* KPIs */
+.storage-grid{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.storage-kpi{
+  padding: 8px 9px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .7);
+}
+
+.storage-kpi-label{
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.storage-kpi-value{
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* text blocks */
+.storage-stats{
+  font-size: 12px;
+  color: var(--ink);
+  line-height: 1.7;
+}
+
+.storage-more{
+  margin-top: 4px;
+}
+
+.storage-more-text{
+  margin-bottom: 4px;
+}
+
+.storage-footer-note{
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* actions + close button */
+.storage-actions{
+  margin-top: 10px;
+  justify-content: flex-end;
+}
+
+.modal-btn.danger-solid{
+  background: var(--danger);
+  color: #f9fafb;
+  border-radius: 999px;
+  padding-inline: 18px;
+  font-weight: 600;
+  border: none;
+  box-shadow:
+    0 9px 22px rgba(15, 23, 42, .8),
+    0 0 0 1px rgba(127, 29, 29, .9);
+  transition: background .18s ease, transform .08s ease, box-shadow .18s ease;
+}
+
+.modal-btn.danger-solid:hover{
+  background: #dc2626;
+  transform: translateY(0.5px);
+  box-shadow:
+    0 11px 24px rgba(15, 23, 42, .9),
+    0 0 0 1px rgba(127, 29, 29, 1);
+}
+
+.modal-btn.danger-solid:active{
+  background: #991b1b;
+  transform: translateY(1px);
+  box-shadow:
+    0 4px 10px rgba(15, 23, 42, .9),
+    0 0 0 1px rgba(69, 10, 10, 1);
+}
+
+
+
+
+/* زر الإغلاق في وسط أسفل المودال */
+.storage-actions{
+  margin-top: 10px;
+  justify-content: center;   /* بدل flex-end */
+}
+
+.storage-actions .modal-btn.danger-solid{
+  min-width: 130px;
+}
+
+
+
+
+
   </style>
 </head>
 
@@ -3334,6 +3577,16 @@ body{ padding-top: var(--hdr-h); }
   <button class="icon" id="btnNextDay" title="فتح فاتورة اليوم التالي" aria-label="فتح فاتورة اليوم التالي">
     <i class="fa-solid fa-calendar-plus"></i>
   </button>
+  
+  
+  <!-- [NEW] زر حجم التخزين في المتصفح -->
+        <button class="icon" id="btnStorageInfo"
+                title="حجم تخزين المتصفح"
+                aria-label="حجم تخزين المتصفح">
+          <i class="fa-solid fa-database"></i>
+        </button>
+  
+  
 
   <button class="icon" id="btnLogout" title="تسجيل خروج" style="display:none" aria-label="تسجيل خروج">
     <i class="fa-solid fa-right-from-bracket"></i>
@@ -3924,7 +4177,70 @@ body{ padding-top: var(--hdr-h); }
 
 
 
+  <!-- [NEW] مودال حجم تخزين المتصفح (تصميم احترافي) -->
+  <div id="storageModalBackdrop" class="modal-backdrop"></div>
+  <div id="storageModal" class="modal" aria-hidden="true">
+    <div class="modal-card storage-modal-card"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="storageModalTitle">
 
+      <div class="storage-header">
+        <div class="storage-header-main">
+          <div class="storage-icon-circle">
+            <i class="fa-solid fa-database"></i>
+          </div>
+          <div>
+            <div id="storageModalTitle" class="storage-title">
+              حجم تخزين المتصفح
+            </div>
+            <div class="storage-subtitle">
+              نظرة عامة على استخدام <span class="code-chip">localStorage</span> لهذا الجهاز.
+            </div>
+          </div>
+        </div>
+
+        <div id="storageBadge" class="storage-badge storage-badge-safe">
+          حالة آمنة
+        </div>
+      </div>
+
+      <div class="modal-body storage-body">
+        <div class="storage-bar-outer">
+          <div id="storageUsageBar" class="storage-bar-inner"></div>
+        </div>
+
+        <div class="storage-grid">
+          <div class="storage-kpi">
+            <div class="storage-kpi-label">المساحة المستخدمة</div>
+            <div id="storageUsedKpi" class="storage-kpi-value">-</div>
+          </div>
+          <div class="storage-kpi">
+            <div class="storage-kpi-label">المساحة المتبقية التقريبية</div>
+            <div id="storageLeftKpi" class="storage-kpi-value">-</div>
+          </div>
+          <div class="storage-kpi">
+            <div class="storage-kpi-label">نسبة الاستخدام</div>
+            <div id="storagePctKpi" class="storage-kpi-value">-</div>
+          </div>
+        </div>
+
+        <div id="storageUsageMain" class="storage-stats"></div>
+        <div id="storageUsageMore" class="storage-stats storage-more"></div>
+
+        <div class="storage-footer-note">
+          القيم تقريبية وقد تختلف من متصفح لآخر. النسخ الاحتياطية على السيرفر تبقى آمنة دائماً حتى
+          لو وصل المتصفح للحد الأقصى.
+        </div>
+      </div>
+
+      <div class="modal-actions storage-actions">
+        <button id="storageModalClose" class="modal-btn danger-solid">
+          إغلاق
+        </button>
+      </div>
+    </div>
+  </div>
 
 
 
@@ -6990,6 +7306,133 @@ function refreshWithOverlay(){
 
 // ربط الزر
 document.getElementById('btnRefresh')?.addEventListener('click', refreshWithOverlay);
+
+
+
+/* ===== [NEW] LocalStorage usage helper ===== */
+
+// نفترض الحد تقريباً 5MB لـ localStorage (يختلف من متصفح لمتصفح)
+const APPROX_LOCALSTORAGE_LIMIT_BYTES = 5 * 1024 * 1024;
+
+function getLocalStorageUsageBytes(){
+  let totalBytes = 0;
+
+  try {
+    const enc = new TextEncoder();
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i) || "";
+      const val = localStorage.getItem(key) || "";
+
+      // الحجم الحقيقي للـ key + value بالبايت (UTF-8)
+      totalBytes += enc.encode(key).length;
+      totalBytes += enc.encode(val).length;
+    }
+  } catch (e) {
+    // لو المتصفح قديم جداً وما يدعم TextEncoder
+    return 0;
+  }
+
+  return totalBytes;
+}
+
+
+function formatBytesNice(bytes){
+  if(!bytes || bytes <= 0) return '0 بايت';
+  const kb = bytes / 1024;
+  if(kb < 1024) return kb.toFixed(1) + ' KB';
+  const mb = kb / 1024;
+  return mb.toFixed(2) + ' MB';
+}
+
+function openStorageUsageModal(){
+  const backdrop = document.getElementById('storageModalBackdrop');
+  const modal    = document.getElementById('storageModal');
+  if(!backdrop || !modal) return;
+
+  const usedBytes  = getLocalStorageUsageBytes();
+  const limitBytes = APPROX_LOCALSTORAGE_LIMIT_BYTES;
+  const pctRaw     = (usedBytes / limitBytes) * 100;
+  const pct        = Math.max(0, Math.min(100, Math.round(pctRaw)));
+  const leftBytes  = Math.max(0, limitBytes - usedBytes);
+
+  const bar        = document.getElementById('storageUsageBar');
+  const txtMain    = document.getElementById('storageUsageMain');
+  const txtMore    = document.getElementById('storageUsageMore');
+
+  const usedKpi    = document.getElementById('storageUsedKpi');
+  const leftKpi    = document.getElementById('storageLeftKpi');
+  const pctKpi     = document.getElementById('storagePctKpi');
+  const badge      = document.getElementById('storageBadge');
+
+  // شريط النسبة
+  if(bar){
+    bar.style.width = pct + '%';
+  }
+
+  // KPIs رقمية
+  if(usedKpi) usedKpi.textContent = formatBytesNice(usedBytes);
+  if(leftKpi) leftKpi.textContent = formatBytesNice(leftBytes);
+  if(pctKpi)  pctKpi.textContent  = pct + '٪';
+
+  // نص مختصر
+  if(txtMain){
+    txtMain.textContent =
+      `مستعمل تقريباً ${formatBytesNice(usedBytes)} من ${formatBytesNice(limitBytes)} (${pct}٪ من السعة التقريبية).`;
+  }
+
+  // حالة + تفاصيل + ألوان البادج
+  if(badge){
+    badge.classList.remove('storage-badge-safe','storage-badge-warn','storage-badge-danger');
+
+    let statusLabel = 'حالة آمنة';
+    let statusClass = 'storage-badge-safe';
+    let statusText  = 'الوضع ممتاز، ماكو أي خطر حاليًا من امتلاء تخزين المتصفح.';
+
+    if(pct >= 75 && pct < 90){
+      statusLabel = 'قريب من الحد';
+      statusClass = 'storage-badge-warn';
+      statusText  = 'الاستخدام بدأ يقترب من الحد التقريبي. يُفضّل بين فترة وفترة تصدّر نسخة احتياطية وتمسح بيانات قديمة إذا ممكن.';
+    }else if(pct >= 90){
+      statusLabel = 'على وشك الامتلاء';
+      statusClass = 'storage-badge-danger';
+      statusText  = 'التخزين قرّب يمتلئ. أنصحك فورًا تتأكد من النسخة الاحتياطية على السيرفر، وتمسح أو تضغط البيانات القديمة قبل ما يوقف الحفظ.';
+    }
+
+    badge.textContent = statusLabel;
+    badge.classList.add(statusClass);
+
+    if(txtMore){
+      txtMore.innerHTML =
+        `<div class="storage-more-text">${statusText}</div>
+         <ul class="storage-list">
+           <li>المتبقي التقريبي قبل الوصول للحد: <strong>${formatBytesNice(leftBytes)}</strong>.</li>
+           <li>الحد المستخدم هنا تقريبي (حوالي 5MB لـ localStorage) ويختلف من متصفح لآخر.</li>
+           <li>ينصح دائماً بالاعتماد على النسخ الاحتياطية على السيرفر وعدم الاعتماد على هذا المتصفح فقط.</li>
+         </ul>`;
+    }
+  }
+
+  // عرض المودال
+  backdrop.classList.add('active');
+  modal.classList.add('active');
+  document.body.classList.add('modal-open');
+}
+
+
+function closeStorageUsageModal(){
+  const backdrop = document.getElementById('storageModalBackdrop');
+  const modal    = document.getElementById('storageModal');
+  if(backdrop) backdrop.classList.remove('active');
+  if(modal)    modal.classList.remove('active');
+  document.body.classList.remove('modal-open');
+}
+
+// ربط أزرار المودال
+document.getElementById('btnStorageInfo')?.addEventListener('click', openStorageUsageModal);
+document.getElementById('storageModalClose')?.addEventListener('click', closeStorageUsageModal);
+document.getElementById('storageModalBackdrop')?.addEventListener('click', closeStorageUsageModal);
+
 
 
 
@@ -11650,4 +12093,3 @@ function exportPayments_Print(list){
   
 </body>
 </html>
-
