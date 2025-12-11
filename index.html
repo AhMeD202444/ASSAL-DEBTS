@@ -9674,11 +9674,12 @@ function __paymentKey__(p){
     if (p && (p.id || p._id)) return String(p.id || p._id);
     // إذا ماكو id: سوّي مفتاح مركّب من الحقول الاعتيادية (عدّل الأسماء إذا عندك غيرها)
     const obj = {
+      cust      : (p.cust ?? p.customer ?? "").trim(),
       date      : p.date      ?? p.day      ?? "",
       time      : p.time      ?? "",
       amount    : p.amount    ?? p.value    ?? p.qty ?? "",
       type      : p.type      ?? p.kind     ?? "",
-      note      : p.note      ?? p.desc     ?? p.text ?? ""
+      note      : (p.notes    ?? p.note     ?? p.desc ?? p.text ?? "").trim()
     };
     // تطبيع بسيط حتى ما تختلف المسافات/الأحرف
     return JSON.stringify(obj);
@@ -9686,6 +9687,7 @@ function __paymentKey__(p){
     return JSON.stringify(p ?? {});
   }
 }
+
 
 // [NEW] إزالة التكرار لكل يوم
 function __dedupePaymentList__(list){
@@ -11664,7 +11666,10 @@ function addPayment(){
   const now  = new Date();
   const time = now.toLocaleTimeString('ar-IQ', { hour:'2-digit', minute:'2-digit' });
 
+  const id = 'pay_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8);
+
   paymentsData.push({
+    id,
     cust, kind, amount: amountNum, notes,
     date: day,                        // عندك أصلاً تضيف التاريخ
    time: time12      // فقط هذا، ما نضيف time24
@@ -11680,6 +11685,7 @@ function addPayment(){
   suggBox.style.display='none';
   inpCustomer.focus();
 }
+
 
 // [E] تشغيل الإضافة من زر الفورم
 form?.addEventListener('submit', (e)=>{
