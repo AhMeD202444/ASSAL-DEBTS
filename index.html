@@ -4791,8 +4791,9 @@ function findPrice(cat, itemName){
   const list = database[cat] || [];
   const qn = norm(itemName);
   const row = list.find(r => norm(r["Item Name"] || r["Item"] || '') === qn);
-  return row ? parseIQD(row["Price"]) : '';
+  return row ? parseIQD(row["Discount Price"] ? row["Discount Price"] : row["Price"]) : '';
 }
+
 
 function tryFillPrice(){
   const cat  = getSelectedCat();
@@ -9029,15 +9030,19 @@ function renderPriceResults(records, term){
         'الوصف','Description','Desc'
       ]) || '—';
 
-    // السعر
-   const priceRaw =
-  getPriceField(row, ['Price','PRICE','price','السعر']);
+    // السعر (Discount Price إذا موجود، وإلا Price)
+    const discountRaw =
+      getPriceField(row, ['Discount Price','DISCOUNT PRICE','discount price','DiscountPrice','سعر الخصم','سعر_الخصم']);
 
-const priceText =
-  priceRaw != null && String(priceRaw).trim() !== ''
-    ? formatIQD(priceRaw)
-    : '—';
+    const priceRaw =
+      (discountRaw != null && String(discountRaw).trim() !== '')
+        ? discountRaw
+        : getPriceField(row, ['Price','PRICE','price','السعر']);
 
+    const priceText =
+      priceRaw != null && String(priceRaw).trim() !== ''
+        ? formatIQD(priceRaw)
+        : '—';
 
     // الكارت نفسه
     const card = document.createElement('div');
@@ -9047,11 +9052,10 @@ const priceText =
     const line = document.createElement('div');
     line.className = 'compat-price-line';
 
-   const typeChip = document.createElement('div');
-// نستعمل نفس الكلاس مال التوافقات
-typeChip.className = 'compat-cat-box compat-type-chip';
-typeChip.textContent = typeText;
-
+    const typeChip = document.createElement('div');
+    // نستعمل نفس الكلاس مال التوافقات
+    typeChip.className = 'compat-cat-box compat-type-chip';
+    typeChip.textContent = typeText;
 
     const itemChip = document.createElement('div');
     itemChip.className = 'ichip compat-item-chip';
@@ -9077,6 +9081,7 @@ typeChip.textContent = typeText;
 
   setCount(records.length);
 }
+
 
 
 
