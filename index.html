@@ -12150,6 +12150,12 @@ function printPaymentReceipt(row){
   }
   .foot b{ color:var(--ink); }
 
+  /* ====== التوسيط: كل جسم الفاتورة توسيط عدا الهيدر والفوتر ====== */
+  .card.center-body{ text-align:center; }
+  .card.center-body .hdr,
+  .card.center-body .foot{ text-align:initial; }
+  .card.center-body td.v{ text-align:center !important; }
+
   @media print{
     @page{ size:auto; margin:10mm; }
     .wrap{ padding:0; }
@@ -12158,7 +12164,7 @@ function printPaymentReceipt(row){
 </head>
 <body>
   <div class="wrap">
-    <div class="card">
+    <div class="card center-body">
       <div class="hdr">
         <div>
           <div class="brandRow">
@@ -12224,6 +12230,7 @@ function printPaymentReceipt(row){
     (typeof showToast==='function') && showToast('error','فشل إنشاء صفحة الطباعة');
   }
 }
+
 
 
 
