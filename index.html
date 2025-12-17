@@ -3496,7 +3496,31 @@ body{ padding-top: var(--hdr-h); }
 
 
 
-  </style>
+  
+/* =================== إضافة عمود طباعة للحسابات المالية =================== */
+.payments-header-row,
+.payment-row{
+  /* # | الاسم | النوع | المبلغ | ملاحظات | تاريخ | وقت | حذف | طباعة */
+  grid-template-columns: 40px 1fr 80px 120px 1fr 100px 90px 40px 40px !important;
+}
+
+.payment-print-btn{
+  width:28px;
+  height:28px;
+  border-radius:8px;
+  border:1px solid rgba(14,165,233,45);
+  background:linear-gradient(135deg,#0b3b5b,#07293f);
+  color:#cfefff;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+  font-size:12px;
+  line-height:0;
+}
+.payment-print-btn:hover{ filter:brightness(1.08); }
+.payment-print-btn:active{ transform:translateY(1px); }
+
+</style>
 </head>
 
 <body>
@@ -4062,6 +4086,7 @@ body{ padding-top: var(--hdr-h); }
     <div>التاريخ</div>
     <div>الوقت</div>
     <div>حذف</div>
+    <div>طباعة</div>
   </div>
 
   <!-- جسم الصفوف: هنا فقط يصير السكرول -->
@@ -11848,6 +11873,15 @@ function renderPaymentsRows(){
     const isIn  = row?.kind === 'تسديد';
     const isOut = row?.kind === 'سحب';
 
+    const rowPayload = encodeURIComponent(JSON.stringify({
+      cust: row?.cust ?? '',
+      kind: row?.kind ?? '',
+      amount: row?.amount ?? '',
+      notes: row?.notes ?? '',
+      date: row?.date ?? '',
+      time: row?.time ?? ''
+    }));
+
     return `
       <div class="payment-row ${isOut ? 'withdraw' : ''}">
         <div>${idx+1}</div>
@@ -11860,9 +11894,13 @@ function renderPaymentsRows(){
         <div>${row?.date || ''}</div>
         <div>${row?.time || ''}</div>
         <div>
-         <button class="payment-del-btn" data-idx="${paymentsData.indexOf(row)}">
-
+          <button class="payment-del-btn" data-idx="${paymentsData.indexOf(row)}">
             <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </div>
+        <div>
+          <button class="payment-print-btn" data-row="${rowPayload}" title="طباعة وصل">
+            <i class="fa-solid fa-print"></i>
           </button>
         </div>
       </div>
@@ -11878,11 +11916,318 @@ function renderPaymentsRows(){
 
 
   rowsWrap.addEventListener('click', e=>{
-    const btn = e.target.closest('.payment-del-btn');
-    if(!btn) return;
-    const idx = Number(btn.getAttribute('data-idx'));
-    deletePayment(idx);
+    // حذف
+    const delBtn = e.target.closest('.payment-del-btn');
+    if(delBtn){
+      const idx = Number(delBtn.getAttribute('data-idx'));
+      deletePayment(idx);
+      return;
+    }
+
+    // طباعة وصل
+    const printBtn = e.target.closest('.payment-print-btn');
+    if(!printBtn) return;
+
+    try{
+      const payload = printBtn.getAttribute('data-row') || '';
+      const row = JSON.parse(decodeURIComponent(payload));
+
+      // إذا تحب: فقط للتسديد
+      // if(row?.kind !== 'تسديد'){ (typeof showToast==='function') && showToast('warn','الطباعة متاحة للتسديد فقط'); return; }
+
+      printPaymentReceipt(row);
+    }catch(err){
+      console.error('printPaymentReceipt parse error:', err);
+      (typeof showToast==='function') && showToast('error','فشل تحضير بيانات الطباعة');
+    }
   });
+
+
+  // ========== طباعة وصل تسديد (فاتورة صغيرة) ==========
+function printPaymentReceipt(row){
+  try{
+    const esc = (s)=> String(s||'')
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#39;');
+
+    const kind  = row?.kind || 'تسديد';
+    const title = (kind === 'سحب') ? 'وصل سحب' : 'وصل تسديد';
+    const badge = (kind === 'سحب') ? 'قيد السحب' : 'قيد التسديد';
+
+    const amtNum = Number(String(row?.amount ?? '').replace(/[^\d.]/g,'')) || 0;
+    const amtStr = amtNum.toLocaleString('ar-IQ') + ' د.ع';
+
+    const cust  = esc(row?.cust  || '');
+    const notes = esc(row?.notes || '');
+    const date  = esc(row?.date  || '');
+    const time  = esc(row?.time  || '');
+
+    // رقم سند أنيق (إذا عندك row.ref/row.id يستعمله، غيره يولّد رقم)
+    const now = new Date();
+    const pad2 = (n)=> String(n).padStart(2,'0');
+    const stamp = `${now.getFullYear()}${pad2(now.getMonth()+1)}${pad2(now.getDate())}-${pad2(now.getHours())}${pad2(now.getMinutes())}`;
+    const ref = esc(row?.ref || row?.id || row?.no || row?.receiptNo || '');
+    const receiptNo = ref || `RCPT-${stamp}`;
+
+    const issuedAt = esc(now.toLocaleString('ar-IQ'));
+
+    const w = window.open('', '_blank', 'width=520,height=720');
+    if(!w){ (typeof showToast==='function') && showToast('warn','افتح السماح بالنوافذ المنبثقة'); return; }
+
+    w.document.open();
+    w.document.write(`<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>${esc(title)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#0b0f19;
+    --muted:#6b7280;
+    --stroke:#e5e7eb;
+    --soft:#f3f4f6;
+    --gold:#b08a2a;
+  }
+  *{ box-sizing:border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html,body{ margin:0; padding:0; font-family:"Cairo",system-ui; color:var(--ink); background:#fff; }
+
+  .wrap{ padding:14px; }
+  .card{
+    position:relative;
+    border:1px solid var(--stroke);
+    border-radius:16px;
+    padding:12px 12px 10px;
+    overflow:hidden;
+    background:
+      linear-gradient(180deg, #fff, #fff),
+      radial-gradient(circle at 20% 0%, rgba(176,138,42,.08), transparent 55%),
+      radial-gradient(circle at 90% 35%, rgba(11,15,25,.05), transparent 60%);
+  }
+  .card::before{
+    content:"";
+    position:absolute; top:0; left:0; right:0; height:3px;
+    background:linear-gradient(90deg, var(--ink), var(--gold), var(--ink));
+    opacity:.95;
+  }
+  .card::after{
+    content:"ASSAL";
+    position:absolute;
+    left:12px; top:44px;
+    font-weight:900;
+    font-size:42px;
+    letter-spacing:6px;
+    opacity:.04;
+    transform:rotate(-10deg);
+    pointer-events:none;
+    user-select:none;
+  }
+
+  .hdr{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+  .brandRow{ display:flex; gap:10px; align-items:flex-start; }
+  .mark{
+    width:38px; height:38px;
+    border:1px solid var(--ink);
+    border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:900; letter-spacing:.3px;
+    background:linear-gradient(180deg,#fff,#fafafa);
+    position:relative;
+  }
+  .mark::after{
+    content:"";
+    position:absolute; inset:5px;
+    border-radius:10px;
+    border:1px solid rgba(176,138,42,.55);
+  }
+  .brand .name{ font-weight:900; letter-spacing:.3px; font-size:14px; line-height:1.1; }
+  .brand .sub{ color:var(--muted); font-weight:800; font-size:11.5px; margin-top:2px; }
+  .brand .line{ color:var(--muted); font-weight:700; font-size:11.5px; margin-top:2px; }
+
+  .title{ font-weight:900; font-size:16px; margin:0; letter-spacing:.2px; }
+  .badge{
+    display:inline-block;
+    border:1px solid rgba(176,138,42,.55);
+    border-radius:999px;
+    padding:3px 10px;
+    font-weight:900;
+    font-size:11.5px;
+    background:linear-gradient(180deg, #fff, rgba(176,138,42,.10));
+    white-space:nowrap;
+  }
+
+  .metaTop{
+    margin-top:8px;
+    display:flex; justify-content:space-between; gap:10px;
+    font-size:11.5px; color:var(--muted); font-weight:800;
+    border-top:1px solid var(--stroke);
+    padding-top:8px;
+  }
+  .metaTop b{ color:var(--ink); }
+
+  .amount{
+    margin-top:10px;
+    border:1px solid var(--ink);
+    border-radius:14px;
+    padding:10px 12px;
+    background:linear-gradient(135deg, rgba(176,138,42,.10), transparent 55%), #fff;
+  }
+  .amount .label{ color:var(--muted); font-size:11.5px; font-weight:900; }
+  .amount .val{ font-weight:900; font-size:22px; margin-top:2px; font-variant-numeric: tabular-nums; letter-spacing:.2px; }
+
+  .tableWrap{
+    margin-top:10px;
+    border:1px solid var(--stroke);
+    border-radius:12px;
+    overflow:hidden;
+    background:#fff;
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:12.5px;
+  }
+  td{
+    padding:8px 10px;
+    border-bottom:1px solid var(--stroke);
+  }
+  tr:last-child td{ border-bottom:none; }
+  td.k{
+    width:38%;
+    color:var(--muted);
+    font-weight:900;
+    background:#fafafa;
+  }
+  td.v{
+    font-weight:900;
+    text-align:left;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .notes{
+    margin-top:10px;
+    border:1px solid var(--stroke);
+    border-radius:12px;
+    overflow:hidden;
+    background:#fff;
+  }
+  .notes .head{
+    padding:8px 10px;
+    font-size:12px;
+    font-weight:900;
+    color:var(--ink);
+    border-bottom:1px solid var(--stroke);
+    background:linear-gradient(180deg,#fff,#fafafa);
+  }
+  .notes .body{
+    padding:10px;
+    font-size:13px;
+    font-weight:700;
+    white-space:pre-wrap;
+    line-height:1.65;
+    min-height:28px;
+  }
+
+  .sig{
+    margin-top:10px;
+    display:flex; justify-content:space-between; gap:10px;
+    font-size:11.5px;
+  }
+  .sig .slot{ flex:1; }
+  .sig .lbl{ color:var(--muted); font-weight:900; }
+  .sig .line{ border-bottom:1px solid #111; height:16px; margin-top:8px; opacity:.9; }
+
+  .foot{
+    margin-top:10px;
+    padding-top:8px;
+    border-top:1px solid var(--stroke);
+    display:flex; justify-content:space-between; gap:10px;
+    font-size:11.5px; color:var(--muted); font-weight:800;
+  }
+  .foot b{ color:var(--ink); }
+
+  @media print{
+    @page{ size:auto; margin:10mm; }
+    .wrap{ padding:0; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="hdr">
+        <div>
+          <div class="brandRow">
+            <div class="mark">AS</div>
+            <div class="brand">
+              <div class="name">ASSAL</div>
+              <div class="sub">Financial System • Official Receipt</div>
+              <div class="line">بعقوبة - شارع الأوقاف | 07728640560</div>
+            </div>
+          </div>
+          <div style="margin-top:6px;">
+            <h1 class="title">${esc(title)}</h1>
+          </div>
+        </div>
+        <div class="badge">${esc(badge)}</div>
+      </div>
+
+      <div class="metaTop">
+        <div><b>رقم السند:</b> ${esc(receiptNo)}</div>
+        <div><b>التاريخ:</b> ${date || '-'} ${time ? '• ' + time : ''}</div>
+      </div>
+
+      <div class="amount">
+        <div class="label">إجمالي المبلغ (IQD)</div>
+        <div class="val">${esc(amtStr)}</div>
+      </div>
+
+      <div class="tableWrap">
+        <table>
+          <tr><td class="k">اسم الزبون</td><td class="v">${cust || '-'}</td></tr>
+          <tr><td class="k">النوع</td><td class="v">${esc(kind)}</td></tr>
+          <tr><td class="k">مرجع الإصدار</td><td class="v">${esc(issuedAt)}</td></tr>
+          <tr><td class="k">ملاحظة النظام</td><td class="v">ASSAL FINANCE</td></tr>
+        </table>
+      </div>
+
+      <div class="notes">
+        <div class="head">ملاحظات</div>
+        <div class="body">${notes ? notes : '—'}</div>
+      </div>
+
+      <div class="sig">
+        <div class="slot"><div class="lbl">توقيع المستلم</div><div class="line"></div></div>
+        <div class="slot"><div class="lbl">الختم</div><div class="line"></div></div>
+      </div>
+
+      <div class="foot">
+        <div>تم إنشاء السند إلكترونياً • <b>Secure Print</b></div>
+        <div>© ASSAL</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.addEventListener('load', function(){ window.print(); });
+  <\/script>
+</body>
+</html>`);
+    w.document.close();
+    w.focus();
+  }catch(err){
+    console.error('printPaymentReceipt error:', err);
+    (typeof showToast==='function') && showToast('error','فشل إنشاء صفحة الطباعة');
+  }
+}
+
+
+
+
 
   // ========== Enter flow ==========
   // ترتيب الإدخال: اسم -> نوع -> مبلغ -> ملاحظات -> إضافة
