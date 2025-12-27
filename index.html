@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>ASSAL • فواتير ديون يومية مكتب عسل</title>
 
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+ <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -3719,6 +3719,7 @@ body{ padding-top: var(--hdr-h); }
           <div class="cat-item" data-val="CAMERA"><i class="fa-solid fa-camera"></i> كاميرات</div>
           <div class="cat-item" data-val="CHARGING"><i class="fa-solid fa-plug"></i> شحن</div>
           <div class="cat-item" data-val="SPEAKER"><i class="fa-solid fa-headphones"></i> سماعة</div>
+          <div class="cat-item" data-val="FLAT SPEAKER"><i class="fa-solid fa-volume-high"></i> فلات سماعة</div>
           <div class="cat-item" data-val="HOUSING"><i class="fa-solid fa-border-none"></i> شواصي</div>
           <div class="cat-item" data-val="BACK"><i class="fa-solid fa-mobile-screen"></i> أظهر</div>
           <div class="cat-item" data-val="BUZZER"><i class="fa-solid fa-bell"></i> جرس</div>
@@ -4314,6 +4315,7 @@ async function loadExcelFiles(){
       CHARGING  : XLSX.utils.sheet_to_json(wb.Sheets["CHARGING"]  || {}, {defval:null}),
       BUZZER    : XLSX.utils.sheet_to_json(wb.Sheets["BUZZER"]    || {}, {defval:null}),
       SPEAKER   : XLSX.utils.sheet_to_json(wb.Sheets["SPEAKER"]   || {}, {defval:null}),
+      "FLAT SPEAKER": XLSX.utils.sheet_to_json(wb.Sheets["FLAT SPEAKER"] || {}, {defval:null}),
       FINGER    : XLSX.utils.sheet_to_json(wb.Sheets["FINGER"]    || {}, {defval:null}),
       "FLAT LCD": XLSX.utils.sheet_to_json(wb.Sheets["FLAT LCD"]  || {}, {defval:null}),
       POWER     : XLSX.utils.sheet_to_json(wb.Sheets["POWER"]     || {}, {defval:null}),
@@ -9022,6 +9024,7 @@ const PRICE_SHEET_LABELS = {
   CHARGING  : 'بورد الشحن',
   BUZZER    : 'جرس',
   SPEAKER   : 'سماعات',
+  'FLAT SPEAKER': 'فلات سماعة',
   FINGER    : 'بصمات',
   'FLAT LCD': 'فلاتات الشاشة',
   POWER     : 'فلات البور',
@@ -12470,6 +12473,5 @@ function exportPayments_Print(list){
   
 </body>
 </html>
-
 
 
