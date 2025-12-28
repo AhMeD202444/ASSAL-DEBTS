@@ -3728,6 +3728,7 @@ body{ padding-top: var(--hdr-h); }
           <div class="cat-item" data-val="POWER"><i class="fa-solid fa-charging-station"></i> فلات بور</div>
           <div class="cat-item" data-val="VOLUME"><i class="fa-solid fa-sliders"></i> فلات صوت</div>
           <div class="cat-item" data-val="LENS"><i class="fa-solid fa-bullseye"></i> عدسة كاميرا</div>
+          <div class="cat-item" data-val="HOLLDER"><i class="fa-solid fa-sim-card"></i> هولدر سيم</div>
           <div class="cat-item" data-val="NO-CATEGORY"><i class="fa-regular fa-square"></i> بدون صنف</div>
         </div>
       </div>
@@ -4320,7 +4321,9 @@ async function loadExcelFiles(){
       "FLAT LCD": XLSX.utils.sheet_to_json(wb.Sheets["FLAT LCD"]  || {}, {defval:null}),
       POWER     : XLSX.utils.sheet_to_json(wb.Sheets["POWER"]     || {}, {defval:null}),
       VOLUME    : XLSX.utils.sheet_to_json(wb.Sheets["VOLUME"]    || {}, {defval:null}),
-      LENS      : XLSX.utils.sheet_to_json(wb.Sheets["LENS"]      || {}, {defval:null})
+      LENS      : XLSX.utils.sheet_to_json(wb.Sheets["LENS"]      || {}, {defval:null}),
+      HOLLDER      : XLSX.utils.sheet_to_json(wb.Sheets["HOLLDER"]      || {}, {defval:null})
+      
     };
 
     // للتأكيد
@@ -12473,5 +12476,4 @@ function exportPayments_Print(list){
   
 </body>
 </html>
-
 
