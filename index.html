@@ -4756,7 +4756,7 @@ document.getElementById('cat')?.addEventListener('keydown', (e)=>{
   const visible = panel && panel.style.display === 'block';
 
   if(!visible){
-    if(e.key === 'Enter' || e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'ArrowRight'){
+    if(e.key === 'Enter' || e.key === 'ArrowDown' || e.key === 'ArrowUp'){
       e.preventDefault();
       showCatPanel();
 
@@ -5726,56 +5726,97 @@ function openSelect(el){
 
 order.forEach((id, idx)=>{
   const el = document.getElementById(id);
+  if(!el) return;
+
   el.addEventListener('keydown', (e)=>{
+
+    // ================== NEW: Arrow navigation ==================
+    const isPrev = (e.key === 'ArrowRight'); // يمين = رجوع (RTL)
+    const isNext = (e.key === 'ArrowLeft');  // يسار = للأمام
+
+    if(isPrev || isNext){
+      // لا تتدخل إذا قوائم الاقتراحات مفتوحة (حتى ما نكسر تنقّلها)
+      if(id === 'cust' && document.getElementById('custSuggestions')?.style.display === 'block') return;
+      if(id === 'item' && document.getElementById('itemSuggestions')?.style.display === 'block') return;
+
+      // حتى ما نخرب تحريك المؤشر داخل النص:
+      // نتحرك بين الحقول فقط إذا المؤشر على بداية/نهاية الحقل (أو إذا Alt مضغوط)
+      const isTexty = (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') && !el.readOnly && el.type !== 'number';
+      if(isTexty && !e.altKey){
+        const ss = el.selectionStart, se = el.selectionEnd;
+        if(ss != null && se != null){
+          if(ss !== se){
+             const len = (el.value || '').length;
+             const fullSel = (ss === 0 && se === len); // كل النص محدد (بسبب select)
+          if(!fullSel) return; // إذا تحديد جزئي فقط خلّي السهم يتحرك داخل النص
+        }
+
+          if(isPrev && ss > 0) return;                // مو ببداية الحقل
+          if(isNext && se < (el.value||'').length) return; // مو بنهاية الحقل
+        }
+      }
+
+      e.preventDefault();
+
+      const ni = idx + (isNext ? 1 : -1);
+      if(ni < 0 || ni >= order.length) return;
+
+      const target = document.getElementById(order[ni]);
+      if(!target) return;
+
+      target.focus();
+      target.select?.();
+
+      // إذا الهدف SELECT افتح القائمة مباشرة
+      if(target.tagName === 'SELECT') openSelect(target);
+
+      // إذا الهدف هو الصنف cat افتح قائمة الأصناف مباشرة
+      if(target.id === 'cat'){
+        showCatPanel();
+
+        // (اختياري) خليه يهايلايت LCD بالبداية مثل منطقك الحالي
+        const items = getCatItems();
+        const lcdIndex = items.findIndex(li => (li.getAttribute('data-val')||'') === 'LCD');
+        __catIdx = lcdIndex >= 0 ? lcdIndex : 0;
+        highlightCatItem();
+      }
+
+      return;
+    }
+
+    // ================== Existing: Enter navigation ==================
     if(e.key !== 'Enter') return;
     e.preventDefault();
 
-   if(id === 'cust'){
-  // إذا قائمة الاقتراحات مفتوحة، خلّي مستمع الكيبورد أعلاه يتكفّل
-  const vis = document.getElementById('custSuggestions')?.style.display === 'block';
-  if(vis) return;
+    if(id === 'cust'){
+      const vis = document.getElementById('custSuggestions')?.style.display === 'block';
+      if(vis) return;
+      const target = document.getElementById('type');
+      openSelect(target);
+      return;
+    }
 
-  // ماكو قائمة → تاليها نوع الفاتورة كالعادة
-  const target = document.getElementById('type');
-  openSelect(target);
-  return;
-}
+    if(id === 'type'){
+      const catField = document.getElementById('cat');
+      catField?.focus();
+      showCatPanel();
+      const items = getCatItems();
+      const lcdIndex = items.findIndex(li => (li.getAttribute('data-val')||'') === 'LCD');
+      __catIdx = lcdIndex >= 0 ? lcdIndex : 0;
+      highlightCatItem();
+      return;
+    }
 
+    if(id === 'note'){
+      document.getElementById('btnAdd').click();
+      setTimeout(()=>{
+        const target = document.getElementById('cust');
+        target?.focus();
+        target?.select?.();
+      }, 0);
+      return;
+    }
 
-  // 1) Enter على نوع الفاتورة: افتح القائمة وحدّد LCD مباشرة
-if(id === 'type'){
-  const catField = document.getElementById('cat');
-  catField?.focus();
-
-  // افتح القائمة
-  showCatPanel();
-
-  // ابحث عن فهرس "شاشات" (data-val="LCD") وخلّه محدّد
-  const items = getCatItems();
-  const lcdIndex = items.findIndex(li => (li.getAttribute('data-val')||'') === 'LCD');
-  __catIdx = lcdIndex >= 0 ? lcdIndex : 0;   // إذا ما لقاها، خليه على أول عنصر
-  highlightCatItem();
-
-  // الآن إذا ضغطت Enter مرة ثانية فورًا يختارها
-  return;
-}
-
-
-   if (id === 'note') {
-  // أضف السطر
-  document.getElementById('btnAdd').click();
-
-  // رجّع الفوكس إلى "اسم الزبون"
-  setTimeout(()=>{
-    const target = document.getElementById('cust');
-    target.focus();
-    target.select?.();
-  }, 0);
-
-  return;
-}
-
-    // باقي الحقول تتنقل للتالي بشكل طبيعي
     const next = document.getElementById(order[idx+1]);
     if(next){
       next.focus();
@@ -5784,6 +5825,7 @@ if(id === 'type'){
     }
   });
 });
+
 
 
 
@@ -12483,4 +12525,3 @@ function exportPayments_Print(list){
   
 </body>
 </html>
-
