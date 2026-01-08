@@ -3520,6 +3520,28 @@ body{ padding-top: var(--hdr-h); }
 .payment-print-btn:hover{ filter:brightness(1.08); }
 .payment-print-btn:active{ transform:translateY(1px); }
 
+
+/* سهم منسدل لحقل النوع (بيع/راجع) مثل الصنف */
+.type-wrap{ position:relative; }
+.type-wrap::after{
+  content:"";
+  position:absolute;
+  inset-inline-end: 12px;
+  top:50%;
+  width: 8px; height: 8px;
+  border-inline-start: 2px solid #9aa4b2;
+  border-bottom:       2px solid #9aa4b2;
+  transform: translateY(-50%) rotate(-45deg);
+  pointer-events:none;
+  opacity:.9;
+  transition: transform .18s ease, opacity .18s ease;
+}
+.type-wrap.open::after{
+  transform: translateY(-50%) rotate(135deg);
+  opacity:1;
+}
+
+
 </style>
 </head>
 
@@ -3698,11 +3720,24 @@ body{ padding-top: var(--hdr-h); }
 "></ul>
     </div>
 
-    <!-- 2) نوع الفاتورة -->
-    <select id="type" class="field">
-      <option value="بيع" selected>بيع</option>
-      <option value="راجع">راجع</option>
-    </select>
+ 
+ <!-- 2) نوع الفاتورة (مثل الصنف) -->
+<div class="type-wrap" style="position:relative; min-width:0;">
+  <input id="type" class="field" type="text" value="بيع" readonly />
+
+  <div id="typePanel" class="cat-panel nice-scroll" style="
+    display:none; position:absolute; inset-inline:0; bottom:calc(100% + 6px);
+    z-index:1100; background:#0b1327; border:1px solid var(--stroke);
+    border-radius:10px; max-height:180px; overflow:auto; padding:6px 0;
+    box-shadow:0 12px 28px rgba(0,0,0,35);
+  ">
+    <div id="typeList" class="cat-list">
+      <div class="cat-item" data-val="بيع"><i class="fa-solid fa-cart-shopping"></i> بيع</div>
+      <div class="cat-item" data-val="راجع"><i class="fa-solid fa-rotate-left"></i> راجع</div>
+    </div>
+  </div>
+</div>
+
 
     <!-- 3) الصنف (قائمة مخصّصة تطلع فوق + Scroll) -->
     <div class="cat-wrap" style="position:relative; min-width:0;">
@@ -4677,14 +4712,15 @@ let __catIdx = -1;
 
 
 function showCatPanel(){
+  hideTypePanel(); // ✅ سد النوع إذا مفتوح
   const panel = document.getElementById('catPanel');
   if(!panel) return;
   panel.style.display = 'block';
-  // دوران السهم
   document.querySelector('.cat-wrap')?.classList.add('open');
   __catIdx = -1;
   highlightCatItem();
 }
+
 function hideCatPanel(){
   const panel = document.getElementById('catPanel');
   if(panel) panel.style.display = 'none';
@@ -4693,6 +4729,114 @@ function hideCatPanel(){
   __catIdx = -1;
   highlightCatItem();
 }
+
+
+
+let __typeIdx = -1;
+
+function getTypeItems(){ return Array.from(document.querySelectorAll('#typeList .cat-item')); }
+
+function highlightTypeItem(){
+  const items = getTypeItems();
+  items.forEach((li,i)=> li.classList.toggle('active', i===__typeIdx));
+  if(__typeIdx >= 0 && items[__typeIdx]) items[__typeIdx].scrollIntoView({ block:'nearest' });
+}
+
+function showTypePanel(){
+  hideCatPanel(); // إذا مخليه
+  const panel = document.getElementById('typePanel');
+  if(!panel) return;
+
+  panel.style.display = 'block';
+  document.querySelector('.type-wrap')?.classList.add('open');
+
+  __typeIdx = -1;       // ✅ لا تختار ولا تظلل أي خيار
+  highlightTypeItem();  // ✅ يمسح التظليل
+}
+
+
+
+function hideTypePanel(){
+  const panel = document.getElementById('typePanel');
+  if(panel) panel.style.display = 'none';
+  document.querySelector('.type-wrap')?.classList.remove('open');
+  __typeIdx = -1;
+  highlightTypeItem();
+}
+
+function selectTypeByIndex(i){
+  const items = getTypeItems();
+  if(i < 0 || i >= items.length) return;
+  const val = items[i].getAttribute('data-val') || 'بيع';
+  const inp = document.getElementById('type');
+  if(inp){
+    inp.value = val;
+    hideTypePanel();
+    // إذا تحب مباشرة يروح للصنف ويفتح قائمته:
+    document.getElementById('cat')?.focus();
+    showCatPanel();
+  }
+}
+
+/* فتح/إغلاق بالنقر */
+document.getElementById('type')?.addEventListener('click', (e)=>{
+  e.stopPropagation();
+  const panel = document.getElementById('typePanel');
+  const visible = panel && panel.style.display === 'block';
+  if(visible) hideTypePanel(); else showTypePanel();
+});
+
+/* اختيار بالماوس */
+document.getElementById('typeList')?.addEventListener('click', (e)=>{
+  const li = e.target.closest('.cat-item');
+  if(!li) return;
+  const items = getTypeItems();
+  __typeIdx = items.indexOf(li);
+  selectTypeByIndex(__typeIdx);
+});
+
+/* كيبورد داخل النوع */
+document.getElementById('type')?.addEventListener('keydown', (e)=>{
+  const panel = document.getElementById('typePanel');
+  const visible = panel && panel.style.display === 'block';
+
+  if(!visible){
+    if(e.key === 'Enter' || e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      e.preventDefault();
+      showTypePanel();
+    }
+    return;
+  }
+
+  const items = getTypeItems();
+  if(!items.length) return;
+
+  if(e.key === 'ArrowDown'){
+    e.preventDefault();
+    __typeIdx = (__typeIdx < 0) ? 0 : Math.min(items.length - 1, __typeIdx + 1);
+    highlightTypeItem();
+  }else if(e.key === 'ArrowUp'){
+    e.preventDefault();
+    __typeIdx = (__typeIdx < 0) ? items.length - 1 : Math.max(0, __typeIdx - 1);
+    highlightTypeItem();
+  }else if(e.key === 'Enter'){
+    e.preventDefault();
+    if(__typeIdx >= 0) selectTypeByIndex(__typeIdx);
+  }else if(e.key === 'Escape'){
+    e.preventDefault();
+    hideTypePanel();
+  }
+});
+
+/* اغلاق إذا نقرّت برّه */
+document.addEventListener('click', (ev)=>{
+  const panel = document.getElementById('typePanel');
+  const field = document.getElementById('type');
+  if(!panel || !field) return;
+  const inside = panel.contains(ev.target) || field.contains(ev.target);
+  if(!inside) hideTypePanel();
+});
+
 
 
 
@@ -4773,8 +4917,8 @@ document.getElementById('cat')?.addEventListener('keydown', (e)=>{
   if(!items.length) return;
 
   // اعتبر Left مثل Up و Right مثل Down (مفيد مع RTL)
-  const isDown = (e.key === 'ArrowDown' || e.key === 'ArrowRight');
-  const isUp   = (e.key === 'ArrowUp'   || e.key === 'ArrowLeft');
+ const isDown = (e.key === 'ArrowDown');
+const isUp   = (e.key === 'ArrowUp');
 
   if(isDown){
     e.preventDefault();
@@ -5731,58 +5875,60 @@ order.forEach((id, idx)=>{
   el.addEventListener('keydown', (e)=>{
 
     // ================== NEW: Arrow navigation ==================
-    const isPrev = (e.key === 'ArrowRight'); // يمين = رجوع (RTL)
-    const isNext = (e.key === 'ArrowLeft');  // يسار = للأمام
+const isPrev = (e.key === 'ArrowRight'); // يمين = رجوع (RTL)
+const isNext = (e.key === 'ArrowLeft');  // يسار = للأمام
 
-    if(isPrev || isNext){
-      // لا تتدخل إذا قوائم الاقتراحات مفتوحة (حتى ما نكسر تنقّلها)
-      if(id === 'cust' && document.getElementById('custSuggestions')?.style.display === 'block') return;
-      if(id === 'item' && document.getElementById('itemSuggestions')?.style.display === 'block') return;
+if(isPrev || isNext){
+  if(id === 'cust' && document.getElementById('custSuggestions')?.style.display === 'block') return;
+  if(id === 'item' && document.getElementById('itemSuggestions')?.style.display === 'block') return;
 
-      // حتى ما نخرب تحريك المؤشر داخل النص:
-      // نتحرك بين الحقول فقط إذا المؤشر على بداية/نهاية الحقل (أو إذا Alt مضغوط)
-      const isTexty = (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') && !el.readOnly && el.type !== 'number';
-      if(isTexty && !e.altKey){
-        const ss = el.selectionStart, se = el.selectionEnd;
-        if(ss != null && se != null){
-          if(ss !== se){
-             const len = (el.value || '').length;
-             const fullSel = (ss === 0 && se === len); // كل النص محدد (بسبب select)
-          if(!fullSel) return; // إذا تحديد جزئي فقط خلّي السهم يتحرك داخل النص
-        }
+  const isTexty =
+    (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') &&
+    !el.readOnly &&
+    el.type !== 'number';
 
-          if(isPrev && ss > 0) return;                // مو ببداية الحقل
-          if(isNext && se < (el.value||'').length) return; // مو بنهاية الحقل
-        }
+  if(isTexty && !e.altKey){
+    const ss = el.selectionStart, se = el.selectionEnd;
+    if(ss != null && se != null){
+
+      if(ss !== se){
+        const len = (el.value || '').length;
+        const fullSel = (ss === 0 && se === len);
+        if(!fullSel) return; // تحديد جزئي: خلّي السهم داخل النص
       }
 
-      e.preventDefault();
-
-      const ni = idx + (isNext ? 1 : -1);
-      if(ni < 0 || ni >= order.length) return;
-
-      const target = document.getElementById(order[ni]);
-      if(!target) return;
-
-      target.focus();
-      target.select?.();
-
-      // إذا الهدف SELECT افتح القائمة مباشرة
-      if(target.tagName === 'SELECT') openSelect(target);
-
-      // إذا الهدف هو الصنف cat افتح قائمة الأصناف مباشرة
-      if(target.id === 'cat'){
-        showCatPanel();
-
-        // (اختياري) خليه يهايلايت LCD بالبداية مثل منطقك الحالي
-        const items = getCatItems();
-        const lcdIndex = items.findIndex(li => (li.getAttribute('data-val')||'') === 'LCD');
-        __catIdx = lcdIndex >= 0 ? lcdIndex : 0;
-        highlightCatItem();
-      }
-
-      return;
+      if(isPrev && ss > 0) return;
+      if(isNext && se < (el.value || '').length) return;
     }
+  }
+
+  e.preventDefault();
+
+  const ni = idx + (isNext ? 1 : -1);
+  if(ni < 0 || ni >= order.length) return;
+
+  const target = document.getElementById(order[ni]);
+  if(!target) return;
+
+  target.focus();
+  target.select?.();
+
+  if(target.tagName === 'SELECT') openSelect(target);
+  else if(target.id === 'type') {
+    showTypePanel();
+  }
+  else if(target.id === 'cat'){
+    showCatPanel();
+
+    const items = getCatItems();
+    const lcdIndex = items.findIndex(li => (li.getAttribute('data-val')||'') === 'LCD');
+    __catIdx = lcdIndex >= 0 ? lcdIndex : 0;
+    highlightCatItem();
+  }
+
+  return;
+}
+
 
     // ================== Existing: Enter navigation ==================
     if(e.key !== 'Enter') return;
@@ -5792,20 +5938,20 @@ order.forEach((id, idx)=>{
       const vis = document.getElementById('custSuggestions')?.style.display === 'block';
       if(vis) return;
       const target = document.getElementById('type');
-      openSelect(target);
-      return;
+target?.focus();
+target?.select?.();
+showTypePanel();   // بدل openSelect
+return;
+
     }
 
-    if(id === 'type'){
-      const catField = document.getElementById('cat');
-      catField?.focus();
-      showCatPanel();
-      const items = getCatItems();
-      const lcdIndex = items.findIndex(li => (li.getAttribute('data-val')||'') === 'LCD');
-      __catIdx = lcdIndex >= 0 ? lcdIndex : 0;
-      highlightCatItem();
-      return;
-    }
+if(id === 'type'){
+  // لا تسوي شي هنا
+  // لأن type عنده كيبورد خاص يفتح typePanel ويختار،
+  // وبعد الاختيار selectTypeByIndex هو اللي ينقلك للصنف ويفتحه.
+  return;
+}
+
 
     if(id === 'note'){
       document.getElementById('btnAdd').click();
@@ -5822,6 +5968,9 @@ order.forEach((id, idx)=>{
       next.focus();
       next.select?.();
       if(next.tagName === 'SELECT') openSelect(next);
+else if(next.id === 'type') showTypePanel();
+else if(next.id === 'cat')  showCatPanel();
+
     }
   });
 });
@@ -7573,8 +7722,12 @@ function renderCustSuggestions(){
       hideCustSuggestions();
       // بعد الاختيار: روّح على نوع الفاتورة
       const target = document.getElementById('type');
-      target && (target.focus(), typeof target.showPicker==='function' && target.showPicker());
-    };
+  if(target){
+    target.focus();
+    target.select?.();
+    showTypePanel();   // بدل showPicker
+  }
+};
     host.appendChild(li);
   });
 
@@ -7615,19 +7768,24 @@ document.getElementById('cust')?.addEventListener('keydown', (e)=>{
 
   // إذا الاقتراحات مو ظاهرة:
   if(!visible){
-    // إذا ضغط Enter بدون كتابة → امشِ على "نوع الفاتورة" مباشرة
-    if(e.key === 'Enter' && !hasQuery){
+
+    // ✅ Enter: امشِ على "نوع الفاتورة" مباشرة (حتى لو اكو كتابة)
+    if(e.key === 'Enter'){
       e.preventDefault();
+      e.stopImmediatePropagation();
+      hideCustSuggestions();
+
       const target = document.getElementById('type');
       if(target){
         target.focus();
-        if(typeof target.showPicker==='function') target.showPicker();
+        target.select?.();
+        showTypePanel(); // بدل showPicker
       }
       return;
     }
 
-    // إذا Down/Up/Enter ومعك كتابة → افتح الاقتراحات
-    if((e.key==='ArrowDown' || e.key==='ArrowUp' || e.key==='Enter') && hasQuery){
+    // ✅ إذا Down/Up ومعك كتابة → افتح الاقتراحات
+    if((e.key==='ArrowDown' || e.key==='ArrowUp') && hasQuery){
       e.preventDefault();
       renderCustSuggestions();
     }
@@ -7648,12 +7806,26 @@ document.getElementById('cust')?.addEventListener('keydown', (e)=>{
     highlightCustItem();
   }else if(e.key === 'Enter'){
     e.preventDefault();
+    e.stopImmediatePropagation();
+
+    // إذا محدد عنصر اختاره
     if(__custIdx >= 0) items[__custIdx].click();
+    else{
+      // إذا ماكو تحديد اعتبره تم → روح للنوع
+      hideCustSuggestions();
+      const target = document.getElementById('type');
+      if(target){
+        target.focus();
+        target.select?.();
+        showTypePanel();
+      }
+    }
   }else if(e.key === 'Escape'){
     e.preventDefault();
     hideCustSuggestions();
   }
 });
+
 
 
 // إغلاق إذا نقرّت برّه
