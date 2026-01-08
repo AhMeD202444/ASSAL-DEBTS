@@ -5909,6 +5909,11 @@ if(isPrev || isNext){
 
   const target = document.getElementById(order[ni]);
   if(!target) return;
+  
+  // ✅ سد القوائم اللي ما تخص الحقل الهدف
+if(target.id !== 'type') hideTypePanel();
+if(target.id !== 'cat')  hideCatPanel();
+
 
   target.focus();
   target.select?.();
@@ -5931,19 +5936,32 @@ if(isPrev || isNext){
 
 
     // ================== Existing: Enter navigation ==================
-    if(e.key !== 'Enter') return;
-    e.preventDefault();
+// ================== Existing: Enter navigation ==================
+if(e.key !== 'Enter') return;
+e.preventDefault();
 
-    if(id === 'cust'){
-      const vis = document.getElementById('custSuggestions')?.style.display === 'block';
-      if(vis) return;
-      const target = document.getElementById('type');
-target?.focus();
-target?.select?.();
-showTypePanel();   // بدل openSelect
-return;
+const closeOverlaysForTarget = (target)=>{
+  const tid = target?.id || '';
 
-    }
+  if(tid !== 'cust') hideCustSuggestions?.();
+  if(tid !== 'item') hideItemSuggestions?.();
+
+  if(tid !== 'type') hideTypePanel?.();
+  if(tid !== 'cat')  hideCatPanel?.();
+};
+
+if(id === 'cust'){
+  const vis = document.getElementById('custSuggestions')?.style.display === 'block';
+  if(vis) return;
+  const target = document.getElementById('type');
+
+  closeOverlaysForTarget(target);
+
+  target?.focus();
+  target?.select?.();
+  showTypePanel();   // بدل openSelect
+  return;
+}
 
 if(id === 'type'){
   // لا تسوي شي هنا
@@ -5952,26 +5970,31 @@ if(id === 'type'){
   return;
 }
 
+if(id === 'note'){
+  document.getElementById('btnAdd').click();
+  setTimeout(()=>{
+    const target = document.getElementById('cust');
 
-    if(id === 'note'){
-      document.getElementById('btnAdd').click();
-      setTimeout(()=>{
-        const target = document.getElementById('cust');
-        target?.focus();
-        target?.select?.();
-      }, 0);
-      return;
-    }
+    closeOverlaysForTarget(target);
 
-    const next = document.getElementById(order[idx+1]);
-    if(next){
-      next.focus();
-      next.select?.();
-      if(next.tagName === 'SELECT') openSelect(next);
-else if(next.id === 'type') showTypePanel();
-else if(next.id === 'cat')  showCatPanel();
+    target?.focus();
+    target?.select?.();
+  }, 0);
+  return;
+}
 
-    }
+const next = document.getElementById(order[idx+1]);
+if(next){
+
+  closeOverlaysForTarget(next);
+
+  next.focus();
+  next.select?.();
+  if(next.tagName === 'SELECT') openSelect(next);
+  else if(next.id === 'type') showTypePanel();
+  else if(next.id === 'cat')  showCatPanel();
+}
+
   });
 });
 
