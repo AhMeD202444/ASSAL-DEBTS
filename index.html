@@ -3670,7 +3670,6 @@ body{ padding-top: var(--hdr-h); }
       
      <div class="board-head">
   <div class="chips">
-    <span class="chip"><i class="fa-solid fa-layer-group"></i> بطاقات اليوم</span>
     <span id="cardsCount" class="chip">0 بطاقة</span>
   </div>
 
@@ -3680,6 +3679,11 @@ body{ padding-top: var(--hdr-h); }
       <input id="globalSearch" type="checkbox" style="accent-color:#7c3aed;width:16px;height:16px;cursor:pointer">
       بحث كل الأيام
     </label>
+    <label class="chip" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;flex:0 0 auto">
+      <input id="showWholesaleLedger" type="checkbox" style="accent-color:#7c3aed;width:16px;height:16px;cursor:pointer">
+      إظهار فواتير الجملة
+    </label>
+
   </div>
 
   <div class="chips">
@@ -3732,7 +3736,8 @@ body{ padding-top: var(--hdr-h); }
     box-shadow:0 12px 28px rgba(0,0,0,35);
   ">
     <div id="typeList" class="cat-list">
-      <div class="cat-item" data-val="بيع"><i class="fa-solid fa-cart-shopping"></i> بيع</div>
+            <div class="cat-item" data-val="جملة"><i class="fa-solid fa-tags"></i> جملة</div>
+<div class="cat-item" data-val="بيع"><i class="fa-solid fa-cart-shopping"></i> بيع</div>
       <div class="cat-item" data-val="راجع"><i class="fa-solid fa-rotate-left"></i> راجع</div>
     </div>
   </div>
@@ -4346,6 +4351,7 @@ async function loadExcelFiles(){
     const wb     = XLSX.read(buffer, { type:"array" });
 
     database = {
+      ALL       : XLSX.utils.sheet_to_json(wb.Sheets["ALL"]       || {}, {defval:null}),
       LCD       : XLSX.utils.sheet_to_json(wb.Sheets["LCD"]       || {}, {defval:null}),
       BATTERY   : XLSX.utils.sheet_to_json(wb.Sheets["BATTERY"]   || {}, {defval:null}),
       HOUSING   : XLSX.utils.sheet_to_json(wb.Sheets["HOUSING"]   || {}, {defval:null}),
@@ -4772,7 +4778,10 @@ function selectTypeByIndex(i){
   if(inp){
     inp.value = val;
     hideTypePanel();
-    // إذا تحب مباشرة يروح للصنف ويفتح قائمته:
+        // ✅ تحديث الاقتراحات والسعر حسب نوع الفاتورة
+    try{ renderItemSuggestions(); }catch(e){}
+    try{ tryFillPrice(); }catch(e){}
+// إذا تحب مباشرة يروح للصنف ويفتح قائمته:
     document.getElementById('cat')?.focus();
     showCatPanel();
   }
@@ -4971,15 +4980,39 @@ function parseIQD(v){
   return isFinite(n) ? n : '';
 }
 
-function findPrice(cat, itemName){
-  if(!cat || cat === 'NO-CATEGORY' || !itemName) return '';
-  const list = database[cat] || [];
-  const qn = norm(itemName);
-  const row = list.find(r => norm(r["Item Name"] || r["Item"] || '') === qn);
-  return row ? parseIQD(row["Discount Price"] ? row["Discount Price"] : row["Price"]) : '';
+
+function getSelectedType(){
+  const t = document.getElementById('type')?.value || 'بيع';
+  return String(t).trim() || 'بيع';
 }
 
+function getRowCAG(row){
+  if(!row) return '';
+  return String(
+    row['CAG'] ?? row['cag'] ?? row['CAT'] ?? row['Cat'] ?? row['Category'] ?? row['category'] ?? ''
+  ).trim();
+}
 
+// جملة: نجيب القائمة من شيت ALL ونفلترها حسب CAG = اسم الصنف (مثل LCD / BATTERY ...)
+function getWholesaleList(cat){
+  if(!cat || cat === 'NO-CATEGORY') return [];
+  const all = database.ALL || [];
+  const c = String(cat).trim();
+  return (Array.isArray(all) ? all : []).filter(r => getRowCAG(r) === c);
+}
+function findPrice(cat, itemName){
+  if(!cat || cat === 'NO-CATEGORY' || !itemName) return '';
+  const type = getSelectedType();
+  const list = (type === 'جملة') ? getWholesaleList(cat) : (database[cat] || []);
+  const qn = norm(itemName);
+  const row = list.find(r => norm(r["Item Name"] || r["Item"] || '') === qn);
+  if(!row) return '';
+  // جملة: السعر من Price (بدون Discount)
+  if(type === 'جملة'){
+    return parseIQD(row["Price"] ?? row["PRICE"] ?? row["price"]);
+  }
+  return parseIQD(row["Discount Price"] ? row["Discount Price"] : row["Price"]);
+}
 function tryFillPrice(){
   const cat  = getSelectedCat();
   const name = (document.getElementById('item')?.value || '').trim();
@@ -5032,6 +5065,26 @@ function activeLinesCountOfDay(dayKey){
 }
 
 
+
+// ===== إظهار/إخفاء فواتير الجملة في السجل (افتراضياً مخفية) =====
+const LEDGER_SHOW_WHOLESALE_KEY = 'assal.ledger.showWholesale.v1';
+let showWholesaleLedger = (localStorage.getItem(LEDGER_SHOW_WHOLESALE_KEY) === '1');
+
+function isWholesaleCard(card){
+  return String(card?.billType || '') === 'جملة';
+}
+function cardVisibleInLedger(card){
+  if (!card) return false;
+  if (card?.deletedAt) return false;
+  if (!(card.lines || []).some(l => !l.deletedAt)) return false;
+
+  // إذا "إظهار فواتير الجملة" مفعّل → اعرض الجملة فقط
+  // إذا مطفّي → اعرض غير الجملة فقط
+  return showWholesaleLedger ? isWholesaleCard(card) : !isWholesaleCard(card);
+}
+function visibleCardsOfDay(dayKey){
+  return (days[dayKey] || []).filter(cardVisibleInLedger);
+}
 
 
 /* ===== IDs & Time helpers (أضِف) ===== */
@@ -5087,7 +5140,8 @@ function renderItemSuggestions(){
   // ماكو صنف أو هو NO-CATEGORY ؟ لا تعرض شي
   if(!cat || cat === 'NO-CATEGORY') return;
 
-  const list = database[cat] || [];
+  const type = getSelectedType();
+  const list = (type === 'جملة') ? getWholesaleList(cat) : (database[cat] || []);
   if(!q) return;
 
   const filtered = list.filter(row=>{
@@ -6302,7 +6356,7 @@ function renderBoard() {
   const global = document.getElementById('globalSearch')?.checked;
 
   // نجمع البطاقات
-  const collect = (d) => (days[d] || []).map(c => ({ ...c, __day: d }));
+  const collect = (d) => visibleCardsOfDay(d).map(c => ({ ...c, __day: d }));
   let pool = [];
 
   if (global) {
@@ -7252,7 +7306,7 @@ function renderRail(){
       // عنوان الشهر + عدد البطاقات
       const mTitle    = CE('div','month-title');
       const niceMonth = arMonthName(monthKey + '-01');
-      const mCount    = groups[monthKey].reduce((n, k) => n + activeCardsOfDay(k).length, 0);
+      const mCount    = groups[monthKey].reduce((n, k) => n + visibleCardsOfDay(k).length, 0);
       mTitle.innerHTML = `<span>${niceMonth}</span><span class="mchip">${mCount} بطاقة</span>`;
       monthBox.appendChild(mTitle);
 
@@ -7262,7 +7316,7 @@ function renderRail(){
         const row = CE('div','day' + (k === selectedDay ? ' active' : ''));
         row.innerHTML = `
           <div class="title">${arDateWithDay(k)}</div>
-          <div class="meta">${activeCardsOfDay(k).length} بطاقة</div>
+          <div class="meta">${visibleCardsOfDay(k).length} بطاقة</div>
         `;
         row.onclick = () => {
           selectedDay = k;
@@ -7282,6 +7336,21 @@ function renderRail(){
 
     document.getElementById('dayFilter').addEventListener('input', renderRail);
     document.getElementById('cardSearch').addEventListener('input', renderBoard);
+
+    // إظهار/إخفاء فواتير الجملة في السجل
+    (function initShowWholesaleLedger(){
+      const t = document.getElementById('showWholesaleLedger');
+      if(!t) return;
+      t.checked = !!showWholesaleLedger;
+      t.addEventListener('change', ()=>{
+        showWholesaleLedger = !!t.checked;
+        localStorage.setItem(LEDGER_SHOW_WHOLESALE_KEY, showWholesaleLedger ? '1' : '0');
+        renderBoard();
+        renderRail();
+        refreshStats();
+      });
+    })();
+
     document.getElementById('btnExportLocal')?.addEventListener('click', exportInvoices);
 
   
@@ -7296,7 +7365,7 @@ function renderRail(){
     /* ===== Stats ===== */
 function refreshStats(){
   // بطاقات اليوم الفعّالة
-  const cardsArr = activeCardsOfDay(selectedDay);
+  const cardsArr = visibleCardsOfDay(selectedDay);
 
   // عدد المواد الفعّالة
   const itemsCount = cardsArr.reduce((n, c) =>
@@ -7891,6 +7960,7 @@ function exportDayPDF_Vector(){
  
  const cards  = source
   .filter(c => !c?.deletedAt)
+  .filter(c => String(c?.billType || '') !== 'جملة')
   .filter(c =>
     Array.isArray(c.lines) &&
     c.lines.some(ln =>
