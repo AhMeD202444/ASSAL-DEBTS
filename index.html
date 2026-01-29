@@ -3782,6 +3782,7 @@ body{ padding-top: var(--hdr-h); }
           <div class="cat-item" data-val="CC"><i class="fas fa-bolt"></i>قاعدة شحن</div>
           <div class="cat-item" data-val="VIBRATION"><i class="fa-solid fa-wave-square"></i>هزاز</div>
           <div class="cat-item" data-val="TOUCH"><i class="fa-solid fa-hand-pointer"></i> بلازمات</div>
+          <div class="cat-item" data-val="SIGNAL CABLE"><i class="fa-solid fa-signal"></i> كيبل إشارة </div>
           <div class="cat-item" data-val="NO-CATEGORY"><i class="fa-regular fa-square"></i> بدون صنف</div>
         </div>
       </div>
@@ -4380,7 +4381,10 @@ async function loadExcelFiles(){
       IC      : XLSX.utils.sheet_to_json(wb.Sheets["IC"]      || {}, {defval:null}),
       CC      : XLSX.utils.sheet_to_json(wb.Sheets["CC"]      || {}, {defval:null}),
       TOUCH     : XLSX.utils.sheet_to_json(wb.Sheets["TOUCH"] || {}, {defval:null}),
-      VIBRATION      : XLSX.utils.sheet_to_json(wb.Sheets["VIBRATION"]      || {}, {defval:null})
+      VIBRATION      : XLSX.utils.sheet_to_json(wb.Sheets["VIBRATION"]      || {}, {defval:null}),
+      "SIGNAL CABLE" : XLSX.utils.sheet_to_json(wb.Sheets["SIGNAL CABLE"] || {}, {defval:null})
+
+      
       
     };
 
