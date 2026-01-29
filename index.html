@@ -572,6 +572,15 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
   background:linear-gradient(180deg,#064e3b,#052e2a);
   border-color:rgba(16,185,129,.35);
 }
+
+.badge-type.wholesale{
+  color:#fde68a;
+  background:linear-gradient(180deg,#3b2f0a,#241d07);
+  border-color:rgba(245,158,11,.35);
+}
+
+
+
 .badge-type.return{
   color:#fecaca;                 /* أحمر فاتح */
   background:linear-gradient(180deg,#7f1d1d,#4c0b0b);
@@ -5070,9 +5079,16 @@ function activeLinesCountOfDay(dayKey){
 const LEDGER_SHOW_WHOLESALE_KEY = 'assal.ledger.showWholesale.v1';
 let showWholesaleLedger = (localStorage.getItem(LEDGER_SHOW_WHOLESALE_KEY) === '1');
 
+
+
 function isWholesaleCard(card){
-  return String(card?.billType || '') === 'جملة';
+  if(!card) return false;
+  if (String(card?.billType || '') === 'جملة') return true;
+  return (card.lines || []).some(l => !l.deletedAt && String(l.type || '') === 'جملة');
 }
+
+
+
 function cardVisibleInLedger(card){
   if (!card) return false;
   if (card?.deletedAt) return false;
@@ -6441,24 +6457,34 @@ function renderBoard() {
       card.billType = billType;
     }
 
-    const typeBadge = CE(
-      'span',
-      'badge-type ' + (
-        billType === 'راجع'
-          ? 'return'
-          : billType === 'بيع'
-            ? 'sell'
-            : ''
-      )
-    );
-    const typeLabel =
-      billType === 'راجع'
-        ? 'فاتورة راجع'
-        : billType === 'بيع'
-          ? 'فاتورة بيع'
-          : 'فاتورة مختلطة';
-    typeBadge.textContent = typeLabel;
-    custWrap.appendChild(typeBadge);
+   // ====== Badge نوع الفاتورة (عرض فقط) ======
+const badgeType = isWholesaleCard(card) ? 'جملة' : billType;
+
+const typeBadge = CE(
+  'span',
+  'badge-type ' + (
+    badgeType === 'راجع'
+      ? 'return'
+      : badgeType === 'بيع'
+        ? 'sell'
+        : badgeType === 'جملة'
+          ? 'wholesale'
+          : ''
+  )
+);
+
+const typeLabel =
+  badgeType === 'جملة'
+    ? 'فاتورة جملة'
+    : badgeType === 'راجع'
+      ? 'فاتورة راجع'
+      : badgeType === 'بيع'
+        ? 'فاتورة بيع'
+        : 'فاتورة مختلطة';
+
+typeBadge.textContent = typeLabel;
+custWrap.appendChild(typeBadge);
+
 
     // بادج "تم تسديد مواد اليوم" إذا كله مدفوع
     if (card.paidAll || (card.lines.length && card.lines.every(l => l.paid))) {
@@ -12793,4 +12819,3 @@ function exportPayments_Print(list){
   
 </body>
 </html>
-
