@@ -7995,7 +7995,7 @@ function exportDayPDF_Vector(){
  
  const cards  = source
   .filter(c => !c?.deletedAt)
-  .filter(c => String(c?.billType || '') !== 'جملة')
+  .filter(c => !isWholesaleCard(c)) // ✅ (التعديل الوحيد) استبعاد أي بطاقة تعتبر جملة
   .filter(c =>
     Array.isArray(c.lines) &&
     c.lines.some(ln =>
@@ -8337,6 +8337,7 @@ function sumCard(card){
   w.document.close();
   showToast('success','جاهز للطباعة — اختر "حفظ كـ PDF"');
 }
+
 
 
 
