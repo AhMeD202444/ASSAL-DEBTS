@@ -640,11 +640,15 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
   position:fixed;
   inset-inline:50%;
   transform:translateX(50%);
-  top:18px;
-  z-index:30000;                /* أعلى من الـ splash/الطبقات */
+
+  /* NEW: تحت الهيدر */
+  top: calc(var(--hdr-h, 64px) + 10px);
+
+  z-index:30000;
   display:flex;flex-direction:column;gap:12px;
   pointer-events:none;
 }
+
 
 /* خط فاصل أنيق بين كل توست والتالي */
 .toasts .toast + .toast{
@@ -3555,6 +3559,23 @@ body{ padding-top: var(--hdr-h); }
 
 <style id="debts-only-styles">
   /* ===== ديون الزبائن (Scoped) — إضافة فقط بدون لمس تصميمك العام ===== */
+  
+  /* زر إغلاق نافذة تنبيه الديون */
+#debtsReminderModal #debtsReminderCloseBtn{
+  background: rgba(120, 10, 10, .95) !important;
+  border: 1px solid rgba(180, 30, 30, .90) !important;
+  color: rgba(255,255,255,.95) !important;
+  font-weight: 900;
+}
+#debtsReminderModal #debtsReminderCloseBtn i,
+#debtsReminderModal #debtsReminderCloseBtn span{
+  color: rgba(255,255,255,.95) !important;
+}
+#debtsReminderModal #debtsReminderCloseBtn:hover{
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
 
   /* زر الإغلاق: أحمر غامق + خط أبيض واضح */
   #closeDebtsBtn{
@@ -3597,10 +3618,30 @@ body{ padding-top: var(--hdr-h); }
     gap: 8px;
     opacity: .95;
   }
-  #debtsModal .debts-sum-item b{
-    font-weight: 900;
-    letter-spacing: .2px;
-  }
+#debtsModal .debts-sum-item b{
+  font-weight: 900;
+  letter-spacing: .2px;
+
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+
+  /* لون مميز */
+  background: linear-gradient(135deg,
+    rgba(14,165,233,.35),
+    rgba(168,85,247,.30)
+  );
+  border: 1px solid rgba(255,255,255,.18);
+  color: rgba(255,255,255,.95);
+
+  line-height: 1.6;
+
+  /* أناقة */
+  box-shadow: 0 8px 18px rgba(0,0,0,.22);
+  text-shadow: 0 1px 0 rgba(0,0,0,.25);
+}
+
+
 
   /* بطاقات الديون */
   #debtsRows.debts-cards{
@@ -3624,19 +3665,43 @@ body{ padding-top: var(--hdr-h); }
     border-color: rgba(255,255,255,.18);
     background: rgba(255,255,255,.04);
   }
-  #debtsModal .debt-idx{
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    margin: 0 auto;
-    background: rgba(255,255,255,.06);
-    border: 1px solid rgba(255,255,255,.10);
-    font-weight: 900;
-    opacity:.95;
-  }
+  
+  /* كارد 1,3,5... عليه خط أحمر خفيف */
+#debtsRows .debt-card:nth-child(odd){
+  border-color: rgba(239,68,68,.35) !important;
+}
+
+/* وخلي hover للفردي يبقى أحمر */
+#debtsRows .debt-card:nth-child(odd):hover{
+  border-color: rgba(239,68,68,.55) !important;
+}
+
+  
+
+#debtsModal .debt-idx{
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+
+  display: flex;
+  align-items: center;      /* توسيط عمودي */
+  justify-content: center;  /* توسيط أفقي */
+
+  margin: 0 auto;
+
+  background: rgba(120, 10, 10, .95);
+  border: 1px solid rgba(180, 30, 30, .90);
+  color: #fff;
+
+  font-weight: 900;
+  opacity: .95;
+
+  text-align: center;       /* توسيط نصي */
+  line-height: 1;           /* يمنع نزول الرقم */
+}
+
+
+
   #debtsModal .debt-name{
     text-align:center;
     font-size: 15px;
@@ -3684,6 +3749,8 @@ body{ padding-top: var(--hdr-h); }
     border-color: rgba(255, 193, 7, .35);
   }
   #debtsModal .debt-alert-btn.is-on i{ color: rgba(255, 220, 120, 1); }
+  #debtsModal .debt-alert-btn i{ color:#fff !important; }
+
 
   /* رسالة التنبيه (Toast) */
   #debtsToastHost{
@@ -3724,6 +3791,45 @@ body{ padding-top: var(--hdr-h); }
   @media print{
     body{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
+  
+  
+  
+  /* تمييز الزبون اللي مفعّل عليه تنبيه */
+.alert-row td{
+  background: #fff7ed !important;          /* لون خفيف */
+  border-color: #b91c1c !important;        /* إطار أحمر */
+}
+
+.alert-name{
+  display:inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #7f1d1d !important;          /* أحمر غامق */
+  color: #fff !important;                  /* أبيض */
+  font-weight: 900;
+}
+
+.alert-note{
+  display:inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #111827 !important;          /* داكن */
+  color: #fff !important;
+  font-weight: 900;
+}
+
+
+#debtsModal #debtsClearAlertsBtn{
+  background: rgba(120, 10, 10, .95);
+  border: 1px solid rgba(180, 30, 30, .90);
+  color:#fff;
+}
+#debtsModal #debtsClearAlertsBtn i,
+#debtsModal #debtsClearAlertsBtn span{ color:#fff; }
+
+
+  
+  
 </style>
 </head>
 
@@ -4350,11 +4456,20 @@ body{ padding-top: var(--hdr-h); }
       </div>
 
       <div class="payments-actions">
+        
+          <button id="debtsClearAlertsBtn" class="btn danger" type="button" title="إلغاء كافة التنبيهات">
+  <i class="fa-solid fa-bell-slash"></i><span>إلغاء التنبيهات</span>
+</button>
+
+        
+        
         <!-- طباعة -->
         <button id="debtsPrintBtn" class="btn ghost" title="طباعة">
           <i class="fa-solid fa-print"></i>
           <span>طباعة</span>
         </button>
+        
+      
 
         <!-- بحث / إخفاء البحث -->
         <button id="debtsSearchToggleBtn" class="btn ghost payments-search-btn" title="بحث">
@@ -13039,6 +13154,45 @@ function exportPayments_Print(list){
   var close= document.getElementById('closeDebtsBtn');
 
   var btnPrint  = document.getElementById('debtsPrintBtn');
+  
+  var clearAlertsBtn = document.getElementById('debtsClearAlertsBtn');
+if(clearAlertsBtn){
+clearAlertsBtn.addEventListener('click', function(){
+
+  // NEW: إذا ماكو تنبيهات أصلاً
+  if(!alertMap || alertMap.size === 0){
+    try{ window.showToast('warn', 'لا توجد تنبيهات.', 2200); }catch(_){}
+    return;
+  }
+
+  // امسح كل التنبيهات
+  try{ alertMap.clear(); }catch(_){}
+
+  // احفظ حتى ما يرجعن بعد رفرش
+  try{ saveAlerts(); }catch(_){}
+
+  // وقف العداد
+  try{ stopAlertLoopIfEmpty(); }catch(_){
+    try{
+      if(alertTimer){ clearInterval(alertTimer); alertTimer = null; }
+    }catch(__){}
+  }
+
+  // شيل تفعيل الأزرار من الواجهة
+  try{
+    var ons = document.querySelectorAll('#debtsModal .debt-alert-btn.is-on');
+    ons.forEach(function(b){ b.classList.remove('is-on'); });
+  }catch(_){}
+
+  // توست النجاح
+  try{ window.showToast('warn', 'تم إلغاء كافة التنبيهات.', 2400); }catch(_){}
+});
+
+}
+
+
+  
+  
   var btnSearch = document.getElementById('debtsSearchToggleBtn');
   var searchBar = document.getElementById('debtsSearchBar');
   var searchInp = document.getElementById('debtsSearchInput');
@@ -13058,6 +13212,9 @@ function exportPayments_Print(list){
   var query = '';
   var alertMap = new Map(); // name -> amount
   var alertTimer = null;
+  var alertPausedByReminder = false; // NEW
+
+
 
   function nrm(s){
     s = (s==null?'':String(s)).trim().toLowerCase();
@@ -13150,21 +13307,74 @@ function exportPayments_Print(list){
     return host;
   }
 
-  function showToast(row){
-    if(!row) return;
-    var host = ensureToastHost();
-    var box = document.createElement('div');
-    box.className = 'debts-toast';
-    box.innerHTML =
-      '<div class="t-title"><i class="fa-solid fa-triangle-exclamation"></i> تنبيه ديون</div>' +
-      '<div class="t-body">هذا الزبون <b>' + escapeHtml(row.name) + '</b> عليه <b>' + fmtIQD(row.amount) +
-      '</b> د.ع ومتأخر في التسديد — يرجى الاتصال به.</div>';
-    host.appendChild(box);
-    setTimeout(function(){
-      try{ box.style.opacity='0'; box.style.transform='translateY(6px)'; }catch(_){}
-    }, 6000);
-    setTimeout(function(){ try{ box.remove(); }catch(_){} }, 7200);
+function showToast(row){
+  if(!row) return;
+
+  if(document.getElementById('debtsReminderBackdrop')) return;
+  
+  // NEW: وقف العداد طالما نافذة التنبيه مفتوحة
+  if(alertTimer){
+    clearInterval(alertTimer);
+    alertTimer = null;
+    alertPausedByReminder = true;
   }
+
+
+  var bd = document.createElement('div');
+  bd.id = 'debtsReminderBackdrop';
+  bd.className = 'modal-backdrop active';
+
+  var md = document.createElement('div');
+  md.id = 'debtsReminderModal';
+  md.className = 'modal active';
+
+  md.innerHTML =
+    '<div class="payments-shell nice-scroll" style="max-width:520px;">' +
+      '<div class="payments-head" style="position:sticky;top:0;">' +
+        '<div class="payments-title">' +
+          '<i class="fa-solid fa-bell"></i>' +
+          '<span>تنبيه ديون</span>' +
+        '</div>' +
+        '<div class="payments-actions">' +
+          '<button id="debtsReminderCloseBtn" class="btn danger" type="button" title="إغلاق">' +
+            '<i class="fa-solid fa-xmark"></i><span>إغلاق</span>' +
+          '</button>' +
+        '</div>' +
+      '</div>' +
+      '<div style="padding:14px 14px 16px; line-height:1.9;">' +
+        'هذا الزبون <b>' + escapeHtml(row.name) + '</b> عليه <b>' + fmtIQD(row.amount) + '</b> د.ع ' +
+        'ومتأخر في التسديد — يرجى الاتصال به.' +
+      '</div>' +
+    '</div>';
+
+  document.body.appendChild(bd);
+  document.body.appendChild(md);
+
+function closeReminder(){
+  try{ bd.remove(); }catch(_){}
+  try{ md.remove(); }catch(_){}
+
+  // NEW: بعد الإغلاق، رجّع العداد يحسب من البداية
+  if(alertPausedByReminder){
+    alertPausedByReminder = false;
+    if(alertMap.size) startAlertLoop(); // راح ينتظر مدة الـ interval كاملة قبل ما يطلع تنبيه جديد
+  }
+}
+
+
+  var cbtn = md.querySelector('#debtsReminderCloseBtn');
+  if(cbtn) cbtn.addEventListener('click', closeReminder);
+  bd.addEventListener('click', closeReminder);
+
+  document.addEventListener('keydown', function escOnce(e){
+    if(e.key === 'Escape'){
+      closeReminder();
+      document.removeEventListener('keydown', escOnce);
+    }
+  });
+}
+
+
 
   function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, function(m){
@@ -13172,35 +13382,141 @@ function exportPayments_Print(list){
     });
   }
 
+
+var lastTypingAt = 0;
+
+document.addEventListener('input', function(e){
+  var t = e.target;
+  if(!t) return;
+  var tag = (t.tagName || '').toUpperCase();
+  if(tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t.isContentEditable){
+    lastTypingAt = Date.now();
+  }
+}, true);
+
+var BUSY_IDS = {
+  // نافذة الحسابات المالية
+  payCustomer: 1,
+  payType: 1,
+  payAmount: 1,
+  payNotes: 1,
+
+  // شريط الدوك (كل الحقول)
+  cust: 1,   // اسم الزبون :contentReference[oaicite:4]{index=4}
+  type: 1,   // نوع الفاتورة :contentReference[oaicite:5]{index=5}
+  cat: 1,    // الصنف :contentReference[oaicite:6]{index=6}
+  item: 1,   // اسم القطعة :contentReference[oaicite:7]{index=7}
+  price: 1,  // السعر :contentReference[oaicite:8]{index=8}
+  qty: 1,    // العدد :contentReference[oaicite:9]{index=9}
+  note: 1    // ملاحظات الدوك :contentReference[oaicite:10]{index=10}
+};
+
+
+function isUserBusyEditing(){
+  // إذا دا يكتب هسه
+  if((Date.now() - lastTypingAt) < 1200) return true;
+
+  var a = document.activeElement;
+  if(!a) return false;
+
+  // إذا الفوكس على حقل محدد بالـ IDs
+  if(a.id && BUSY_IDS[a.id]) return true;
+
+  // إذا أنت داخل شريط الدوك أصلاً (حتى لو على عنصر مو input)
+  if(a.closest && a.closest('.dock')) return true;
+
+  // إذا داخل نافذة الحسابات المالية
+  if(a.closest && (a.closest('#paymentsModal') || a.closest('#paymentsForm'))) return true;
+
+  // NEW: إذا أي نافذة ثانية مفتوحة (غير نافذة تنبيه الديون) => أجّل التنبيه
+  var anyOtherModal =
+    document.querySelector('.modal.active:not(#debtsReminderModal)') ||
+    document.querySelector('.modal-backdrop.active:not(#debtsReminderBackdrop)');
+
+  if(anyOtherModal) return true;
+
+  return false;
+}
+
+
+
+
+
   function startAlertLoop(){
     if(alertTimer) return;
-    alertTimer = setInterval(function(){
-      try{
-        if(alertMap.size === 0) return;
-        var keys = Array.from(alertMap.keys());
-        var k = keys[Math.floor(Math.random()*keys.length)];
-        var amt = alertMap.get(k) || 0;
-        showToast({ name: k, amount: amt });
-      }catch(_){}
-    }, 2 * 60 * 60 * 1000); // كل ساعتين
+  alertTimer = setInterval(function(){
+  try{
+    if(alertMap.size === 0) return;
+
+    if(isUserBusyEditing()) return; // NEW
+
+    var keys = Array.from(alertMap.keys());
+    var k = keys[Math.floor(Math.random()*keys.length)];
+    var amt = alertMap.get(k) || 0;
+    showToast({ name: k, amount: amt });
+  }catch(_){}
+}, 10 * 1000); // فحص كل 10 ثواني
+
   }
 
   function stopAlertLoopIfEmpty(){
     if(alertMap.size !== 0) return;
     if(alertTimer){ clearInterval(alertTimer); alertTimer = null; }
   }
+  
+  
+  
+  var ALERTS_KEY = 'assal.debts.alerts.v1';
 
-  function toggleAlert(name, amount, btnEl){
-    if(alertMap.has(name)){
-      alertMap.delete(name);
-      btnEl && btnEl.classList.remove('is-on');
-      stopAlertLoopIfEmpty();
-    }else{
-      alertMap.set(name, amount||0);
-      btnEl && btnEl.classList.add('is-on');
-      startAlertLoop();
-    }
+function saveAlerts(){
+  try{
+    // نخزنها Object: { "اسم": رقم_الدين, ... }
+    var obj = Object.fromEntries(alertMap.entries());
+    localStorage.setItem(ALERTS_KEY, JSON.stringify(obj));
+  }catch(_){}
+}
+
+function loadAlerts(){
+  try{
+    var raw = localStorage.getItem(ALERTS_KEY);
+    if(!raw) return;
+    var obj = JSON.parse(raw);
+    if(!obj || typeof obj !== 'object') return;
+
+    alertMap.clear();
+    Object.keys(obj).forEach(function(name){
+      alertMap.set(name, Number(obj[name]) || 0);
+    });
+  }catch(_){}
+}
+
+/* ===== NEW: نفّذ التحميل أول ما يشتغل سكربت الديون ===== */
+loadAlerts();
+if(alertMap.size) startAlertLoop();
+
+  
+  
+function toggleAlert(name, amount, btnEl){
+  if(alertMap.has(name)){
+    alertMap.delete(name);
+    btnEl && btnEl.classList.remove('is-on');
+    saveAlerts();
+    stopAlertLoopIfEmpty();
+
+    // NEW: توست تحت الهيدر (مهم: window.showToast حتى ما تتعارض ويا showToast(row) مال التنبيه)
+    try{ window.showToast('warn', 'تم إلغاء التنبيه للزبون: ' + name, 2200); }catch(_){}
+  }else{
+    alertMap.set(name, amount||0);
+    btnEl && btnEl.classList.add('is-on');
+    saveAlerts();
+    startAlertLoop();
+
+    // NEW: توست تحت الهيدر
+    try{ window.showToast('success', 'تم تفعيل التنبيه للزبون: ' + name, 2200); }catch(_){}
   }
+}
+
+
 
   function render(){
     // تحديث الملخّص
@@ -13338,17 +13654,34 @@ function exportPayments_Print(list){
     // جدول
     var rowsHtml = '';
     var total = 0;
-    for(var i=0;i<list.length;i++){
-      var r = list[i];
-      total += (r.amount||0);
-      rowsHtml +=
-        '<tr>' +
-          '<td class="c idx">' + (i+1) + '</td>' +
-          '<td class="c name">' + escapeHtml(r.name) + '</td>' +
-          '<td class="c amt">' + fmtIQD(r.amount) + ' د.ع</td>' +
-          '<td class="c note"><div class="note-line"></div></td>' +
-        '</tr>';
-    }
+  
+  for(var i=0;i<list.length;i++){
+  var r = list[i];
+  total += (r.amount||0);
+
+  var isAlert = alertMap && alertMap.has(r.name);
+
+  rowsHtml +=
+    '<tr>' +
+      '<td class="c idx">' + (i+1) + '</td>' +
+      '<td class="c name">' +
+        (isAlert
+          ? '<span style="display:inline-block;padding:3px 10px;border-radius:999px;background:#7f1d1d;color:#fff;font-weight:900;">' +
+              escapeHtml(r.name) +
+            '</span>'
+          : escapeHtml(r.name)
+        ) +
+      '</td>' +
+      '<td class="c amt">' + fmtIQD(r.amount) + ' د.ع</td>' +
+      '<td class="c note">' +
+        (isAlert
+          ? '<span style="display:inline-block;padding:3px 10px;border-radius:999px;background:#111827;color:#fff;font-weight:900;">ضروري التسديد والتصفير</span>'
+          : '<div class="note-line"></div>'
+        ) +
+      '</td>' +
+    '</tr>';
+}
+
 
     var html =
 '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"/>' +
