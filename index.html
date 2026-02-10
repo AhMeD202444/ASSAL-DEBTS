@@ -13592,17 +13592,25 @@ function toggleAlert(name, amount, btnEl){
     }
   }
 
-  function openDebts(){
-    bd.classList.add('active');
-    md.classList.add('active');
-    body.classList.add('modal-open');
+async function openDebts(){
+  bd.classList.add('active');
+  md.classList.add('active');
+  body.classList.add('modal-open');
 
-    // صفّر البحث عند الفتح
-    setSearchUI(false);
+  // صفّر البحث عند الفتح
+  setSearchUI(false);
 
-    // ابنِ البيانات من DB
-    buildFromDB();
-  }
+  // NEW: حدّث الداتا من الإكسل قبل العرض (حتى تجيك آخر نسخة)
+  try{
+    if(typeof loadExcelFiles === 'function'){
+      await loadExcelFiles();
+    }
+  }catch(e){}
+
+  // ابنِ البيانات من DB
+  buildFromDB();
+}
+
 
   function closeDebts(){
     bd.classList.remove('active');
