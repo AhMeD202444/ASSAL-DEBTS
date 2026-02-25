@@ -13283,6 +13283,7 @@ clearAlertsBtn.addEventListener('click', function(){
     });
 
     allRows = mapped;
+    syncAlertsWithDebts();   // <<< هذا السطر الجديد
     applyFilter();
   }
 
@@ -13493,6 +13494,43 @@ function loadAlerts(){
 /* ===== NEW: نفّذ التحميل أول ما يشتغل سكربت الديون ===== */
 loadAlerts();
 if(alertMap.size) startAlertLoop();
+
+
+function syncAlertsWithDebts(){
+  try{
+    if(!alertMap || alertMap.size === 0) return;
+
+    // خريطة بالأسماء الموجودة فعلاً بالديون + مبلغهم الحالي
+    var live = new Map();
+    for(var i=0;i<allRows.length;i++){
+      var r = allRows[i];
+      if(!r || !r.name) continue;
+      // إذا دينه صفر/سالب نعتبره مسدد
+      if((r.amount||0) > 0) live.set(r.name, (r.amount||0));
+    }
+
+    var changed = false;
+
+    // امسح أي تنبيه لاسم ما موجود بالديون، وحدّث المبالغ للباقي
+    Array.from(alertMap.keys()).forEach(function(name){
+      if(!live.has(name)){
+        alertMap.delete(name);
+        changed = true;
+      }else{
+        var newAmt = live.get(name);
+        if((alertMap.get(name)||0) !== newAmt){
+          alertMap.set(name, newAmt);
+          changed = true;
+        }
+      }
+    });
+
+    if(changed){
+      saveAlerts();
+      stopAlertLoopIfEmpty();
+    }
+  }catch(_){}
+}
 
   
   
