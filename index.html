@@ -4760,7 +4760,10 @@ function buildPriceIndexFromDatabase(){
 
   if (!database || typeof database !== 'object') return;
 
+  const EXCLUDED = new Set(['DEBTS','ALL','CUSTOMER']); // ✅ التعديل
+
   for (const [sheetName, rows] of Object.entries(database)){
+    if (EXCLUDED.has(String(sheetName).toUpperCase())) continue; // ✅ التعديل
     if (!Array.isArray(rows)) continue;
 
     rows.forEach(row => {
