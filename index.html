@@ -5852,10 +5852,109 @@ Object.defineProperty(window, 'selectedDay', { get(){ return selectedDay; } });
 
     function load(k, d){ try{ return JSON.parse(localStorage.getItem(k)||JSON.stringify(d)); }catch{ return d; } }
     
+
+// ===== [AUTO] Balanced localStorage saving (delete oldest invoices if storage is full) =====
+function __isQuotaErr__(e){
+  try{
+    const n = (e && e.name) ? String(e.name) : '';
+    const s = String(e || '');
+    return n === 'QuotaExceededError' || n === 'NS_ERROR_DOM_QUOTA_REACHED' || /quota/i.test(s);
+  }catch{ return false; }
+}
+
+function __getCardsFromDayVal__(dayVal){
+  if(Array.isArray(dayVal)) return dayVal;
+  if(dayVal && Array.isArray(dayVal.cards)) return dayVal.cards;
+  return [];
+}
+function __setCardsToDayVal__(dayVal, cards){
+  if(Array.isArray(dayVal)) return cards;            // dayVal itself is the array
+  if(dayVal && typeof dayVal === 'object'){
+    dayVal.cards = cards;
+    return dayVal;
+  }
+  // fallback: store as array
+  return cards;
+}
+
+
+// ===== حذف أقدم أيام بالكامل عند امتلاء التخزين =====
+const DELETE_OLDEST_DAYS = 5;
+
+// يحذف أقدم N أيام كاملة (بكل فواتيرها) من كائن الأيام daysObj
+function __dropOldestDaysFromDays__(daysObj, n = DELETE_OLDEST_DAYS){
+  try{
+    const keys = Object.keys(daysObj || {});
+    if(!keys.length) return { days:0, invoices:0 };
+
+    const scored = keys.map(k=>{
+      let t = 0;
+      try{ t = new Date(k).getTime(); }catch{}
+      if(!Number.isFinite(t)) t = 0;
+      return { k, t };
+    });
+
+    scored.sort((a,b)=> (a.t - b.t) || String(a.k).localeCompare(String(b.k)));
+
+    let daysRemoved = 0;
+    let invoicesRemoved = 0;
+
+    for(const it of scored){
+      if(daysRemoved >= n) break;
+
+      const dayVal = daysObj[it.k];
+      const cards = __getCardsFromDayVal__(dayVal);
+      if(Array.isArray(cards)) invoicesRemoved += cards.length;
+
+      delete daysObj[it.k];
+      daysRemoved++;
+    }
+
+    return { days:daysRemoved, invoices:invoicesRemoved };
+  }catch{
+    return { days:0, invoices:0 };
+  }
+}
+
+// يحاول يخزّن daysObj على STORAGE، وإذا امتلأت الذاكرة يحذف أقدم 5 أيام كاملة ثم يعيد المحاولة
+function saveDaysToStorageBalanced(daysObj){
+  let removedDays = 0;
+  let removedInvoices = 0;
+  let attempt = 0;
+
+  while(attempt < 200){
+    attempt++;
+    try{
+      localStorage.setItem(STORAGE, JSON.stringify(daysObj || {}));
+      return { ok:true, removedDays, removedInvoices };
+    }catch(e){
+      if(!__isQuotaErr__(e)) throw e;
+
+      const r = __dropOldestDaysFromDays__(daysObj, DELETE_OLDEST_DAYS);
+      if(!r || !r.days) return { ok:false, removedDays, removedInvoices };
+
+      removedDays     += r.days;
+      removedInvoices += (r.invoices || 0);
+    }
+  }
+
+  return { ok:false, removedDays, removedInvoices };
+}
+// ===== [END AUTO] Balanced localStorage saving =====
+
 function save(){
-localStorage.setItem(STORAGE, JSON.stringify(days));
-LAST_EDIT_TS = Date.now(); // حتى نمنع المزامنة مباشرة بعد أي تعديل
-SYNC_BLOCK_UNTIL = Date.now() + 20_000; // هدنة 20 ثانية إضافية
+  const res = saveDaysToStorageBalanced(days);
+  if(res && (res.removedDays || res.removedInvoices)){
+    // حذفنا أقدم أيام حتى نقدر نخزّن
+    showToast?.('warn', `تم حذف ${res.removedDays} أيام قديمة (${res.removedInvoices} فاتورة) لتفريغ مساحة التخزين`);
+  }
+  if(!res || !res.ok){
+    showToast?.('error','التخزين ممتلئ وما كدرنا نحفظ. صدّر نسخة (JSON/PDF) أو امسح يدويًا.');
+    try{ openStorageModal?.(); }catch{}
+    return;
+  }
+  LAST_EDIT_TS = Date.now(); // حتى نمنع المزامنة مباشرة بعد أي تعديل
+  SYNC_BLOCK_UNTIL = Date.now() + 20_000; // هدنة 20 ثانية إضافية
 }
 
 
@@ -10133,7 +10232,11 @@ async function importInvoicesFromFile(file){
 
 
     // خزّن النتيجة المدموجة
-    localStorage.setItem(STORAGE, JSON.stringify(mergedDays));
+    (function(){
+      const __res = saveDaysToStorageBalanced(mergedDays);
+      if(__res && __res.removed){ showToast?.('warn', `تم حذف ${__res.removed} فاتورة قديمة لتفريغ مساحة التخزين`); }
+      if(!__res || !__res.ok){ showToast?.('error','التخزين ممتلئ وما كدرنا نحفظ. صدّر نسخة (JSON) أو امسح يدويًا.'); try{ openStorageModal?.(); }catch{} }
+    })();
 
     // الأسماء: دمج بسيط (مجموعة)
     const curNames = Array.isArray(names) ? names : [];
@@ -10702,7 +10805,11 @@ function cleanupAllTombstones(ttlDays = 14){
       if (keptCards.length > 0) outDays[dayKey] = { ...dayVal, cards: keptCards };
       else if (removedAnyInDay) stats.removed.daysEmptied += 1;
     });
-    localStorage.setItem(STORAGE, JSON.stringify(outDays));
+    (function(){
+      const __res = saveDaysToStorageBalanced(outDays);
+      if(__res && __res.removed){ showToast?.('warn', `تم حذف ${__res.removed} فاتورة قديمة لتفريغ مساحة التخزين`); }
+      if(!__res || !__res.ok){ showToast?.('error','التخزين ممتلئ وما كدرنا نحفظ. صدّر نسخة (JSON) أو امسح يدويًا.'); try{ openStorageModal?.(); }catch{} }
+    })();
   }catch(e){ stats.errors.push('days/cards: ' + (e?.message || String(e))); }
 
   return stats;
@@ -10912,7 +11019,11 @@ async function smartExportToServer(){
     clearPending();
 
     // 5) خزّن محلي آخر نسخة رفعت (نفس سلوكك)
-    localStorage.setItem(STORAGE, JSON.stringify(payload.days || {}));
+    (function(){
+      const __res = saveDaysToStorageBalanced(payload.days || {});
+      if(__res && __res.removed){ showToast?.('warn', `تم حذف ${__res.removed} فاتورة قديمة لتفريغ مساحة التخزين`); }
+      if(!__res || !__res.ok){ showToast?.('error','التخزين ممتلئ وما كدرنا نحفظ. صدّر نسخة (JSON) أو امسح يدويًا.'); try{ openStorageModal?.(); }catch{} }
+    })();
     localStorage.setItem(NAMES,   JSON.stringify(payload.names || []));
     if(payload.transferDate){
       setTransferDateIso(payload.transferDate);
@@ -11264,7 +11375,11 @@ async function smartImportFromServer(){
 
     if(subMode){
       // ========= وضع "حاسبة فرعية": استبدال كامل =========
-      localStorage.setItem(STORAGE, JSON.stringify(server.days || {}));
+      (function(){
+      const __res = saveDaysToStorageBalanced(server.days || {});
+      if(__res && __res.removed){ showToast?.('warn', `تم حذف ${__res.removed} فاتورة قديمة لتفريغ مساحة التخزين`); }
+      if(!__res || !__res.ok){ showToast?.('error','التخزين ممتلئ وما كدرنا نحفظ. صدّر نسخة (JSON) أو امسح يدويًا.'); try{ openStorageModal?.(); }catch{} }
+    })();
       localStorage.setItem(NAMES,   JSON.stringify(Array.isArray(server.names) ? server.names : []));
       if(server.transferDate){ setTransferDateIso(server.transferDate); }
       // [NEW] استبدال كامل للحسابات المالية + تنظيف تكرارات
@@ -11302,7 +11417,11 @@ async function smartImportFromServer(){
     dedupeAllDays(mergedDays);
 
     // خزن الفواتير/الأيام محلي
-    localStorage.setItem(STORAGE, JSON.stringify(mergedDays));
+    (function(){
+      const __res = saveDaysToStorageBalanced(mergedDays);
+      if(__res && __res.removed){ showToast?.('warn', `تم حذف ${__res.removed} فاتورة قديمة لتفريغ مساحة التخزين`); }
+      if(!__res || !__res.ok){ showToast?.('error','التخزين ممتلئ وما كدرنا نحفظ. صدّر نسخة (JSON) أو امسح يدويًا.'); try{ openStorageModal?.(); }catch{} }
+    })();
 
     // وحّد أسماء الزبائن
     const curNames = Array.isArray(names) ? names : [];
