@@ -11472,12 +11472,15 @@ function dedupeAllDays(daysObj){
    
 
 
-(function init(){
+(async function init(){
   document.getElementById('dateBadge').textContent = arDateWithDay(TODAY);
-  // --- سطر جديد: حمّل قاعدة الأصناف من الشيت ---
-  loadExcelFiles();
-  // ----------------------------------------------
-  rebuildNames(); renderBoard(); renderRail(); refreshStats();
+
+  await loadExcelFiles();   // ✅ انتظر تحميل الإكسل حتى CUSTOMERS تتعبّى
+
+  rebuildNames(); 
+  renderBoard(); 
+  renderRail(); 
+  refreshStats();
 })();
 
 
