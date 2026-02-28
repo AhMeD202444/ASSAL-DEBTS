@@ -587,6 +587,12 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
   border-color:rgba(239,68,68,.35);
 }
 
+
+.badge-type.cash{
+  color:#fecaca;
+  background:linear-gradient(180deg,#7f1d1d,#4c0b0b);
+  border-color:rgba(239,68,68,.55);
+}
 /* خلي المواد الراجعة أوضح بالأحمر */
 .item.returned{
   background:#2a0c12;            /* خلفية أحمر داكن */
@@ -4020,7 +4026,7 @@ body{ padding-top: var(--hdr-h); }
  
  <!-- 2) نوع الفاتورة (مثل الصنف) -->
 <div class="type-wrap" style="position:relative; min-width:0;">
-  <input id="type" class="field" type="text" value="بيع" readonly />
+  <input id="type" class="field" type="text" value="اجل" readonly />
 
   <div id="typePanel" class="cat-panel nice-scroll" style="
     display:none; position:absolute; inset-inline:0; bottom:calc(100% + 6px);
@@ -4030,7 +4036,8 @@ body{ padding-top: var(--hdr-h); }
   ">
     <div id="typeList" class="cat-list">
             <div class="cat-item" data-val="جملة"><i class="fa-solid fa-tags"></i> جملة</div>
-<div class="cat-item" data-val="بيع"><i class="fa-solid fa-cart-shopping"></i> بيع</div>
+<div class="cat-item" data-val="اجل"><i class="fa-solid fa-cart-shopping"></i> اجل</div>
+      <div class="cat-item" data-val="نقدي"><i class="fa-solid fa-money-bill-wave"></i> نقدي</div>
       <div class="cat-item" data-val="راجع"><i class="fa-solid fa-rotate-left"></i> راجع</div>
     </div>
   </div>
@@ -5144,7 +5151,7 @@ function hideTypePanel(){
 function selectTypeByIndex(i){
   const items = getTypeItems();
   if(i < 0 || i >= items.length) return;
-  const val = items[i].getAttribute('data-val') || 'بيع';
+  const val = items[i].getAttribute('data-val') || 'اجل';
   const inp = document.getElementById('type');
   if(inp){
     inp.value = val;
@@ -5353,8 +5360,8 @@ function parseIQD(v){
 
 
 function getSelectedType(){
-  const t = document.getElementById('type')?.value || 'بيع';
-  return String(t).trim() || 'بيع';
+  const t = document.getElementById('type')?.value || 'اجل';
+  return String(t).trim() || 'اجل';
 }
 
 function getRowCAG(row){
@@ -5447,6 +5454,12 @@ function isWholesaleCard(card){
   if(!card) return false;
   if (String(card?.billType || '') === 'جملة') return true;
   return (card.lines || []).some(l => !l.deletedAt && String(l.type || '') === 'جملة');
+}
+
+function isCashCard(card){
+  if(!card) return false;
+  if (String(card?.billType || '') === 'نقدي') return true;
+  return (card.lines || []).some(l => !l.deletedAt && String(l.type || '') === 'نقدي');
 }
 
 
@@ -6528,7 +6541,7 @@ document.getElementById('btnAdd').onclick = async () => {
   const priceVal = Number(parseIQD(document.getElementById('price').value) || 0);
   let   qty  = String(document.getElementById('qty').value || '1').trim();
   const cat  = (document.getElementById('cat').value || '').trim();
-  const type = (document.getElementById('type').value || 'بيع').trim(); // بيع / راجع
+  const type = (document.getElementById('type').value || 'اجل').trim(); // بيع / راجع
   const note = (document.getElementById('note').value || '').trim();
 
   if (!customer || !item) return;
@@ -6542,7 +6555,15 @@ document.getElementById('btnAdd').onclick = async () => {
   const isPastDay = (selectedDay < todayKey);
 
   // ابحث عن البطاقة
-  let cardIndex = days[selectedDay].findIndex(c => c.customer === customer && !c.deletedAt);
+  let cardIndex = days[selectedDay].findIndex(c =>
+    c.customer === customer &&
+    !c.deletedAt &&
+    (
+      (type === 'نقدي')
+        ? (String(c.billType || '') === 'نقدي')
+        : (String(c.billType || '') !== 'نقدي')
+    )
+  );
   let card = days[selectedDay][cardIndex];
 
   // ——— تحذير قبل إنشاء بطاقة جديدة في يوم سابق ———
@@ -6604,7 +6625,7 @@ document.getElementById('btnAdd').onclick = async () => {
   card.lines.push({
     lineId   : makeId(),
     item, cat, price: priceVal, qty, note, type,
-    paid: false, returned: (type==='راجع'),
+    paid: (type==='نقدي'), returned: (type==='راجع'),
     createdAt: nowISOVal2,
     updatedAt: nowISOVal2,
     at: nowISOVal2,
@@ -6790,11 +6811,13 @@ const typeBadge = CE(
   'badge-type ' + (
     badgeType === 'راجع'
       ? 'return'
-      : badgeType === 'بيع'
+      : badgeType === 'اجل'
         ? 'sell'
         : badgeType === 'جملة'
           ? 'wholesale'
-          : ''
+          : badgeType === 'نقدي'
+            ? 'cash'
+            : ''
   )
 );
 
@@ -6803,9 +6826,11 @@ const typeLabel =
     ? 'فاتورة جملة'
     : badgeType === 'راجع'
       ? 'فاتورة راجع'
-      : badgeType === 'بيع'
-        ? 'فاتورة بيع'
-        : 'فاتورة مختلطة';
+      : badgeType === 'اجل'
+        ? 'فاتورة اجل'
+        : badgeType === 'نقدي'
+          ? 'فاتورة نقدي'
+          : 'فاتورة مختلطة';
 
 typeBadge.textContent = typeLabel;
 custWrap.appendChild(typeBadge);
@@ -7072,7 +7097,12 @@ custWrap.appendChild(typeBadge);
 
     const left = CE('div');
     const sums = sumCardAmounts(card);
-    left.innerHTML = `
+    const isCash = isCashCard(card);
+    left.innerHTML = isCash ? `
+      <span class="sum-badge sum--items">مواد: ${(card.lines || []).filter(l => !l.deletedAt).length}</span>
+      <span class="sum-badge sum--total">المجموع: ${formatIQD(sums.total)}</span>
+      <span class="sum-badge sum--unpaid">المدفوع: ${formatIQD(sums.total)}</span>
+    ` : `
       <span class="sum-badge sum--items">مواد: ${(card.lines || []).filter(l => !l.deletedAt).length}</span>
       <span class="sum-badge sum--total">المجموع: ${formatIQD(sums.total)}</span>
       <span class="sum-badge sum--unpaid">غير مدفوع: ${formatIQD(sums.unpaid)}</span>
@@ -8314,7 +8344,7 @@ function exportDayPDF_Vector(){
  
  const cards  = source
   .filter(c => !c?.deletedAt)
-  .filter(c => !isWholesaleCard(c)) // ✅ (التعديل الوحيد) استبعاد أي بطاقة تعتبر جملة
+  .filter(c => !isWholesaleCard(c) && !isCashCard(c)) // ✅ استبعاد بطاقات الجملة + النقدي
   .filter(c =>
     Array.isArray(c.lines) &&
     c.lines.some(ln =>
@@ -8463,29 +8493,32 @@ function exportDayPDF_Vector(){
       // ✅ حساب مجموع البطاقة / غير مدفوع
 // ملاحظة: القطع الراجعة تنطرح من المجموع (تروح سالب)
 function sumCard(card){
-  let total  = 0; // مجموع الباقي الحقيقي
-  let unpaid = 0; // نفس الشي (إنت تريد نفس المنطق)
+  const out = { total:0, unpaid:0, paid:0, returned:0 };
 
   (card.lines || []).forEach(ln => {
-    if (ln.deletedAt) return;
+    if (ln?.deletedAt) return;
 
-    // نهمل الراجع نهائياً
-    if (ln.returned) return;
+    const price = Number(String(ln.price ?? '').replace(/[^\d.]/g,'')) || 0;
+    const qty   = Number(ln.qty || 1);
+    const amt   = price * qty;
 
-    // نهمل المدفوع نهائياً
-    if (ln.paid) return;
+    if (ln.returned){
+      out.returned += amt;
+      return;
+    }
 
-    // إذا وصلنا لهنا: هذا سطر فعّال فعلاً (مو راجع ومو مدفوع)
-    const price = Number(ln.price || 0);
-    const qty   = parseInt(String(ln.qty || '1'), 10) || 1;
-    const sub   = price * qty;
+    out.total += amt;
 
-    total  += sub;
-    unpaid += sub;
+    if (ln.paid){
+      out.paid += amt;
+    } else {
+      out.unpaid += amt;
+    }
   });
 
-  return { total, unpaid };
+  return out;
 }
+
 
 
 
@@ -8534,7 +8567,7 @@ function sumCard(card){
             })();
             const tag = document.createElement('span');
             tag.className = 'tag';
-            tag.textContent = (type==='راجع') ? 'فاتورة راجع' : (type==='بيع') ? 'فاتورة بيع' : 'فاتورة مختلطة';
+            tag.textContent = (type==='راجع') ? 'فاتورة راجع' : (type==='اجل') ? 'فاتورة اجل' : (type==='نقدي') ? 'فاتورة نقدي' : 'فاتورة مختلطة';
             right.appendChild(tag);
 
             // NEW: التاريخ يمّ نوع الفاتورة
@@ -9104,7 +9137,9 @@ function exportCardPDF_Vector(card, dayKey){
               return;           // وما تدخل على الدين
             }
 
-            if(ln.paid) return; // المدفوع ما يدخل ضمن الدين
+            const isCash = (String(card?.billType||'') === 'نقدي') ||
+              (card.lines || []).some(l => l && !l.deletedAt && String(l.type||'') === 'نقدي');
+            if(ln.paid && !isCash) return; // المدفوع ما يدخل ضمن الدين (إلا إذا كانت الفاتورة نقدي)
 
             total  += sub;
             unpaid += sub;
@@ -9150,10 +9185,35 @@ function exportCardPDF_Vector(card, dayKey){
           }
           var billLabel =
             billType === 'راجع' ? 'فاتورة راجع' :
-            billType === 'بيع'  ? 'فاتورة بيع'  : 'فاتورة ديون';
+            billType === 'نقدي' ? 'فاتورة نقدي' :
+            billType === 'اجل'  ? 'فاتورة اجل'  : 'فاتورة ديون';
+
+          var invDesc = (billType === 'نقدي')
+            ? 'هذه الفاتورة تمثل فاتورة نقدي في هذا اليوم.'
+            : 'هذه الفاتورة تمثل حركة الديون الخاصة بالزبون في هذا اليوم.';
+
+
+          var linesCountLabel = (billType === 'نقدي')
+            ? 'عدد سطور الفاتورة' 
+            : 'عدد سطور الفاتورة (دين فقط)';
+
+          var totalsMainLabel = (billType === 'نقدي')
+            ? 'اجمالي الفاتورة'
+            : 'اجمالي الفاتورة (دين فقط)';
+
 
           const isKnownCustomer = card.customer && KNOWN.indexOf(card.customer) !== -1;
           const totals = sumCard(card); // فيها unpaid + returned
+          const totalsMainValue = (billType === 'نقدي') ? totals.total : totals.unpaid;
+          const returnedRowHtml = (billType === 'نقدي')
+            ? ''
+            : (
+                '<div class="totals-row">' +
+                  '<div class="totals-label">إجمالي المسترجع</div>' +
+                  '<div class="totals-value totals-value-minus">'+ (totals.returned ? ('-' + formatIQD(totals.returned)) : '0') +'</div>' +
+                '</div>'
+              );
+          const cashPaidRowHtml = '';
           const createdAt = card.createdAt || card.at || null;
           const timeStr   = createdAt ? tinyTime(createdAt) : '';
           const invoiceId = card.id ? String(card.id) : '';
@@ -9171,9 +9231,13 @@ function exportCardPDF_Vector(card, dayKey){
               const sub      = priceNum * qtyNum;
 
               const isReturned = !!ln.returned;
-              const isPaid     = !!ln.paid;
-              if(!isReturned && !isPaid){
-                effectiveCount++;
+              const isPaid     = !!ln.paid && billType !== 'نقدي';
+              if(billType === 'نقدي'){
+                if(!isReturned) effectiveCount++;
+              } else {
+                if(!isReturned && !isPaid){
+                  effectiveCount++;
+                }
               }
 
               const rowClass = isReturned ? 'row-returned' : (isPaid ? 'row-paid' : '');
@@ -9235,7 +9299,7 @@ function exportCardPDF_Vector(card, dayKey){
 
           // نوع الفاتورة بادجات
           var typeClass = 'badge-type-mixed';
-          if(billType === 'بيع') typeClass = 'badge-type-sell';
+          if(billType === 'اجل') typeClass = 'badge-type-sell';
           if(billType === 'راجع') typeClass = 'badge-type-return';
 
           var newBadge = (!isKnownCustomer && card.customer)
@@ -9278,7 +9342,7 @@ function exportCardPDF_Vector(card, dayKey){
                   '<span>'+ escHtmlLocal(card.customer || '') +'</span>' +
                   newBadge +
                 '</div>' +
-                '<div class="inv-card-text">هذه الفاتورة تمثل حركة الديون الخاصة بالزبون في هذا اليوم.</div>' +
+                '<div class="inv-card-text">'+ invDesc +'</div>' +
               '</div>' +
               '<div class="inv-card">' +
                 '<div class="inv-card-header">بيانات الفاتورة</div>' +
@@ -9286,7 +9350,7 @@ function exportCardPDF_Vector(card, dayKey){
                   '<span class="badge '+ typeClass +'">'+ billLabel +'</span>' +
                 '</div>' +
                 '<div class="inv-card-text">' +
-                  ' عدد سطور الفاتورة (دين فقط) : ' +
+                  ''+ linesCountLabel +' : ' +
                   '<strong>'+ effectiveCount +'</strong>' +
                 '</div>' +
               '</div>' +
@@ -9318,13 +9382,11 @@ function exportCardPDF_Vector(card, dayKey){
               '<div class="totals-card">' +
                 '<div class="totals-title">مجموع الفاتورة</div>' +
                 '<div class="totals-row totals-main">' +
-                  '<div class="totals-label">اجمالي الفاتورة (دين فقط)</div>' +
-                  '<div class="totals-value">'+ formatIQD(totals.unpaid) +'</div>' +
+                  '<div class="totals-label">'+ totalsMainLabel +'</div>' +
+                  '<div class="totals-value">'+ formatIQD(totalsMainValue) +'</div>' +
                 '</div>' +
-                '<div class="totals-row">' +
-                  '<div class="totals-label">إجمالي المواد المسترجعة</div>' +
-                  '<div class="totals-value totals-value-minus">'+ (totals.returned ? ('-' + formatIQD(totals.returned)) : '0') +'</div>' +
-                '</div>' +
+                returnedRowHtml +
+                cashPaidRowHtml +
               '</div>' +
             '</div>' +
 
@@ -10647,25 +10709,29 @@ function sumCardAmounts(card){
   (card.lines || []).forEach(l => {
     if (l?.deletedAt) return;
 
-    // نهمل أي سطر راجع بالكامل
-    if (l.returned) return;
-
-    // نهمل أي سطر مدفوع بالكامل
-    if (l.paid) return;
-
-    // إذا وصلنا لهنا: هذا بند فعلي بعده محسوب دين
     const price = Number(String(l.price ?? '').replace(/[^\d.]/g,'')) || 0;
     const qty   = Number(l.qty || 1);
     const amt   = price * qty;
 
-    out.total  += amt;
-    out.unpaid += amt;
-    // out.paid يبقى 0
-    // out.returned يبقى 0
+    // السطور الراجعة: نحسبها رجوع فقط وما تدخل بإجمالي الفاتورة
+    if (l.returned){
+      out.returned += amt;
+      return;
+    }
+
+    // إجمالي الفاتورة (بدون الراجع)
+    out.total += amt;
+
+    if (l.paid){
+      out.paid += amt;
+    } else {
+      out.unpaid += amt;
+    }
   });
 
   return out;
 }
+
 
 
 
@@ -11248,11 +11314,11 @@ function mergeCard(a, b, report, path){
 
   // billType يُعاد احتسابه من السطور الفعّالة
   const types = Array.from(
-    new Set((merged.lines || []).filter(l => !l.deletedAt).map(l => (l.returned ? 'راجع' : 'بيع')))
+    new Set((merged.lines || []).filter(l => !l.deletedAt).map(l => (l.returned ? 'راجع' : 'اجل')))
   );
   merged.billType = (types.length === 1)
     ? types[0]
-    : (types.length === 0 ? (x.billType || y.billType || 'بيع') : 'مختلط');
+    : (types.length === 0 ? (x.billType || y.billType || 'اجل') : 'مختلط');
 
   // paidAll يُعاد احتسابه (مطابق لنمطك)
   merged.paidAll = (function(){
