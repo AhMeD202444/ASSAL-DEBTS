@@ -10382,6 +10382,13 @@ async function importInvoicesFromFile(file){
     // حدّث الذاكرة والواجهة
     days  = load(STORAGE, {});
     names = load(NAMES,   []);
+
+      // [AUTO] طبّق تصحيح أنواع الفواتير مباشرة بعد المزامنة (بدون ريفرش)
+      try{
+        if(migrateLegacySellToAjal(days)){
+          localStorage.setItem(STORAGE, JSON.stringify(days));
+        }
+      }catch{}
     migrateLegacyInvoiceTypes(days);   // ✅ حوّل بيع/فارغ إلى أجل فوراً
     save();                            // ✅ ثبّت التحويل بالتخزين حتى ما يحتاج ريفرش
     renderBoard(); renderRail(); refreshStats();
@@ -11176,12 +11183,13 @@ async function smartExportToServer(){
     // 6) حدّث الواجهة (نفسك)
     days  = load(STORAGE, {});
     names = load(NAMES,   []);
-    // ✅ طبّق مهاجرة الأنواع بعد المزامنة حتى ما تطلع "مختلطة" بدون ريفرش
-    try{
-      if(typeof migrateLegacySellToAjal === 'function' && migrateLegacySellToAjal(days)){
-        localStorage.setItem(STORAGE, JSON.stringify(days));
-      }
-    }catch{}
+
+      // [AUTO] طبّق تصحيح أنواع الفواتير مباشرة بعد المزامنة (بدون ريفرش)
+      try{
+        if(migrateLegacySellToAjal(days)){
+          localStorage.setItem(STORAGE, JSON.stringify(days));
+        }
+      }catch{}
     renderBoard();
     renderRail();
     refreshStats();
@@ -11394,26 +11402,11 @@ function mergeCard(a, b, report, path){
 
   // billType يُعاد احتسابه من السطور الفعّالة
   const types = Array.from(
-    new Set(
-      (merged.lines || [])
-        .filter(l => !l.deletedAt)
-        .map(l => {
-          if (l.returned) return 'راجع';
-          const t =
-            (typeof normalizeBillType === 'function' ? normalizeBillType(l.type) : (l.type || '')) ||
-            (typeof normalizeBillType === 'function' ? normalizeBillType(merged.billType) : (merged.billType || '')) ||
-            (typeof normalizeBillType === 'function' ? normalizeBillType(x.billType) : (x.billType || '')) ||
-            (typeof normalizeBillType === 'function' ? normalizeBillType(y.billType) : (y.billType || '')) ||
-            'اجل';
-          return t;
-        })
-    )
+    new Set((merged.lines || []).filter(l => !l.deletedAt).map(l => (l.returned ? 'راجع' : 'اجل')))
   );
   merged.billType = (types.length === 1)
     ? types[0]
-    : (types.length === 0
-        ? ((typeof normalizeBillType === 'function' ? normalizeBillType(x.billType || y.billType) : (x.billType || y.billType)) || 'اجل')
-        : 'مختلط');
+    : (types.length === 0 ? (x.billType || y.billType || 'اجل') : 'مختلط');
 
   // paidAll يُعاد احتسابه (مطابق لنمطك)
   merged.paidAll = (function(){
@@ -11555,6 +11548,13 @@ async function smartImportFromServer(){
       // حدّث الذاكرة والواجهة
       days  = load(STORAGE, {});
       names = load(NAMES,   []);   // ← تصليح: نحمل كـ Array
+
+      // [AUTO] طبّق تصحيح أنواع الفواتير مباشرة بعد المزامنة (بدون ريفرش)
+      try{
+        if(migrateLegacySellToAjal(days)){
+          localStorage.setItem(STORAGE, JSON.stringify(days));
+        }
+      }catch{}
       renderBoard();
       renderRail();
       refreshStats();
@@ -11625,6 +11625,13 @@ async function smartImportFromServer(){
     // حدّث الذاكرة والواجهة
     days  = load(STORAGE, {});
     names = load(NAMES,   []);   // ← تصليح: نحمل كـ Array
+
+      // [AUTO] طبّق تصحيح أنواع الفواتير مباشرة بعد المزامنة (بدون ريفرش)
+      try{
+        if(migrateLegacySellToAjal(days)){
+          localStorage.setItem(STORAGE, JSON.stringify(days));
+        }
+      }catch{}
     renderBoard();
     renderRail();
     refreshStats();
