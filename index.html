@@ -10382,6 +10382,8 @@ async function importInvoicesFromFile(file){
     // حدّث الذاكرة والواجهة
     days  = load(STORAGE, {});
     names = load(NAMES,   []);
+    migrateLegacyInvoiceTypes(days);   // ✅ حوّل بيع/فارغ إلى أجل فوراً
+    save();                            // ✅ ثبّت التحويل بالتخزين حتى ما يحتاج ريفرش
     renderBoard(); renderRail(); refreshStats();
 
     const changes = report.length;
