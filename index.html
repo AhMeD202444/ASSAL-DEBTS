@@ -5854,6 +5854,13 @@ function rebuildCustomersFromDB(){
     const arTime        = (d)=> new Date(d).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
 
     let days        = load(STORAGE, {});
+    // [AUTO] migrate old invoices (بيع -> اجل) so badges don't show 'مختلطة'
+    try{
+      if(migrateLegacySellToAjal(days)){
+        localStorage.setItem(STORAGE, JSON.stringify(days));
+      }
+    }catch{}
+
     let names       = load(NAMES, []);
     let selectedDay = todayISO();
     
@@ -5954,6 +5961,71 @@ function saveDaysToStorageBalanced(daysObj){
   return { ok:false, removedDays, removedInvoices };
 }
 // ===== [END AUTO] Balanced localStorage saving =====
+
+
+// ===== [AUTO] Normalize & migrate legacy invoice types (بيع -> اجل) =====
+function normalizeBillType(t){
+  const s = (t ?? '').toString().trim();
+  if(!s) return '';
+  const u = s.toUpperCase();
+  if(s === 'بيع' || u === 'SELL' || u === 'SALE' || u === 'SALES') return 'اجل';
+  if(s === 'أجل' || s === 'اجل' || u === 'AJL' || u === 'CREDIT') return 'اجل';
+  if(s === 'راجع' || u === 'RETURN') return 'راجع';
+  if(s === 'نقدي' || u === 'CASH') return 'نقدي';
+  if(s === 'جملة' || u === 'WHOLESALE') return 'جملة';
+  if(s === 'مختلط' || s === 'مختلطة' || u === 'MIXED') return 'مختلط';
+  return s;
+}
+
+function migrateLegacySellToAjal(daysObj){
+  if(!daysObj || typeof daysObj !== 'object') return false;
+  let changed = false;
+
+  for(const dayKey of Object.keys(daysObj)){
+    const arr = daysObj[dayKey];
+    if(!Array.isArray(arr)) continue;
+
+    for(const card of arr){
+      if(!card || typeof card !== 'object') continue;
+
+      // card bill type
+      const rawCardType = card.billType ?? card.type ?? card.kind ?? '';
+      const normCardType = normalizeBillType(rawCardType);
+
+      // إذا النوع قديم/فارغ اعتبره اجل (حتى ما يصير مختلط)
+      if(!normCardType || normCardType === 'مختلط'){
+        if(rawCardType === '' || rawCardType == null || rawCardType === 'بيع'){
+          card.billType = 'اجل';
+          changed = true;
+        }
+      }else if(normCardType !== rawCardType){
+        card.billType = normCardType;
+        changed = true;
+      }
+
+      // lines types
+      if(Array.isArray(card.lines)){
+        card.lines.forEach(ln=>{
+          if(!ln || typeof ln !== 'object') return;
+          const rawLineType = ln.type ?? '';
+          const normLineType = normalizeBillType(rawLineType);
+
+          if(!rawLineType){
+            // وراثة من البطاقة
+            ln.type = card.billType || 'اجل';
+            changed = true;
+            return;
+          }
+          if(normLineType && normLineType !== rawLineType){
+            ln.type = normLineType;
+            changed = true;
+          }
+        });
+      }
+    }
+  }
+  return changed;
+}
 
 function save(){
   const res = saveDaysToStorageBalanced(days);
@@ -6798,7 +6870,7 @@ function renderBoard() {
     // نوع الفاتورة (بيع / راجع / مختلط). إذا مو مخزّن نحسبه من السطور
     let billType = card.billType;
     if (!billType) {
-      const types = Array.from(new Set((card.lines || []).map(l => l.type)));
+      const types = Array.from(new Set((card.lines || []).map(l => normalizeBillType(l.type))));
       billType = (types.length === 1) ? types[0] : 'مختلط';
       card.billType = billType;
     }
