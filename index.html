@@ -8565,30 +8565,28 @@ function exportDayPDF_Vector(){
       // ✅ حساب مجموع البطاقة / غير مدفوع
 // ملاحظة: القطع الراجعة تنطرح من المجموع (تروح سالب)
 function sumCard(card){
-  const out = { total:0, unpaid:0, paid:0, returned:0 };
+  let total  = 0; // مجموع الباقي الحقيقي
+  let unpaid = 0; // نفس الشي (إنت تريد نفس المنطق)
 
   (card.lines || []).forEach(ln => {
-    if (ln?.deletedAt) return;
+    if (ln.deletedAt) return;
 
-    const price = Number(String(ln.price ?? '').replace(/[^\d.]/g,'')) || 0;
-    const qty   = Number(ln.qty || 1);
-    const amt   = price * qty;
+    // نهمل الراجع نهائياً
+    if (ln.returned) return;
 
-    if (ln.returned){
-      out.returned += amt;
-      return;
-    }
+    // نهمل المدفوع نهائياً
+    if (ln.paid) return;
 
-    out.total += amt;
+    // إذا وصلنا لهنا: هذا سطر فعّال فعلاً (مو راجع ومو مدفوع)
+    const price = Number(ln.price || 0);
+    const qty   = parseInt(String(ln.qty || '1'), 10) || 1;
+    const sub   = price * qty;
 
-    if (ln.paid){
-      out.paid += amt;
-    } else {
-      out.unpaid += amt;
-    }
+    total  += sub;
+    unpaid += sub;
   });
 
-  return out;
+  return { total, unpaid };
 }
 
 
