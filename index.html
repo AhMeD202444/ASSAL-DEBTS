@@ -5371,12 +5371,12 @@ function getRowCAG(row){
   ).trim();
 }
 
-// جملة: نجيب القائمة من شيت ALL ونفلترها حسب CAG = اسم الصنف (مثل LCD / BATTERY ...)
+// جملة: اقرأ من نفس شيت الصنف المختار (LCD / HOUSING / BUZZER / ...)
+// وليس من شيت ALL
 function getWholesaleList(cat){
   if(!cat || cat === 'NO-CATEGORY') return [];
-  const all = database.ALL || [];
-  const c = String(cat).trim();
-  return (Array.isArray(all) ? all : []).filter(r => getRowCAG(r) === c);
+  const list = database[cat] || [];
+  return Array.isArray(list) ? list : [];
 }
 function findPrice(cat, itemName){
   if(!cat || cat === 'NO-CATEGORY' || !itemName) return '';
@@ -5385,7 +5385,7 @@ function findPrice(cat, itemName){
   const qn = norm(itemName);
   const row = list.find(r => norm(r["Item Name"] || r["Item"] || '') === qn);
   if(!row) return '';
-  // جملة: السعر من Price (بدون Discount)
+  // جملة: نبقي السعر من Price لكن القراءة من نفس شيت الصنف
   if(type === 'جملة'){
     return parseIQD(row["Price"] ?? row["PRICE"] ?? row["price"]);
   }
