@@ -5378,18 +5378,49 @@ function getWholesaleList(cat){
   const list = database[cat] || [];
   return Array.isArray(list) ? list : [];
 }
+
+// ✅ توحيد اختيار السعر لكل الأنواع:
+// إذا موجود Discount Price وبقيمة فعلية نأخذه، وإلا نرجع إلى Price.
+function getRowPriceValue(row){
+  if(!row || typeof row !== 'object') return '';
+
+  const pick = (keys) => {
+    for (const key of keys){
+      if (!(key in row)) continue;
+      const val = row[key];
+      if (val == null) continue;
+      if (String(val).trim() === '') continue;
+      return val;
+    }
+    return '';
+  };
+
+  const discount = pick([
+    'Discount Price','DISCOUNT PRICE','discount price','DiscountPrice',
+    'سعر الخصم','سعر_الخصم'
+  ]);
+  if (discount !== '') return parseIQD(discount);
+
+  const normal = pick([
+    'Price','PRICE','price','السعر'
+  ]);
+  if (normal !== '') return parseIQD(normal);
+
+  return '';
+}
+
 function findPrice(cat, itemName){
   if(!cat || cat === 'NO-CATEGORY' || !itemName) return '';
+
   const type = getSelectedType();
   const list = (type === 'جملة') ? getWholesaleList(cat) : (database[cat] || []);
   const qn = norm(itemName);
   const row = list.find(r => norm(r["Item Name"] || r["Item"] || '') === qn);
   if(!row) return '';
-  // جملة: نبقي السعر من Price لكن القراءة من نفس شيت الصنف
-  if(type === 'جملة'){
-    return parseIQD(row["Price"] ?? row["PRICE"] ?? row["price"]);
-  }
-  return parseIQD(row["Discount Price"] ? row["Discount Price"] : row["Price"]);
+
+  // ✅ جملة تبقى تقرأ من شيت الصنف نفسه، لكن السعر يصير:
+  // Discount Price إذا موجود، وإلا Price.
+  return getRowPriceValue(row);
 }
 function tryFillPrice(){
   const cat  = getSelectedCat();
