@@ -8592,33 +8592,38 @@ function exportDayPDF_Vector(){
           return n.toLocaleString('en-US');
         }
 
-        // ✅ حساب مجموع البطاقة / غير مدفوع
-      // ✅ حساب مجموع البطاقة / غير مدفوع
-// ملاحظة: القطع الراجعة تنطرح من المجموع (تروح سالب)
-function sumCard(card){
-  let total  = 0; // مجموع الباقي الحقيقي
-  let unpaid = 0; // نفس الشي (إنت تريد نفس المنطق)
+        // ✅ مجاميع الطباعة: الكلي = المدفوع + غير المدفوع، والراجع مستقل
+        function sumCard(card){
+  const out = { total:0, paid:0, unpaid:0, returned:0 };
 
-  (card.lines || []).forEach(ln => {
-    if (ln.deletedAt) return;
+  const activeLines = (card.lines || []).filter(ln => ln && !ln.deletedAt);
+  const isCash = (String(card && card.billType || '') === 'نقدي') ||
+    activeLines.some(ln => String(ln.type || '') === 'نقدي');
 
-    // نهمل الراجع نهائياً
-    if (ln.returned) return;
-
-    // نهمل المدفوع نهائياً
-    if (ln.paid) return;
-
-    // إذا وصلنا لهنا: هذا سطر فعّال فعلاً (مو راجع ومو مدفوع)
-    const price = Number(ln.price || 0);
+  activeLines.forEach(ln => {
+    const price = Number(String(ln.price ?? '').replace(/[^\\d.]/g,'')) || 0;
     const qty   = parseInt(String(ln.qty || '1'), 10) || 1;
     const sub   = price * qty;
 
-    total  += sub;
-    unpaid += sub;
+    // الراجع يظهر بحسابه الخاص فقط وما يدخل بالمجموع الكلي
+    if (ln.returned){
+      out.returned += sub;
+      return;
+    }
+
+    // المجموع الكلي = المدفوع + غير المدفوع
+    out.total += sub;
+
+    if (isCash || ln.paid){
+      out.paid += sub;
+    } else {
+      out.unpaid += sub;
+    }
   });
 
-  return { total, unpaid };
+  return out;
 }
+
 
 
 
@@ -8719,15 +8724,21 @@ function sumCard(card){
 
             box.appendChild(tbl);
 
-            // ✅ مجاميع البطاقة (المجموع / غير مدفوع / عدد المواد)
+            // ✅ مجاميع البطاقة: الكلي / المدفوع / غير المدفوع / الراجع عند وجوده
             (function(){
               const sums = sumCard(card);
               const totalsDiv = document.createElement('div');
               totalsDiv.className = 'totals';
+              const returnedPill = (sums.returned > 0)
+                ? '<span class="totals__pill">الراجع: ' + formatIQD(sums.returned) + '</span>'
+                : '';
+
               totalsDiv.innerHTML = \`
                 <span class="totals__pill">مواد: \${(card.lines||[]).filter(l=>!l.deletedAt).length}</span>
-                <span class="totals__pill">المجموع: \${formatIQD(sums.total)}</span>
-                <span class="totals__pill">غير مدفوع: \${formatIQD(sums.unpaid)}</span>
+                <span class="totals__pill">المجموع الكلي: \${formatIQD(sums.total)}</span>
+                <span class="totals__pill">المدفوع: \${formatIQD(sums.paid)}</span>
+                <span class="totals__pill">غير المدفوع: \${formatIQD(sums.unpaid)}</span>
+                \${returnedPill}
               \`;
               box.appendChild(totalsDiv);
             })();
@@ -9220,33 +9231,34 @@ function exportCardPDF_Vector(card, dayKey){
           return n.toLocaleString('en-US');
         }
 
-        // ✅ عدّلناها: نحسب إجمالي المواد الراجعة returned
+        // ✅ مجاميع الطباعة: الكلي = المدفوع + غير المدفوع، والراجع مستقل
         function sumCard(card){
-          let total = 0;
-          let unpaid = 0;
-          let returned = 0;
+          const out = { total:0, paid:0, unpaid:0, returned:0 };
 
-          (card.lines || []).forEach(function(ln){
-            if(!ln || ln.deletedAt) return;
+          const activeLines = (card.lines || []).filter(function(ln){ return ln && !ln.deletedAt; });
+          const isCash = (String(card && card.billType || '') === 'نقدي') ||
+            activeLines.some(function(ln){ return String(ln.type || '') === 'نقدي'; });
 
+          activeLines.forEach(function(ln){
             const price = Number(String(ln.price ?? '').replace(/[^\\d.]/g,'')) || 0;
             const qty   = parseInt(String(ln.qty || '1'),10) || 1;
             const sub   = price * qty;
 
             if(ln.returned){
-              returned += sub;   // المواد المسترجعة تنحسب هنا فقط
-              return;           // وما تدخل على الدين
+              out.returned += sub;
+              return;
             }
 
-            const isCash = (String(card?.billType||'') === 'نقدي') ||
-              (card.lines || []).some(l => l && !l.deletedAt && String(l.type||'') === 'نقدي');
-            if(ln.paid && !isCash) return; // المدفوع ما يدخل ضمن الدين (إلا إذا كانت الفاتورة نقدي)
+            out.total += sub;
 
-            total  += sub;
-            unpaid += sub;
+            if(isCash || ln.paid){
+              out.paid += sub;
+            } else {
+              out.unpaid += sub;
+            }
           });
 
-          return { total, unpaid, returned };
+          return out;
         }
 
         function escHtmlLocal(s){
@@ -9298,23 +9310,30 @@ function exportCardPDF_Vector(card, dayKey){
             ? 'عدد سطور الفاتورة' 
             : 'عدد سطور الفاتورة (دين فقط)';
 
-          var totalsMainLabel = (billType === 'نقدي')
-            ? 'اجمالي الفاتورة'
-            : 'اجمالي الفاتورة (دين فقط)';
+          var totalsMainLabel = 'المجموع الكلي';
 
 
           const isKnownCustomer = card.customer && KNOWN.indexOf(card.customer) !== -1;
-          const totals = sumCard(card); // فيها unpaid + returned
-          const totalsMainValue = (billType === 'نقدي') ? totals.total : totals.unpaid;
-          const returnedRowHtml = (billType === 'نقدي')
-            ? ''
-            : (
+          const totals = sumCard(card);
+          const totalsMainValue = totals.total;
+          const paidRowHtml =
+            '<div class="totals-row">' +
+              '<div class="totals-label">المجموع المدفوع</div>' +
+              '<div class="totals-value">'+ formatIQD(totals.paid) +'</div>' +
+            '</div>';
+          const unpaidRowHtml =
+            '<div class="totals-row">' +
+              '<div class="totals-label">المجموع غير المدفوع</div>' +
+              '<div class="totals-value">'+ formatIQD(totals.unpaid) +'</div>' +
+            '</div>';
+          const returnedRowHtml = (totals.returned > 0)
+            ? (
                 '<div class="totals-row">' +
-                  '<div class="totals-label">إجمالي المسترجع</div>' +
-                  '<div class="totals-value totals-value-minus">'+ (totals.returned ? ('-' + formatIQD(totals.returned)) : '0') +'</div>' +
+                  '<div class="totals-label">مجموع الراجع</div>' +
+                  '<div class="totals-value totals-value-minus">'+ formatIQD(totals.returned) +'</div>' +
                 '</div>'
-              );
-          const cashPaidRowHtml = '';
+              )
+            : '';
           const createdAt = card.createdAt || card.at || null;
           const timeStr   = createdAt ? tinyTime(createdAt) : '';
           const invoiceId = card.id ? String(card.id) : '';
@@ -9383,7 +9402,9 @@ function exportCardPDF_Vector(card, dayKey){
               '<div class="notes-header-title">الملاحظات</div>' +
               '<div class="notes-count">'+ notesArr.length +'</div>' +
             '</div>' +
-            '<div class="main-note">المواد المسترجعة لا تُحتسب ضمن إجمالي الفاتورة بل ترجع من حساب الزبون السابق.</div>';
+            (totals.returned > 0
+              ? '<div class="main-note">المواد المسترجعة لا تُحتسب ضمن المجموع الكلي وتظهر بحساب الراجع فقط.</div>'
+              : '');
 
           if(notesArr.length){
             notesArr.forEach(function(n, i){
@@ -9481,13 +9502,14 @@ function exportCardPDF_Vector(card, dayKey){
                 notesHtml +
               '</div>' +
               '<div class="totals-card">' +
-                '<div class="totals-title">مجموع الفاتورة</div>' +
+                '<div class="totals-title">مجاميع البطاقة</div>' +
                 '<div class="totals-row totals-main">' +
                   '<div class="totals-label">'+ totalsMainLabel +'</div>' +
                   '<div class="totals-value">'+ formatIQD(totalsMainValue) +'</div>' +
                 '</div>' +
+                paidRowHtml +
+                unpaidRowHtml +
                 returnedRowHtml +
-                cashPaidRowHtml +
               '</div>' +
             '</div>' +
 
