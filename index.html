@@ -604,6 +604,52 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
   text-decoration:line-through;   /* تبقيها مشطوب */
 }
 
+
+/* === وميض نتائج بحث المادة داخل البطاقة ===
+   يشتغل على كل حالات المادة: عادي / مدفوع / راجع / آجل
+   ويبقى فعالاً طالما حقل بحث المادة يحتوي نصاً.
+*/
+.item.item-search-hit,
+.item.paid.item-search-hit,
+.item.returned.item-search-hit{
+  border-color:rgba(34,211,238,.95) !important;
+  box-shadow:
+    0 0 0 1px rgba(34,211,238,.35),
+    0 0 16px rgba(34,211,238,.20) !important;
+  animation:item-search-hit-pulse 1.45s ease-in-out infinite;
+}
+.item.item-search-hit{
+  background:
+    linear-gradient(90deg,rgba(34,211,238,.16),rgba(124,58,237,.16),rgba(34,211,238,.08)),
+    #0c1529 !important;
+}
+.item.paid.item-search-hit{
+  background:
+    linear-gradient(90deg,rgba(34,197,94,.15),rgba(34,211,238,.20),rgba(124,58,237,.12)),
+    #0b2617 !important;
+}
+.item.returned.item-search-hit{
+  background:
+    linear-gradient(90deg,rgba(239,68,68,.16),rgba(34,211,238,.20),rgba(124,58,237,.12)),
+    #2a0c12 !important;
+}
+.item.item-search-hit .iname{
+  color:#f8fafc !important;
+  text-shadow:0 0 10px rgba(34,211,238,.45);
+}
+@keyframes item-search-hit-pulse{
+  0%,100%{
+    box-shadow:
+      0 0 0 1px rgba(34,211,238,.30),
+      0 0 12px rgba(34,211,238,.16);
+  }
+  50%{
+    box-shadow:
+      0 0 0 2px rgba(34,211,238,.58),
+      0 0 24px rgba(34,211,238,.30);
+  }
+}
+
     
  
  
@@ -644,8 +690,10 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
 
 .toasts{
   position:fixed;
-  inset-inline:50%;
-  transform:translateX(50%);
+  left:50%;
+  right:auto;
+  inset-inline:auto;
+  transform:translateX(-50%);
 
   /* NEW: تحت الهيدر */
   top: calc(var(--hdr-h, 64px) + 10px);
@@ -718,8 +766,8 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
 .toast.error   .toast__icon{background:linear-gradient(180deg,#7f1d1d,#4c0b0b);border-color:rgba(239,68,68,.45)}
 .toast.info    .toast__icon{background:linear-gradient(180deg,#0b3b5b,#07293f);border-color:rgba(14,165,233,.45)}
 
-@keyframes toast-in-top{from{transform:translateX(50%) translateY(-10px);opacity:0}to{transform:translateX(50%) translateY(0);opacity:1}}
-@keyframes toast-out-top{from{transform:translateX(50%) translateY(0);opacity:1}to{transform:translateX(50%) translateY(-8px);opacity:0}}
+@keyframes toast-in-top{from{transform:translateY(-10px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes toast-out-top{from{transform:translateY(0);opacity:1}to{transform:translateY(-8px);opacity:0}}
 
 /* أخفِ زر الإغلاق نهائياً */
 .toast__close{ display:none !important; }
@@ -887,11 +935,15 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
   gap:8px;
 }
 
-/* الحقل يتمدّد، بدون ما يطيح للتالي */
+/* الحقول تتمدّد بنعومة: بحث الاسم + بحث المادة */
 .board-search .input{
-  flex:1 1 auto;
-  min-width:160px;
+  flex:1 1 190px;
+  min-width:150px;
   height:34px;
+}
+#cardSearch,
+#itemSearch{
+  min-width:170px;
 }
 
 /* (اختياري) استجابة للشاشات الصغيرة: خليه يلفّ بنعومة */
@@ -1438,6 +1490,60 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
     max-width: calc(100vw - 32px) !important;
   }
 }
+
+/* ===== FINAL: التوست يتمدد حسب طول الرسالة بدون قصّ النص ===== */
+.toasts{
+  width: min(1120px, calc(100vw - 24px));
+  align-items: center;
+}
+.toasts .toast{
+  width: max-content !important;
+  max-width: min(1120px, calc(100vw - 32px)) !important;
+  min-width: 0 !important;
+  box-sizing: border-box;
+}
+.toasts .toast__msg{
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  min-width: 0;
+  max-width: calc(100vw - 128px);
+  line-height: 1.65;
+}
+@media (min-width: 981px){
+  .toasts .toast__msg{
+    white-space: nowrap !important;
+    max-width: calc(100vw - 180px);
+  }
+}
+@media (max-width: 700px){
+  .toasts{
+    width: calc(100vw - 18px);
+  }
+  .toasts .toast{
+    width: auto !important;
+    max-width: calc(100vw - 20px) !important;
+  }
+  .toasts .toast__msg{
+    max-width: calc(100vw - 96px);
+  }
+}
+
+
+/* ===== FINAL: تثبيت التوست في منتصف الصفحة فعلياً =====
+   ملاحظة: التوسيط هنا على الحاوية فقط، والأنيميشن صار عمودي بدون أي إزاحة أفقية. */
+.toasts{
+  left: 50% !important;
+  right: auto !important;
+  inset-inline-start: auto !important;
+  inset-inline-end: auto !important;
+  transform: translateX(-50%) !important;
+  align-items: center !important;
+}
+.toasts .toast{
+  margin-inline: auto !important;
+}
+
 
 
 /* ابعاد زر الدخول قليلاً عن حقل كلمة السر */
@@ -3837,6 +3943,93 @@ body{ padding-top: var(--hdr-h); }
   
   
 </style>
+
+
+<style id="assal-toast-center-viewport-100-final">
+/* ===== ASSAL FINAL FIX: توسيط التوست بنسبة 100% بدون زحف يمين/يسار =====
+   الحاوية تمتد على عرض الشاشة بالكامل، والبطاقة نفسها تتمركز داخلها.
+   لا يوجد translateX ولا inset-inline متأثر باتجاه RTL/LTR. */
+#toasts.toasts,
+.toasts{
+  position: fixed !important;
+  top: calc(var(--hdr-h, 64px) + 10px) !important;
+  left: 0 !important;
+  right: 0 !important;
+  inset-inline-start: 0 !important;
+  inset-inline-end: 0 !important;
+  inset-inline: 0 !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  transform: none !important;
+  box-sizing: border-box !important;
+  padding-inline: 12px !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 12px !important;
+  pointer-events: none !important;
+  z-index: 30000 !important;
+}
+#toasts.toasts .toast,
+.toasts .toast{
+  position: relative !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  margin-inline: auto !important;
+  width: fit-content !important;
+  max-width: calc(100vw - 24px) !important;
+  min-width: min(320px, calc(100vw - 24px)) !important;
+  box-sizing: border-box !important;
+  pointer-events: auto !important;
+}
+#toasts.toasts .toast__msg,
+.toasts .toast__msg{
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  max-width: calc(100vw - 116px) !important;
+  min-width: 0 !important;
+  line-height: 1.65 !important;
+}
+@media (min-width: 981px){
+  #toasts.toasts .toast,
+  .toasts .toast{
+    max-width: min(1120px, calc(100vw - 48px)) !important;
+  }
+  #toasts.toasts .toast__msg,
+  .toasts .toast__msg{
+    max-width: min(980px, calc(100vw - 180px)) !important;
+  }
+}
+@media (max-width: 700px){
+  #toasts.toasts,
+  .toasts{
+    padding-inline: 10px !important;
+  }
+  #toasts.toasts .toast,
+  .toasts .toast{
+    min-width: min(280px, calc(100vw - 20px)) !important;
+    max-width: calc(100vw - 20px) !important;
+  }
+  #toasts.toasts .toast__msg,
+  .toasts .toast__msg{
+    max-width: calc(100vw - 96px) !important;
+  }
+}
+@keyframes toast-in-top{
+  from{ transform: translateY(-10px); opacity: 0; }
+  to{ transform: translateY(0); opacity: 1; }
+}
+@keyframes toast-out-top{
+  from{ transform: translateY(0); opacity: 1; }
+  to{ transform: translateY(-8px); opacity: 0; }
+}
+</style>
 </head>
 
 <body>
@@ -3974,6 +4167,7 @@ body{ padding-top: var(--hdr-h); }
 
   <div class="board-search">
     <input id="cardSearch" class="input" type="text" placeholder="بحث بالاسم (مثال: حسين)"/>
+    <input id="itemSearch" class="input" type="text" placeholder="بحث بالمادة (مثال: بطارية)"/>
     <label class="chip" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;flex:0 0 auto">
       <input id="globalSearch" type="checkbox" style="accent-color:#7c3aed;width:16px;height:16px;cursor:pointer">
       بحث كل الأيام
@@ -3987,7 +4181,7 @@ body{ padding-top: var(--hdr-h); }
 
   <div class="chips">
     <button id="btnExportDay" class="btn ghost"><i class="fa-regular fa-file-pdf"></i> PDF اليوم</button>
-    <button id="btnClearDay" class="btn ghost"><i class="fa-regular fa-trash-can"></i> تفريغ اليوم</button>
+    <!-- تم حذف زر تفريغ اليوم حفاظاً على الأرشيف والديون -->
   </div>
 </div>
 
@@ -5746,8 +5940,198 @@ document.addEventListener('click', (ev)=>{
     /* ============ بيانات محلية ============ */
     const STORAGE = 'assal:board:v3';
     const NAMES   = 'assal:names:v3';
+    const PAYMENTS_STORE_KEY = 'assal.payments.v1';
     let globalLimit = 20;
-    
+
+
+/* =========================================================
+   ASSAL SAFE LOCAL DATABASE - IndexedDB
+   - البيانات الثقيلة تنتقل إلى IndexedDB بدل localStorage
+   - لا حذف تلقائي إطلاقاً عند الامتلاء
+   - localStorage يبقى للإعدادات الصغيرة فقط
+========================================================= */
+const ASSAL_IDB_NAME  = 'ASSAL_DEBTS_LOCAL_DB_V1';
+const ASSAL_IDB_STORE = 'kv';
+const ASSAL_BIG_KEYS  = new Set([STORAGE, NAMES, PAYMENTS_STORE_KEY]);
+const ASSAL_BIG_CACHE = window.__ASSAL_BIG_CACHE || (window.__ASSAL_BIG_CACHE = {});
+
+function cloneDataSafe(v){
+  try{ return JSON.parse(JSON.stringify(v)); }catch{ return v; }
+}
+
+function readLocalJSONSafe(k, d){
+  try{
+    const raw = localStorage.getItem(k);
+    if(raw == null || raw === '') return d;
+    const obj = JSON.parse(raw);
+    return obj == null ? d : obj;
+  }catch{ return d; }
+}
+
+function assalOpenIDB(){
+  if(!('indexedDB' in window)){
+    return Promise.reject(new Error('IndexedDB غير مدعوم في هذا المتصفح'));
+  }
+  if(window.__ASSAL_IDB_PROMISE__) return window.__ASSAL_IDB_PROMISE__;
+
+  window.__ASSAL_IDB_PROMISE__ = new Promise((resolve, reject)=>{
+    const req = indexedDB.open(ASSAL_IDB_NAME, 1);
+    req.onupgradeneeded = (ev)=>{
+      const db = ev.target.result;
+      if(!db.objectStoreNames.contains(ASSAL_IDB_STORE)){
+        db.createObjectStore(ASSAL_IDB_STORE, { keyPath:'key' });
+      }
+    };
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror   = ()=> reject(req.error || new Error('فشل فتح IndexedDB'));
+    req.onblocked = ()=> console.warn('[ASSAL IDB] open blocked - close other tabs if needed');
+  });
+  return window.__ASSAL_IDB_PROMISE__;
+}
+
+async function assalIDBGet(key, fallback){
+  const db = await assalOpenIDB();
+  return await new Promise((resolve, reject)=>{
+    const tx  = db.transaction(ASSAL_IDB_STORE, 'readonly');
+    const req = tx.objectStore(ASSAL_IDB_STORE).get(key);
+    req.onsuccess = ()=> resolve(req.result ? req.result.value : fallback);
+    req.onerror   = ()=> reject(req.error || new Error('فشل قراءة IndexedDB'));
+  });
+}
+
+async function assalIDBSet(key, value){
+  const db = await assalOpenIDB();
+  return await new Promise((resolve, reject)=>{
+    const tx = db.transaction(ASSAL_IDB_STORE, 'readwrite');
+    tx.objectStore(ASSAL_IDB_STORE).put({ key, value: cloneDataSafe(value), updatedAt: Date.now() });
+    tx.oncomplete = ()=> resolve(true);
+    tx.onerror    = ()=> reject(tx.error || new Error('فشل حفظ IndexedDB'));
+    tx.onabort    = ()=> reject(tx.error || new Error('تم إلغاء حفظ IndexedDB'));
+  });
+}
+
+function assalIsQuotaError(e){
+  try{
+    const n = (e && e.name) ? String(e.name) : '';
+    const s = String(e || '');
+    return n === 'QuotaExceededError' || n === 'NS_ERROR_DOM_QUOTA_REACHED' || /quota|storage|exceed/i.test(s);
+  }catch{ return false; }
+}
+
+function handleIDBSaveFailure(err){
+  console.error('[ASSAL IDB SAVE FAILED]', err);
+  window.__ASSAL_IDB_SAVE_FAILED = true;
+  const msg = assalIsQuotaError(err)
+    ? 'امتلأ تخزين المتصفح. لم يتم حذف أي بيانات. خذ نسخة احتياطية أو استخدم متصفح/جهاز بمساحة أكبر.'
+    : 'تعذر حفظ البيانات محلياً. لم يتم حذف أي بيانات.';
+  try{ showToast?.('error', msg); }catch{}
+}
+
+async function saveBigStoreAndWait(key, value){
+  ASSAL_BIG_CACHE[key] = cloneDataSafe(value);
+  try{
+    await assalIDBSet(key, ASSAL_BIG_CACHE[key]);
+    return true;
+  }catch(err){
+    handleIDBSaveFailure(err);
+    throw err;
+  }
+}
+
+function saveBigStore(key, value){
+  ASSAL_BIG_CACHE[key] = cloneDataSafe(value);
+  const p = assalIDBSet(key, ASSAL_BIG_CACHE[key]).catch(handleIDBSaveFailure);
+  return p;
+}
+
+function loadBigStoreSync(key, fallback){
+  if(Object.prototype.hasOwnProperty.call(ASSAL_BIG_CACHE, key)){
+    return cloneDataSafe(ASSAL_BIG_CACHE[key]);
+  }
+  return readLocalJSONSafe(key, fallback);
+}
+
+function loadPaymentsStore(){
+  return loadBigStoreSync(PAYMENTS_STORE_KEY, {});
+}
+
+async function getBrowserStorageEstimate(){
+  try{
+    if(navigator.storage && navigator.storage.estimate){
+      return await navigator.storage.estimate();
+    }
+  }catch{}
+  return null;
+}
+
+async function initAssalIndexedStorage(){
+  if(window.__ASSAL_IDB_INIT_DONE) return true;
+  if(window.__ASSAL_IDB_INIT_PROMISE) return window.__ASSAL_IDB_INIT_PROMISE;
+
+  window.__ASSAL_IDB_INIT_PROMISE = (async()=>{
+    const localDays  = readLocalJSONSafe(STORAGE, {});
+    const localNames = readLocalJSONSafe(NAMES, []);
+    const localPays  = readLocalJSONSafe(PAYMENTS_STORE_KEY, {});
+
+    let idbDays  = {};
+    let idbNames = [];
+    let idbPays  = {};
+
+    try{ idbDays  = await assalIDBGet(STORAGE, null); }catch(e){ idbDays = null; }
+    try{ idbNames = await assalIDBGet(NAMES, null); }catch(e){ idbNames = null; }
+    try{ idbPays  = await assalIDBGet(PAYMENTS_STORE_KEY, null); }catch(e){ idbPays = null; }
+
+    // الأيام: إذا عندنا نسخة قديمة بالـ localStorage ونسخة بالـ IDB ندمجهن حتى لا نخسر أي تغيير
+    if(idbDays && Object.keys(idbDays||{}).length && localDays && Object.keys(localDays||{}).length){
+      try{
+        const merged = (typeof mergeAllDays === 'function') ? mergeAllDays(localDays, idbDays).days : { ...idbDays, ...localDays };
+        days = merged || {};
+      }catch{ days = idbDays || localDays || {}; }
+    }else{
+      days = (idbDays && Object.keys(idbDays||{}).length) ? idbDays : (localDays || {});
+    }
+
+    // الأسماء: دمج بدون تكرار
+    const aNames = Array.isArray(idbNames) ? idbNames : [];
+    const bNames = Array.isArray(localNames) ? localNames : [];
+    names = Array.from(new Set([ ...aNames, ...bNames ].map(x=>String(x||'').trim()).filter(Boolean)));
+
+    // الحسابات المالية: دمج آمن إذا توفرت دالة الدمج
+    try{
+      if(typeof mergePaymentsStores === 'function'){
+        ASSAL_BIG_CACHE[PAYMENTS_STORE_KEY] = mergePaymentsStores(localPays || {}, idbPays || {});
+      }else{
+        ASSAL_BIG_CACHE[PAYMENTS_STORE_KEY] = { ...(idbPays || {}), ...(localPays || {}) };
+      }
+    }catch{
+      ASSAL_BIG_CACHE[PAYMENTS_STORE_KEY] = idbPays || localPays || {};
+    }
+
+    ASSAL_BIG_CACHE[STORAGE] = cloneDataSafe(days || {});
+    ASSAL_BIG_CACHE[NAMES]   = cloneDataSafe(names || []);
+
+    // ثبّت النسخة الكبيرة داخل IndexedDB ثم فرّغ النسخة القديمة من localStorage حتى لا يبقى ممتلئ
+    await saveBigStoreAndWait(STORAGE, ASSAL_BIG_CACHE[STORAGE]);
+    await saveBigStoreAndWait(NAMES, ASSAL_BIG_CACHE[NAMES]);
+    await saveBigStoreAndWait(PAYMENTS_STORE_KEY, ASSAL_BIG_CACHE[PAYMENTS_STORE_KEY]);
+
+    try{ localStorage.removeItem(STORAGE); }catch{}
+    try{ localStorage.removeItem(NAMES); }catch{}
+    try{ localStorage.removeItem(PAYMENTS_STORE_KEY); }catch{}
+
+    window.__ASSAL_IDB_INIT_DONE = true;
+    return true;
+  })();
+
+  return window.__ASSAL_IDB_INIT_PROMISE;
+}
+
+window.initAssalIndexedStorage = initAssalIndexedStorage;
+window.loadPaymentsStore       = loadPaymentsStore;
+window.saveBigStore            = saveBigStore;
+window.saveBigStoreAndWait     = saveBigStoreAndWait;
+
+
     
     
     
@@ -5781,7 +6165,7 @@ function updateRoleUIState(){
   if(importBtn){
     importBtn.disabled = false;                  // السحب دايمًا مسموح
     importBtn.title = isSubDevice()
-      ? 'سحب نسخة السيرفر (سيتم استبدال المحلية)'
+      ? 'سحب نسخة السيرفر إلى IndexedDB المحلي' 
       : 'سحب النسخة من السيرفر (دمج ذكي)';
   }
   if(roleBtn){
@@ -5888,7 +6272,7 @@ function rebuildCustomersFromDB(){
     // [AUTO] migrate old invoices (بيع -> اجل) so badges don't show 'مختلطة'
     try{
       if(migrateLegacySellToAjal(days)){
-        localStorage.setItem(STORAGE, JSON.stringify(days));
+        saveBigStore(STORAGE, days);
       }
     }catch{}
 
@@ -5901,17 +6285,18 @@ Object.defineProperty(window, 'selectedDay', { get(){ return selectedDay; } });
     
     
 
-    function load(k, d){ try{ return JSON.parse(localStorage.getItem(k)||JSON.stringify(d)); }catch{ return d; } }
+    function load(k, d){
+      try{
+        if(ASSAL_BIG_KEYS && ASSAL_BIG_KEYS.has(k)) return loadBigStoreSync(k, d);
+        return readLocalJSONSafe(k, d);
+      }catch{ return d; }
+    }
     
 
-// ===== [AUTO] Balanced localStorage saving (delete oldest invoices if storage is full) =====
-function __isQuotaErr__(e){
-  try{
-    const n = (e && e.name) ? String(e.name) : '';
-    const s = String(e || '');
-    return n === 'QuotaExceededError' || n === 'NS_ERROR_DOM_QUOTA_REACHED' || /quota/i.test(s);
-  }catch{ return false; }
-}
+// ===== [AUTO] Safe IndexedDB saving (NO AUTO DELETE) =====
+// ملاحظة مهمة: لا نحذف أقدم أيام نهائياً عند امتلاء التخزين.
+// نحفظ داخل IndexedDB، وإذا فشل الحفظ نعرض تحذير فقط ونحمي السيرفر من النسخ الناقصة.
+function __isQuotaErr__(e){ return assalIsQuotaError(e); }
 
 function __getCardsFromDayVal__(dayVal){
   if(Array.isArray(dayVal)) return dayVal;
@@ -5919,79 +6304,27 @@ function __getCardsFromDayVal__(dayVal){
   return [];
 }
 function __setCardsToDayVal__(dayVal, cards){
-  if(Array.isArray(dayVal)) return cards;            // dayVal itself is the array
+  if(Array.isArray(dayVal)) return cards;
   if(dayVal && typeof dayVal === 'object'){
     dayVal.cards = cards;
     return dayVal;
   }
-  // fallback: store as array
   return cards;
 }
 
-
-// ===== حذف أقدم أيام بالكامل عند امتلاء التخزين =====
-const DELETE_OLDEST_DAYS = 5;
-
-// يحذف أقدم N أيام كاملة (بكل فواتيرها) من كائن الأيام daysObj
-function __dropOldestDaysFromDays__(daysObj, n = DELETE_OLDEST_DAYS){
-  try{
-    const keys = Object.keys(daysObj || {});
-    if(!keys.length) return { days:0, invoices:0 };
-
-    const scored = keys.map(k=>{
-      let t = 0;
-      try{ t = new Date(k).getTime(); }catch{}
-      if(!Number.isFinite(t)) t = 0;
-      return { k, t };
-    });
-
-    scored.sort((a,b)=> (a.t - b.t) || String(a.k).localeCompare(String(b.k)));
-
-    let daysRemoved = 0;
-    let invoicesRemoved = 0;
-
-    for(const it of scored){
-      if(daysRemoved >= n) break;
-
-      const dayVal = daysObj[it.k];
-      const cards = __getCardsFromDayVal__(dayVal);
-      if(Array.isArray(cards)) invoicesRemoved += cards.length;
-
-      delete daysObj[it.k];
-      daysRemoved++;
-    }
-
-    return { days:daysRemoved, invoices:invoicesRemoved };
-  }catch{
-    return { days:0, invoices:0 };
-  }
-}
-
-// يحاول يخزّن daysObj على STORAGE، وإذا امتلأت الذاكرة يحذف أقدم 5 أيام كاملة ثم يعيد المحاولة
 function saveDaysToStorageBalanced(daysObj){
-  let removedDays = 0;
-  let removedInvoices = 0;
-  let attempt = 0;
-
-  while(attempt < 200){
-    attempt++;
-    try{
-      localStorage.setItem(STORAGE, JSON.stringify(daysObj || {}));
-      return { ok:true, removedDays, removedInvoices };
-    }catch(e){
-      if(!__isQuotaErr__(e)) throw e;
-
-      const r = __dropOldestDaysFromDays__(daysObj, DELETE_OLDEST_DAYS);
-      if(!r || !r.days) return { ok:false, removedDays, removedInvoices };
-
-      removedDays     += r.days;
-      removedInvoices += (r.invoices || 0);
-    }
+  try{
+    // تحديث الكاش فوراً حتى تبقى الواجهة القديمة بنفس السلوك السريع
+    ASSAL_BIG_CACHE[STORAGE] = cloneDataSafe(daysObj || {});
+    // الحفظ الحقيقي يصير داخل IndexedDB بدون أي حذف تلقائي
+    saveBigStore(STORAGE, ASSAL_BIG_CACHE[STORAGE]);
+    return { ok:true, removedDays:0, removedInvoices:0, noDelete:true };
+  }catch(e){
+    handleIDBSaveFailure(e);
+    return { ok:false, removedDays:0, removedInvoices:0, noDelete:true };
   }
-
-  return { ok:false, removedDays, removedInvoices };
 }
-// ===== [END AUTO] Balanced localStorage saving =====
+// ===== [END AUTO] Safe IndexedDB saving =====
 
 
 // ===== [AUTO] Normalize & migrate legacy invoice types (بيع -> اجل) =====
@@ -6060,13 +6393,9 @@ function migrateLegacySellToAjal(daysObj){
 
 function save(){
   const res = saveDaysToStorageBalanced(days);
-  if(res && (res.removedDays || res.removedInvoices)){
-    // حذفنا أقدم أيام حتى نقدر نخزّن
-    showToast?.('warn', `تم حذف ${res.removedDays} أيام قديمة (${res.removedInvoices} فاتورة) لتفريغ مساحة التخزين`);
-  }
   if(!res || !res.ok){
-    showToast?.('error','التخزين ممتلئ وما كدرنا نحفظ. صدّر نسخة (JSON/PDF) أو امسح يدويًا.');
-    try{ openStorageModal?.(); }catch{}
+    showToast?.('error','تعذر الحفظ المحلي. لم يتم حذف أي بيانات. خذ نسخة احتياطية أو استخدم جهاز/متصفح بمساحة أكبر.');
+    try{ openStorageUsageModal?.(); }catch{}
     return;
   }
   LAST_EDIT_TS = Date.now(); // حتى نمنع المزامنة مباشرة بعد أي تعديل
@@ -6807,7 +7136,7 @@ function updateNotesBadge(btnNotes, card){
 
 
 try{ window.__assalPayments = (function(){ 
-  const raw = localStorage.getItem('assal.payments.v1') || '{}';
+  const raw = JSON.stringify(loadPaymentsStore() || {});
   return JSON.parse(raw) || {};
 })(); }catch{}
 
@@ -6821,6 +7150,7 @@ function renderBoard() {
   host.innerHTML = '';
 
   const q = (document.getElementById('cardSearch')?.value || '').trim().toLowerCase();
+  const itemQ = (document.getElementById('itemSearch')?.value || '').trim().toLowerCase();
   const global = document.getElementById('globalSearch')?.checked;
 
   // نجمع البطاقات
@@ -6838,8 +7168,19 @@ function renderBoard() {
   const isActiveCard = (c) => !c.deletedAt && (c.lines || []).some(l => !l.deletedAt);
   pool = pool.filter(isActiveCard);
 
-  // فلترة حسب اسم الزبون
-  let arr = q ? pool.filter(c => (c.customer || '').toLowerCase().includes(q)) : pool;
+  // فلترة حسب اسم الزبون + اسم المادة
+  // إذا امتلأ الحقلين سوا: لازم البطاقة تطابق الاسم وتحتوي المادة بنفس الوقت.
+  let arr = pool;
+  if (q) {
+    arr = arr.filter(c => (c.customer || '').toLowerCase().includes(q));
+  }
+  if (itemQ) {
+    arr = arr.filter(c =>
+      (c.lines || []).some(ln =>
+        !ln.deletedAt && String(ln.item || '').toLowerCase().includes(itemQ)
+      )
+    );
+  }
 
   // ترتيب بالبحث الشامل: الأحدث فوق
   if (global) {
@@ -6971,6 +7312,11 @@ custWrap.appendChild(typeBadge);
         const it = CE('div', 'item');
         if (ln.returned) it.classList.add('returned');
         if (ln.paid) it.classList.add('paid');
+
+        // وميض نتيجة بحث المادة: مستقل عن حالة السطر (مدفوع/راجع/آجل)
+        if (itemQ && String(ln.item || '').toLowerCase().includes(itemQ)) {
+          it.classList.add('item-search-hit');
+        }
 
         const btnReturn = CE('button', 'btn-mini btn-return');
         btnReturn.innerHTML = '<i class="fa-solid fa-rotate-left"></i>';
@@ -7822,7 +8168,8 @@ function renderRail(){
 
 
     document.getElementById('dayFilter').addEventListener('input', renderRail);
-    document.getElementById('cardSearch').addEventListener('input', renderBoard);
+    document.getElementById('cardSearch')?.addEventListener('input', renderBoard);
+    document.getElementById('itemSearch')?.addEventListener('input', renderBoard);
 
     // إظهار/إخفاء فواتير الجملة في السجل
     (function initShowWholesaleLedger(){
@@ -8009,7 +8356,9 @@ extra.innerHTML = `
 
     /* ===== Actions ===== */
    
-  document.getElementById('btnClearDay').onclick  = async ()=>{
+  // زر تفريغ اليوم تم حذفه من الواجهة. نترك هذا الربط محمياً حتى لا يكسر السكربت إذا رجع العنصر مستقبلاً.
+  const btnClearDayEl = document.getElementById('btnClearDay');
+  if (btnClearDayEl) btnClearDayEl.onclick  = async ()=>{
   const ok = await showConfirm({
     title:'تفريغ اليوم',
     message:`سيتم حذف جميع بطاقات يوم ${arDateWithDay(selectedDay)}.`,
@@ -8167,14 +8516,16 @@ function formatBytesNice(bytes){
   return mb.toFixed(2) + ' MB';
 }
 
-function openStorageUsageModal(){
+async function openStorageUsageModal(){
   const backdrop = document.getElementById('storageModalBackdrop');
   const modal    = document.getElementById('storageModal');
   if(!backdrop || !modal) return;
 
-  const usedBytes  = getLocalStorageUsageBytes();
-  const limitBytes = APPROX_LOCALSTORAGE_LIMIT_BYTES;
-  const pctRaw     = (usedBytes / limitBytes) * 100;
+  const estimate   = await getBrowserStorageEstimate();
+  const lsBytes    = getLocalStorageUsageBytes();
+  const usedBytes  = Math.max(Number(estimate?.usage || 0), lsBytes);
+  const limitBytes = Number(estimate?.quota || 0) || APPROX_LOCALSTORAGE_LIMIT_BYTES;
+  const pctRaw     = limitBytes ? (usedBytes / limitBytes) * 100 : 0;
   const pct        = Math.max(0, Math.min(100, Math.round(pctRaw)));
   const leftBytes  = Math.max(0, limitBytes - usedBytes);
 
@@ -8200,7 +8551,7 @@ function openStorageUsageModal(){
   // نص مختصر
   if(txtMain){
     txtMain.textContent =
-      `مستعمل تقريباً ${formatBytesNice(usedBytes)} من ${formatBytesNice(limitBytes)} (${pct}٪ من السعة التقريبية).`;
+      `مستعمل تقريباً ${formatBytesNice(usedBytes)} من ${formatBytesNice(limitBytes)} (${pct}٪ من مساحة تخزين المتصفح المتاحة للموقع).`;
   }
 
   // حالة + تفاصيل + ألوان البادج
@@ -8214,11 +8565,11 @@ function openStorageUsageModal(){
     if(pct >= 75 && pct < 90){
       statusLabel = 'قريب من الحد';
       statusClass = 'storage-badge-warn';
-      statusText  = 'الاستخدام بدأ يقترب من الحد التقريبي. يُفضّل بين فترة وفترة تصدّر نسخة احتياطية وتمسح بيانات قديمة إذا ممكن.';
+      statusText  = 'الاستخدام بدأ يقترب من الحد التقريبي. يُفضّل تصدير نسخة احتياطية والتأكد من مزامنة السيرفر، بدون حذف تلقائي لأي بيانات.';
     }else if(pct >= 90){
       statusLabel = 'على وشك الامتلاء';
       statusClass = 'storage-badge-danger';
-      statusText  = 'التخزين قرّب يمتلئ. أنصحك فورًا تتأكد من النسخة الاحتياطية على السيرفر، وتمسح أو تضغط البيانات القديمة قبل ما يوقف الحفظ.';
+      statusText  = 'التخزين قرّب يمتلئ. النظام لن يحذف أي بيانات تلقائياً؛ خذ نسخة احتياطية وتأكد من مساحة الجهاز/المتصفح.';
     }
 
     badge.textContent = statusLabel;
@@ -8229,7 +8580,7 @@ function openStorageUsageModal(){
         `<div class="storage-more-text">${statusText}</div>
          <ul class="storage-list">
            <li>المتبقي التقريبي قبل الوصول للحد: <strong>${formatBytesNice(leftBytes)}</strong>.</li>
-           <li>الحد المستخدم هنا تقريبي (حوالي 5MB لـ localStorage) ويختلف من متصفح لآخر.</li>
+           <li>المساحة هنا تشمل IndexedDB وبيانات الموقع، وهي أكبر بكثير من localStorage القديم.</li>
            <li>ينصح دائماً بالاعتماد على النسخ الاحتياطية على السيرفر وعدم الاعتماد على هذا المتصفح فقط.</li>
          </ul>`;
     }
@@ -10416,19 +10767,15 @@ async function importInvoicesFromFile(file){
     const { days: mergedDays, report } = mergeAllDays(localDays, fileDays);
 
 
-    // خزّن النتيجة المدموجة
-    (function(){
-      const __res = saveDaysToStorageBalanced(mergedDays);
-      if(__res && __res.removed){ showToast?.('warn', `تم حذف ${__res.removed} فاتورة قديمة لتفريغ مساحة التخزين`); }
-      if(!__res || !__res.ok){ showToast?.('error','التخزين ممتلئ وما كدرنا نحفظ. صدّر نسخة (JSON) أو امسح يدويًا.'); try{ openStorageModal?.(); }catch{} }
-    })();
+    // خزّن النتيجة المدموجة داخل IndexedDB بدون أي حذف تلقائي
+    await saveBigStoreAndWait(STORAGE, mergedDays);
 
     // الأسماء: دمج بسيط (مجموعة)
     const curNames = Array.isArray(names) ? names : [];
     const newNames = Array.isArray(fileNames) ? fileNames : [];
     const namesSet = new Set([ ...curNames, ...newNames ]);
     const mergedNames = Array.from(namesSet);
-    localStorage.setItem(NAMES, JSON.stringify(mergedNames));
+    await saveBigStoreAndWait(NAMES, mergedNames);
 
     // حدّث الذاكرة والواجهة
     days  = load(STORAGE, {});
@@ -10437,7 +10784,7 @@ async function importInvoicesFromFile(file){
       // [AUTO] طبّق تصحيح أنواع الفواتير مباشرة بعد المزامنة (بدون ريفرش)
       try{
         if(migrateLegacySellToAjal(days)){
-          localStorage.setItem(STORAGE, JSON.stringify(days));
+          saveBigStore(STORAGE, days);
         }
       }catch{}
     migrateLegacyInvoiceTypes(days);   // ✅ حوّل بيع/فارغ إلى أجل فوراً
@@ -10644,8 +10991,7 @@ function buildBackupPayload(){
     transferDate : getTransferDateIso() || "",
     payments     : (function(){ // [NEW]
       try{
-        const raw = localStorage.getItem('assal.payments.v1') || '{}';
-        const obj = JSON.parse(raw);
+        const obj = loadPaymentsStore();
         return (obj && typeof obj === 'object') ? obj : {};
       }catch{ return {}; }
     })()
@@ -10658,8 +11004,7 @@ function buildBackupPayload(){
 // [NEW] حمل مخزن الحسابات المالية (بدون الاعتماد على سكوب الـ IIFE)
 function loadPaymentsStore(){
   try{
-    const raw = localStorage.getItem('assal.payments.v1') || '{}';
-    const obj = JSON.parse(raw);
+    const obj = loadBigStoreSync(PAYMENTS_STORE_KEY, {});
     return (obj && typeof obj === 'object') ? obj : {};
   }catch{
     return {};
@@ -10941,8 +11286,7 @@ function cleanupAllTombstones(ttlDays = 14){
 
   // 1) assal.payments.v1
   try{
-    const raw = localStorage.getItem('assal.payments.v1') || '{}';
-    const store = JSON.parse(raw) || {};
+    const store = loadPaymentsStore() || {};
     const out = {};
     Object.keys(store).forEach(day=>{
       const arr = Array.isArray(store[day]) ? store[day] : [];
@@ -10958,17 +11302,16 @@ function cleanupAllTombstones(ttlDays = 14){
       if (keptArr.length > 0) out[day] = keptArr;
       else stats.removed.daysEmptied += 1;
     });
-    localStorage.setItem('assal.payments.v1', JSON.stringify(out));
+    saveBigStore(PAYMENTS_STORE_KEY, out);
   }catch(e){ stats.errors.push('payments: ' + (e?.message || String(e))); }
 
   // 2) STORAGE (الأيام/البطاقات/الخطوط/الملاحظات)
   try{
-    const rawDays = localStorage.getItem(STORAGE) || '{}';
-    const daysObj = JSON.parse(rawDays) || {};
+    const daysObj = load(STORAGE, {}) || {};
     const outDays = {};
     Object.keys(daysObj).forEach(dayKey=>{
       const dayVal = daysObj[dayKey];
-      const cards = Array.isArray(dayVal?.cards) ? dayVal.cards : [];
+      const cards = Array.isArray(dayVal) ? dayVal : (Array.isArray(dayVal?.cards) ? dayVal.cards : []);
       let removedAnyInDay = false;
 
       const keptCards = [];
@@ -11000,14 +11343,10 @@ function cleanupAllTombstones(ttlDays = 14){
         keptCards.push(newCard);
       });
 
-      if (keptCards.length > 0) outDays[dayKey] = { ...dayVal, cards: keptCards };
+      if (keptCards.length > 0) outDays[dayKey] = Array.isArray(dayVal) ? keptCards : { ...dayVal, cards: keptCards };
       else if (removedAnyInDay) stats.removed.daysEmptied += 1;
     });
-    (function(){
-      const __res = saveDaysToStorageBalanced(outDays);
-      if(__res && __res.removed){ showToast?.('warn', `تم حذف ${__res.removed} فاتورة قديمة لتفريغ مساحة التخزين`); }
-      if(!__res || !__res.ok){ showToast?.('error','التخزين ممتلئ وما كدرنا نحفظ. صدّر نسخة (JSON) أو امسح يدويًا.'); try{ openStorageModal?.(); }catch{} }
-    })();
+    saveBigStore(STORAGE, outDays);
   }catch(e){ stats.errors.push('days/cards: ' + (e?.message || String(e))); }
 
   return stats;
@@ -11041,8 +11380,7 @@ async function smartExportToServer(){
     const latestNames = load(NAMES,   []);
     const latestPays  = (function(){                  // [NEW] حمل مخزن الحسابات المالية
       try{
-        const raw = localStorage.getItem('assal.payments.v1') || '{}';
-        const obj = JSON.parse(raw);
+        const obj = loadPaymentsStore();
         return (obj && typeof obj === 'object') ? obj : {};
       }catch{ return {}; }
     })();
@@ -11216,20 +11554,15 @@ async function smartExportToServer(){
     markProcessed(requestId);
     clearPending();
 
-    // 5) خزّن محلي آخر نسخة رفعت (نفس سلوكك)
-    (function(){
-      const __res = saveDaysToStorageBalanced(payload.days || {});
-      if(__res && __res.removed){ showToast?.('warn', `تم حذف ${__res.removed} فاتورة قديمة لتفريغ مساحة التخزين`); }
-      if(!__res || !__res.ok){ showToast?.('error','التخزين ممتلئ وما كدرنا نحفظ. صدّر نسخة (JSON) أو امسح يدويًا.'); try{ openStorageModal?.(); }catch{} }
-    })();
-    localStorage.setItem(NAMES,   JSON.stringify(payload.names || []));
+    // 5) خزّن محلي آخر نسخة رفعت داخل IndexedDB بدون أي حذف تلقائي
+    await saveBigStoreAndWait(STORAGE, payload.days || {});
+    await saveBigStoreAndWait(NAMES, payload.names || []);
     if(payload.transferDate){
       setTransferDateIso(payload.transferDate);
     }
-    localStorage.setItem('assal.payments.v1', JSON.stringify(payload.payments || {})); // [NEW] خزّن الحسابات المالية بعد الرفع
+    await saveBigStoreAndWait(PAYMENTS_STORE_KEY, payload.payments || {}); // [NEW] خزّن الحسابات المالية بعد الرفع
 
-    // [NEW] حذف التومبستونات القديمة بعد الرفع مباشرةً (إن وُجدت الدالة)
-    if (typeof cleanupAllTombstones === 'function') cleanupAllTombstones(14);
+    // لا ننظف التومبستونات تلقائياً: الحذف/التنظيف لا يصير إلا بأمر صريح من المستخدم
 
     // 6) حدّث الواجهة (نفسك)
     days  = load(STORAGE, {});
@@ -11238,7 +11571,7 @@ async function smartExportToServer(){
       // [AUTO] طبّق تصحيح أنواع الفواتير مباشرة بعد المزامنة (بدون ريفرش)
       try{
         if(migrateLegacySellToAjal(days)){
-          localStorage.setItem(STORAGE, JSON.stringify(days));
+          saveBigStore(STORAGE, days);
         }
       }catch{}
     renderBoard();
@@ -11535,7 +11868,7 @@ async function smartImportFromServer(){
     // فرق برسالة التوست حسب الهوية
     const subMode = (typeof isSubDevice === 'function' && isSubDevice());
     showToast('info', subMode
-      ? 'جاري سحب نسخة السيرفر (سيتم استبدال المحلية بالكامل)...'
+      ? 'جاري سحب نسخة السيرفر وحفظها محلياً داخل IndexedDB بدون حذف...' 
       : 'جاري جلب آخر نسخة من السيرفر…', 1800);
 
     const server = await serverGetBackup();
@@ -11579,21 +11912,15 @@ async function smartImportFromServer(){
     // [END NEW]
 
     if(subMode){
-      // ========= وضع "حاسبة فرعية": استبدال كامل =========
-      (function(){
-      const __res = saveDaysToStorageBalanced(server.days || {});
-      if(__res && __res.removed){ showToast?.('warn', `تم حذف ${__res.removed} فاتورة قديمة لتفريغ مساحة التخزين`); }
-      if(!__res || !__res.ok){ showToast?.('error','التخزين ممتلئ وما كدرنا نحفظ. صدّر نسخة (JSON) أو امسح يدويًا.'); try{ openStorageModal?.(); }catch{} }
-    })();
-      localStorage.setItem(NAMES,   JSON.stringify(Array.isArray(server.names) ? server.names : []));
+      // ========= وضع "حاسبة فرعية": استبدال كامل محلي داخل IndexedDB بدون حذف =========
+      await saveBigStoreAndWait(STORAGE, server.days || {});
+      await saveBigStoreAndWait(NAMES, Array.isArray(server.names) ? server.names : []);
       if(server.transferDate){ setTransferDateIso(server.transferDate); }
       // [NEW] استبدال كامل للحسابات المالية + تنظيف تكرارات
-      (function(){
-        const srvPaysRaw = (server && server.payments && typeof server.payments === 'object') ? server.payments : {};
-        const cleanSrvPays = __dedupePaymentsObject__(srvPaysRaw);
-        localStorage.setItem('assal.payments.v1', JSON.stringify(cleanSrvPays));
-        window.refreshPaymentsUI?.();   // <<< أضف هذا السطر
-      })();
+      const srvPaysRaw = (server && server.payments && typeof server.payments === 'object') ? server.payments : {};
+      const cleanSrvPays = __dedupePaymentsObject__(srvPaysRaw);
+      await saveBigStoreAndWait(PAYMENTS_STORE_KEY, cleanSrvPays);
+      window.refreshPaymentsUI?.();   // <<< أضف هذا السطر
       // [END NEW]
 
       // حدّث الذاكرة والواجهة
@@ -11603,14 +11930,14 @@ async function smartImportFromServer(){
       // [AUTO] طبّق تصحيح أنواع الفواتير مباشرة بعد المزامنة (بدون ريفرش)
       try{
         if(migrateLegacySellToAjal(days)){
-          localStorage.setItem(STORAGE, JSON.stringify(days));
+          saveBigStore(STORAGE, days);
         }
       }catch{}
       renderBoard();
       renderRail();
       refreshStats();
 
-      showToast('success','تم الاستبدال الكامل من السيرفر (الحفظ محلي فقط).');
+      showToast('success','تم السحب من السيرفر وحفظ النسخة محلياً داخل IndexedDB.');
 
       // خبرنا آخر تاريخ نقل ديون إذا موجود
       const iso = getTransferDateIso();
@@ -11628,18 +11955,14 @@ async function smartImportFromServer(){
     normalizeIdsInAllDays(mergedDays);
     dedupeAllDays(mergedDays);
 
-    // خزن الفواتير/الأيام محلي
-    (function(){
-      const __res = saveDaysToStorageBalanced(mergedDays);
-      if(__res && __res.removed){ showToast?.('warn', `تم حذف ${__res.removed} فاتورة قديمة لتفريغ مساحة التخزين`); }
-      if(!__res || !__res.ok){ showToast?.('error','التخزين ممتلئ وما كدرنا نحفظ. صدّر نسخة (JSON) أو امسح يدويًا.'); try{ openStorageModal?.(); }catch{} }
-    })();
+    // خزن الفواتير/الأيام محلي داخل IndexedDB بدون أي حذف تلقائي
+    await saveBigStoreAndWait(STORAGE, mergedDays);
 
     // وحّد أسماء الزبائن
     const curNames = Array.isArray(names) ? names : [];
     const srvNames = Array.isArray(server.names) ? server.names : [];
     const mergedNames = Array.from(new Set([...curNames, ...srvNames]));
-    localStorage.setItem(NAMES, JSON.stringify(mergedNames));
+    await saveBigStoreAndWait(NAMES, mergedNames);
 
     // خزن تاريخ نقل الديون إذا السيرفر عنده واحد
     if(server.transferDate){
@@ -11647,30 +11970,27 @@ async function smartImportFromServer(){
     }
 
     // [NEW] دمج مخزن الحسابات المالية (محلي + سيرفر) مع إزالة التكرار
-    (function(){
-      try{
-        const rawLocal  = localStorage.getItem('assal.payments.v1') || '{}';
-        const localPays = JSON.parse(rawLocal) || {};
-        const srvPays   = (server && server.payments && typeof server.payments === 'object') ? server.payments : {};
-        const mergedPays = (function mergePaymentsStores(localStore, remoteStore){
-          const out = { ...(remoteStore || {}) };
-          const loc = localStore  && typeof localStore  === 'object' ? localStore  : {};
-          const rem = remoteStore && typeof remoteStore === 'object' ? remoteStore : {};
-          Object.keys(loc).forEach(dayKey=>{
-            const L = Array.isArray(loc[dayKey]) ? loc[dayKey] : [];
-            const R = Array.isArray(rem[dayKey]) ? rem[dayKey] : [];
-            out[dayKey] = __dedupePaymentList__([ ...R, ...L ]); // دمج + ديدوب لكل يوم
-          });
-          return out;
-        })(localPays, srvPays);
-        const cleanMergedPays = __dedupePaymentsObject__(mergedPays);
-        localStorage.setItem('assal.payments.v1', JSON.stringify(cleanMergedPays));
-        window.refreshPaymentsUI?.();   // <<< أضف هذا السطر
-      }catch{
-        // إذا صار خطأ بالتحويل JSON نخليها فارغة بدون ما نكسر التدفق
-        localStorage.setItem('assal.payments.v1', JSON.stringify({}));
-      }
-    })();
+    try{
+      const localPays = loadPaymentsStore() || {};
+      const srvPays   = (server && server.payments && typeof server.payments === 'object') ? server.payments : {};
+      const mergedPays = (function mergePaymentsStores(localStore, remoteStore){
+        const out = { ...(remoteStore || {}) };
+        const loc = localStore  && typeof localStore  === 'object' ? localStore  : {};
+        const rem = remoteStore && typeof remoteStore === 'object' ? remoteStore : {};
+        Object.keys(loc).forEach(dayKey=>{
+          const L = Array.isArray(loc[dayKey]) ? loc[dayKey] : [];
+          const R = Array.isArray(rem[dayKey]) ? rem[dayKey] : [];
+          out[dayKey] = __dedupePaymentList__([ ...R, ...L ]); // دمج + ديدوب لكل يوم
+        });
+        return out;
+      })(localPays, srvPays);
+      const cleanMergedPays = __dedupePaymentsObject__(mergedPays);
+      await saveBigStoreAndWait(PAYMENTS_STORE_KEY, cleanMergedPays);
+      window.refreshPaymentsUI?.();   // <<< أضف هذا السطر
+    }catch{
+      // إذا صار خطأ بالتحويل JSON نخليها فارغة بدون ما نكسر التدفق
+      await saveBigStoreAndWait(PAYMENTS_STORE_KEY, {});
+    }
     // [END NEW]
 
     // حدّث الذاكرة والواجهة
@@ -11680,7 +12000,7 @@ async function smartImportFromServer(){
       // [AUTO] طبّق تصحيح أنواع الفواتير مباشرة بعد المزامنة (بدون ريفرش)
       try{
         if(migrateLegacySellToAjal(days)){
-          localStorage.setItem(STORAGE, JSON.stringify(days));
+          saveBigStore(STORAGE, days);
         }
       }catch{}
     renderBoard();
@@ -11816,6 +12136,7 @@ function dedupeAllDays(daysObj){
 (async function init(){
   document.getElementById('dateBadge').textContent = arDateWithDay(TODAY);
 
+  await initAssalIndexedStorage(); // ✅ تحميل/ترحيل البيانات الثقيلة إلى IndexedDB بدون حذف
   await loadExcelFiles();   // ✅ انتظر تحميل الإكسل حتى CUSTOMERS تتعبّى
 
   rebuildNames(); 
@@ -11832,7 +12153,7 @@ function dedupeAllDays(daysObj){
 
 (function(){
   // شيل أي وسوم قديمة من العنوان وخلي أساس ثابت
-  const clean = s => String(s||"").replace(/\s*\[(cust|item|note|filter|c-note)\]\s*/gi, "").trim();
+  const clean = s => String(s||"").replace(/\s*\[(cust|item|item-filter|note|filter|c-note)\]\s*/gi, "").trim();
   const baseTitle = clean(document.title);
 
   function markTag(tag){
@@ -11847,6 +12168,7 @@ function dedupeAllDays(daysObj){
   const item = document.getElementById('item');   // اسم المادة → إنكليزي
   const note = document.getElementById('note');   // الملاحظات (Dock) → عربي
   const cardSearch = document.getElementById('cardSearch'); // فلترة الكروت → عربي
+  const itemSearch = document.getElementById('itemSearch'); // فلترة الكروت حسب المادة → إنكليزي
 
   // ===== نافذة الحسابات المالية =====
   const payCustomer = document.getElementById('payCustomer');  // اسم الزبون (الحسابات المالية) → عربي
@@ -11866,6 +12188,9 @@ function dedupeAllDays(daysObj){
 
   cardSearch && cardSearch.addEventListener('focus', ()=> markTag('[filter]'));
   cardSearch && cardSearch.addEventListener('blur',  ()=> clearTag());
+  // بحث المادة يأخذ نفس وسم حقل المادة حتى يجبر/يساعد الكتابة تكون إنكليزي
+  itemSearch && itemSearch.addEventListener('focus', ()=> markTag('[item]'));
+  itemSearch && itemSearch.addEventListener('blur',  ()=> clearTag());
 
   // --- الحسابات المالية (دائماً عربي) ---
   payCustomer && payCustomer.addEventListener('focus', ()=> markTag('[cust]'));
@@ -11895,7 +12220,7 @@ function dedupeAllDays(daysObj){
   setInterval(()=>{
     const t = document.title;
     const cleaned = clean(t);
-    if (t !== cleaned && !/\[(cust|item|note|filter|c-note)\]/i.test(t)) {
+    if (t !== cleaned && !/\[(cust|item|item-filter|note|filter|c-note)\]/i.test(t)) {
       document.title = cleaned;
     }
   }, 3000);
@@ -12183,6 +12508,7 @@ onAuthStateChanged(auth, async (user)=>{
       setSignedInUI(user);
 
       // ← هنا فقط: أول استيراد ذكي بعد تسجيل الدخول
+      await window.initAssalIndexedStorage?.();
       
       if(getDeviceRole() !== 'sub'){
   await smartImportFromServer();
@@ -12281,7 +12607,7 @@ function getAllCustomers(){
 
 // [A] ===== تخزين محلي + إدارة أيام =====
 const PAYMENTS_KEY = 'assal.payments.v1';      // مفتاح التخزين
-let   paymentsStore = JSON.parse(localStorage.getItem(PAYMENTS_KEY) || '{}');
+let   paymentsStore = loadPaymentsStore();
 
 // ترجيع مفاتيح أيام بصيغة YYYY-MM-DD
 function getDayKey(d){
@@ -12298,7 +12624,7 @@ function listPayments(day){
 function savePayments(day, arr){
   const k = getDayKey(day);
   paymentsStore[k] = arr;
-  localStorage.setItem(PAYMENTS_KEY, JSON.stringify(paymentsStore));
+  saveBigStore(PAYMENTS_KEY, paymentsStore);
 }
 
 // اليوم الحالي المعروض داخل النافذة
@@ -12314,14 +12640,8 @@ function setCurrentDay(day){
 // بعد تعريف setCurrentDay() مباشرةً
 window.refreshPaymentsUI = function(){
   try {
-    // اقرأ المخزن من localStorage من جديد
-    paymentsStore = (function loadPaymentsStore(){
-      try {
-        const raw = localStorage.getItem('assal.payments.v1') || '{}';
-        const obj = JSON.parse(raw);
-        return (obj && typeof obj === 'object') ? obj : {};
-      } catch { return {}; }
-    })();
+    // اقرأ المخزن من IndexedDB/الكاش من جديد
+    paymentsStore = (typeof window.loadPaymentsStore === 'function') ? window.loadPaymentsStore() : {};
 
     // حدّد اليوم المعروض وأعد تحميل البيانات + الرسم
     const day = (typeof todayStr === 'function' ? (document.getElementById('payDate')?.value || todayStr())
