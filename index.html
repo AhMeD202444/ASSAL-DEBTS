@@ -1885,6 +1885,51 @@ body.modal-open{
 
 /* (2) تسديد الكل — بدون تغيير */
 
+/* زر تسديد الكل نفسه يتحول مؤقتاً إلى زر تم التجهيز لفواتير الجملة
+   بدون زر إضافي وبدون تغيير ترتيب أزرار الفوتر */
+.card-foot .foot-actions .i-btn.wholesale-pay-switch{
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.card-foot .foot-actions .i-btn.wholesale-prepared-mode{
+  animation: wholesalePreparedSwap .22s ease both;
+}
+.card-foot .foot-actions .i-btn.wholesale-prepared-off{
+  background: linear-gradient(135deg,#f59e0b,#d97706) !important;
+  color:#1f1300 !important;
+  border-color: rgba(245,158,11,.55) !important;
+  box-shadow: 0 10px 22px rgba(245,158,11,.22) !important;
+}
+.card-foot .foot-actions .i-btn.wholesale-prepared-on{
+  background: linear-gradient(135deg,#10b981,#0f766e) !important;
+  color:#ecfdf5 !important;
+  border-color: rgba(16,185,129,.55) !important;
+  box-shadow: 0 10px 22px rgba(16,185,129,.24) !important;
+}
+.card-foot .foot-actions .i-btn.wholesale-prepared-processing{
+  pointer-events: none;
+}
+.card-foot .foot-actions .i-btn.wholesale-prepared-processing::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
+  transform: translateX(120%);
+  animation: wholesalePreparedSheen .85s ease-in-out infinite;
+}
+@keyframes wholesalePreparedSheen{
+  from{ transform: translateX(120%); opacity:.35; }
+  to{ transform: translateX(-120%); opacity:1; }
+}
+@keyframes wholesalePreparedSwap{
+  from{ opacity:.35; transform:translateY(2px) scale(.985); }
+  to{ opacity:1; transform:translateY(0) scale(1); }
+}
+
+
 /* (3) الملاحظات — بنفسجي مُعتّق (mauve) */
 .card-foot .foot-actions .i-btn:nth-child(3){
   background: linear-gradient(135deg, #7a6aa6, #66558c);
@@ -5688,6 +5733,169 @@ function isCashCard(card){
 }
 
 
+/* ===== فواتير الجملة: زر تم التجهيز داخل نفس مكان زر تسديد الكل =====
+   الفكرة: لا نضيف زر جديد ولا نغير ترتيب الأزرار؛ زر تسديد الكل نفسه
+   يتحول دورياً إلى زر تم التجهيز، ثم يرجع لتسديد الكل. */
+const WHOLESALE_PREPARED_CYCLE_MS = 10500;
+const WHOLESALE_PREPARED_VISIBLE_MS = 6200;
+const WHOLESALE_PREPARED_FEEDBACK_MS = 3000;
+const WHOLESALE_PREPARED_AFTER_CLICK_HIDE_MS = 2600;
+const WHOLESALE_PREPARED_PROCESSING_MS = 850;
+const wholesalePreparedFeedback = Object.create(null);
+
+function isWholesalePrepared(card){
+  return !!(card && card.wholesalePrepared);
+}
+
+function getWholesalePreparedFeedback(card){
+  const id = String(card?.id || '');
+  if(!id) return null;
+  const fb = wholesalePreparedFeedback[id];
+  if(!fb) return null;
+  const now = Date.now();
+  if(now > (fb.suppressUntil || 0)){
+    delete wholesalePreparedFeedback[id];
+    return null;
+  }
+  return fb;
+}
+
+function isWholesalePreparedSlotVisible(card){
+  if(!isWholesaleCard(card)) return false;
+  const now = Date.now();
+  const fb = getWholesalePreparedFeedback(card);
+  if(fb){
+    if(now < fb.until) return true;
+    return false;
+  }
+  const raw = String(card?.id || '0');
+  let seed = 0;
+  for(let i=0;i<raw.length;i++) seed = (seed + raw.charCodeAt(i)) % WHOLESALE_PREPARED_CYCLE_MS;
+  const pos = (now + seed) % WHOLESALE_PREPARED_CYCLE_MS;
+  return pos < WHOLESALE_PREPARED_VISIBLE_MS;
+}
+
+function styleWholesalePreparedButton(btn, cardRef){
+  const prepared = isWholesalePrepared(cardRef);
+  const fb = getWholesalePreparedFeedback(cardRef);
+  const now = Date.now();
+  const inFeedback = !!(fb && now < fb.until);
+  const processing = !!(fb && now < (fb.processingUntil || 0));
+
+  btn.classList.remove('primary','ghost','wholesale-prepared-on','wholesale-prepared-off','wholesale-prepared-processing');
+  btn.classList.add('wholesale-pay-switch','wholesale-prepared-mode');
+  btn.dataset.wholesaleMode = 'prepared';
+
+  if(inFeedback){
+    if(fb.state === 'on'){
+      btn.classList.add('wholesale-prepared-on');
+      if(processing){
+        btn.classList.add('wholesale-prepared-processing');
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>جاري اعتماد التجهيز...</span>';
+        btn.title = 'جاري اعتماد تجهيز فاتورة الجملة';
+      }else{
+        btn.innerHTML = '<i class="fa-solid fa-circle-check"></i><span>تم اعتماد التجهيز</span>';
+        btn.title = 'تم اعتماد فاتورة الجملة كمجهزة';
+      }
+    }else{
+      btn.classList.add('wholesale-prepared-off');
+      if(processing){
+        btn.classList.add('wholesale-prepared-processing');
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>جاري إلغاء التجهيز...</span>';
+        btn.title = 'جاري إلغاء تجهيز فاتورة الجملة';
+      }else{
+        btn.innerHTML = '<i class="fa-solid fa-circle-xmark"></i><span>تم إلغاء التجهيز</span>';
+        btn.title = 'تم إلغاء تجهيز فاتورة الجملة';
+      }
+    }
+    return;
+  }
+
+  btn.classList.add(prepared ? 'wholesale-prepared-on' : 'wholesale-prepared-off');
+  btn.innerHTML = prepared
+    ? '<i class="fa-solid fa-box"></i><span>مجهّزة</span>'
+    : '<i class="fa-solid fa-box-open"></i><span>تم التجهيز</span>';
+  btn.title = prepared
+    ? 'إلغاء تجهيز فاتورة الجملة حتى تقبل الإضافة عليها'
+    : 'تعليم فاتورة الجملة كمجهزة حتى الإضافة الجديدة تفتح فاتورة جملة ثانية';
+}
+
+function toggleWholesalePrepared(viewCard){
+  if(!viewCard || !isWholesaleCard(viewCard)) return;
+  const real = (typeof getMutableCard === 'function' ? getMutableCard(viewCard) : null) || viewCard;
+  const next = !isWholesalePrepared(real);
+  const ts = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
+
+  real.wholesalePrepared = next;
+  real.wholesalePreparedAt = ts;
+  real.updatedAt = ts;
+
+  // إذا البطاقة المعروضة نسخة بحث شامل، حدّثها حتى الواجهة تبقى متزامنة لحظياً.
+  viewCard.wholesalePrepared = next;
+  viewCard.wholesalePreparedAt = ts;
+  viewCard.updatedAt = ts;
+
+  const id = String(real?.id || viewCard?.id || '');
+  if(id){
+    const now = Date.now();
+    wholesalePreparedFeedback[id] = {
+      until: now + WHOLESALE_PREPARED_FEEDBACK_MS,
+      processingUntil: now + WHOLESALE_PREPARED_PROCESSING_MS,
+      suppressUntil: now + WHOLESALE_PREPARED_FEEDBACK_MS + WHOLESALE_PREPARED_AFTER_CLICK_HIDE_MS,
+      state: next ? 'on' : 'off'
+    };
+  }
+
+  save();
+  renderBoard?.();
+  renderRail?.();
+  refreshStats?.();
+  showToast?.(next ? 'success' : 'info', next ? 'تم تعليم فاتورة الجملة كمجهزة' : 'تم إلغاء تجهيز فاتورة الجملة');
+}
+
+function bindWholesalePreparedSwitch(btn, cardRef){
+  if(!btn || !isWholesaleCard(cardRef)) return;
+  btn.classList.add('wholesale-pay-switch');
+
+  let lastSignature = '';
+  let mountedOnce = false;
+  const apply = () => {
+    const mounted = document.body.contains(btn);
+    if(!mounted){
+      if(mountedOnce) clearInterval(timer);
+      return;
+    }
+    mountedOnce = true;
+
+    const preparedMode = isWholesalePreparedSlotVisible(cardRef);
+    const fb = getWholesalePreparedFeedback(cardRef);
+    const now = Date.now();
+    const feedbackPart = fb
+      ? `${fb.state || ''}:${now < (fb.processingUntil || 0) ? 'processing' : (now < (fb.until || 0) ? 'done' : 'hidden')}`
+      : '';
+    const payPart = (allActivePaid(cardRef) || cardRef.paidAll) ? 'paid' : 'unpaid';
+    const preparedPart = isWholesalePrepared(cardRef) ? 'prepared-on' : 'prepared-off';
+    const signature = preparedMode
+      ? `prepared:${preparedPart}:${feedbackPart}`
+      : `pay:${payPart}`;
+
+    if(signature === lastSignature) return;
+    lastSignature = signature;
+
+    if(preparedMode){
+      styleWholesalePreparedButton(btn, cardRef);
+    }else{
+      btn.dataset.wholesaleMode = 'pay';
+      btn.classList.remove('wholesale-prepared-mode','wholesale-prepared-on','wholesale-prepared-off','wholesale-prepared-processing');
+      stylePayAll(btn, cardRef);
+    }
+  };
+
+  const timer = setInterval(apply, 350);
+  apply();
+}
+
+
 
 function cardVisibleInLedger(card){
   if (!card) return false;
@@ -6990,6 +7198,8 @@ document.getElementById('btnAdd').onclick = async () => {
   let cardIndex = days[selectedDay].findIndex(c =>
     c.customer === customer &&
     !c.deletedAt &&
+    // إذا فاتورة الجملة معلّمة "تم التجهيز"، لا نضيف عليها أي سطر جديد؛ نفتح بطاقة ثانية لنفس اليوم.
+    !(String(type || '') !== 'نقدي' && isWholesaleCard(c) && isWholesalePrepared(c)) &&
     (
       (type === 'نقدي')
         ? (String(c.billType || '') === 'نقدي')
@@ -7567,12 +7777,24 @@ custWrap.appendChild(typeBadge);
       exportCardPDF_Vector(card, card.__day || selectedDay);
     };
 
-    // زر "تسديد الكل"
+    // زر "تسديد الكل" — لفواتير الجملة يتحول نفس الزر دورياً إلى "تم التجهيز" بدون تغيير ترتيب الأزرار
     const btnPayAll = CE('button', 'i-btn');
     card.paidAll = allActivePaid(card);
-    stylePayAll(btnPayAll, card);
+    // لفواتير الجملة: إذا الزر حالياً داخل نافذة "تم التجهيز" أو مرحلة تأكيد الضغط،
+    // لا نرسم زر التسديد أولاً حتى لا يظهر "تسديد الكل/إلغاء التسديد" للحظة قبل "جاري اعتماد التجهيز".
+    if(isWholesaleCard(card) && isWholesalePreparedSlotVisible(card)){
+      styleWholesalePreparedButton(btnPayAll, card);
+    }else{
+      stylePayAll(btnPayAll, card);
+    }
+    bindWholesalePreparedSwitch(btnPayAll, card);
 
     btnPayAll.onclick = () => {
+      if (btnPayAll.dataset.wholesaleMode === 'prepared') {
+        toggleWholesalePrepared(card);
+        return;
+      }
+
       if (!card.lines.length) return;
       const active = activeLines(card);
       if (active.length === 0) return;
@@ -7929,6 +8151,7 @@ real.updatedAt = nowISO();
  
  
  function stylePayAll(btn, cardRef){
+  btn.classList.remove('wholesale-prepared-mode','wholesale-prepared-on','wholesale-prepared-off','wholesale-prepared-processing');
   const allPaidNow = allActivePaid(cardRef);
   if(allPaidNow || cardRef.paidAll){
     btn.classList.remove('primary'); btn.classList.add('ghost');
@@ -11783,6 +12006,17 @@ function mergeCard(a, b, report, path){
   // أزمنة ومشتقات
   merged.updatedAt = isNewer(x.updatedAt, y.updatedAt) ? y.updatedAt : x.updatedAt;
   merged.createdAt = x.createdAt || y.createdAt || merged.updatedAt || nowISO();
+
+  // حالة تجهيز فاتورة الجملة تُدمج بالأحدث حتى لا تضيع بين المحلي والسيرفر.
+  const hasPrepA = Object.prototype.hasOwnProperty.call(x, 'wholesalePrepared');
+  const hasPrepB = Object.prototype.hasOwnProperty.call(y, 'wholesalePrepared');
+  if (hasPrepA || hasPrepB) {
+    const prepTsA = x.wholesalePreparedAt || x.updatedAt || x.createdAt || null;
+    const prepTsB = y.wholesalePreparedAt || y.updatedAt || y.createdAt || null;
+    const prepPick = pickNewerField(!!x.wholesalePrepared, prepTsA, !!y.wholesalePrepared, prepTsB);
+    merged.wholesalePrepared = !!prepPick.val;
+    merged.wholesalePreparedAt = isNewer(prepTsA, prepTsB) ? prepTsB : prepTsA;
+  }
 
   // billType يُعاد احتسابه من السطور الفعّالة
   const types = Array.from(
