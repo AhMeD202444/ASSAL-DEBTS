@@ -4075,6 +4075,93 @@ body{ padding-top: var(--hdr-h); }
   to{ transform: translateY(-8px); opacity: 0; }
 }
 </style>
+
+
+<style id="assal-layout-narrow-side-columns-final">
+/* ===== ASSAL FINAL: تصغير عمودي الفواتير السابقة وملخص اليوم لتوسيع كروت اليوم =====
+   تعديل CSS فقط: لا يمس الحفظ، الديون، IndexedDB، السيرفر، أو منطق زر تم التجهيز. */
+@media (min-width: 981px){
+  .layout{
+    grid-template-columns: 210px minmax(0, 1fr) 210px !important;
+    gap: 12px !important;
+  }
+
+  .layout > .board{
+    min-width: 0 !important;
+  }
+
+  .rail,
+  .insights{
+    padding: 10px !important;
+  }
+
+  .rail .search{
+    margin: 5px 0 !important;
+  }
+
+  .day{
+    padding: 7px 9px !important;
+  }
+  .day .title{
+    font-size: 12.5px !important;
+  }
+  .day .meta{
+    font-size: 11px !important;
+  }
+
+  .stat{
+    padding: 7px 8px !important;
+  }
+
+  .board-head{
+    grid-template-columns: auto minmax(0, 1fr) auto !important;
+  }
+
+  .board-search{
+    min-width: 0 !important;
+  }
+
+  .board-search .input{
+    flex: 1 1 160px !important;
+    min-width: 145px !important;
+  }
+
+  #cardSearch,
+  #itemSearch{
+    min-width: 145px !important;
+  }
+
+  .board-search .chip{
+    white-space: nowrap !important;
+  }
+}
+
+@media (min-width: 981px) and (max-width: 1280px){
+  .layout{
+    grid-template-columns: 190px minmax(0, 1fr) 190px !important;
+    gap: 10px !important;
+  }
+  .rail,
+  .insights{
+    padding: 9px !important;
+  }
+}
+
+@media (min-width: 981px) and (max-width: 1120px){
+  .layout{
+    grid-template-columns: 170px minmax(0, 1fr) 170px !important;
+    gap: 8px !important;
+  }
+  .rail,
+  .insights{
+    padding: 8px !important;
+  }
+  .day{
+    padding: 6px 8px !important;
+  }
+}
+</style>
+
 </head>
 
 <body>
