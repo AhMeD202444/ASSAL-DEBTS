@@ -5815,23 +5815,8 @@ function isWholesaleCard(card){
 
 function isCashCard(card){
   if(!card) return false;
-
-  const billType = (typeof normalizeBillType === 'function')
-    ? normalizeBillType(card?.billType || '')
-    : String(card?.billType || '').trim();
-
-  // إذا نوع البطاقة محسوم كـ أجل/جملة/راجع، لا نخلي type قديم داخل سطر يقلبها نقدي.
-  // النقدي يُعتمد من البطاقة نفسها، أو من السطور فقط بحالة البطاقة فارغة/مختلطة.
-  if (billType === 'نقدي') return true;
-  if (billType && billType !== 'مختلط') return false;
-
-  return (card.lines || []).some(l => {
-    if(!l || l.deletedAt || l.returned) return false;
-    const lt = (typeof normalizeBillType === 'function')
-      ? normalizeBillType(l.type || '')
-      : String(l.type || '').trim();
-    return lt === 'نقدي' && l.paid !== false;
-  });
+  if (String(card?.billType || '') === 'نقدي') return true;
+  return (card.lines || []).some(l => !l.deletedAt && String(l.type || '') === 'نقدي');
 }
 
 
@@ -6651,64 +6636,6 @@ function normalizeBillType(t){
   return s;
 }
 
-// ===== [FINAL FIX] إذا كانت الفاتورة نقدي ثم تم إلغاء تسديدها، حوّل البطاقة كلها إلى أجل فعلياً =====
-// السبب: إلغاء التسديد القديم كان يغيّر paid فقط ويترك line.type = نقدي، فتظهر البطاقة أجل لكن تنحسب مدفوعة/نقدي بالطباعة.
-function shouldConvertCancelledCashToDebt(card){
-  if(!card || !Array.isArray(card.lines)) return false;
-  if (normalizeBillType(card.billType || '') === 'جملة') return false;
-
-  const active = card.lines.filter(l => l && !l.deletedAt && !l.returned);
-  if(!active.length) return false;
-
-  const cardType = normalizeBillType(card.billType || '');
-  const hasCancelledCashLine = active.some(l => normalizeBillType(l.type || '') === 'نقدي' && l.paid === false);
-  const cashCardHasUnpaidLine = (cardType === 'نقدي') && active.some(l => l.paid === false);
-
-  return hasCancelledCashLine || cashCardHasUnpaidLine;
-}
-
-function convertCardToAjalDebt(card, ts){
-  if(!card || !Array.isArray(card.lines)) return false;
-  if (normalizeBillType(card.billType || '') === 'جملة') return false;
-
-  const t = ts || (typeof nowISO === 'function' ? nowISO() : new Date().toISOString());
-  let changed = false;
-
-  (card.lines || []).forEach(l => {
-    if(!l || l.deletedAt || l.returned) return;
-    const lt = normalizeBillType(l.type || '');
-    if(lt === 'جملة') return;
-
-    if(l.type !== 'اجل'){
-      l.type = 'اجل';
-      changed = true;
-    }
-    if(l.paid !== false){
-      l.paid = false;
-      changed = true;
-    }
-    if(l.updatedAt !== t){
-      l.updatedAt = t;
-      changed = true;
-    }
-  });
-
-  if(card.billType !== 'اجل'){
-    card.billType = 'اجل';
-    changed = true;
-  }
-  if(card.paidAll !== false){
-    card.paidAll = false;
-    changed = true;
-  }
-  if(card.updatedAt !== t){
-    card.updatedAt = t;
-    changed = true;
-  }
-
-  return changed;
-}
-
 function migrateLegacySellToAjal(daysObj){
   if(!daysObj || typeof daysObj !== 'object') return false;
   let changed = false;
@@ -6753,12 +6680,6 @@ function migrateLegacySellToAjal(daysObj){
             changed = true;
           }
         });
-      }
-
-      // [FINAL FIX] تنظيف البيانات القديمة مثل: billType=اجل لكن line.type=نقدي و paid=false
-      if(shouldConvertCancelledCashToDebt(card)){
-        convertCardToAjalDebt(card);
-        changed = true;
       }
     }
   }
@@ -7769,25 +7690,13 @@ custWrap.appendChild(typeBadge);
 
         // ===== تبديل "مدفوع" للسطر =====
         btnPay.onclick = () => {
+          ln.paid = !ln.paid;
+          if (ln.paid) ln.returned = false;
+
+          ln.updatedAt = nowISO();
+
           const realCard = getMutableCard(card) || card;
-          const realLine = (realCard.lines || []).find(x =>
-            (x.lineId && ln.lineId && x.lineId === ln.lineId) || x === ln
-          ) || ln;
-
-          const makePaid = !realLine.paid;
-          const t = nowISO();
-
-          realLine.paid = makePaid;
-          if (realLine.paid) realLine.returned = false;
-          realLine.updatedAt = t;
-
-          // [FINAL FIX] إذا كان السطر/البطاقة نقدي وتم إلغاء التسديد: حوّل كل البطاقة إلى أجل.
-          if(!makePaid && shouldConvertCancelledCashToDebt(realCard)){
-            convertCardToAjalDebt(realCard, t);
-          }else{
-            realCard.paidAll = allActivePaid(realCard);
-            realCard.updatedAt = t;
-          }
+          realCard.updatedAt = ln.updatedAt;
 
           save(); // بنفس فكرتك، بعدين ممكن يصير export للسيرفر
           renderBoard();
@@ -7795,8 +7704,8 @@ custWrap.appendChild(typeBadge);
           refreshStats();
 
           showToast(
-            makePaid ? 'success' : 'info',
-            makePaid ? 'تم تسديد المادة' : 'تم إلغاء التسديد وتحويل الفاتورة إلى أجل إذا كانت نقدي'
+            ln.paid ? 'success' : 'info',
+            ln.paid ? 'تم تسديد المادة' : 'تم إلغاء التسديد'
           );
         };
 
@@ -7980,30 +7889,10 @@ custWrap.appendChild(typeBadge);
       const allPaidBefore = active.every(l => l.paid);
       const makePaid = !allPaidBefore;
 
-      const t = nowISO();
+      active.forEach(l => { l.paid = makePaid; });
+      card.paidAll = allActivePaid(card);
 
-      if(makePaid){
-        active.forEach(l => {
-          l.paid = true;
-          l.returned = false;
-          l.updatedAt = t;
-        });
-        card.paidAll = allActivePaid(card);
-        card.updatedAt = t;
-      }else{
-        active.forEach(l => {
-          l.paid = false;
-          l.updatedAt = t;
-        });
-
-        // [FINAL FIX] إلغاء تسديد الكل على فاتورة نقدي يعني تحويل كل البطاقة إلى أجل فعلياً.
-        if(shouldConvertCancelledCashToDebt(card)){
-          convertCardToAjalDebt(card, t);
-        }else{
-          card.paidAll = allActivePaid(card);
-          card.updatedAt = t;
-        }
-      }
+      card.updatedAt = new Date().toISOString();
 
       save();
       renderBoard();
@@ -9369,8 +9258,8 @@ function exportDayPDF_Vector(){
   const out = { total:0, paid:0, unpaid:0, returned:0 };
 
   const activeLines = (card.lines || []).filter(ln => ln && !ln.deletedAt);
-  const billType = String(card && card.billType || '').trim();
-  const isCashCardPrint = (billType === 'نقدي');
+  const isCash = (String(card && card.billType || '') === 'نقدي') ||
+    activeLines.some(ln => String(ln.type || '') === 'نقدي');
 
   activeLines.forEach(ln => {
     const price = Number(String(ln.price ?? '').replace(/[^\\d.]/g,'')) || 0;
@@ -9386,9 +9275,7 @@ function exportDayPDF_Vector(){
     // المجموع الكلي = المدفوع + غير المدفوع
     out.total += sub;
 
-    // لا نخلي line.type نقدي قديم يقلب فاتورة أجل إلى مدفوعة.
-    const lineIsCash = (!billType || billType === 'مختلط') && String(ln.type || '').trim() === 'نقدي';
-    if (isCashCardPrint || lineIsCash || ln.paid){
+    if (isCash || ln.paid){
       out.paid += sub;
     } else {
       out.unpaid += sub;
@@ -9397,7 +9284,6 @@ function exportDayPDF_Vector(){
 
   return out;
 }
-
 
 
 
@@ -10011,8 +9897,8 @@ function exportCardPDF_Vector(card, dayKey){
           const out = { total:0, paid:0, unpaid:0, returned:0 };
 
           const activeLines = (card.lines || []).filter(function(ln){ return ln && !ln.deletedAt; });
-          const billType = String(card && card.billType || '').trim();
-          const isCashCardPrint = (billType === 'نقدي');
+          const isCash = (String(card && card.billType || '') === 'نقدي') ||
+            activeLines.some(function(ln){ return String(ln.type || '') === 'نقدي'; });
 
           activeLines.forEach(function(ln){
             const price = Number(String(ln.price ?? '').replace(/[^\\d.]/g,'')) || 0;
@@ -10026,9 +9912,7 @@ function exportCardPDF_Vector(card, dayKey){
 
             out.total += sub;
 
-            // لا نخلي line.type نقدي قديم يقلب فاتورة أجل إلى مدفوعة.
-            const lineIsCash = (!billType || billType === 'مختلط') && String(ln.type || '').trim() === 'نقدي';
-            if(isCashCardPrint || lineIsCash || ln.paid){
+            if(isCash || ln.paid){
               out.paid += sub;
             } else {
               out.unpaid += sub;
@@ -10037,7 +9921,6 @@ function exportCardPDF_Vector(card, dayKey){
 
           return out;
         }
-
 
         function escHtmlLocal(s){
           return String(s||'')
@@ -12076,7 +11959,7 @@ function mergeLine(a, b, report, path){
   const base = {...x};
 
   // الحقول التي ندمجها حقل-بحقل
-  const fields = ['item','cat','price','qty','note','type','paid','returned'];
+  const fields = ['item','cat','price','qty','note','paid','returned'];
   const merged = {...base};
 
   // timestamps لكل حقل (إذا ما عندك لكل حقل، نستعمل line.updatedAt كله)
@@ -12222,24 +12105,13 @@ function mergeCard(a, b, report, path){
     merged.wholesalePreparedAt = isNewer(prepTsA, prepTsB) ? prepTsB : prepTsA;
   }
 
-  // [FINAL FIX] قبل احتساب نوع البطاقة، نظّف حالة نقدي + إلغاء تسديد حتى لا تبقى line.type نقدي قديمة.
-  if(shouldConvertCancelledCashToDebt(merged)){
-    convertCardToAjalDebt(merged, merged.updatedAt || nowISO());
-  }
-
-  // billType يُعاد احتسابه من نوع السطور الحقيقي، وليس اعتبار كل غير راجع = اجل دائماً.
-  const fallbackType = normalizeBillType(merged.billType || x.billType || y.billType || 'اجل') || 'اجل';
+  // billType يُعاد احتسابه من السطور الفعّالة
   const types = Array.from(
-    new Set(
-      (merged.lines || [])
-        .filter(l => !l.deletedAt)
-        .map(l => normalizeBillType(l.returned ? 'راجع' : (l.type || fallbackType || 'اجل')) || 'اجل')
-        .filter(Boolean)
-    )
+    new Set((merged.lines || []).filter(l => !l.deletedAt).map(l => (l.returned ? 'راجع' : 'اجل')))
   );
   merged.billType = (types.length === 1)
     ? types[0]
-    : (types.length === 0 ? fallbackType : 'مختلط');
+    : (types.length === 0 ? (x.billType || y.billType || 'اجل') : 'مختلط');
 
   // paidAll يُعاد احتسابه (مطابق لنمطك)
   merged.paidAll = (function(){
