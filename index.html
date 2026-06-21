@@ -16416,6 +16416,241 @@ const today = __getTodayYMD__();
     window.__railDayAutoSyncInterval__ = setInterval(__tickSync__, 60 * 1000);
   }
 })();
+
+
+/* =========================================================
+   ASSAL FINAL SAFE PATCH - Preview cleanup + JSON save behavior
+   - إزالة بادج "عرض فقط" من كل بطاقة داخل المعاينة
+   - إخفاء فواتير الجملة من عارض النسخ فقط
+   - زر حفظ JSON يستخدم نفس سلوك زر تصدير JSON العادي: Blob + a.download فقط
+   - لا يكتب على IndexedDB / localStorage / السيرفر / days
+========================================================= */
+(function(){
+  'use strict';
+
+  function assalFinalPatchInjectStyle(){
+    if(document.getElementById('assal-final-preview-cleanup-style')) return;
+    var st = document.createElement('style');
+    st.id = 'assal-final-preview-cleanup-style';
+    st.textContent = `
+      /* لا نريد بادج عرض فقط على كل بطاقة */
+      .assal-preview-card::after{
+        content:none!important;
+        display:none!important;
+      }
+    `;
+    document.head.appendChild(st);
+  }
+  assalFinalPatchInjectStyle();
+
+  function normTypeFinal(v){
+    try{
+      if(typeof normalizeBillType === 'function') return normalizeBillType(v);
+    }catch(_e){}
+    var s = String(v == null ? '' : v).trim();
+    var u = s.toUpperCase();
+    if(s === 'جملة' || u === 'WHOLESALE') return 'جملة';
+    return s;
+  }
+
+  window.assalAdvIsWholesaleReadonly = function(card){
+    try{
+      if(typeof isWholesaleCard === 'function' && isWholesaleCard(card)) return true;
+    }catch(_e){}
+    if(!card) return false;
+    if(normTypeFinal(card.billType) === 'جملة') return true;
+    var lines = Array.isArray(card.lines) ? card.lines : [];
+    return lines.some(function(l){
+      if(!l || l.deletedAt) return false;
+      return normTypeFinal(l.type || l.billType) === 'جملة';
+    });
+  };
+
+  // الأيام المعروضة داخل المعاينة: يوم يحتوي بطاقات غير جملة فقط
+  window.assalAdvPreviewDayKeys = function(payload){
+    var daysObj = payload && payload.days && typeof payload.days === 'object' ? payload.days : {};
+    return Object.keys(daysObj).filter(function(day){
+      var arr = Array.isArray(daysObj[day]) ? daysObj[day] : [];
+      return arr.some(function(card){
+        if(!card || card.deletedAt) return false;
+        if(window.assalAdvIsWholesaleReadonly(card)) return false;
+        var lines = Array.isArray(card.lines) ? card.lines.filter(function(l){ return l && !l.deletedAt; }) : [];
+        return lines.length > 0;
+      });
+    }).sort();
+  };
+
+  // بطاقات اليوم داخل المعاينة: استبعاد فواتير الجملة فقط من العارض
+  window.assalAdvPreviewCollectCardsForDay = function(payload, day, filters){
+    filters = filters || {};
+    var q = String(filters.customer || '').trim().toLowerCase();
+    var itemQ = String(filters.item || '').trim().toLowerCase();
+    var daysObj = payload && payload.days && typeof payload.days === 'object' ? payload.days : {};
+    var arr = Array.isArray(daysObj[day]) ? daysObj[day] : [];
+    var out = [];
+    arr.forEach(function(card, order){
+      if(!card || card.deletedAt) return;
+      if(window.assalAdvIsWholesaleReadonly(card)) return;
+      var lines = Array.isArray(card.lines) ? card.lines.filter(function(l){ return l && !l.deletedAt; }) : [];
+      if(!lines.length) return;
+      if(q && !String(card.customer || '').toLowerCase().includes(q)) return;
+      if(itemQ && !lines.some(function(l){ return String(l.item || '').toLowerCase().includes(itemQ); })) return;
+      out.push({card:card, day:day, order:order});
+    });
+    return out;
+  };
+
+  function safeNameFinal(name){
+    try{
+      if(typeof assalAdvSafeFileName === 'function') return assalAdvSafeFileName(name);
+    }catch(_e){}
+    return String(name || 'ASSAL_BACKUP.json').replace(/[\\/:*?"<>|]+/g,'_');
+  }
+
+  // نفس سلوك تصدير JSON في الهيدر: Blob + a.download + click
+  window.assalAdvDownloadPayload = async function(payload, filename){
+    try{
+      var safeName = safeNameFinal(filename);
+      var blob = new Blob([JSON.stringify(payload || {}, null, 2)], { type:'application/json' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = safeName;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(a.href);
+      a.remove();
+      return true;
+    }catch(err){
+      console.error('[ASSAL Preview Save JSON] failed:', err);
+      try{ showToast && showToast('error','تعذر حفظ ملف JSON'); }catch(_e){}
+      return false;
+    }
+  };
+
+  window.assalAdvancedDownloadRecordById = async function(id){
+    var rec = typeof assalAdvFindRecordById === 'function'
+      ? assalAdvFindRecordById(id)
+      : ((window.__ASSAL_ADV_ALL_RECORDS__ || window.__ASSAL_ADV_TODAY_RECORDS__ || []).find(function(x){ return String(x.id) === String(id); }));
+    if(!rec || !rec.payload){
+      try{ showToast && showToast('error','تعذر العثور على النسخة'); }catch(_e){}
+      return false;
+    }
+    var t = new Date(rec.uploadedAt || (rec.payload && rec.payload.exportedAt) || Date.now());
+    var pad = function(n){ return String(n).padStart(2,'0'); };
+    var date = (typeof assalAdvLocalDayKey === 'function') ? assalAdvLocalDayKey(t) : t.toISOString().slice(0,10);
+    var src = rec.isServerCurrent ? 'SERVER' : 'LOCAL';
+    var filename = 'ASSAL_' + src + '_BACKUP_' + date + '_' + pad(t.getHours()) + '-' + pad(t.getMinutes()) + '-' + pad(t.getSeconds()) + '.json';
+    var ok = await window.assalAdvDownloadPayload(rec.payload, filename);
+    if(ok){
+      try{ showToast && showToast('success','تم حفظ ملف JSON على الجهاز'); }catch(_e){}
+    }
+    return ok;
+  };
+
+  // إذا انفتحت النافذة قبل تحميل هذا الباتش، نعيد حساب الأيام بدون الجملة عند أول فتح لاحقاً
+  var oldOpen = window.assalAdvOpenReadonlyPreview;
+  if(typeof oldOpen === 'function'){
+    window.assalAdvOpenReadonlyPreview = function(rec){
+      assalFinalPatchInjectStyle();
+      return oldOpen.call(this, rec);
+    };
+  }
+})();
+
+
+
+/* =========================================================
+   ASSAL Advanced Local Sync Archive Queue - FINAL SAFE PATCH
+   الهدف:
+   - حفظ نسخة محلية منفصلة لكل عملية مزامنة/رفع ناجحة داخل هذا الجهاز فقط.
+   - منع ضياع النسخ بسبب تداخل عمليتي حفظ متقاربتين.
+   - تنظيف أرشيف الأيام القديمة فقط، بدون لمس بيانات الديون أو السيرفر.
+   - لا يغير سلوك الرفع/السحب/الدمج إطلاقاً؛ هذه طبقة أرشفة محلية فقط.
+========================================================= */
+window.__ASSAL_ADV_LOCAL_ARCHIVE_QUEUE__ = window.__ASSAL_ADV_LOCAL_ARCHIVE_QUEUE__ || Promise.resolve();
+
+function assalAdvQueueLocalArchiveTask(task){
+  const prev = window.__ASSAL_ADV_LOCAL_ARCHIVE_QUEUE__ || Promise.resolve();
+  const run = prev.catch(()=>{}).then(task);
+  // نخلي الطابور يستمر حتى لو مهمة فشلت، حتى لا يتعطل حفظ النسخ اللاحقة.
+  window.__ASSAL_ADV_LOCAL_ARCHIVE_QUEUE__ = run.catch(()=>{});
+  return run;
+}
+
+async function assalAdvWaitLocalArchiveQueue(){
+  try{ await (window.__ASSAL_ADV_LOCAL_ARCHIVE_QUEUE__ || Promise.resolve()); }catch(_e){}
+}
+
+async function assalAdvPruneArchiveToToday(){
+  return assalAdvQueueLocalArchiveTask(async ()=>{
+    try{
+      const today = assalAdvLocalDayKey(new Date());
+      const archive = await assalAdvReadArchive();
+      archive.days = archive.days && typeof archive.days === 'object' ? archive.days : {};
+      const todayList = Array.isArray(archive.days[today]) ? archive.days[today] : [];
+      // حذف أرشيف الأيام السابقة فقط من سجل النسخ المحلي، ولا يمس أي بيانات تشغيلية.
+      archive.days = { [today]: todayList };
+      archive.updatedAt = new Date().toISOString();
+      await assalAdvWriteArchive(archive);
+      return archive;
+    }catch(e){
+      console.warn('[ASSAL Advanced Local Archive Queue] prune skipped:', e);
+      return { days:{} };
+    }
+  });
+}
+
+async function assalAdvancedRecordServerUpload(payload, meta={}){
+  return assalAdvQueueLocalArchiveTask(async ()=>{
+    try{
+      if(!payload || typeof payload !== 'object') return false;
+
+      const uploadedAt = new Date().toISOString();
+      const dayKey = assalAdvLocalDayKey(uploadedAt);
+      const body = JSON.stringify(payload);
+      const size = meta.size || (new TextEncoder().encode(body).length);
+      const hash = meta.hash || (typeof sha256 === 'function' ? await sha256(body) : '');
+      const summary = assalAdvSummarizePayload(payload);
+
+      const archive = await assalAdvReadArchive();
+      archive.days = archive.days && typeof archive.days === 'object' ? archive.days : {};
+
+      // بداية يوم جديد: نصفر فقط سجل النسخ المحلي القديم، ونبدأ قائمة اليوم من جديد.
+      const todayList = Array.isArray(archive.days[dayKey]) ? archive.days[dayKey].slice() : [];
+
+      todayList.push({
+        id: `local_sync_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+        dayKey,
+        uploadedAt,
+        source: 'مزامنة محفوظة محلياً',
+        size,
+        hash,
+        summary,
+        payload: assalAdvClone(payload)
+      });
+
+      // مهم: لا نستخدم slice هنا؛ المطلوب حفظ كل نسخ مزامنة اليوم على هذا الجهاز.
+      archive.days = { [dayKey]: todayList };
+      archive.updatedAt = uploadedAt;
+      await assalAdvWriteArchive(archive);
+      return true;
+    }catch(e){
+      console.warn('[ASSAL Advanced Local Upload Log Queue] skipped:', e);
+      return false;
+    }
+  });
+}
+
+async function assalAdvGetTodayLocalRecords(){
+  await assalAdvWaitLocalArchiveQueue();
+  const archive = await assalAdvReadArchive();
+  const today = assalAdvLocalDayKey(new Date());
+  const list = archive?.days?.[today];
+  return (Array.isArray(list) ? list : [])
+    .filter(r => assalAdvIsToday(r?.uploadedAt))
+    .sort((a,b)=> new Date(b.uploadedAt||0) - new Date(a.uploadedAt||0));
+}
+
 </script>
 
 
