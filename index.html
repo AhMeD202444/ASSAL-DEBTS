@@ -4444,6 +4444,267 @@ body{ padding-top: var(--hdr-h); }
 </head>
 
 <body>
+
+<!-- ===== ASSAL SAFE SINGLE WINDOW LOCK - START ===== -->
+<style id="assalSingleWindowLockStyle">
+  #assalSingleWindowLock{
+    position:fixed;
+    inset:0;
+    z-index:2147483647;
+    display:none;
+    place-items:center;
+    background:
+      radial-gradient(1000px 620px at 80% -10%, rgba(127,29,29,.20), transparent 60%),
+      radial-gradient(900px 520px at -10% 10%, rgba(124,58,237,.18), transparent 60%),
+      rgba(2,6,23,.96);
+    color:#e7eef9;
+    font-family:"Cairo", system-ui, sans-serif;
+    pointer-events:auto;
+    touch-action:none;
+    user-select:none;
+    -webkit-user-select:none;
+    backdrop-filter:blur(8px);
+  }
+  #assalSingleWindowLock.assal-lock-active{display:grid !important;}
+  #assalSingleWindowLock .assal-lock-card{
+    width:min(520px, calc(100vw - 34px));
+    border-radius:20px;
+    padding:22px 18px;
+    border:1px solid rgba(239,68,68,.42);
+    background:linear-gradient(180deg, rgba(15,26,51,.96), rgba(13,23,45,.96));
+    box-shadow:0 28px 90px rgba(0,0,0,.72), inset 0 0 0 1px rgba(255,255,255,.035);
+    text-align:center;
+  }
+  #assalSingleWindowLock .assal-lock-icon{
+    width:58px;height:58px;border-radius:18px;
+    display:grid;place-items:center;
+    margin:0 auto 12px;
+    color:#fecaca;
+    background:linear-gradient(135deg,#7f1d1d,#4c0b0b);
+    border:1px solid rgba(239,68,68,.50);
+    box-shadow:0 14px 34px rgba(127,29,29,.38);
+    font-size:24px;
+  }
+  #assalSingleWindowLock .assal-lock-title{
+    font-size:20px;
+    font-weight:900;
+    color:#fff;
+    margin:0 0 8px;
+  }
+  #assalSingleWindowLock .assal-lock-text{
+    font-size:14px;
+    font-weight:800;
+    line-height:1.9;
+    color:#dbeafe;
+    margin:0;
+  }
+  #assalSingleWindowLock .assal-lock-note{
+    margin-top:12px;
+    padding:10px 12px;
+    border-radius:14px;
+    background:rgba(127,29,29,.18);
+    border:1px solid rgba(239,68,68,.22);
+    color:#fecaca;
+    font-size:13px;
+    font-weight:800;
+    line-height:1.8;
+  }
+  html.assal-single-window-locked,
+  html.assal-single-window-locked body{
+    overflow:hidden !important;
+    overscroll-behavior:none !important;
+    touch-action:none !important;
+  }
+</style>
+<div id="assalSingleWindowLock" aria-live="assertive" aria-modal="true" role="alertdialog">
+  <div class="assal-lock-card">
+    <div class="assal-lock-icon"><i class="fa-solid fa-lock"></i></div>
+    <div class="assal-lock-title">التطبيق مفتوح بنافذة ثانية</div>
+    <p class="assal-lock-text">لحماية الديون والأرقام من التضارب، هذه الصفحة مقفولة بالكامل ولا تستجيب لأي لمس أو زر.</p>
+    <div class="assal-lock-note">يرجى الرجوع للنافذة الأولى المفتوحة، أو إغلاق هذه النافذة.</div>
+  </div>
+</div>
+<script id="assalSingleWindowLockScript">
+(function(){
+  'use strict';
+
+  var LOCK_PREFIX = 'ASSAL_DEBTS_SINGLE_ACTIVE_WINDOW_LOCK_V1';
+  var ACTIVE_KEY  = LOCK_PREFIX + '_ACTIVE';
+  var TAB_KEY     = LOCK_PREFIX + '_TAB_ID';
+  var HEARTBEAT_MS = 2500;
+  var STALE_AFTER_MS = 5 * 60 * 1000; // مهلة طويلة حتى لا تستلم نافذة ثانية القفل بسهولة إذا الأولى بالخلفية
+
+  var originalSetInterval = window.setInterval.bind(window);
+  var originalSetTimeout  = window.setTimeout.bind(window);
+  var originalFetch       = window.fetch ? window.fetch.bind(window) : null;
+  var OriginalXHR         = window.XMLHttpRequest;
+  var OriginalEventSource = window.EventSource;
+  var originalStorageSetItem = Storage && Storage.prototype && Storage.prototype.setItem;
+  var originalStorageRemoveItem = Storage && Storage.prototype && Storage.prototype.removeItem;
+  var originalStorageClear = Storage && Storage.prototype && Storage.prototype.clear;
+
+  function now(){ return Date.now(); }
+  function makeId(){
+    return 'tab_' + now().toString(36) + '_' + Math.random().toString(36).slice(2,10);
+  }
+  function getTabId(){
+    var id = '';
+    try{ id = sessionStorage.getItem(TAB_KEY) || ''; }catch(e){}
+    if(!id){
+      id = makeId();
+      try{ sessionStorage.setItem(TAB_KEY, id); }catch(e){}
+    }
+    return id;
+  }
+  var TAB_ID = getTabId();
+
+  function readActive(){
+    try{
+      var raw = localStorage.getItem(ACTIVE_KEY);
+      if(!raw) return null;
+      return JSON.parse(raw);
+    }catch(e){ return null; }
+  }
+  function writeActive(){
+    try{
+      localStorage.setItem(ACTIVE_KEY, JSON.stringify({
+        tabId:TAB_ID,
+        at:now(),
+        url:String(location.href || ''),
+        title:String(document.title || 'ASSAL')
+      }));
+    }catch(e){}
+  }
+  function removeOwnLock(){
+    try{
+      var active = readActive();
+      if(active && active.tabId === TAB_ID){ localStorage.removeItem(ACTIVE_KEY); }
+    }catch(e){}
+  }
+  function isFresh(active){
+    return !!(active && active.tabId && active.at && (now() - Number(active.at) < STALE_AFTER_MS));
+  }
+  function isOtherActive(active){
+    return !!(isFresh(active) && active.tabId !== TAB_ID);
+  }
+
+  function showLockedOverlay(){
+    try{
+      document.documentElement.classList.add('assal-single-window-locked');
+      if(document.body) document.body.classList.add('assal-single-window-locked');
+      var box = document.getElementById('assalSingleWindowLock');
+      if(box){ box.classList.add('assal-lock-active'); box.style.display='grid'; }
+    }catch(e){}
+  }
+
+  function swallow(ev){
+    try{
+      var box = document.getElementById('assalSingleWindowLock');
+      if(box && box.contains(ev.target)){
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        ev.stopPropagation();
+        return false;
+      }
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      ev.stopPropagation();
+      return false;
+    }catch(e){ return false; }
+  }
+
+  function blockPageCompletely(){
+    if(window.__ASSAL_SINGLE_WINDOW_LOCKED__) return;
+    window.__ASSAL_SINGLE_WINDOW_LOCKED__ = true;
+
+    showLockedOverlay();
+    originalSetTimeout(showLockedOverlay, 0);
+    originalSetTimeout(showLockedOverlay, 120);
+    originalSetTimeout(showLockedOverlay, 650);
+
+    var events = [
+      'click','dblclick','mousedown','mouseup','mousemove','mouseover','mouseout',
+      'pointerdown','pointerup','pointermove','touchstart','touchend','touchmove',
+      'keydown','keyup','keypress','input','change','submit','wheel','contextmenu',
+      'dragstart','drop','paste','cut','copy','beforeinput'
+    ];
+    events.forEach(function(name){
+      try{ window.addEventListener(name, swallow, true); }catch(e){}
+      try{ document.addEventListener(name, swallow, true); }catch(e){}
+    });
+
+    // منع أي مزامنة/طلبات شبكة من النافذة المقفولة فقط
+    if(originalFetch){
+      try{ window.fetch = function(){ return Promise.reject(new Error('ASSAL locked: another active window is open')); }; }catch(e){}
+    }
+    if(OriginalXHR){
+      try{
+        window.XMLHttpRequest = function(){ throw new Error('ASSAL locked: another active window is open'); };
+      }catch(e){}
+    }
+    if(OriginalEventSource){
+      try{
+        window.EventSource = function(){ throw new Error('ASSAL locked: another active window is open'); };
+      }catch(e){}
+    }
+
+    // منع تشغيل مؤقتات التطبيق داخل النافذة المقفولة حتى لا تبدأ مزامنة تلقائية
+    try{ window.setInterval = function(){ return 0; }; }catch(e){}
+    try{ window.setTimeout = function(fn, delay){ return 0; }; }catch(e){}
+
+    // منع كتابات localStorage من النافذة المقفولة، مع السماح بمفاتيح القفل فقط
+    if(originalStorageSetItem){
+      try{
+        Storage.prototype.setItem = function(k, v){
+          k = String(k || '');
+          if(k.indexOf(LOCK_PREFIX) === 0){ return originalStorageSetItem.call(this, k, v); }
+          return undefined;
+        };
+      }catch(e){}
+    }
+    if(originalStorageRemoveItem){
+      try{
+        Storage.prototype.removeItem = function(k){
+          k = String(k || '');
+          if(k.indexOf(LOCK_PREFIX) === 0){ return originalStorageRemoveItem.call(this, k); }
+          return undefined;
+        };
+      }catch(e){}
+    }
+    if(originalStorageClear){
+      try{ Storage.prototype.clear = function(){ return undefined; }; }catch(e){}
+    }
+  }
+
+  function claimAsOwner(){
+    window.__ASSAL_SINGLE_WINDOW_OWNER__ = true;
+    writeActive();
+    originalSetInterval(function(){
+      if(window.__ASSAL_SINGLE_WINDOW_LOCKED__) return;
+      writeActive();
+    }, HEARTBEAT_MS);
+    window.addEventListener('pagehide', removeOwnLock, {capture:true});
+    window.addEventListener('beforeunload', removeOwnLock, {capture:true});
+    window.addEventListener('storage', function(ev){
+      if(!ev || ev.key !== ACTIVE_KEY || window.__ASSAL_SINGLE_WINDOW_LOCKED__) return;
+      var active = readActive();
+      // إذا نافذة ثانية حاولت تستلم القفل بالغلط، النافذة الأولى ترجع تثبت نفسها.
+      if(isOtherActive(active)){
+        writeActive();
+      }
+    }, false);
+  }
+
+  var active = readActive();
+  if(isOtherActive(active)){
+    blockPageCompletely();
+  }else{
+    claimAsOwner();
+  }
+})();
+</script>
+<!-- ===== ASSAL SAFE SINGLE WINDOW LOCK - END ===== -->
+
   <!-- Header -->
   <div class="ribbon">
     <div class="ribbon-wrap">
