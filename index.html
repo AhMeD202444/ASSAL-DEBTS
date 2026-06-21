@@ -3712,6 +3712,285 @@ body{ padding-top: var(--hdr-h); }
 }
 
 
+
+
+/* =========================================================
+   ASSAL Advanced Backups / Secure Import (ADD-ONLY)
+   - خيارات متقدمة برمز سري
+   - عرض/تحميل نسخ اليوم التي تم رفعها بنجاح
+   - استيراد نسخة JSON مستقل ومقفول برمز
+========================================================= */
+#btnAdvancedBackups,
+#btnSecureImportBackup{
+  position:relative;
+}
+#btnAdvancedBackups::after,
+#btnSecureImportBackup::after{
+  content:"";
+  position:absolute;
+  inset-inline-end:5px;
+  top:5px;
+  width:7px;
+  height:7px;
+  border-radius:999px;
+  background:linear-gradient(135deg,#f59e0b,#ef4444);
+  box-shadow:0 0 10px rgba(245,158,11,.45);
+}
+.assal-adv-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:42000;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:
+    radial-gradient(1000px 600px at 80% -10%, rgba(124,58,237,.16), transparent 60%),
+    radial-gradient(900px 500px at -10% 10%, rgba(18,209,180,.12), transparent 60%),
+    rgba(2,6,23,.72);
+  backdrop-filter:blur(6px);
+}
+.assal-adv-backdrop.active{ display:flex; }
+.assal-adv-shell{
+  width:min(1040px, calc(100vw - 28px));
+  max-height:min(86vh, 780px);
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  padding:14px;
+  border-radius:18px;
+  border:1px solid rgba(124,58,237,.35);
+  background:linear-gradient(135deg, rgba(20,30,55,.96), rgba(17,25,45,.96));
+  box-shadow:0 24px 70px rgba(0,0,0,.62);
+  color:#e7eef9;
+}
+.assal-adv-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  border:1px solid var(--stroke);
+  background:linear-gradient(180deg,#0f1a33,#0d172d);
+  border-radius:14px;
+  padding:10px 12px;
+}
+.assal-adv-title{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-weight:900;
+  color:#fff;
+}
+.assal-adv-title i{
+  width:30px;
+  height:30px;
+  border-radius:9px;
+  display:grid;
+  place-items:center;
+  background:linear-gradient(135deg,var(--brand),var(--brand-2));
+  color:#fff;
+  box-shadow:0 8px 24px rgba(124,58,237,.35);
+}
+.assal-adv-actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.assal-adv-body{
+  overflow:auto;
+  padding:2px;
+}
+.assal-adv-note{
+  border:1px solid rgba(245,158,11,.32);
+  background:linear-gradient(180deg,#2f2108,#171304);
+  color:#fde68a;
+  border-radius:12px;
+  padding:9px 12px;
+  font-size:13px;
+  line-height:1.75;
+  margin-bottom:10px;
+}
+.assal-adv-grid{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0,1fr));
+  gap:10px;
+}
+@media(max-width:820px){
+  .assal-adv-grid{ grid-template-columns:1fr; }
+}
+.assal-adv-card{
+  border:1px solid var(--stroke);
+  border-radius:14px;
+  background:linear-gradient(180deg,#0b152e,#0a1327);
+  padding:10px;
+  display:flex;
+  flex-direction:column;
+  gap:9px;
+  box-shadow:0 14px 32px rgba(0,0,0,.32);
+}
+.assal-adv-card.server-current{
+  border-color:rgba(18,209,180,.48);
+  box-shadow:0 14px 34px rgba(18,209,180,.10), 0 14px 32px rgba(0,0,0,.32);
+}
+.assal-adv-card-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+}
+.assal-adv-card-title{
+  font-weight:900;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.assal-adv-badge{
+  font-size:11px;
+  border-radius:999px;
+  padding:2px 8px;
+  background:#0a1020;
+  border:1px solid var(--stroke);
+  color:#cbd5e1;
+  white-space:nowrap;
+}
+.assal-adv-badge.good{
+  color:#a7f3d0;
+  background:linear-gradient(180deg,#064e3b,#052e2a);
+  border-color:rgba(16,185,129,.35);
+}
+.assal-adv-stats{
+  display:grid;
+  grid-template-columns:repeat(4, minmax(0,1fr));
+  gap:6px;
+}
+@media(max-width:560px){
+  .assal-adv-stats{ grid-template-columns:repeat(2, minmax(0,1fr)); }
+}
+.assal-adv-stat{
+  border:1px solid rgba(80,110,160,.35);
+  background:#0b1327;
+  border-radius:10px;
+  padding:7px 8px;
+  text-align:center;
+  min-width:0;
+}
+.assal-adv-stat span{
+  display:block;
+  color:#9aa4b2;
+  font-size:11px;
+  margin-bottom:2px;
+}
+.assal-adv-stat b{
+  display:block;
+  color:#f8fafc;
+  font-size:13px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.assal-adv-download{
+  height:34px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  width:100%;
+  border-radius:10px;
+  border:1px solid transparent;
+  background:linear-gradient(135deg,var(--brand),var(--brand-2));
+  color:#fff;
+  font-weight:900;
+  cursor:pointer;
+}
+.assal-adv-empty{
+  border:1px dashed rgba(148,163,184,.28);
+  border-radius:14px;
+  background:#0b1327;
+  color:#cbd5e1;
+  text-align:center;
+  padding:22px 12px;
+  line-height:1.8;
+}
+.assal-pass-card{
+  width:min(420px, calc(100vw - 36px));
+  border:1px solid rgba(124,58,237,.35);
+  border-radius:16px;
+  background:linear-gradient(180deg,#0f1a33,#0d172d);
+  box-shadow:0 22px 56px rgba(0,0,0,.55);
+  padding:16px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  color:#e7eef9;
+  text-align:center;
+}
+.assal-pass-title{
+  font-weight:900;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+}
+.assal-pass-msg{
+  min-height:18px;
+  color:#fca5a5;
+  font-size:12px;
+  font-weight:800;
+}
+.assal-pass-actions{
+  display:flex;
+  justify-content:center;
+  gap:8px;
+}
+
+/* ===== ASSAL Advanced Download Rescue Modal (ADD-ONLY) ===== */
+.assal-download-rescue-shell{
+  width:min(980px, calc(100vw - 28px));
+  max-height:min(88vh, 820px);
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  padding:14px;
+  border-radius:18px;
+  border:1px solid rgba(14,165,233,.35);
+  background:linear-gradient(135deg, rgba(20,30,55,.98), rgba(17,25,45,.98));
+  box-shadow:0 24px 70px rgba(0,0,0,.65);
+  color:#e7eef9;
+}
+.assal-download-rescue-text{
+  width:100%;
+  min-height:300px;
+  max-height:52vh;
+  resize:vertical;
+  direction:ltr;
+  text-align:left;
+  unicode-bidi:plaintext;
+  font-family:Consolas, Menlo, monospace !important;
+  font-size:12px;
+  line-height:1.55;
+  color:#e5e7eb;
+  background:#071126;
+  border:1px solid rgba(80,110,160,.45);
+  border-radius:12px;
+  padding:12px;
+  outline:none;
+}
+.assal-download-rescue-actions{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  justify-content:center;
+  flex-wrap:wrap;
+}
+.assal-download-rescue-actions .modal-btn{
+  min-width:130px;
+}
+
+
 </style>
 
 <style id="debts-only-styles">
@@ -4244,6 +4523,16 @@ body{ padding-top: var(--hdr-h); }
 -->
 
 
+  <!-- [ADD-ONLY] خيارات متقدمة: نسخ اليوم المرفوعة -->
+  <button class="icon" id="btnAdvancedBackups" title="خيارات متقدمة - نسخ اليوم" aria-label="خيارات متقدمة - نسخ اليوم">
+    <i class="fa-solid fa-shield-halved"></i>
+  </button>
+
+  <!-- [ADD-ONLY] استيراد نسخة محلية برمز سري -->
+  <button class="icon" id="btnSecureImportBackup" title="استيراد نسخة برمز سري" aria-label="استيراد نسخة برمز سري">
+    <i class="fa-solid fa-file-import"></i>
+  </button>
+
   <!-- استيراد من السيرفر (سحب) -->
   <button class="icon" id="btnImportAll" title="سحب النسخة من السيرفر" aria-label="سحب النسخة من السيرفر">
     <i class="fa-solid fa-cloud-arrow-down"></i>
@@ -4531,6 +4820,7 @@ body{ padding-top: var(--hdr-h); }
 
 
 <input type="file" id="importFile" accept="application/json" style="display:none">
+<input type="file" id="secureImportFile" accept="application/json,.json" style="display:none">
 
 
 <!-- Gate: شاشة تسجيل الدخول (جديدة بحركة ناعمة) -->
@@ -10812,6 +11102,9 @@ function renderPriceResults(records, term){
 const btnExportAll = document.getElementById('btnExportAll');
 const btnImportAll = document.getElementById('btnImportAll');
 const importInput  = document.getElementById('importFile');
+const btnAdvancedBackups = document.getElementById('btnAdvancedBackups');
+const btnSecureImportBackup = document.getElementById('btnSecureImportBackup');
+const secureImportInput = document.getElementById('secureImportFile');
 
 
 
@@ -10882,6 +11175,11 @@ importInput && (importInput.onchange = (e) => {
   if(file) importInvoicesFromFile(file);
   e.target.value = ''; // حتى تقدر تختار نفس الملف مرة ثانية
 });
+
+// [ADD-ONLY] أزرار مستقلة لا تغيّر سلوك السحب/الرفع الحالي
+btnAdvancedBackups && (btnAdvancedBackups.onclick = assalAdvancedOpenTodayBackups);
+btnSecureImportBackup && (btnSecureImportBackup.onclick = assalAdvancedStartSecureImport);
+secureImportInput && (secureImportInput.onchange = assalAdvancedHandleSecureImportFile);
 
 
 
@@ -11418,7 +11716,14 @@ body,
 signal
 });
 if(!resp.ok) throw new Error('POST failed');
-return await resp.json();
+const json = await resp.json();
+try{
+  if (typeof assalAdvancedRecordServerUpload === 'function'){
+    const __advLogPromise = assalAdvancedRecordServerUpload(payload, { size, hash, response: json });
+    if (__advLogPromise && typeof __advLogPromise.catch === 'function') __advLogPromise.catch(()=>{});
+  }
+}catch(_e){}
+return json;
 }
 
 async function sha256(text){
@@ -11429,7 +11734,1453 @@ async function sha256(text){
 }
 
 
+/* =========================================================
+   ASSAL Advanced Backups / Secure Import (ADD-ONLY)
+   ملاحظة مهمة: هذه الإضافة لا تغيّر منطق السحب/الدمج/الحفظ الحالي.
+   هي فقط تسجّل محلياً النسخ التي نجح رفعها عبر serverPostBackup،
+   وتضيف استيراداً يمر عبر importInvoicesFromFile نفسها بعد رمز وتأكيد.
+========================================================= */
+const ASSAL_ADVANCED_PASSWORD = '12345';
+const ASSAL_ADV_ARCHIVE_KEY   = 'ASSAL_ADVANCED_SERVER_UPLOAD_ARCHIVE_V1';
+const ASSAL_ADV_MAX_TODAY_UPLOADS = 30;
 
+function assalAdvPad2(n){ return String(n).padStart(2,'0'); }
+function assalAdvLocalDayKey(input){
+  const d = input ? new Date(input) : new Date();
+  if(!Number.isFinite(d.getTime())) return '';
+  return `${d.getFullYear()}-${assalAdvPad2(d.getMonth()+1)}-${assalAdvPad2(d.getDate())}`;
+}
+function assalAdvLocalTime(input){
+  const d = input ? new Date(input) : new Date();
+  if(!Number.isFinite(d.getTime())) return '—';
+  let h = d.getHours();
+  const m = assalAdvPad2(d.getMinutes());
+  const ampm = h >= 12 ? 'م' : 'ص';
+  h = h % 12; if(h === 0) h = 12;
+  return `${h}:${m} ${ampm}`;
+}
+function assalAdvIsToday(input){
+  return assalAdvLocalDayKey(input) === assalAdvLocalDayKey(new Date());
+}
+function assalAdvEsc(v){
+  return String(v ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+}
+function assalAdvBytes(bytes){
+  const n = Number(bytes||0);
+  if(!Number.isFinite(n) || n <= 0) return '—';
+  if(n < 1024) return `${n} B`;
+  if(n < 1024*1024) return `${(n/1024).toFixed(1)} KB`;
+  return `${(n/1024/1024).toFixed(2)} MB`;
+}
+function assalAdvClone(v){
+  try{ return cloneDataSafe(v); }catch{ try{ return JSON.parse(JSON.stringify(v)); }catch{ return v; } }
+}
+async function assalAdvReadArchive(){
+  try{
+    if(typeof assalIDBGet === 'function'){
+      const data = await assalIDBGet(ASSAL_ADV_ARCHIVE_KEY, { days:{} });
+      return (data && typeof data === 'object') ? data : { days:{} };
+    }
+  }catch(_e){}
+  try{
+    if(typeof readLocalJSONSafe === 'function') return readLocalJSONSafe(ASSAL_ADV_ARCHIVE_KEY, { days:{} });
+  }catch(_e){}
+  return { days:{} };
+}
+async function assalAdvWriteArchive(data){
+  const safe = data && typeof data === 'object' ? data : { days:{} };
+  try{
+    if(typeof assalIDBSet === 'function'){
+      await assalIDBSet(ASSAL_ADV_ARCHIVE_KEY, safe);
+      return true;
+    }
+  }catch(_e){}
+  try{ localStorage.setItem(ASSAL_ADV_ARCHIVE_KEY, JSON.stringify(safe)); }catch(_e){}
+  return true;
+}
+function assalAdvSummarizePayload(payload){
+  const out = { dayCount:0, cardCount:0, lineCount:0, namesCount:0, paymentsCount:0 };
+  try{
+    const dObj = (payload && payload.days && typeof payload.days === 'object') ? payload.days : {};
+    out.dayCount = Object.keys(dObj).length;
+    Object.values(dObj).forEach(cards=>{
+      if(!Array.isArray(cards)) return;
+      cards.forEach(card=>{
+        if(card && !card.deletedAt){
+          out.cardCount += 1;
+          if(Array.isArray(card.lines)) out.lineCount += card.lines.filter(l=>!l?.deletedAt).length;
+        }
+      });
+    });
+    if(Array.isArray(payload?.names)) out.namesCount = payload.names.length;
+    const pObj = (payload && payload.payments && typeof payload.payments === 'object') ? payload.payments : {};
+    Object.values(pObj).forEach(list=>{ if(Array.isArray(list)) out.paymentsCount += list.filter(x=>!x?.deletedAt).length; });
+  }catch(_e){}
+  return out;
+}
+function assalAdvPayloadTime(payload, fallback){
+  return payload?.exportedAt || payload?.updatedAtMax || payload?.updatedAt || fallback || new Date().toISOString();
+}
+async function assalAdvancedRecordServerUpload(payload, meta={}){
+  try{
+    if(!payload || typeof payload !== 'object') return false;
+    const uploadedAt = new Date().toISOString();
+    const dayKey = assalAdvLocalDayKey(uploadedAt);
+    const body = JSON.stringify(payload);
+    const size = meta.size || (new TextEncoder().encode(body).length);
+    const hash = meta.hash || (typeof sha256 === 'function' ? await sha256(body) : '');
+    const summary = assalAdvSummarizePayload(payload);
+    const archive = await assalAdvReadArchive();
+    archive.days = archive.days && typeof archive.days === 'object' ? archive.days : {};
+
+    // نحتفظ بنسخ اليوم فقط حتى لا يكبر التخزين، وبدون لمس بيانات التطبيق الأصلية.
+    archive.days = { [dayKey]: Array.isArray(archive.days[dayKey]) ? archive.days[dayKey] : [] };
+    archive.days[dayKey].push({
+      id: `adv_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+      dayKey,
+      uploadedAt,
+      source: (typeof isSubDevice === 'function' && isSubDevice()) ? 'فرعية' : 'رئيسية',
+      size,
+      hash,
+      summary,
+      payload: assalAdvClone(payload)
+    });
+    archive.days[dayKey] = archive.days[dayKey].slice(-ASSAL_ADV_MAX_TODAY_UPLOADS);
+    archive.updatedAt = uploadedAt;
+    await assalAdvWriteArchive(archive);
+    return true;
+  }catch(e){
+    console.warn('[ASSAL Advanced Upload Log] skipped:', e);
+    return false;
+  }
+}
+async function assalAdvGetTodayLocalRecords(){
+  const archive = await assalAdvReadArchive();
+  const today = assalAdvLocalDayKey(new Date());
+  const list = archive?.days?.[today];
+  return (Array.isArray(list) ? list : [])
+    .filter(r => assalAdvIsToday(r?.uploadedAt))
+    .sort((a,b)=> new Date(b.uploadedAt||0) - new Date(a.uploadedAt||0));
+}
+function assalAdvSafeFileName(name){
+  return String(name || `ASSAL_BACKUP_${assalAdvLocalDayKey(new Date())}.json`)
+    .replace(/[\\/:*?"<>|]+/g, '-')
+    .replace(/\s+/g, '_')
+    .trim() || `ASSAL_BACKUP_${assalAdvLocalDayKey(new Date())}.json`;
+}
+function assalAdvClickDownloadLink(href, filename){
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = filename;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  a.style.position = 'fixed';
+  a.style.left = '-9999px';
+  a.style.top = '-9999px';
+  document.body.appendChild(a);
+
+  try{
+    const ev = new MouseEvent('click', { bubbles:true, cancelable:true, view:window });
+    a.dispatchEvent(ev);
+  }catch(_e){
+    try{ a.click(); }catch(_e2){}
+  }
+
+  return a;
+}
+function assalAdvDownloadPayload(payload, filename){
+  const safeName = assalAdvSafeFileName(filename);
+  const text = JSON.stringify(payload || {}, null, 2);
+  const mime = 'application/json;charset=utf-8';
+
+  // دعم قديم لبعض المتصفحات
+  try{
+    if(window.navigator && typeof window.navigator.msSaveOrOpenBlob === 'function'){
+      window.navigator.msSaveOrOpenBlob(new Blob([text], { type:mime }), safeName);
+      return true;
+    }
+  }catch(_e){}
+
+  // الطريقة الأساسية: Blob URL، لكن لا نسحب الرابط فوراً حتى لا يفشل داخل WebView/الموبايل.
+  try{
+    const blob = new Blob([text], { type:mime });
+    if(window.URL && typeof URL.createObjectURL === 'function'){
+      const url = URL.createObjectURL(blob);
+      const a = assalAdvClickDownloadLink(url, safeName);
+      setTimeout(()=>{
+        try{ URL.revokeObjectURL(url); }catch(_e){}
+        try{ a.remove(); }catch(_e){}
+      }, 15000);
+      return true;
+    }
+  }catch(e){
+    console.warn('[ASSAL Advanced Download] Blob download failed:', e);
+  }
+
+  // Fallback: Data URL إذا الـ Blob ما اشتغل.
+  try{
+    const dataUrl = 'data:' + mime + ',' + encodeURIComponent(text);
+    const a = assalAdvClickDownloadLink(dataUrl, safeName);
+    setTimeout(()=>{ try{ a.remove(); }catch(_e){} }, 15000);
+    return true;
+  }catch(e){
+    console.warn('[ASSAL Advanced Download] Data URL download failed:', e);
+  }
+
+  return false;
+}
+function assalAdvFindDownloadButton(node){
+  let el = node;
+  while(el && el !== document){
+    try{
+      if(el.getAttribute && el.hasAttribute('data-adv-download')) return el;
+    }catch(_e){}
+    el = el.parentNode;
+  }
+  return null;
+}
+function assalAdvancedDownloadRecordById(id){
+  const rec = (window.__ASSAL_ADV_TODAY_RECORDS__ || []).find(x => String(x.id) === String(id));
+  if(!rec || !rec.payload){
+    showToast?.('error','تعذر العثور على النسخة');
+    return false;
+  }
+  const t = new Date(rec.uploadedAt || rec.payload?.exportedAt || Date.now());
+  const date = assalAdvLocalDayKey(t);
+  const hh = assalAdvPad2(t.getHours());
+  const mm = assalAdvPad2(t.getMinutes());
+  const ok = assalAdvDownloadPayload(rec.payload, `ASSAL_BACKUP_${date}_${hh}-${mm}.json`);
+  if(ok){
+    showToast?.('success','تم تجهيز تحميل النسخة');
+  }else{
+    showToast?.('error','تعذر تحميل النسخة');
+  }
+  return ok;
+}
+function assalAdvBindDownloadButtons(scope){
+  try{
+    (scope || document).querySelectorAll('[data-adv-download]').forEach(btn=>{
+      btn.onclick = (e)=>{
+        e.preventDefault();
+        e.stopPropagation();
+        assalAdvancedDownloadRecordById(btn.getAttribute('data-adv-download'));
+      };
+    });
+  }catch(_e){}
+}
+function assalAdvEnsurePasswordModal(){
+  let root = document.getElementById('assalAdvPassBackdrop');
+  if(root) return root;
+  root = document.createElement('div');
+  root.id = 'assalAdvPassBackdrop';
+  root.className = 'assal-adv-backdrop';
+  root.innerHTML = `
+    <div class="assal-pass-card" role="dialog" aria-modal="true" aria-label="رمز سري">
+      <div class="assal-pass-title"><i class="fa-solid fa-lock"></i><span id="assalAdvPassTitle">رمز سري</span></div>
+      <input id="assalAdvPassInput" class="field" type="password" inputmode="numeric" autocomplete="off" placeholder="أدخل الرمز السري">
+      <div id="assalAdvPassMsg" class="assal-pass-msg"></div>
+      <div class="assal-pass-actions">
+        <button id="assalAdvPassCancel" class="modal-btn ghost">إلغاء</button>
+        <button id="assalAdvPassOk" class="modal-btn danger">دخول</button>
+      </div>
+    </div>`;
+  document.body.appendChild(root);
+  return root;
+}
+function assalAdvancedAskPassword(title='إدخال الرمز السري'){
+  return new Promise((resolve)=>{
+    const root = assalAdvEnsurePasswordModal();
+    const titleEl = root.querySelector('#assalAdvPassTitle');
+    const input = root.querySelector('#assalAdvPassInput');
+    const msg = root.querySelector('#assalAdvPassMsg');
+    const ok = root.querySelector('#assalAdvPassOk');
+    const cancel = root.querySelector('#assalAdvPassCancel');
+    titleEl.textContent = title;
+    input.value = '';
+    msg.textContent = '';
+    root.classList.add('active');
+    document.body.classList.add('modal-open');
+    setTimeout(()=> input.focus(), 60);
+
+    const cleanup = (val)=>{
+      root.classList.remove('active');
+      document.body.classList.remove('modal-open');
+      ok.onclick = null;
+      cancel.onclick = null;
+      input.onkeydown = null;
+      resolve(val);
+    };
+    ok.onclick = ()=>{
+      if(String(input.value || '').trim() === ASSAL_ADVANCED_PASSWORD){
+        cleanup(true);
+      }else{
+        msg.textContent = 'الرمز غير صحيح';
+        input.select();
+        try{ showToast?.('error','الرمز غير صحيح'); }catch(_e){}
+      }
+    };
+    cancel.onclick = ()=> cleanup(false);
+    input.onkeydown = (e)=>{
+      if(e.key === 'Enter') ok.click();
+      if(e.key === 'Escape') cleanup(false);
+    };
+  });
+}
+function assalAdvEnsureBackupsModal(){
+  let root = document.getElementById('assalAdvancedBackupsModal');
+  if(root) return root;
+  root = document.createElement('div');
+  root.id = 'assalAdvancedBackupsModal';
+  root.className = 'assal-adv-backdrop';
+  root.innerHTML = `
+    <div class="assal-adv-shell" role="dialog" aria-modal="true" aria-label="خيارات متقدمة">
+      <div class="assal-adv-head">
+        <div class="assal-adv-title"><i class="fa-solid fa-shield-halved"></i><span>خيارات متقدمة — نسخ اليوم</span></div>
+        <div class="assal-adv-actions">
+          <button id="assalAdvRefresh" class="modal-btn ghost"><i class="fa-solid fa-rotate"></i> تحديث</button>
+          <button id="assalAdvClose" class="close-red"><i class="fa-solid fa-xmark"></i> إغلاق</button>
+        </div>
+      </div>
+      <div class="assal-adv-body nice-scroll" id="assalAdvBody"></div>
+    </div>`;
+  document.body.appendChild(root);
+  root.querySelector('#assalAdvClose').onclick = ()=>{
+    root.classList.remove('active');
+    document.body.classList.remove('modal-open');
+  };
+  root.querySelector('#assalAdvRefresh').onclick = ()=> assalAdvRenderTodayBackups(true);
+  root.addEventListener('click', (e)=>{
+    const btn = (e.target && e.target.closest) ? e.target.closest('[data-adv-download]') : assalAdvFindDownloadButton(e.target);
+    if(!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    assalAdvancedDownloadRecordById(btn.getAttribute('data-adv-download'));
+  });
+  return root;
+}
+async function assalAdvBuildTodayRecords(){
+  const records = [];
+
+  // آخر نسخة موجودة حالياً على السيرفر: قراءة فقط، لا تغيّر أي بيانات.
+  try{
+    if(navigator.onLine && typeof serverGetBackup === 'function'){
+      const server = await serverGetBackup();
+      const t = assalAdvPayloadTime(server, new Date().toISOString());
+      if(server && server.days && assalAdvIsToday(t)){
+        const body = JSON.stringify(server);
+        records.push({
+          id:'server_current_today',
+          dayKey:assalAdvLocalDayKey(t),
+          uploadedAt:t,
+          source:'آخر نسخة على السيرفر الآن',
+          size:new TextEncoder().encode(body).length,
+          hash: typeof sha256 === 'function' ? await sha256(body) : '',
+          summary:assalAdvSummarizePayload(server),
+          payload:server,
+          isServerCurrent:true
+        });
+      }
+    }
+  }catch(e){
+    console.warn('[ASSAL Advanced] current server read skipped:', e);
+  }
+
+  const local = await assalAdvGetTodayLocalRecords();
+  records.push(...local);
+  return records.sort((a,b)=>{
+    if(a.isServerCurrent && !b.isServerCurrent) return -1;
+    if(!a.isServerCurrent && b.isServerCurrent) return 1;
+    return new Date(b.uploadedAt||0) - new Date(a.uploadedAt||0);
+  });
+}
+function assalAdvRecordHtml(rec, idx){
+  const s = rec.summary || assalAdvSummarizePayload(rec.payload || {});
+  const title = rec.isServerCurrent ? 'آخر نسخة موجودة حالياً بالسيرفر' : `نسخة مرفوعة ${assalAdvLocalTime(rec.uploadedAt)}`;
+  const cls = rec.isServerCurrent ? 'assal-adv-card server-current' : 'assal-adv-card';
+  return `
+    <div class="${cls}">
+      <div class="assal-adv-card-head">
+        <div class="assal-adv-card-title"><i class="fa-solid fa-cloud-arrow-up"></i>${assalAdvEsc(title)}</div>
+        <span class="assal-adv-badge ${rec.isServerCurrent ? 'good' : ''}">${assalAdvEsc(rec.source || 'رفع ناجح')}</span>
+      </div>
+      <div class="assal-adv-stats">
+        <div class="assal-adv-stat"><span>الوقت</span><b>${assalAdvEsc(assalAdvLocalTime(rec.uploadedAt))}</b></div>
+        <div class="assal-adv-stat"><span>البطاقات</span><b>${s.cardCount || 0}</b></div>
+        <div class="assal-adv-stat"><span>المواد</span><b>${s.lineCount || 0}</b></div>
+        <div class="assal-adv-stat"><span>الحجم</span><b>${assalAdvEsc(assalAdvBytes(rec.size))}</b></div>
+        <div class="assal-adv-stat"><span>الأيام</span><b>${s.dayCount || 0}</b></div>
+        <div class="assal-adv-stat"><span>الأسماء</span><b>${s.namesCount || 0}</b></div>
+        <div class="assal-adv-stat"><span>الحسابات</span><b>${s.paymentsCount || 0}</b></div>
+        <div class="assal-adv-stat"><span>الترتيب</span><b>#${idx+1}</b></div>
+      </div>
+      <button type="button" class="assal-adv-download" data-adv-download="${assalAdvEsc(rec.id)}"><i class="fa-solid fa-download"></i> تحميل النسخة</button>
+    </div>`;
+}
+async function assalAdvRenderTodayBackups(forceToast=false){
+  const root = assalAdvEnsureBackupsModal();
+  const body = root.querySelector('#assalAdvBody');
+  body.innerHTML = `<div class="assal-adv-empty"><i class="fa-solid fa-spinner fa-spin"></i><br>جاري فحص نسخ اليوم…</div>`;
+  try{
+    const records = await assalAdvBuildTodayRecords();
+    window.__ASSAL_ADV_TODAY_RECORDS__ = records;
+    if(!records.length){
+      body.innerHTML = `
+        <div class="assal-adv-note">هذه النافذة تعرض نسخ اليوم فقط. إذا لم تظهر نسخ، فهذا يعني أن هذا الجهاز لم يسجل رفعاً ناجحاً اليوم، أو أن آخر نسخة حالية بالسيرفر ليست بتاريخ اليوم.</div>
+        <div class="assal-adv-empty"><i class="fa-regular fa-folder-open"></i><br>لا توجد نسخ لليوم حالياً.</div>`;
+    }else{
+      body.innerHTML = `
+        <div class="assal-adv-note">للاطمئنان: هذه إضافة عرض/تحميل فقط. لا تغيّر السحب الحالي ولا الدمج ولا بيانات الفواتير. تعرض آخر نسخة حالية بالسيرفر إذا كانت بتاريخ اليوم، ومعها الرفعات الناجحة المسجلة من هذا الجهاز اليوم.</div>
+        <div class="assal-adv-grid">${records.map(assalAdvRecordHtml).join('')}</div>`;
+      assalAdvBindDownloadButtons(body);
+    }
+    if(forceToast) showToast?.('success','تم تحديث قائمة نسخ اليوم');
+  }catch(e){
+    console.error(e);
+    body.innerHTML = `<div class="assal-adv-empty">تعذر قراءة نسخ اليوم.</div>`;
+    showToast?.('error','تعذر قراءة نسخ اليوم');
+  }
+}
+async function assalAdvancedOpenTodayBackups(){
+  const ok = await assalAdvancedAskPassword('خيارات متقدمة');
+  if(!ok) return;
+  const root = assalAdvEnsureBackupsModal();
+  root.classList.add('active');
+  document.body.classList.add('modal-open');
+  await assalAdvRenderTodayBackups(false);
+}
+async function assalAdvancedStartSecureImport(){
+  const ok = await assalAdvancedAskPassword('استيراد نسخة');
+  if(!ok) return;
+  const input = document.getElementById('secureImportFile');
+  if(!input){
+    showToast?.('error','حقل الاستيراد غير موجود');
+    return;
+  }
+  input.click();
+}
+async function assalAdvancedConfirmImportFile(file){
+  try{
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if(!data || typeof data !== 'object'){
+      showToast?.('error','ملف غير صالح');
+      return false;
+    }
+    const payload = data.days ? data : { days:data };
+    const s = assalAdvSummarizePayload(payload);
+    const msg = `
+      <div style="line-height:1.9;text-align:center">
+        سيتم استيراد الملف ودمجه حسب منطق التطبيق الحالي بدون تغيير زر السحب من السيرفر.<br>
+        <b>ملخص الملف:</b><br>
+        البطاقات: ${s.cardCount || 0} — المواد: ${s.lineCount || 0} — الأيام: ${s.dayCount || 0} — الحسابات: ${s.paymentsCount || 0}<br>
+        هل تريد المتابعة؟
+      </div>`;
+    if(typeof showConfirm === 'function'){
+      return await showConfirm({ title:'تأكيد استيراد نسخة', message:msg, okText:'استيراد', cancelText:'إلغاء', danger:true });
+    }
+    return confirm('تأكيد استيراد نسخة؟');
+  }catch(e){
+    console.error(e);
+    showToast?.('error','تعذر قراءة ملف النسخة');
+    return false;
+  }
+}
+async function assalAdvancedHandleSecureImportFile(e){
+  const input = e.target;
+  const file = input.files && input.files[0];
+  input.value = '';
+  if(!file) return;
+  const ok = await assalAdvancedConfirmImportFile(file);
+  if(!ok) return;
+  await importInvoicesFromFile(file);
+}
+
+
+
+
+
+
+
+/* =========================================================
+   ASSAL Advanced Backups - LOCAL ONLY FIX (ADD-ONLY OVERRIDE)
+   - يسجل كل مزامنة/رفع ناجح محلياً على هذا الجهاز فقط
+   - لا يقرأ آخر نسخة من السيرفر داخل نافذة الخيارات
+   - لا يغير serverGetBackup / serverPostBackup / smartImportFromServer
+   - بداية يوم جديد: ينظف أرشيف الأيام القديمة محلياً فقط
+   - زر التحميل: يحاول تحميل ملف JSON، وإذا WebView منعه يفتح نافذة نسخ/حفظ بديلة
+========================================================= */
+
+async function assalAdvPruneArchiveToToday(){
+  try{
+    const today = assalAdvLocalDayKey(new Date());
+    const archive = await assalAdvReadArchive();
+    archive.days = archive.days && typeof archive.days === 'object' ? archive.days : {};
+    if(!Array.isArray(archive.days[today])) archive.days[today] = [];
+    // حذف أرشيف الأيام السابقة فقط من سجل النسخ المحلي، بدون لمس بيانات التطبيق.
+    archive.days = { [today]: archive.days[today] };
+    archive.updatedAt = new Date().toISOString();
+    await assalAdvWriteArchive(archive);
+    return archive;
+  }catch(e){
+    console.warn('[ASSAL Advanced Local Archive] prune skipped:', e);
+    return { days:{} };
+  }
+}
+
+async function assalAdvancedRecordServerUpload(payload, meta={}){
+  try{
+    if(!payload || typeof payload !== 'object') return false;
+    const uploadedAt = new Date().toISOString();
+    const dayKey = assalAdvLocalDayKey(uploadedAt);
+    const body = JSON.stringify(payload);
+    const size = meta.size || (new TextEncoder().encode(body).length);
+    const hash = meta.hash || (typeof sha256 === 'function' ? await sha256(body) : '');
+    const summary = assalAdvSummarizePayload(payload);
+    const archive = await assalAdvPruneArchiveToToday();
+    archive.days = archive.days && typeof archive.days === 'object' ? archive.days : {};
+    const todayList = Array.isArray(archive.days[dayKey]) ? archive.days[dayKey] : [];
+    todayList.push({
+      id: `local_sync_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+      dayKey,
+      uploadedAt,
+      source: 'مزامنة محفوظة محلياً',
+      size,
+      hash,
+      summary,
+      payload: assalAdvClone(payload)
+    });
+    archive.days = { [dayKey]: todayList };
+    archive.updatedAt = uploadedAt;
+    await assalAdvWriteArchive(archive);
+    return true;
+  }catch(e){
+    console.warn('[ASSAL Advanced Local Upload Log] skipped:', e);
+    return false;
+  }
+}
+
+async function assalAdvBuildTodayRecords(){
+  await assalAdvPruneArchiveToToday();
+  const local = await assalAdvGetTodayLocalRecords();
+  return local.sort((a,b)=> new Date(b.uploadedAt||0) - new Date(a.uploadedAt||0));
+}
+
+function assalAdvEnsureDownloadRescueModal(){
+  let root = document.getElementById('assalDownloadRescueModal');
+  if(root) return root;
+  root = document.createElement('div');
+  root.id = 'assalDownloadRescueModal';
+  root.className = 'assal-adv-backdrop';
+  root.innerHTML = `
+    <div class="assal-download-rescue-shell" role="dialog" aria-modal="true" aria-label="نسخة احتياطية">
+      <div class="assal-adv-head">
+        <div class="assal-adv-title"><i class="fa-solid fa-file-code"></i><span>نسخة احتياطية جاهزة</span></div>
+        <div class="assal-adv-actions">
+          <button id="assalRescueCopy" class="modal-btn ghost"><i class="fa-solid fa-copy"></i> نسخ</button>
+          <button id="assalRescueDownload" class="modal-btn ghost"><i class="fa-solid fa-download"></i> محاولة تحميل</button>
+          <button id="assalRescueClose" class="close-red"><i class="fa-solid fa-xmark"></i> إغلاق</button>
+        </div>
+      </div>
+      <div class="assal-adv-note">إذا المتصفح أو WebView منع تحميل الملف، انسخ النص أدناه واحفظه بملف ينتهي بـ <b>.json</b>. هذه نافذة بديلة فقط ولا تغيّر أي بيانات.</div>
+      <textarea id="assalRescueText" class="assal-download-rescue-text" readonly spellcheck="false"></textarea>
+    </div>`;
+  document.body.appendChild(root);
+  const close = ()=>{
+    root.classList.remove('active');
+    document.body.classList.remove('modal-open');
+  };
+  root.querySelector('#assalRescueClose').onclick = close;
+  root.querySelector('#assalRescueCopy').onclick = async ()=>{
+    const text = root.__assalText || root.querySelector('#assalRescueText')?.value || '';
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        await navigator.clipboard.writeText(text);
+      }else{
+        const ta = root.querySelector('#assalRescueText');
+        ta.focus(); ta.select();
+        document.execCommand('copy');
+      }
+      showToast?.('success','تم نسخ محتوى النسخة');
+    }catch(e){
+      try{
+        const ta = root.querySelector('#assalRescueText');
+        ta.focus(); ta.select();
+      }catch(_e){}
+      showToast?.('warn','حدد النص وانسخه يدوياً');
+    }
+  };
+  root.querySelector('#assalRescueDownload').onclick = ()=>{
+    const text = root.__assalText || root.querySelector('#assalRescueText')?.value || '';
+    const filename = root.__assalFilename || `ASSAL_BACKUP_${assalAdvLocalDayKey(new Date())}.json`;
+    assalAdvTryAnchorDownload(text, filename, false);
+  };
+  return root;
+}
+
+function assalAdvOpenDownloadRescue(text, filename, reason){
+  try{
+    const root = assalAdvEnsureDownloadRescueModal();
+    root.__assalText = text || '';
+    root.__assalFilename = filename || `ASSAL_BACKUP_${assalAdvLocalDayKey(new Date())}.json`;
+    const ta = root.querySelector('#assalRescueText');
+    if(ta) ta.value = root.__assalText;
+    root.classList.add('active');
+    document.body.classList.add('modal-open');
+    setTimeout(()=>{ try{ ta && ta.focus(); }catch(_e){} }, 60);
+    if(reason) console.warn('[ASSAL Advanced Download Rescue]', reason);
+  }catch(e){
+    console.warn('[ASSAL Advanced Download Rescue] open failed:', e);
+  }
+}
+
+function assalAdvTryAnchorDownload(text, filename, showRescue=true){
+  const safeName = assalAdvSafeFileName(filename);
+  const mime = 'application/json;charset=utf-8';
+  try{
+    const blob = new Blob([text], { type:mime });
+    if(window.navigator && typeof window.navigator.msSaveOrOpenBlob === 'function'){
+      window.navigator.msSaveOrOpenBlob(blob, safeName);
+      return true;
+    }
+    if(window.URL && typeof URL.createObjectURL === 'function'){
+      const url = URL.createObjectURL(blob);
+      const a = assalAdvClickDownloadLink(url, safeName);
+      setTimeout(()=>{
+        try{ URL.revokeObjectURL(url); }catch(_e){}
+        try{ a.remove(); }catch(_e){}
+      }, 20000);
+      if(showRescue){
+        setTimeout(()=> assalAdvOpenDownloadRescue(text, safeName, 'backup visible fallback after anchor download'), 450);
+      }
+      return true;
+    }
+  }catch(e){
+    console.warn('[ASSAL Advanced Download] anchor/blob failed:', e);
+  }
+  try{
+    const dataUrl = 'data:' + mime + ',' + encodeURIComponent(text);
+    const a = assalAdvClickDownloadLink(dataUrl, safeName);
+    setTimeout(()=>{ try{ a.remove(); }catch(_e){} }, 20000);
+    if(showRescue){
+      setTimeout(()=> assalAdvOpenDownloadRescue(text, safeName, 'backup visible fallback after data url'), 450);
+    }
+    return true;
+  }catch(e){
+    console.warn('[ASSAL Advanced Download] data url failed:', e);
+  }
+  if(showRescue) assalAdvOpenDownloadRescue(text, safeName, 'download methods failed');
+  return false;
+}
+
+async function assalAdvDownloadPayload(payload, filename){
+  const safeName = assalAdvSafeFileName(filename);
+  const text = JSON.stringify(payload || {}, null, 2);
+  try{
+    if(window.isSecureContext && typeof window.showSaveFilePicker === 'function'){
+      const handle = await window.showSaveFilePicker({
+        suggestedName: safeName,
+        types: [{ description:'JSON Backup', accept:{ 'application/json':['.json'] } }]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(new Blob([text], { type:'application/json;charset=utf-8' }));
+      await writable.close();
+      return true;
+    }
+  }catch(e){
+    console.warn('[ASSAL Advanced Download] showSaveFilePicker unavailable/cancelled:', e);
+  }
+  return assalAdvTryAnchorDownload(text, safeName, true);
+}
+
+async function assalAdvancedDownloadRecordById(id){
+  const rec = (window.__ASSAL_ADV_TODAY_RECORDS__ || []).find(x => String(x.id) === String(id));
+  if(!rec || !rec.payload){
+    showToast?.('error','تعذر العثور على النسخة');
+    return false;
+  }
+  const t = new Date(rec.uploadedAt || rec.payload?.exportedAt || Date.now());
+  const date = assalAdvLocalDayKey(t);
+  const hh = assalAdvPad2(t.getHours());
+  const mm = assalAdvPad2(t.getMinutes());
+  const ss = assalAdvPad2(t.getSeconds());
+  const ok = await assalAdvDownloadPayload(rec.payload, `ASSAL_BACKUP_${date}_${hh}-${mm}-${ss}.json`);
+  if(ok){
+    showToast?.('success','تم تجهيز النسخة؛ إذا لم يبدأ التحميل استخدم نافذة النسخ الاحتياطي');
+  }else{
+    showToast?.('warn','تعذر التحميل المباشر، فتحت لك نسخة قابلة للنسخ');
+  }
+  return ok;
+}
+
+function assalAdvBindDownloadButtons(scope){
+  try{
+    (scope || document).querySelectorAll('[data-adv-download]').forEach(btn=>{
+      btn.setAttribute('type','button');
+      btn.onclick = async (e)=>{
+        e.preventDefault();
+        e.stopPropagation();
+        await assalAdvancedDownloadRecordById(btn.getAttribute('data-adv-download'));
+      };
+    });
+  }catch(_e){}
+}
+
+function assalAdvRecordHtml(rec, idx){
+  const s = rec.summary || assalAdvSummarizePayload(rec.payload || {});
+  const title = `نسخة مزامنة ${assalAdvLocalTime(rec.uploadedAt)}`;
+  return `
+    <div class="assal-adv-card">
+      <div class="assal-adv-card-head">
+        <div class="assal-adv-card-title"><i class="fa-solid fa-clock-rotate-left"></i>${assalAdvEsc(title)}</div>
+        <span class="assal-adv-badge good">${assalAdvEsc(rec.source || 'مزامنة محلية')}</span>
+      </div>
+      <div class="assal-adv-stats">
+        <div class="assal-adv-stat"><span>الوقت</span><b>${assalAdvEsc(assalAdvLocalTime(rec.uploadedAt))}</b></div>
+        <div class="assal-adv-stat"><span>البطاقات</span><b>${s.cardCount || 0}</b></div>
+        <div class="assal-adv-stat"><span>المواد</span><b>${s.lineCount || 0}</b></div>
+        <div class="assal-adv-stat"><span>الحجم</span><b>${assalAdvEsc(assalAdvBytes(rec.size))}</b></div>
+        <div class="assal-adv-stat"><span>الأيام</span><b>${s.dayCount || 0}</b></div>
+        <div class="assal-adv-stat"><span>الأسماء</span><b>${s.namesCount || 0}</b></div>
+        <div class="assal-adv-stat"><span>الحسابات</span><b>${s.paymentsCount || 0}</b></div>
+        <div class="assal-adv-stat"><span>التسلسل</span><b>#${idx+1}</b></div>
+      </div>
+      <button type="button" class="assal-adv-download" data-adv-download="${assalAdvEsc(rec.id)}"><i class="fa-solid fa-download"></i> تحميل النسخة</button>
+    </div>`;
+}
+
+async function assalAdvRenderTodayBackups(forceToast=false){
+  const root = assalAdvEnsureBackupsModal();
+  const body = root.querySelector('#assalAdvBody');
+  body.innerHTML = `<div class="assal-adv-empty"><i class="fa-solid fa-spinner fa-spin"></i><br>جاري فحص نسخ اليوم المحلية…</div>`;
+  try{
+    const records = await assalAdvBuildTodayRecords();
+    window.__ASSAL_ADV_TODAY_RECORDS__ = records;
+    if(!records.length){
+      body.innerHTML = `
+        <div class="assal-adv-note">هذه النافذة تعرض <b>نسخ المزامنة المحفوظة محلياً على هذا الجهاز فقط</b>. لا تقرأ السيرفر ولا تغيّر السحب ولا الدمج. عند بدء يوم جديد يتم تنظيف سجل النسخ المحلي القديم فقط.</div>
+        <div class="assal-adv-empty"><i class="fa-regular fa-folder-open"></i><br>لا توجد نسخ مزامنة محفوظة لهذا اليوم بعد.</div>`;
+    }else{
+      body.innerHTML = `
+        <div class="assal-adv-note">هذه نسخ اليوم المحفوظة محلياً بعد كل رفع/مزامنة ناجحة من هذا الجهاز. لا يوجد أي تغيير على سلوك التطبيق أو السيرفر؛ الزر فقط يحمل نسخة JSON، وإذا WebView منع التحميل ستظهر نافذة نسخ بديلة.</div>
+        <div class="assal-adv-grid">${records.map(assalAdvRecordHtml).join('')}</div>`;
+      assalAdvBindDownloadButtons(body);
+    }
+    if(forceToast) showToast?.('success','تم تحديث نسخ اليوم المحلية');
+  }catch(e){
+    console.error(e);
+    body.innerHTML = `<div class="assal-adv-empty">تعذر قراءة نسخ اليوم المحلية.</div>`;
+    showToast?.('error','تعذر قراءة نسخ اليوم المحلية');
+  }
+}
+
+
+/* =========================================================
+   ASSAL Advanced Backups - SERVER + LOCAL READ-ONLY PREVIEW (ADD-ONLY OVERRIDE)
+   - عارض مستقل 100% لا يستورد ولا يحفظ ولا يغيّر days/current state
+   - قسم مميز لآخر نسخة سيرفر قراءة فقط
+   - قسم مستقل لنسخ مزامنة اليوم المحلية على هذا الجهاز فقط
+   - أزرار: عرض فقط / تحميل / نسخ JSON
+========================================================= */
+
+function assalAdvInjectPreviewStyles(){
+  if(document.getElementById('assal-adv-preview-styles-final')) return;
+  const st = document.createElement('style');
+  st.id = 'assal-adv-preview-styles-final';
+  st.textContent = `
+    .assal-adv-section{margin:10px 0 12px;display:flex;flex-direction:column;gap:10px}
+    .assal-adv-section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid rgba(80,110,160,.38);border-radius:14px;background:linear-gradient(180deg,#0f1a33,#0d172d);box-shadow:0 12px 28px rgba(0,0,0,.25)}
+    .assal-adv-section-title{display:flex;align-items:center;gap:9px;font-weight:900;color:#fff}
+    .assal-adv-section-title i{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,var(--brand),var(--brand-2));box-shadow:0 8px 18px rgba(124,58,237,.28)}
+    .assal-adv-section-sub{font-size:12px;color:#9aa4b2;text-align:end;line-height:1.6}
+    .assal-adv-grid.one{grid-template-columns:1fr}
+    .assal-adv-card.server-current{border-color:rgba(14,165,233,.55)!important;box-shadow:0 14px 34px rgba(14,165,233,.12),0 14px 32px rgba(0,0,0,.32)!important;background:linear-gradient(180deg,#0c1b37,#0a1429)!important}
+    .assal-adv-card.local-current{border-color:rgba(18,209,180,.38)!important}
+    .assal-adv-badge.server{color:#bfdbfe;background:linear-gradient(180deg,#0b3b5b,#07293f);border-color:rgba(14,165,233,.45)}
+    .assal-adv-badge.local{color:#a7f3d0;background:linear-gradient(180deg,#064e3b,#052e2a);border-color:rgba(16,185,129,.35)}
+    .assal-adv-actions-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+    @media(max-width:560px){.assal-adv-actions-row{grid-template-columns:1fr}}
+    .assal-adv-btn{height:34px;display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;border-radius:10px;border:1px solid rgba(80,110,160,.38);background:linear-gradient(180deg,#0c1426,#0e1830);color:#e7eef9;font-weight:900;cursor:pointer}
+    .assal-adv-btn.view{background:linear-gradient(135deg,#0ea5e9,#7c3aed);border-color:transparent;color:#fff}
+    .assal-adv-btn.download{background:linear-gradient(135deg,var(--brand),var(--brand-2));border-color:transparent;color:#fff}
+    .assal-adv-btn.copy{background:#0b1327;color:#cbd5e1}
+    .assal-preview-shell{width:min(1280px,calc(100vw - 22px));max-height:min(92vh,860px);overflow:hidden;display:flex;flex-direction:column;gap:12px;padding:14px;border-radius:18px;border:1px solid rgba(14,165,233,.35);background:linear-gradient(135deg,rgba(20,30,55,.98),rgba(17,25,45,.98));box-shadow:0 24px 70px rgba(0,0,0,.68);color:#e7eef9}
+    .assal-preview-warning{border:1px solid rgba(245,158,11,.38);background:linear-gradient(180deg,#2f2108,#171304);color:#fde68a;border-radius:12px;padding:9px 12px;line-height:1.75;font-size:13px;font-weight:800;text-align:center}
+    .assal-preview-toolbar{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center;border:1px solid rgba(80,110,160,.35);border-radius:14px;background:#0b1327;padding:10px}
+    @media(max-width:760px){.assal-preview-toolbar{grid-template-columns:1fr}.assal-preview-toolbar .assal-adv-badge{justify-self:center}}
+    .assal-preview-body{overflow:auto;padding:2px 4px 6px;display:flex;flex-direction:column;gap:12px}
+    .assal-preview-day{border:1px solid rgba(80,110,160,.35);border-radius:16px;background:rgba(11,19,39,.55);padding:10px;display:flex;flex-direction:column;gap:10px}
+    .assal-preview-day-title{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#fff;font-weight:900;padding:6px 8px;border-radius:10px;background:linear-gradient(90deg,rgba(14,165,233,.14),rgba(124,58,237,.12))}
+    .assal-preview-card{position:relative;opacity:1!important}
+    .assal-preview-card::after{content:'عرض فقط';position:absolute;inset-inline-start:10px;top:10px;font-size:10px;font-weight:900;padding:2px 8px;border-radius:999px;border:1px solid rgba(245,158,11,.35);background:#2f2108;color:#fde68a;pointer-events:none}
+    .assal-preview-card .btn-mini,.assal-preview-card .i-btn,.assal-preview-card .note-del-out,.assal-preview-card button{pointer-events:none!important;opacity:.42!important;filter:grayscale(.25)}
+    .assal-preview-card .items .item{grid-template-columns:auto auto .9fr 2.2fr .8fr .6fr 1fr auto auto!important;column-gap:6px!important}
+    .assal-preview-empty{border:1px dashed rgba(148,163,184,.28);border-radius:14px;background:#0b1327;color:#cbd5e1;text-align:center;padding:24px 12px;line-height:1.8}
+    .assal-preview-notes{border:1px solid rgba(80,110,160,.35);border-radius:12px;background:#0b1327;padding:8px;display:flex;flex-direction:column;gap:6px}
+    .assal-preview-notes-title{font-size:12px;font-weight:900;color:#cbd5e1;text-align:center}
+  `;
+  document.head.appendChild(st);
+}
+
+function assalAdvFindRecordById(id){
+  const all = window.__ASSAL_ADV_ALL_RECORDS__ || window.__ASSAL_ADV_TODAY_RECORDS__ || [];
+  return all.find(x => String(x.id) === String(id));
+}
+
+async function assalAdvBuildServerPreviewRecord(){
+  try{
+    if(!navigator.onLine || typeof serverGetBackup !== 'function'){
+      return { error:'لا يوجد اتصال حالياً أو دالة السيرفر غير متاحة.' };
+    }
+    const server = await serverGetBackup();
+    if(!server || !server.days){
+      return { error:'لا توجد نسخة صالحة على السيرفر حالياً.' };
+    }
+    const body = JSON.stringify(server);
+    const t = assalAdvPayloadTime(server, server.exportedAt || server.updatedAtMax || new Date().toISOString());
+    return { record:{
+      id:'server_readonly_current',
+      dayKey:assalAdvLocalDayKey(t),
+      uploadedAt:t,
+      source:'آخر نسخة سيرفر',
+      size:new TextEncoder().encode(body).length,
+      hash: typeof sha256 === 'function' ? await sha256(body) : '',
+      summary:assalAdvSummarizePayload(server),
+      payload:server,
+      isServerCurrent:true,
+      readonlySource:'server'
+    }};
+  }catch(e){
+    console.warn('[ASSAL Advanced Server Preview] skipped:', e);
+    return { error:'تعذر قراءة آخر نسخة من السيرفر للمعاينة فقط.' };
+  }
+}
+
+async function assalAdvBuildAdvancedRecords(){
+  await assalAdvPruneArchiveToToday();
+  const serverInfo = await assalAdvBuildServerPreviewRecord();
+  const localRecords = await assalAdvGetTodayLocalRecords();
+  localRecords.sort((a,b)=> new Date(b.uploadedAt||0) - new Date(a.uploadedAt||0));
+  localRecords.forEach(r=>{ r.readonlySource='local'; r.isServerCurrent=false; });
+  const all = [];
+  if(serverInfo.record) all.push(serverInfo.record);
+  all.push(...localRecords);
+  window.__ASSAL_ADV_ALL_RECORDS__ = all;
+  window.__ASSAL_ADV_TODAY_RECORDS__ = all;
+  return { serverInfo, localRecords, all };
+}
+
+function assalAdvRecordHtml(rec, idx){
+  const s = rec.summary || assalAdvSummarizePayload(rec.payload || {});
+  const isServer = !!rec.isServerCurrent;
+  const title = isServer ? 'آخر نسخة موجودة على السيرفر' : `نسخة مزامنة محلية ${assalAdvLocalTime(rec.uploadedAt)}`;
+  const cls = isServer ? 'assal-adv-card server-current' : 'assal-adv-card local-current';
+  const badgeCls = isServer ? 'assal-adv-badge server' : 'assal-adv-badge local';
+  const sourceText = isServer ? 'مصدرها: السيرفر' : 'مصدرها: هذا الجهاز';
+  const dateText = assalAdvLocalDayKey(rec.uploadedAt) || '—';
+  return `
+    <div class="${cls}">
+      <div class="assal-adv-card-head">
+        <div class="assal-adv-card-title"><i class="fa-solid ${isServer ? 'fa-cloud' : 'fa-clock-rotate-left'}"></i>${assalAdvEsc(title)}</div>
+        <span class="${badgeCls}">${assalAdvEsc(sourceText)}</span>
+      </div>
+      <div class="assal-adv-stats">
+        <div class="assal-adv-stat"><span>التاريخ</span><b>${assalAdvEsc(dateText)}</b></div>
+        <div class="assal-adv-stat"><span>الوقت</span><b>${assalAdvEsc(assalAdvLocalTime(rec.uploadedAt))}</b></div>
+        <div class="assal-adv-stat"><span>البطاقات</span><b>${s.cardCount || 0}</b></div>
+        <div class="assal-adv-stat"><span>المواد</span><b>${s.lineCount || 0}</b></div>
+        <div class="assal-adv-stat"><span>الأيام</span><b>${s.dayCount || 0}</b></div>
+        <div class="assal-adv-stat"><span>الأسماء</span><b>${s.namesCount || 0}</b></div>
+        <div class="assal-adv-stat"><span>الحسابات</span><b>${s.paymentsCount || 0}</b></div>
+        <div class="assal-adv-stat"><span>الحجم</span><b>${assalAdvEsc(assalAdvBytes(rec.size))}</b></div>
+      </div>
+      <div class="assal-adv-actions-row">
+        <button type="button" class="assal-adv-btn view" data-adv-preview="${assalAdvEsc(rec.id)}"><i class="fa-regular fa-eye"></i> عرض فقط</button>
+        <button type="button" class="assal-adv-btn download" data-adv-download="${assalAdvEsc(rec.id)}"><i class="fa-solid fa-download"></i> تحميل</button>
+        <button type="button" class="assal-adv-btn copy" data-adv-copy="${assalAdvEsc(rec.id)}"><i class="fa-solid fa-copy"></i> نسخ JSON</button>
+      </div>
+    </div>`;
+}
+
+function assalAdvSectionHtml(kind, title, sub, records, emptyHtml){
+  const icon = kind === 'server' ? 'fa-cloud-arrow-down' : 'fa-clock-rotate-left';
+  const gridCls = kind === 'server' ? 'assal-adv-grid one' : 'assal-adv-grid';
+  return `
+    <section class="assal-adv-section assal-adv-section-${kind}">
+      <div class="assal-adv-section-head">
+        <div class="assal-adv-section-title"><i class="fa-solid ${icon}"></i><span>${assalAdvEsc(title)}</span></div>
+        <div class="assal-adv-section-sub">${sub}</div>
+      </div>
+      ${records && records.length ? `<div class="${gridCls}">${records.map(assalAdvRecordHtml).join('')}</div>` : emptyHtml}
+    </section>`;
+}
+
+async function assalAdvRenderTodayBackups(forceToast=false){
+  assalAdvInjectPreviewStyles();
+  const root = assalAdvEnsureBackupsModal();
+  const body = root.querySelector('#assalAdvBody');
+  body.innerHTML = `<div class="assal-adv-empty"><i class="fa-solid fa-spinner fa-spin"></i><br>جاري تجهيز النسخ للعرض فقط…</div>`;
+  try{
+    const {serverInfo, localRecords} = await assalAdvBuildAdvancedRecords();
+    const serverRecords = serverInfo.record ? [serverInfo.record] : [];
+    const serverEmpty = `<div class="assal-adv-empty"><i class="fa-solid fa-cloud-slash"></i><br>${assalAdvEsc(serverInfo.error || 'لا توجد نسخة سيرفر للعرض حالياً.')}</div>`;
+    const localEmpty = `<div class="assal-adv-empty"><i class="fa-regular fa-folder-open"></i><br>لا توجد نسخ مزامنة محلية محفوظة لهذا اليوم بعد.</div>`;
+    body.innerHTML = `
+      <div class="assal-adv-note"><b>وضع آمن:</b> آخر نسخة السيرفر هنا قراءة فقط للمعاينة، ونسخ اليوم هي محلية على هذا الجهاز فقط. زر <b>عرض فقط</b> يفتح عارضاً مستقلاً لا يستورد ولا يحفظ ولا يغيّر بيانات الديون.</div>
+      ${assalAdvSectionHtml('server','آخر نسخة سيرفر','قراءة مباشرة فقط — قد تكون من جهاز آخر أو يوم آخر',serverRecords,serverEmpty)}
+      ${assalAdvSectionHtml('local','نسخ مزامنة اليوم المحلية','هذا الجهاز فقط — تنظف تلقائياً عند بداية يوم جديد',localRecords,localEmpty)}
+    `;
+    assalAdvBindAdvancedButtons(body);
+    if(forceToast) showToast?.('success','تم تحديث نافذة الخيارات المتقدمة');
+  }catch(e){
+    console.error(e);
+    body.innerHTML = `<div class="assal-adv-empty">تعذر تجهيز نافذة الخيارات المتقدمة.</div>`;
+    showToast?.('error','تعذر تجهيز نافذة الخيارات المتقدمة');
+  }
+}
+
+function assalAdvBindAdvancedButtons(scope){
+  try{
+    const root = scope || document;
+    root.querySelectorAll('[data-adv-download]').forEach(btn=>{
+      btn.setAttribute('type','button');
+      btn.onclick = async (e)=>{ e.preventDefault(); e.stopPropagation(); await assalAdvancedDownloadRecordById(btn.getAttribute('data-adv-download')); };
+    });
+    root.querySelectorAll('[data-adv-copy]').forEach(btn=>{
+      btn.setAttribute('type','button');
+      btn.onclick = async (e)=>{ e.preventDefault(); e.stopPropagation(); await assalAdvancedCopyRecordById(btn.getAttribute('data-adv-copy')); };
+    });
+    root.querySelectorAll('[data-adv-preview]').forEach(btn=>{
+      btn.setAttribute('type','button');
+      btn.onclick = (e)=>{ e.preventDefault(); e.stopPropagation(); assalAdvancedPreviewRecordById(btn.getAttribute('data-adv-preview')); };
+    });
+  }catch(e){ console.warn('[ASSAL Advanced Buttons] bind failed:', e); }
+}
+
+async function assalAdvancedCopyRecordById(id){
+  const rec = assalAdvFindRecordById(id);
+  if(!rec || !rec.payload){ showToast?.('error','تعذر العثور على النسخة'); return false; }
+  const text = JSON.stringify(rec.payload || {}, null, 2);
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(text);
+    }else{
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position='fixed'; ta.style.opacity='0'; ta.style.pointerEvents='none';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    showToast?.('success','تم نسخ JSON النسخة');
+    return true;
+  }catch(e){
+    assalAdvOpenDownloadRescue(text, 'ASSAL_BACKUP_COPY.json', e);
+    showToast?.('warn','تعذر النسخ المباشر، فتحت لك نافذة النسخة');
+    return false;
+  }
+}
+
+async function assalAdvancedDownloadRecordById(id){
+  const rec = assalAdvFindRecordById(id);
+  if(!rec || !rec.payload){
+    showToast?.('error','تعذر العثور على النسخة');
+    return false;
+  }
+  const t = new Date(rec.uploadedAt || rec.payload?.exportedAt || Date.now());
+  const date = assalAdvLocalDayKey(t);
+  const hh = assalAdvPad2(t.getHours());
+  const mm = assalAdvPad2(t.getMinutes());
+  const ss = assalAdvPad2(t.getSeconds());
+  const src = rec.isServerCurrent ? 'SERVER' : 'LOCAL';
+  const ok = await assalAdvDownloadPayload(rec.payload, `ASSAL_${src}_BACKUP_${date}_${hh}-${mm}-${ss}.json`);
+  if(ok) showToast?.('success','تم تجهيز النسخة؛ إذا لم يبدأ التحميل استخدم نافذة النسخ الاحتياطي');
+  else showToast?.('warn','تعذر التحميل المباشر، فتحت لك نسخة قابلة للنسخ');
+  return ok;
+}
+
+function assalAdvancedPreviewRecordById(id){
+  const rec = assalAdvFindRecordById(id);
+  if(!rec || !rec.payload){ showToast?.('error','تعذر العثور على النسخة'); return; }
+  assalAdvOpenReadonlyPreview(rec);
+}
+
+function assalAdvFormatDate(d){
+  try{ if(typeof fmtDMY === 'function') return fmtDMY(d); }catch{}
+  try{ const x=new Date(d); if(Number.isFinite(x.getTime())) return `${assalAdvPad2(x.getDate())}-${assalAdvPad2(x.getMonth()+1)}-${x.getFullYear()}`; }catch{}
+  return String(d||'—');
+}
+function assalAdvFormatMoney(v){
+  try{ if(typeof formatIQD === 'function') return formatIQD(v || 0); }catch{}
+  const n = Number(String(v||0).replace(/[^\d.]/g,'')) || 0;
+  try{ return n.toLocaleString('ar-IQ') + ' د.ع'; }catch{ return String(n); }
+}
+function assalAdvPreviewType(card){
+  try{
+    if(typeof isWholesaleCard === 'function' && isWholesaleCard(card)) return 'جملة';
+  }catch{}
+  const raw = card?.billType || '';
+  let t = raw;
+  try{ if(typeof normalizeBillType === 'function') t = normalizeBillType(raw); }catch{}
+  if(!t){
+    const vals = Array.from(new Set((card?.lines||[]).filter(l=>!l.deletedAt).map(l=>{
+      try{ return typeof normalizeBillType === 'function' ? normalizeBillType(l.type) : (l.type || ''); }catch{ return l.type || ''; }
+    }).filter(Boolean)));
+    t = vals.length === 1 ? vals[0] : 'مختلط';
+  }
+  return t || 'مختلط';
+}
+function assalAdvPreviewTypeLabel(t){
+  return t === 'جملة' ? 'فاتورة جملة' : t === 'راجع' ? 'فاتورة راجع' : t === 'اجل' ? 'فاتورة اجل' : t === 'نقدي' ? 'فاتورة نقدي' : 'فاتورة مختلطة';
+}
+function assalAdvPreviewTypeClass(t){
+  return t === 'راجع' ? 'return' : t === 'اجل' ? 'sell' : t === 'جملة' ? 'wholesale' : t === 'نقدي' ? 'cash' : '';
+}
+function assalAdvLineBadge(ln){
+  if(ln?.returned) return '<span class="badge">راجع</span>';
+  if(ln?.paid) return '<span class="badge">مدفوع</span>';
+  return '';
+}
+function assalAdvCardSumsReadonly(card){
+  try{ if(typeof sumCardAmounts === 'function') return sumCardAmounts(card); }catch{}
+  const out={total:0,paid:0,unpaid:0,returned:0};
+  (card?.lines||[]).forEach(l=>{
+    if(l?.deletedAt) return;
+    const price = Number(String(l.price ?? '').replace(/[^\d.]/g,'')) || 0;
+    const qty = Number(l.qty || 1);
+    const amt = price*qty;
+    if(l.returned){ out.returned += amt; return; }
+    out.total += amt;
+    if(l.paid) out.paid += amt; else out.unpaid += amt;
+  });
+  return out;
+}
+function assalAdvIsCashReadonly(card){
+  try{ if(typeof isCashCard === 'function') return isCashCard(card); }catch{}
+  return assalAdvPreviewType(card) === 'نقدي';
+}
+
+function assalAdvPreviewCollectCards(payload, filters={}){
+  const p = payload && payload.days ? payload : { days:{} };
+  const q = String(filters.customer || '').trim().toLowerCase();
+  const itemQ = String(filters.item || '').trim().toLowerCase();
+  const daysObj = p.days && typeof p.days === 'object' ? p.days : {};
+  const out = [];
+  Object.keys(daysObj).sort().reverse().forEach(day=>{
+    const arr = Array.isArray(daysObj[day]) ? daysObj[day] : [];
+    arr.forEach((card, order)=>{
+      if(!card || card.deletedAt) return;
+      const lines = Array.isArray(card.lines) ? card.lines.filter(l=>!l?.deletedAt) : [];
+      if(!lines.length) return;
+      if(q && !String(card.customer || '').toLowerCase().includes(q)) return;
+      if(itemQ && !lines.some(l=>String(l.item || '').toLowerCase().includes(itemQ))) return;
+      out.push({ card, day, order });
+    });
+  });
+  return out;
+}
+
+function assalAdvPreviewCardHtml(card, day, itemQ=''){
+  const t = assalAdvPreviewType(card);
+  const lines = (card.lines || []).filter(l=>!l?.deletedAt);
+  const sums = assalAdvCardSumsReadonly(card);
+  const isCash = assalAdvIsCashReadonly(card);
+  const activeNotes = (card.notes || []).filter(n=>!n?.deletedAt);
+  const linesHtml = lines.map(ln=>{
+    const cls = `item${ln.returned ? ' returned' : ''}${ln.paid ? ' paid' : ''}${itemQ && String(ln.item||'').toLowerCase().includes(itemQ.toLowerCase()) ? ' item-search-hit' : ''}`;
+    const ts = ln.at || ln.createdAt || ln.updatedAt;
+    let tm = '—'; try{ tm = typeof arTime === 'function' ? arTime(ts) : assalAdvLocalTime(ts); }catch{ tm = assalAdvLocalTime(ts); }
+    return `<div class="${cls}">
+      <button class="btn-mini btn-return" disabled><i class="fa-solid fa-rotate-left"></i></button>
+      <button class="btn-mini btn-pay" disabled><i class="fa-solid fa-check"></i></button>
+      <div class="ichip">${assalAdvEsc(ln.cat || '—')}</div>
+      <div class="iname">${assalAdvEsc(ln.item || '—')}${assalAdvLineBadge(ln)}</div>
+      <div class="iprice">${(ln.price === 0 || ln.price) ? assalAdvEsc(assalAdvFormatMoney(ln.price)) : '—'}</div>
+      <div class="iqty">× ${assalAdvEsc(ln.qty || 1)}</div>
+      <div class="inote">${assalAdvEsc((ln.note && String(ln.note).trim()) ? ln.note : '—')}</div>
+      <div class="itime">${assalAdvEsc(tm)}</div>
+      <button class="btn-mini btn-del" disabled><i class="fa-regular fa-trash-can"></i></button>
+    </div>`;
+  }).join('');
+  const notesHtml = activeNotes.length ? `<div class="assal-preview-notes"><div class="assal-preview-notes-title">ملاحظات البطاقة</div>${activeNotes.map((n,i)=>`<div class="note-pill"><span class="note-pill__idx">${i+1}</span><span class="note-pill__text">${assalAdvEsc(n.text || '')}</span><span class="note-pill__time"><i class="fa-regular fa-clock"></i>${assalAdvEsc(assalAdvLocalTime(n.at || n.createdAt))}</span></div>`).join('')}</div>` : '';
+  let created = '—'; try{ created = typeof arTime === 'function' ? arTime(card.createdAt) : assalAdvLocalTime(card.createdAt); }catch{ created = assalAdvLocalTime(card.createdAt); }
+  const footHtml = isCash ? `
+    <span class="sum-badge sum--items">مواد: ${lines.length}</span>
+    <span class="sum-badge sum--total">المجموع: ${assalAdvFormatMoney(sums.total)}</span>
+    <span class="sum-badge sum--unpaid">المدفوع: ${assalAdvFormatMoney(sums.total)}</span>` : `
+    <span class="sum-badge sum--items">مواد: ${lines.length}</span>
+    <span class="sum-badge sum--total">المجموع: ${assalAdvFormatMoney(sums.total)}</span>
+    <span class="sum-badge sum--unpaid">غير مدفوع: ${assalAdvFormatMoney(sums.unpaid)}</span>`;
+  return `<div class="card assal-preview-card">
+    <div class="card-head">
+      <div class="cust"><span>${assalAdvEsc(card.customer || 'بدون اسم')}</span><span class="badge-type ${assalAdvPreviewTypeClass(t)}">${assalAdvEsc(assalAdvPreviewTypeLabel(t))}</span>${(card.paidAll || (lines.length && lines.every(l=>l.paid))) ? '<span class="bill-badge">تم تسديد مواد اليوم</span>' : ''}</div>
+      <div style="display:flex;gap:6px"><span class="tag">${assalAdvEsc(assalAdvFormatDate(day))}</span><span class="tag">${assalAdvEsc(created)}</span></div>
+    </div>
+    <div class="items">${linesHtml}</div>
+    ${notesHtml}
+    <div class="card-foot"><div>${footHtml}</div><div class="foot-actions"><button class="i-btn" disabled><i class="fa-regular fa-file-pdf"></i><span>PDF</span></button><button class="i-btn" disabled><i class="fa-solid fa-check-double"></i><span>تسديد الكل</span></button><button class="i-btn" disabled><i class="fa-regular fa-note-sticky"></i><span>ملاحظات</span></button><button class="i-btn" disabled><i class="fa-regular fa-trash-can"></i><span>حذف</span></button></div></div>
+  </div>`;
+}
+
+function assalAdvEnsureReadonlyPreviewModal(){
+  assalAdvInjectPreviewStyles();
+  let root = document.getElementById('assalReadonlyPreviewModal');
+  if(root) return root;
+  root = document.createElement('div');
+  root.id = 'assalReadonlyPreviewModal';
+  root.className = 'assal-adv-backdrop';
+  root.innerHTML = `
+    <div class="assal-preview-shell" role="dialog" aria-modal="true" aria-label="عارض نسخة احتياطية">
+      <div class="assal-adv-head">
+        <div class="assal-adv-title"><i class="fa-regular fa-eye"></i><span id="assalPreviewTitle">عارض نسخة — عرض فقط</span></div>
+        <div class="assal-adv-actions">
+          <button id="assalPreviewDownload" class="modal-btn ghost"><i class="fa-solid fa-download"></i> تحميل</button>
+          <button id="assalPreviewCopy" class="modal-btn ghost"><i class="fa-solid fa-copy"></i> نسخ JSON</button>
+          <button id="assalPreviewClose" class="close-red"><i class="fa-solid fa-xmark"></i> إغلاق</button>
+        </div>
+      </div>
+      <div class="assal-preview-warning">وضع معاينة فقط — هذه النافذة لا تستورد ولا تحفظ ولا تعدّل بيانات التطبيق الحالية.</div>
+      <div class="assal-preview-toolbar">
+        <input id="assalPreviewCustomerSearch" class="field" placeholder="بحث باسم الزبون داخل النسخة">
+        <input id="assalPreviewItemSearch" class="field" placeholder="بحث باسم المادة داخل النسخة">
+        <span id="assalPreviewMeta" class="assal-adv-badge server">—</span>
+      </div>
+      <div id="assalPreviewBody" class="assal-preview-body nice-scroll"></div>
+    </div>`;
+  document.body.appendChild(root);
+  const close = ()=>{ root.classList.remove('active'); if(!document.querySelector('.assal-adv-backdrop.active')) document.body.classList.remove('modal-open'); };
+  root.querySelector('#assalPreviewClose').onclick = close;
+  root.querySelector('#assalPreviewDownload').onclick = async ()=>{ if(root.__record) await assalAdvancedDownloadRecordById(root.__record.id); };
+  root.querySelector('#assalPreviewCopy').onclick = async ()=>{ if(root.__record) await assalAdvancedCopyRecordById(root.__record.id); };
+  const rerender = ()=> assalAdvRenderReadonlyPreview(root);
+  root.querySelector('#assalPreviewCustomerSearch').addEventListener('input', rerender);
+  root.querySelector('#assalPreviewItemSearch').addEventListener('input', rerender);
+  return root;
+}
+
+function assalAdvOpenReadonlyPreview(rec){
+  const root = assalAdvEnsureReadonlyPreviewModal();
+  root.__record = rec;
+  root.__payload = assalAdvClone(rec.payload || {});
+  root.querySelector('#assalPreviewCustomerSearch').value = '';
+  root.querySelector('#assalPreviewItemSearch').value = '';
+  const src = rec.isServerCurrent ? 'آخر نسخة سيرفر' : 'نسخة محلية من هذا الجهاز';
+  root.querySelector('#assalPreviewTitle').textContent = `عارض مستقل — ${src}`;
+  const meta = root.querySelector('#assalPreviewMeta');
+  meta.className = rec.isServerCurrent ? 'assal-adv-badge server' : 'assal-adv-badge local';
+  meta.textContent = `${src} | ${assalAdvLocalDayKey(rec.uploadedAt)} ${assalAdvLocalTime(rec.uploadedAt)}`;
+  root.classList.add('active');
+  document.body.classList.add('modal-open');
+  assalAdvRenderReadonlyPreview(root);
+}
+
+function assalAdvRenderReadonlyPreview(root){
+  root = root || document.getElementById('assalReadonlyPreviewModal');
+  if(!root) return;
+  const body = root.querySelector('#assalPreviewBody');
+  const rec = root.__record || {};
+  const payload = root.__payload || rec.payload || {};
+  const customer = root.querySelector('#assalPreviewCustomerSearch')?.value || '';
+  const item = root.querySelector('#assalPreviewItemSearch')?.value || '';
+  const collected = assalAdvPreviewCollectCards(payload, {customer, item});
+  const summary = assalAdvSummarizePayload(payload);
+  if(!collected.length){
+    body.innerHTML = `<div class="assal-preview-empty"><i class="fa-regular fa-folder-open"></i><br>لا توجد بطاقات مطابقة داخل هذه النسخة.<br><small>البطاقات الأصلية بالنسخة: ${summary.cardCount || 0} — المواد: ${summary.lineCount || 0}</small></div>`;
+    return;
+  }
+  const byDay = new Map();
+  collected.forEach(x=>{ if(!byDay.has(x.day)) byDay.set(x.day, []); byDay.get(x.day).push(x.card); });
+  const itemQ = String(item || '').trim().toLowerCase();
+  body.innerHTML = Array.from(byDay.entries()).map(([day,cards])=>`
+    <div class="assal-preview-day">
+      <div class="assal-preview-day-title"><span><i class="fa-regular fa-calendar"></i> ${assalAdvEsc(assalAdvFormatDate(day))}</span><span class="assal-adv-badge">${cards.length} بطاقة</span></div>
+      ${cards.map(c=>assalAdvPreviewCardHtml(c, day, itemQ)).join('')}
+    </div>`).join('');
+}
+
+
+/* =========================================================
+   ASSAL Advanced Backups - ONE DAY READ-ONLY PREVIEW + SAVE JSON (FINAL OVERRIDE)
+   - العارض المستقل يعرض يوماً واحداً فقط لتخفيف التطبيق
+   - يفتح على آخر يوم داخل النسخة، مع أزرار اليوم السابق/التالي
+   - زر حفظ JSON يعني تنزيل ملف فقط، ولا يخزن داخل التطبيق نهائياً
+   - لا يغيّر السحب/الرفع/الدمج/IndexedDB/localStorage الأساسي
+========================================================= */
+
+function assalAdvInjectOneDayPreviewStyles(){
+  if(document.getElementById('assal-adv-one-day-preview-styles-final')) return;
+  const st = document.createElement('style');
+  st.id = 'assal-adv-one-day-preview-styles-final';
+  st.textContent = `
+    .assal-preview-day-nav{
+      display:grid;
+      grid-template-columns:auto minmax(160px,1fr) auto;
+      gap:8px;
+      align-items:center;
+      border:1px solid rgba(80,110,160,.35);
+      border-radius:14px;
+      background:linear-gradient(180deg,#0f1a33,#0b1327);
+      padding:10px;
+    }
+    .assal-preview-day-nav .nav-btn{
+      height:36px;
+      min-width:118px;
+      border-radius:10px;
+      border:1px solid rgba(80,110,160,.38);
+      background:linear-gradient(180deg,#0c1426,#0e1830);
+      color:#e7eef9;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      font-weight:900;
+      cursor:pointer;
+    }
+    .assal-preview-day-nav .nav-btn:disabled{
+      opacity:.42;
+      cursor:not-allowed;
+      filter:grayscale(.35);
+      transform:none!important;
+    }
+    .assal-preview-day-nav .day-label{
+      min-height:36px;
+      border-radius:10px;
+      border:1px solid rgba(14,165,233,.28);
+      background:linear-gradient(90deg,rgba(14,165,233,.13),rgba(124,58,237,.10));
+      color:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      font-weight:900;
+      text-align:center;
+      padding:4px 10px;
+    }
+    .assal-preview-save-hint{
+      font-size:12px;
+      color:#a7f3d0;
+      text-align:center;
+      line-height:1.6;
+      margin-top:-4px;
+    }
+    .assal-adv-btn.download,
+    #assalPreviewDownload{
+      background:linear-gradient(135deg,#10b981,#7c3aed)!important;
+      color:#fff!important;
+      border-color:transparent!important;
+    }
+    @media(max-width:680px){
+      .assal-preview-day-nav{grid-template-columns:1fr;}
+      .assal-preview-day-nav .nav-btn{width:100%;}
+    }
+  `;
+  document.head.appendChild(st);
+}
+
+function assalAdvPreviewDayKeys(payload){
+  const daysObj = payload && payload.days && typeof payload.days === 'object' ? payload.days : {};
+  return Object.keys(daysObj).filter(day=>{
+    const arr = Array.isArray(daysObj[day]) ? daysObj[day] : [];
+    return arr.some(card=>{
+      if(!card || card.deletedAt) return false;
+      const lines = Array.isArray(card.lines) ? card.lines.filter(l=>!l?.deletedAt) : [];
+      return lines.length > 0;
+    });
+  }).sort();
+}
+
+function assalAdvPreviewCollectCardsForDay(payload, day, filters={}){
+  const q = String(filters.customer || '').trim().toLowerCase();
+  const itemQ = String(filters.item || '').trim().toLowerCase();
+  const daysObj = payload && payload.days && typeof payload.days === 'object' ? payload.days : {};
+  const arr = Array.isArray(daysObj[day]) ? daysObj[day] : [];
+  const out = [];
+  arr.forEach((card, order)=>{
+    if(!card || card.deletedAt) return;
+    const lines = Array.isArray(card.lines) ? card.lines.filter(l=>!l?.deletedAt) : [];
+    if(!lines.length) return;
+    if(q && !String(card.customer || '').toLowerCase().includes(q)) return;
+    if(itemQ && !lines.some(l=>String(l.item || '').toLowerCase().includes(itemQ))) return;
+    out.push({card, day, order});
+  });
+  return out;
+}
+
+function assalAdvUpdatePreviewDayNav(root){
+  if(!root) return;
+  const keys = Array.isArray(root.__dayKeys) ? root.__dayKeys : [];
+  const idx = Number(root.__dayIndex || 0);
+  const prevBtn = root.querySelector('#assalPreviewPrevDay');
+  const nextBtn = root.querySelector('#assalPreviewNextDay');
+  const label = root.querySelector('#assalPreviewDayLabel');
+  const currentDay = keys[idx];
+  if(prevBtn) prevBtn.disabled = !keys.length || idx <= 0;
+  if(nextBtn) nextBtn.disabled = !keys.length || idx >= keys.length - 1;
+  if(label){
+    label.innerHTML = keys.length
+      ? `<i class="fa-regular fa-calendar"></i> اليوم المعروض: ${assalAdvEsc(assalAdvFormatDate(currentDay))} <small style="color:#9aa4b2;font-weight:800">(${idx+1} / ${keys.length})</small>`
+      : `<i class="fa-regular fa-calendar-xmark"></i> لا توجد أيام داخل هذه النسخة`;
+  }
+}
+
+function assalAdvRecordHtml(rec, idx){
+  const s = rec.summary || assalAdvSummarizePayload(rec.payload || {});
+  const isServer = !!rec.isServerCurrent;
+  const title = isServer ? 'آخر نسخة موجودة على السيرفر' : `نسخة مزامنة محلية ${assalAdvLocalTime(rec.uploadedAt)}`;
+  const cls = isServer ? 'assal-adv-card server-current' : 'assal-adv-card local-current';
+  const badgeCls = isServer ? 'assal-adv-badge server' : 'assal-adv-badge local';
+  const sourceText = isServer ? 'مصدرها: السيرفر' : 'مصدرها: هذا الجهاز';
+  const dateText = assalAdvLocalDayKey(rec.uploadedAt) || '—';
+  return `
+    <div class="${cls}">
+      <div class="assal-adv-card-head">
+        <div class="assal-adv-card-title"><i class="fa-solid ${isServer ? 'fa-cloud' : 'fa-clock-rotate-left'}"></i>${assalAdvEsc(title)}</div>
+        <span class="${badgeCls}">${assalAdvEsc(sourceText)}</span>
+      </div>
+      <div class="assal-adv-stats">
+        <div class="assal-adv-stat"><span>التاريخ</span><b>${assalAdvEsc(dateText)}</b></div>
+        <div class="assal-adv-stat"><span>الوقت</span><b>${assalAdvEsc(assalAdvLocalTime(rec.uploadedAt))}</b></div>
+        <div class="assal-adv-stat"><span>البطاقات</span><b>${s.cardCount || 0}</b></div>
+        <div class="assal-adv-stat"><span>المواد</span><b>${s.lineCount || 0}</b></div>
+        <div class="assal-adv-stat"><span>الأيام</span><b>${s.dayCount || 0}</b></div>
+        <div class="assal-adv-stat"><span>الأسماء</span><b>${s.namesCount || 0}</b></div>
+        <div class="assal-adv-stat"><span>الحسابات</span><b>${s.paymentsCount || 0}</b></div>
+        <div class="assal-adv-stat"><span>الحجم</span><b>${assalAdvEsc(assalAdvBytes(rec.size))}</b></div>
+      </div>
+      <div class="assal-adv-actions-row">
+        <button type="button" class="assal-adv-btn view" data-adv-preview="${assalAdvEsc(rec.id)}"><i class="fa-regular fa-eye"></i> عرض فقط</button>
+        <button type="button" class="assal-adv-btn download" data-adv-download="${assalAdvEsc(rec.id)}"><i class="fa-regular fa-floppy-disk"></i> حفظ JSON</button>
+        <button type="button" class="assal-adv-btn copy" data-adv-copy="${assalAdvEsc(rec.id)}"><i class="fa-solid fa-copy"></i> نسخ JSON</button>
+      </div>
+    </div>`;
+}
+
+async function assalAdvancedDownloadRecordById(id){
+  const rec = assalAdvFindRecordById(id);
+  if(!rec || !rec.payload){
+    showToast?.('error','تعذر العثور على النسخة');
+    return false;
+  }
+  const t = new Date(rec.uploadedAt || rec.payload?.exportedAt || Date.now());
+  const date = assalAdvLocalDayKey(t);
+  const hh = assalAdvPad2(t.getHours());
+  const mm = assalAdvPad2(t.getMinutes());
+  const ss = assalAdvPad2(t.getSeconds());
+  const src = rec.isServerCurrent ? 'SERVER' : 'LOCAL';
+  const ok = await assalAdvDownloadPayload(rec.payload, `ASSAL_${src}_BACKUP_${date}_${hh}-${mm}-${ss}.json`);
+  if(ok) showToast?.('success','تم تجهيز ملف JSON للحفظ على الجهاز');
+  else showToast?.('warn','تعذر الحفظ المباشر، فتحت لك نسخة قابلة للنسخ');
+  return ok;
+}
+
+function assalAdvEnsureReadonlyPreviewModal(){
+  assalAdvInjectPreviewStyles();
+  assalAdvInjectOneDayPreviewStyles();
+  let old = document.getElementById('assalReadonlyPreviewModal');
+  if(old && !old.querySelector('#assalPreviewPrevDay')){
+    old.remove();
+    old = null;
+  }
+  if(old) return old;
+  const root = document.createElement('div');
+  root.id = 'assalReadonlyPreviewModal';
+  root.className = 'assal-adv-backdrop';
+  root.innerHTML = `
+    <div class="assal-preview-shell" role="dialog" aria-modal="true" aria-label="عارض نسخة احتياطية">
+      <div class="assal-adv-head">
+        <div class="assal-adv-title"><i class="fa-regular fa-eye"></i><span id="assalPreviewTitle">عارض نسخة — عرض فقط</span></div>
+        <div class="assal-adv-actions">
+          <button id="assalPreviewDownload" class="modal-btn ghost"><i class="fa-regular fa-floppy-disk"></i> حفظ JSON</button>
+          <button id="assalPreviewCopy" class="modal-btn ghost"><i class="fa-solid fa-copy"></i> نسخ JSON</button>
+          <button id="assalPreviewClose" class="close-red"><i class="fa-solid fa-xmark"></i> إغلاق</button>
+        </div>
+      </div>
+      <div class="assal-preview-warning">وضع معاينة فقط — هذه النافذة لا تستورد ولا تحفظ داخل التطبيق ولا تعدّل بيانات الديون الحالية.</div>
+      <div class="assal-preview-save-hint">زر حفظ JSON ينزّل ملف نسخة فقط على الجهاز، ولا يخزن أي شيء داخل التطبيق.</div>
+      <div class="assal-preview-day-nav">
+        <button id="assalPreviewPrevDay" class="nav-btn"><i class="fa-solid fa-chevron-right"></i> اليوم السابق</button>
+        <div id="assalPreviewDayLabel" class="day-label">—</div>
+        <button id="assalPreviewNextDay" class="nav-btn">اليوم التالي <i class="fa-solid fa-chevron-left"></i></button>
+      </div>
+      <div class="assal-preview-toolbar">
+        <input id="assalPreviewCustomerSearch" class="field" placeholder="بحث باسم الزبون داخل اليوم المعروض">
+        <input id="assalPreviewItemSearch" class="field" placeholder="بحث باسم المادة داخل اليوم المعروض">
+        <span id="assalPreviewMeta" class="assal-adv-badge server">—</span>
+      </div>
+      <div id="assalPreviewBody" class="assal-preview-body nice-scroll"></div>
+    </div>`;
+  document.body.appendChild(root);
+  const close = ()=>{ root.classList.remove('active'); if(!document.querySelector('.assal-adv-backdrop.active')) document.body.classList.remove('modal-open'); };
+  root.querySelector('#assalPreviewClose').onclick = close;
+  root.querySelector('#assalPreviewDownload').onclick = async ()=>{ if(root.__record) await assalAdvancedDownloadRecordById(root.__record.id); };
+  root.querySelector('#assalPreviewCopy').onclick = async ()=>{ if(root.__record) await assalAdvancedCopyRecordById(root.__record.id); };
+  root.querySelector('#assalPreviewPrevDay').onclick = ()=>{
+    const keys = root.__dayKeys || [];
+    if(!keys.length) return;
+    root.__dayIndex = Math.max(0, Number(root.__dayIndex || 0) - 1);
+    assalAdvRenderReadonlyPreview(root);
+  };
+  root.querySelector('#assalPreviewNextDay').onclick = ()=>{
+    const keys = root.__dayKeys || [];
+    if(!keys.length) return;
+    root.__dayIndex = Math.min(keys.length - 1, Number(root.__dayIndex || 0) + 1);
+    assalAdvRenderReadonlyPreview(root);
+  };
+  const rerender = ()=> assalAdvRenderReadonlyPreview(root);
+  root.querySelector('#assalPreviewCustomerSearch').addEventListener('input', rerender);
+  root.querySelector('#assalPreviewItemSearch').addEventListener('input', rerender);
+  return root;
+}
+
+function assalAdvOpenReadonlyPreview(rec){
+  const root = assalAdvEnsureReadonlyPreviewModal();
+  root.__record = rec;
+  root.__payload = assalAdvClone(rec.payload || {});
+  root.__dayKeys = assalAdvPreviewDayKeys(root.__payload);
+  root.__dayIndex = Math.max(0, root.__dayKeys.length - 1); // افتح على آخر يوم فقط
+  root.querySelector('#assalPreviewCustomerSearch').value = '';
+  root.querySelector('#assalPreviewItemSearch').value = '';
+  const src = rec.isServerCurrent ? 'آخر نسخة سيرفر' : 'نسخة محلية من هذا الجهاز';
+  root.querySelector('#assalPreviewTitle').textContent = `عارض مستقل — ${src}`;
+  const meta = root.querySelector('#assalPreviewMeta');
+  meta.className = rec.isServerCurrent ? 'assal-adv-badge server' : 'assal-adv-badge local';
+  meta.textContent = `${src} | ${assalAdvLocalDayKey(rec.uploadedAt)} ${assalAdvLocalTime(rec.uploadedAt)}`;
+  root.classList.add('active');
+  document.body.classList.add('modal-open');
+  assalAdvRenderReadonlyPreview(root);
+}
+
+function assalAdvRenderReadonlyPreview(root){
+  root = root || document.getElementById('assalReadonlyPreviewModal');
+  if(!root) return;
+  const body = root.querySelector('#assalPreviewBody');
+  const rec = root.__record || {};
+  const payload = root.__payload || rec.payload || {};
+  const keys = Array.isArray(root.__dayKeys) ? root.__dayKeys : assalAdvPreviewDayKeys(payload);
+  root.__dayKeys = keys;
+  if(keys.length && (root.__dayIndex == null || root.__dayIndex < 0 || root.__dayIndex >= keys.length)) root.__dayIndex = keys.length - 1;
+  assalAdvUpdatePreviewDayNav(root);
+  if(!keys.length){
+    const summary = assalAdvSummarizePayload(payload);
+    body.innerHTML = `<div class="assal-preview-empty"><i class="fa-regular fa-folder-open"></i><br>لا توجد أيام/بطاقات صالحة للعرض داخل هذه النسخة.<br><small>البطاقات الأصلية بالنسخة: ${summary.cardCount || 0} — المواد: ${summary.lineCount || 0}</small></div>`;
+    return;
+  }
+  const day = keys[Number(root.__dayIndex || 0)] || keys[keys.length - 1];
+  const customer = root.querySelector('#assalPreviewCustomerSearch')?.value || '';
+  const item = root.querySelector('#assalPreviewItemSearch')?.value || '';
+  const collected = assalAdvPreviewCollectCardsForDay(payload, day, {customer, item});
+  const allDayCards = assalAdvPreviewCollectCardsForDay(payload, day, {});
+  if(!collected.length){
+    body.innerHTML = `<div class="assal-preview-empty"><i class="fa-regular fa-folder-open"></i><br>لا توجد بطاقات مطابقة داخل اليوم المعروض.<br><small>اليوم: ${assalAdvEsc(assalAdvFormatDate(day))} — بطاقات اليوم: ${allDayCards.length || 0}</small></div>`;
+    return;
+  }
+  const itemQ = String(item || '').trim().toLowerCase();
+  body.innerHTML = `
+    <div class="assal-preview-day">
+      <div class="assal-preview-day-title"><span><i class="fa-regular fa-calendar"></i> ${assalAdvEsc(assalAdvFormatDate(day))}</span><span class="assal-adv-badge">${collected.length} بطاقة</span></div>
+      ${collected.map(x=>assalAdvPreviewCardHtml(x.card, day, itemQ)).join('')}
+    </div>`;
+}
 
 function safeStr(s){ return String(s||'').trim().replace(/\s+/g,' '); }
 
