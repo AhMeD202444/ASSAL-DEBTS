@@ -9326,12 +9326,11 @@ function assalOpenPartialPaymentModal(viewCard){
     real.updatedAt = t;
 
     try{ save(); }catch{}
-    try{ assalInvalidateDebtBadgeCache(); }catch{}
     close();
+    // أداء آمن: save() بقي كما هو ويحدث الديون، وهنا نعيد رسم الواجهة مرة واحدة فقط.
     try{ renderBoard(); }catch{}
     try{ renderRail(); }catch{}
     try{ refreshStats(); }catch{}
-    try{ window.refreshDebtsUI && window.refreshDebtsUI(); }catch{}
     try{ showToast('success','تم تسجيل التسديد الجزئي'); }catch{}
   }
 
@@ -9929,11 +9928,10 @@ custWrap.appendChild(typeBadge);
         if(cancelled){
           realCard.updatedAt = ts;
           try{ save(); }catch{}
-          try{ assalInvalidateDebtBadgeCache && assalInvalidateDebtBadgeCache(); }catch{}
+          // أداء آمن: save() بقي كما هو ويحدث الديون، وهنا نعيد رسم الواجهة مرة واحدة فقط.
           try{ renderBoard(); }catch{}
           try{ renderRail(); }catch{}
           try{ refreshStats(); }catch{}
-          try{ window.refreshDebtsUI && window.refreshDebtsUI(); }catch{}
           try{ showToast('info','تم إلغاء التسديد الجزئي وحذف ملاحظته'); }catch{}
         }
         return;
@@ -19762,7 +19760,6 @@ html body .card .card-foot > .card-sums.assal-badges-ultra .assal-toggle-face i{
     var wrapped = function(){
       var r = old.apply(this, arguments);
       schedule();
-      setTimeout(schedule, 80);
       return r;
     };
     wrapped.__assalBalancedBadgesWrapped = true;
@@ -19781,6 +19778,1340 @@ html body .card .card-foot > .card-sums.assal-badges-ultra .assal-toggle-face i{
 })();
 </script>
 
+
+
+<script id="assal-new-customer-zero-opening-inclusive-ledger-final">
+/* =========================================================
+   ASSAL DEBTS - NEW/ZERO OPENING CUSTOMER SAFE LEDGER FIX
+   تعديل محدود جداً:
+   - الزبون صاحب رصيد افتتاحي فعلي يبقى على نفس القاعدة القديمة: من اليوم التالي لتاريخ D
+   - الزبون الجديد أو رصيده الافتتاحي صفر/غير موجود يُحسب من تاريخ تحديث الأرصدة نفسه inclusive
+   - لا يغيّر الحفظ، الرفع، الدمج، السيرفر، البيع، الراجع، السحب، الحذف، أو الطباعة
+========================================================= */
+(function(){
+  'use strict';
+  if(window.__ASSAL_NEW_CUSTOMER_ZERO_OPENING_LEDGER_FINAL__) return;
+  window.__ASSAL_NEW_CUSTOMER_ZERO_OPENING_LEDGER_FINAL__ = true;
+
+  var previousMovementAfterOpening = window.assalDebtMovementAfterOpening;
+  var globalUpdateDateCache = null;
+
+  function latinDigits(s){
+    return String(s == null ? '' : s)
+      .replace(/[\u0660-\u0669]/g, function(ch){ return String(ch.charCodeAt(0) - 0x0660); })
+      .replace(/[\u06F0-\u06F9]/g, function(ch){ return String(ch.charCodeAt(0) - 0x06F0); });
+  }
+
+  function money(v){
+    if(v == null || v === '') return 0;
+    if(typeof v === 'number') return isFinite(v) ? v : 0;
+    var n = Number(latinDigits(v).replace(/[,،]/g, '').replace(/[^\d.\-]/g, ''));
+    return isFinite(n) ? n : 0;
+  }
+
+  function isoFrom(v){
+    try{
+      if(typeof window.assalDebtExtractISODate === 'function'){
+        var z = window.assalDebtExtractISODate(v);
+        if(z) return z;
+      }
+    }catch(_){ }
+    try{
+      var s = latinDigits(String(v == null ? '' : v).trim()).replace(/\s*([\/\-.])\s*/g, '$1');
+      var m = s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/);
+      if(m) return m[1] + '-' + String(m[2]).padStart(2,'0') + '-' + String(m[3]).padStart(2,'0');
+      m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);
+      if(m){
+        var a = Number(m[1]), b = Number(m[2]);
+        if(b > 12 && a >= 1 && a <= 12) return m[3] + '-' + String(a).padStart(2,'0') + '-' + String(b).padStart(2,'0');
+        return m[3] + '-' + String(b).padStart(2,'0') + '-' + String(a).padStart(2,'0');
+      }
+    }catch(_){ }
+    return '';
+  }
+
+  function movementISO(dayKey, obj){
+    var candidates = [];
+    try{
+      if(obj){
+        candidates.push(obj.date, obj.day, obj.createdAt, obj.updatedAt, obj.at, obj.timestamp, obj.created, obj.time);
+      }
+    }catch(_){ }
+    candidates.push(dayKey);
+    for(var i=0;i<candidates.length;i++){
+      var iso = isoFrom(candidates[i]);
+      if(iso) return iso;
+    }
+    return '';
+  }
+
+  function displayLimitISO(){
+    try{
+      if(typeof window.assalDebtDisplayLimitISO === 'function'){
+        return window.assalDebtDisplayLimitISO() || '';
+      }
+    }catch(_){ }
+    try{
+      var d = new Date();
+      var y = d.getFullYear();
+      var m = String(d.getMonth()+1).padStart(2,'0');
+      var day = String(d.getDate()).padStart(2,'0');
+      return y + '-' + m + '-' + day;
+    }catch(_){ return ''; }
+  }
+
+  function openingInfo(rawName){
+    try{
+      if(typeof window.assalDebtOpeningInfoForCustomer === 'function'){
+        return window.assalDebtOpeningInfoForCustomer(rawName || '') || null;
+      }
+    }catch(_){ }
+    return null;
+  }
+
+  function globalOpeningUpdateISO(){
+    if(globalUpdateDateCache != null) return globalUpdateDateCache;
+    var latest = '';
+    try{
+      if(typeof window.assalGetDebtOpeningInfoMap === 'function'){
+        var map = window.assalGetDebtOpeningInfoMap();
+        if(map && typeof map.forEach === 'function'){
+          map.forEach(function(info){
+            var iso = (info && info.updatedISO) ? String(info.updatedISO) : '';
+            if(/^\d{4}-\d{2}-\d{2}$/.test(iso) && (!latest || iso > latest)) latest = iso;
+          });
+        }
+      }
+    }catch(_){ }
+    globalUpdateDateCache = latest || '';
+    return globalUpdateDateCache;
+  }
+
+  function isRealOpening(info){
+    if(!info) return false;
+    return Math.round(money(info.balance)) !== 0;
+  }
+
+  window.assalDebtMovementAfterOpening = function(rawName, dayKey, obj){
+    var info = openingInfo(rawName || '');
+
+    // أي زبون عنده رصيد افتتاحي فعلي يبقى على السلوك القديم 100%.
+    if(isRealOpening(info)){
+      if(typeof previousMovementAfterOpening === 'function'){
+        try{ return !!previousMovementAfterOpening(rawName, dayKey, obj || {}); }catch(_){ return false; }
+      }
+      return true;
+    }
+
+    // الزبون الجديد/صفر: نحسب من تاريخ تحديث الأرصدة نفسه، لا من اليوم التالي.
+    var iso = movementISO(dayKey, obj || {});
+    if(!iso) return false;
+
+    var limit = displayLimitISO();
+    if(limit && iso > limit) return false;
+
+    var start = (info && info.updatedISO) ? String(info.updatedISO || '') : '';
+    if(!start) start = globalOpeningUpdateISO();
+
+    // إذا لا يوجد تاريخ تحديث عام أصلاً، نسمح بأول حركة موجودة لزبون بلا رصيد افتتاحي.
+    if(!start) return true;
+    return iso >= start;
+  };
+
+  function invalidateAll(){
+    globalUpdateDateCache = null;
+    try{ if(typeof window.assalDebtFastInvalidate === 'function') window.assalDebtFastInvalidate(); }catch(_){ }
+    try{ if(typeof window.assalInvalidateDebtBadgeCache === 'function') window.assalInvalidateDebtBadgeCache(); }catch(_){ }
+    try{ if(typeof window.assalDeepRefreshAllDebts === 'function') window.assalDeepRefreshAllDebts(); }catch(_){ }
+    try{ if(typeof window.assalRefreshCustomerDebtBadges === 'function') window.assalRefreshCustomerDebtBadges(); }catch(_){ }
+    try{ if(typeof window.assalRefreshPartialDebtToggleBadges === 'function') window.assalRefreshPartialDebtToggleBadges(); }catch(_){ }
+    try{ if(typeof window.assalBalancedCardBadges === 'function') window.assalBalancedCardBadges(); }catch(_){ }
+  }
+
+  var oldInvalidateOpening = window.assalInvalidateDebtOpeningInfoCache;
+  if(typeof oldInvalidateOpening === 'function' && !oldInvalidateOpening.__assalZeroOpeningWrapped){
+    var wrapped = function(){
+      globalUpdateDateCache = null;
+      return oldInvalidateOpening.apply(this, arguments);
+    };
+    wrapped.__assalZeroOpeningWrapped = true;
+    window.assalInvalidateDebtOpeningInfoCache = wrapped;
+  }
+
+  setTimeout(invalidateAll, 0);
+})();
+</script>
+
+
+
+<style id="assal-current-debt-badge-and-partial-modal-final">
+/* =========================================================
+   ASSAL DEBTS - CURRENT DEBT BADGE + PARTIAL PAYMENT MODAL UI
+   تعديل واجهة فقط: بادج الدين الحالي + نافذة تسديد جزئي مرتبة
+========================================================= */
+html body .card .card-foot > .card-sums .sum--customer-debt,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face--debt{
+  color:#ecfeff !important;
+  background:linear-gradient(135deg, rgba(8,145,178,.98), rgba(79,70,229,.92)) !important;
+  border-color:rgba(125,211,252,.58) !important;
+  box-shadow:0 10px 24px rgba(8,145,178,.22), 0 0 0 1px rgba(255,255,255,.06) inset !important;
+  position:relative !important;
+  isolation:isolate !important;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt::after,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face--debt::after{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  border-radius:inherit;
+  pointer-events:none;
+  background:radial-gradient(circle at 50% 50%, rgba(125,211,252,.42), rgba(125,211,252,0) 62%);
+  opacity:.08;
+  z-index:-1;
+  animation:assalCurrentDebtPulse 2.8s ease-in-out infinite;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt.debt-credit,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle.debt-credit .assal-toggle-face--debt{
+  color:#ecfdf5 !important;
+  background:linear-gradient(135deg, rgba(5,150,105,.98), rgba(13,148,136,.92)) !important;
+  border-color:rgba(110,231,183,.55) !important;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt.debt-zero,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle.debt-zero .assal-toggle-face--debt{
+  color:#f8fafc !important;
+  background:linear-gradient(135deg, rgba(51,65,85,.94), rgba(15,23,42,.92)) !important;
+  border-color:rgba(148,163,184,.38) !important;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt i,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face--debt i{
+  color:#cffafe !important;
+  filter:drop-shadow(0 0 5px rgba(103,232,249,.38));
+}
+@keyframes assalCurrentDebtPulse{
+  0%,100%{ opacity:.06; transform:scale(.985); }
+  48%{ opacity:.34; transform:scale(1.035); }
+}
+@media (prefers-reduced-motion: reduce){
+  html body .card .card-foot > .card-sums .sum--customer-debt::after,
+  html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face--debt::after{
+    animation:none !important;
+  }
+}
+#partialPayModal.assal-partial-modal-v2 .modal-card{
+  width:min(540px, calc(100vw - 34px)) !important;
+  overflow:hidden;
+}
+#partialPayModal.assal-partial-modal-v2 .modal-head{
+  background:linear-gradient(135deg, rgba(14,116,144,.38), rgba(79,70,229,.18));
+  border-bottom:1px solid rgba(148,163,184,.18);
+}
+.assal-partial-pay-shell{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  line-height:1.7;
+}
+.assal-partial-pay-customer{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding:10px 12px;
+  border-radius:16px;
+  background:rgba(15,23,42,.58);
+  border:1px solid rgba(148,163,184,.18);
+  color:#fff;
+  font-weight:950;
+  text-align:center;
+}
+.assal-partial-pay-grid{
+  display:grid;
+  grid-template-columns:repeat(3, minmax(0, 1fr));
+  gap:8px;
+}
+.assal-partial-pay-info{
+  border-radius:14px;
+  padding:10px 8px;
+  background:rgba(2,6,23,.28);
+  border:1px solid rgba(148,163,184,.16);
+  text-align:center;
+  min-width:0;
+}
+.assal-partial-pay-info b{
+  display:block;
+  color:#94a3b8;
+  font-size:11.5px;
+  font-weight:900;
+  margin-bottom:3px;
+  white-space:nowrap;
+}
+.assal-partial-pay-info span{
+  display:block;
+  color:#f8fafc;
+  font-size:15px;
+  font-weight:950;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.assal-partial-pay-input-wrap{
+  padding:12px;
+  border-radius:18px;
+  background:linear-gradient(135deg, rgba(8,47,73,.38), rgba(15,23,42,.42));
+  border:1px solid rgba(125,211,252,.20);
+}
+.assal-partial-pay-input-label{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  color:#e0f2fe;
+  font-weight:950;
+  margin-bottom:8px;
+}
+#partialPayAmountInput.assal-partial-input-v2{
+  width:100%;
+  text-align:center !important;
+  font-weight:950 !important;
+  font-size:22px !important;
+  letter-spacing:.4px;
+  border-radius:16px !important;
+  padding:13px 14px !important;
+  background:rgba(255,255,255,.95) !important;
+  color:#0f172a !important;
+  border:2px solid rgba(14,165,233,.55) !important;
+  outline:none !important;
+}
+#partialPayAmountInput.assal-partial-input-v2:focus{
+  border-color:#22d3ee !important;
+  box-shadow:0 0 0 4px rgba(34,211,238,.18) !important;
+}
+.assal-partial-pay-preview{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:10px 12px;
+  border-radius:16px;
+  background:rgba(22,101,52,.22);
+  border:1px solid rgba(74,222,128,.24);
+  color:#dcfce7;
+  font-weight:950;
+}
+.assal-partial-pay-preview .amount{
+  font-size:18px;
+  color:#fff;
+  white-space:nowrap;
+}
+#partialPayHint.assal-partial-hint-v2{
+  margin-top:8px;
+  color:#bae6fd;
+  font-size:12.5px;
+  font-weight:800;
+  text-align:center;
+}
+#partialPayHint.assal-partial-hint-v2.is-error{
+  color:#fecaca !important;
+}
+#partialPayOkBtn.assal-partial-save-v2{
+  background:linear-gradient(135deg,#0891b2,#4f46e5) !important;
+  color:#ecfeff !important;
+  border-color:rgba(125,211,252,.55) !important;
+  font-weight:950 !important;
+}
+@media(max-width:560px){
+  .assal-partial-pay-grid{ grid-template-columns:1fr; }
+  .assal-partial-pay-info{ display:flex; align-items:center; justify-content:space-between; gap:10px; text-align:initial; }
+  .assal-partial-pay-info b{ margin-bottom:0; }
+  .assal-partial-pay-info span{ font-size:14px; }
+  #partialPayAmountInput.assal-partial-input-v2{ font-size:20px !important; }
+}
+</style>
+<script id="assal-current-debt-label-and-partial-modal-final">
+(function(){
+  if(window.__ASSAL_CURRENT_DEBT_LABEL_PARTIAL_MODAL_FINAL__) return;
+  window.__ASSAL_CURRENT_DEBT_LABEL_PARTIAL_MODAL_FINAL__ = true;
+
+  function esc(v){ return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function fmt(v){ try{ return (typeof window.formatIQD === 'function') ? window.formatIQD(Math.abs(Math.round(Number(v||0)))) : String(Math.abs(Math.round(Number(v||0)))); }catch(_){ return String(v||0); } }
+  function num(v){ try{ if(typeof window.assalPartialPayNum === 'function') return window.assalPartialPayNum(v); }catch(_){}; if(v == null || v === '') return 0; var n = Number(String(v).replace(/[٠-٩]/g,function(c){return c.charCodeAt(0)-1632;}).replace(/[۰-۹]/g,function(c){return c.charCodeAt(0)-1776;}).replace(/[,،]/g,'').replace(/[^\d.\-]/g,'')); return isFinite(n)?n:0; }
+  function normalizeDebtInfo(info){
+    info = info || { amount:0, cls:'debt-zero', icon:'fa-solid fa-circle-check', label:'الدين الحالي', text:'0' };
+    var amount = Math.round(Number(info.amount || 0));
+    if(amount < 0){ info.label = 'رصيد للزبون'; }
+    else { info.label = 'الدين الحالي'; }
+    return info;
+  }
+
+  var oldBadgeInfo = window.assalCustomerDebtBadgeInfo;
+  if(typeof oldBadgeInfo === 'function' && !oldBadgeInfo.__assalCurrentDebtLabelWrapped){
+    var wrappedInfo = function(customer){
+      var info;
+      try{ info = oldBadgeInfo.apply(this, arguments); }catch(_){ info = null; }
+      return normalizeDebtInfo(info);
+    };
+    wrappedInfo.__assalCurrentDebtLabelWrapped = true;
+    window.assalCustomerDebtBadgeInfo = wrappedInfo;
+  }
+
+  window.assalCustomerDebtBadgeHtml = function(customer){
+    try{
+      if(typeof window.assalIsSheetCustomerName === 'function' && !window.assalIsSheetCustomerName(customer || '')) return '';
+      var display = (typeof window.assalSheetCustomerDisplayName === 'function') ? (window.assalSheetCustomerDisplayName(customer || '') || customer) : customer;
+      var info = normalizeDebtInfo((typeof window.assalCustomerDebtBadgeInfo === 'function') ? window.assalCustomerDebtBadgeInfo(display) : null);
+      var detail = (typeof window.assalCustomerDebtBreakdownTitle === 'function') ? window.assalCustomerDebtBreakdownTitle(display) : '';
+      return '<span class="sum-badge sum--customer-debt sum--current-debt ' + esc(info.cls) + '" data-customer="' + esc(display) + '" title="' + esc(detail) + '"><i class="' + esc(info.icon) + '"></i><span>' + esc(info.label) + ': ' + esc(info.text) + '</span></span>';
+    }catch(_){ return ''; }
+  };
+
+  function fixDebtLabels(root){
+    root = root || document;
+    try{
+      Array.prototype.forEach.call(root.querySelectorAll('.sum--customer-debt[data-customer]'), function(el){
+        var customer = el.getAttribute('data-customer') || '';
+        var info = normalizeDebtInfo((typeof window.assalCustomerDebtBadgeInfo === 'function') ? window.assalCustomerDebtBadgeInfo(customer) : null);
+        var detail = (typeof window.assalCustomerDebtBreakdownTitle === 'function') ? window.assalCustomerDebtBreakdownTitle(customer) : '';
+        el.className = 'sum-badge sum--customer-debt sum--current-debt ' + (info.cls || 'debt-zero');
+        var i = el.querySelector('i'); if(i && info.icon) i.className = info.icon;
+        var sp = el.querySelector('span'); if(sp) sp.textContent = (info.label || 'الدين الحالي') + ': ' + (info.text == null ? '0' : info.text);
+        el.setAttribute('title', detail || '');
+      });
+      Array.prototype.forEach.call(root.querySelectorAll('.assal-partial-debt-toggle[data-customer]'), function(el){
+        var customer = el.getAttribute('data-customer') || '';
+        var info = normalizeDebtInfo((typeof window.assalCustomerDebtBadgeInfo === 'function') ? window.assalCustomerDebtBadgeInfo(customer) : null);
+        el.classList.remove('debt-positive','debt-zero','debt-credit');
+        if(info.cls) el.classList.add(info.cls);
+        var i = el.querySelector('.assal-toggle-face--debt i'); if(i && info.icon) i.className = info.icon;
+        var sp = el.querySelector('.assal-toggle-face--debt span'); if(sp) sp.textContent = (info.label || 'الدين الحالي') + ': ' + (info.text == null ? '0' : info.text);
+        var detail = (typeof window.assalCustomerDebtBreakdownTitle === 'function') ? window.assalCustomerDebtBreakdownTitle(customer) : '';
+        var partialTitle = el.getAttribute('data-partial-title') || 'يوجد تسديد جزئي';
+        el.setAttribute('title', (partialTitle + '\n' + (detail || '')).trim());
+      });
+    }catch(_){ }
+  }
+  window.assalFixCurrentDebtLabels = fixDebtLabels;
+
+  var oldRefresh = window.assalRefreshCustomerDebtBadges;
+  if(typeof oldRefresh === 'function' && !oldRefresh.__assalCurrentDebtLabelWrapped){
+    var wrappedRefresh = function(){
+      var r;
+      try{ r = oldRefresh.apply(this, arguments); }catch(_){ }
+      try{ fixDebtLabels(document); }catch(_){ }
+      return r;
+    };
+    wrappedRefresh.__assalCurrentDebtLabelWrapped = true;
+    window.assalRefreshCustomerDebtBadges = wrappedRefresh;
+  }
+
+  var oldPartialRefresh = window.assalRefreshPartialDebtToggleBadges;
+  if(typeof oldPartialRefresh === 'function' && !oldPartialRefresh.__assalCurrentDebtLabelWrapped){
+    var wrappedPartialRefresh = function(){
+      var r;
+      try{ r = oldPartialRefresh.apply(this, arguments); }catch(_){ }
+      try{ fixDebtLabels(document); }catch(_){ }
+      return r;
+    };
+    wrappedPartialRefresh.__assalCurrentDebtLabelWrapped = true;
+    window.assalRefreshPartialDebtToggleBadges = wrappedPartialRefresh;
+  }
+
+  var oldBalanced = window.assalBalancedCardBadges || window.assalSmartCompactCardSums;
+  if(typeof oldBalanced === 'function' && !oldBalanced.__assalCurrentDebtLabelWrapped){
+    var wrappedBalanced = function(){
+      var r;
+      try{ r = oldBalanced.apply(this, arguments); }catch(_){ }
+      setTimeout(function(){ fixDebtLabels(document); }, 0);
+      return r;
+    };
+    wrappedBalanced.__assalCurrentDebtLabelWrapped = true;
+    window.assalBalancedCardBadges = wrappedBalanced;
+    window.assalSmartCompactCardSums = wrappedBalanced;
+  }
+
+  var oldToggleHtml = window.assalPartialDebtToggleBadgeHtml;
+  if(typeof oldToggleHtml === 'function' && !oldToggleHtml.__assalCurrentDebtLabelWrapped){
+    var wrappedToggleHtml = function(){
+      var html = '';
+      try{ html = oldToggleHtml.apply(this, arguments) || ''; }catch(_){ html = ''; }
+      return String(html).replace(/الدين الكلي للزبون/g, 'الدين الحالي').replace(/دين الزبون/g, 'الدين الحالي');
+    };
+    wrappedToggleHtml.__assalCurrentDebtLabelWrapped = true;
+    window.assalPartialDebtToggleBadgeHtml = wrappedToggleHtml;
+  }
+
+  function cardSums(card){
+    try{ if(typeof window.sumCardAmounts === 'function') return window.sumCardAmounts(card); }catch(_){}
+    return { total:0, paid:0, returned:0, final:0 };
+  }
+  function partialRemaining(card){ try{ return (typeof window.assalCardPartialRemaining === 'function') ? Math.max(0, Math.round(window.assalCardPartialRemaining(card))) : 0; }catch(_){ return 0; } }
+  function partialPaid(card){ try{ return (typeof window.assalCardPartialPaidTotal === 'function') ? Math.max(0, Math.round(window.assalCardPartialPaidTotal(card))) : 0; }catch(_){ return 0; } }
+  function normalizeDigits(v){
+    var map = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9','۰':'0','۱':'1','۲':'2','۳':'3','۴':'4','۵':'5','۶':'6','۷':'7','۸':'8','۹':'9'};
+    return String(v == null ? '' : v).replace(/[٠-٩۰-۹]/g, function(ch){ return map[ch] || ch; });
+  }
+  function formatInput(v){
+    var digits = normalizeDigits(v).replace(/[^0-9]/g,'');
+    if(!digits) return '';
+    return digits.replace(/^0+(?=\d)/,'').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  function openPartialModalV2(viewCard){
+    var real = null;
+    try{ real = (typeof window.getMutableCard === 'function' ? window.getMutableCard(viewCard) : null) || viewCard; }catch(_){ real = viewCard; }
+    if(!real) return;
+    var remaining = partialRemaining(real);
+    if(remaining <= 0){ try{ window.showToast && window.showToast('info','لا يوجد مبلغ غير مدفوع للتسديد الجزئي'); }catch(_){}; return; }
+    var sums = cardSums(real);
+    var alreadyPaid = partialPaid(real);
+    var customer = String(real.customer || '').trim() || 'زبون غير محدد';
+
+    var bd = document.createElement('div');
+    bd.className = 'modal-backdrop active';
+    bd.id = 'partialPayBackdrop';
+    var md = document.createElement('div');
+    md.className = 'modal active assal-partial-modal-v2';
+    md.id = 'partialPayModal';
+    md.innerHTML =
+      '<div class="modal-card" role="dialog" aria-modal="true">' +
+        '<div class="modal-head"><i class="fa-solid fa-money-check-dollar"></i> تسديد جزئي</div>' +
+        '<div class="modal-body">' +
+          '<div class="assal-partial-pay-shell">' +
+            '<div class="assal-partial-pay-customer"><i class="fa-solid fa-user"></i><span>' + esc(customer) + '</span></div>' +
+            '<div class="assal-partial-pay-grid">' +
+              '<div class="assal-partial-pay-info"><b>إجمالي البطاقة</b><span>' + esc(fmt(sums.total || 0)) + '</span></div>' +
+              '<div class="assal-partial-pay-info"><b>المسدد سابقاً</b><span>' + esc(fmt((sums.paid || 0) - alreadyPaid)) + '</span></div>' +
+              '<div class="assal-partial-pay-info"><b>المتبقي قبل التسديد</b><span>' + esc(fmt(remaining)) + '</span></div>' +
+            '</div>' +
+            '<div class="assal-partial-pay-input-wrap">' +
+              '<div class="assal-partial-pay-input-label"><span>مبلغ التسديد الجزئي</span><small>د.ع</small></div>' +
+              '<input id="partialPayAmountInput" class="field assal-partial-input-v2" type="text" inputmode="numeric" placeholder="مثلاً 20,000" autocomplete="off">' +
+              '<div id="partialPayHint" class="assal-partial-hint-v2">المبلغ يجب أن يكون أكبر من صفر ولا يتجاوز ' + esc(fmt(remaining)) + ' د.ع</div>' +
+            '</div>' +
+            '<div class="assal-partial-pay-preview"><span>الباقي بعد التسديد</span><span class="amount" id="partialPayAfterAmount">' + esc(fmt(remaining)) + '</span></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="modal-actions">' +
+          '<button id="partialPayOkBtn" class="modal-btn assal-partial-save-v2"><i class="fa-solid fa-check"></i> حفظ التسديد</button>' +
+          '<button id="partialPayCancelBtn" class="modal-btn close-red">إلغاء</button>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(bd);
+    document.body.appendChild(md);
+    document.body.classList.add('modal-open');
+
+    var inp = md.querySelector('#partialPayAmountInput');
+    var ok = md.querySelector('#partialPayOkBtn');
+    var cancel = md.querySelector('#partialPayCancelBtn');
+    var hint = md.querySelector('#partialPayHint');
+    var afterEl = md.querySelector('#partialPayAfterAmount');
+
+    function setHint(text, err){ if(!hint) return; hint.textContent = text; hint.classList.toggle('is-error', !!err); }
+    function getAmount(){ return Math.round(num(inp && inp.value)); }
+    function updatePreview(){
+      if(!inp) return;
+      var formatted = formatInput(inp.value);
+      if(inp.value !== formatted){ inp.value = formatted; try{ inp.setSelectionRange(inp.value.length, inp.value.length); }catch(_){} }
+      var a = getAmount();
+      var after = Math.max(0, remaining - (a > 0 ? a : 0));
+      if(afterEl) afterEl.textContent = fmt(after);
+      if(a > remaining) setHint('المبلغ أكبر من المتبقي. المتبقي الحالي: ' + fmt(remaining) + ' د.ع', true);
+      else setHint('المبلغ يجب أن يكون أكبر من صفر ولا يتجاوز ' + fmt(remaining) + ' د.ع', false);
+    }
+    function close(){
+      try{ document.removeEventListener('keydown', escHandler); }catch(_){}
+      try{ bd.remove(); }catch(_){}
+      try{ md.remove(); }catch(_){}
+      document.body.classList.remove('modal-open');
+    }
+    function submit(){
+      var amount = getAmount();
+      if(!amount || amount <= 0){ setHint('اكتب مبلغ صحيح أكبر من صفر.', true); try{ inp && inp.focus(); }catch(_){} return; }
+      var currentRemaining = partialRemaining(real);
+      if(amount > currentRemaining){ setHint('المبلغ أكبر من المتبقي. المتبقي الحالي: ' + fmt(currentRemaining) + ' د.ع', true); try{ inp && inp.select(); }catch(_){} return; }
+      if(!Array.isArray(real.partialPayments)) real.partialPayments = [];
+      if(!Array.isArray(real.notes)) real.notes = [];
+      var t = (typeof window.nowISO === 'function') ? window.nowISO() : new Date().toISOString();
+      var id = (typeof window.genId === 'function') ? window.genId() : (Date.now() + '-' + Math.random().toString(16).slice(2));
+      var after = Math.max(0, currentRemaining - amount);
+      var noteText = 'تسديد جزئي: سدد ' + fmt(amount) + ' د.ع — الباقي ' + fmt(after) + ' د.ع';
+      real.partialPayments.push({ id:id, amount:amount, at:t, createdAt:t, updatedAt:t, deletedAt:null, note:noteText });
+      real.notes.push({ id:id + '-note', text:noteText, at:t, createdAt:t, updatedAt:t, deletedAt:null, kind:'partial-payment', partialPaymentId:id });
+      real.updatedAt = t;
+      try{ window.save && window.save(); }catch(_){}
+      close();
+      // أداء آمن: save() بقي كما هو ويحدث الديون، وهنا نعيد رسم الواجهة مرة واحدة فقط.
+      try{ window.renderBoard && window.renderBoard(); }catch(_){}
+      try{ window.renderRail && window.renderRail(); }catch(_){}
+      try{ window.refreshStats && window.refreshStats(); }catch(_){}
+      try{ window.showToast && window.showToast('success','تم تسجيل التسديد الجزئي'); }catch(_){}
+    }
+    function escHandler(e){ if(e.key === 'Escape'){ close(); } }
+
+    inp && inp.addEventListener('input', updatePreview);
+    inp && inp.addEventListener('blur', updatePreview);
+    ok && ok.addEventListener('click', submit);
+    cancel && cancel.addEventListener('click', close);
+    bd.addEventListener('click', close);
+    inp && inp.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); submit(); } });
+    document.addEventListener('keydown', escHandler);
+    setTimeout(function(){ try{ inp.focus(); inp.select(); updatePreview(); }catch(_){} }, 60);
+  }
+
+  window.assalOpenPartialPaymentModal = openPartialModalV2;
+  try{ fixDebtLabels(document); }catch(_){ }
+  setTimeout(function(){ try{ fixDebtLabels(document); if(window.assalBalancedCardBadges) window.assalBalancedCardBadges(); }catch(_){} }, 100);
+})();
+</script>
+
+
+<!-- ===== ASSAL CURRENT DEBT BADGE LABEL + ELEGANT FLASH - FINAL SAFE UI PATCH ===== -->
+<style id="assal-current-debt-badge-shine-label-final">
+/* ASSAL DEBTS: visual-only patch for current customer debt badge */
+html body .card .card-foot > .card-sums .sum--customer-debt,
+html body .card .card-foot > .card-sums .sum--customer-debt.sum--current-debt,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face--debt{
+  color:#fff !important;
+  background:linear-gradient(135deg,#312e81 0%,#6d28d9 46%,#0891b2 100%) !important;
+  border-color:rgba(196,181,253,.72) !important;
+  box-shadow:
+    0 12px 26px rgba(109,40,217,.28),
+    0 0 0 1px rgba(255,255,255,.08) inset,
+    0 0 18px rgba(34,211,238,.16) !important;
+  position:relative !important;
+  overflow:hidden !important;
+  isolation:isolate !important;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt::before,
+html body .card .card-foot > .card-sums .sum--customer-debt.sum--current-debt::before,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face--debt::before{
+  content:"";
+  position:absolute;
+  top:-45%;
+  bottom:-45%;
+  width:42%;
+  right:-58%;
+  pointer-events:none;
+  background:linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.48), rgba(255,255,255,0));
+  transform:skewX(-18deg) translateX(0);
+  opacity:0;
+  z-index:0;
+  animation:assalCurrentDebtElegantShine 4.2s ease-in-out infinite;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt > *,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face--debt > *{
+  position:relative;
+  z-index:1;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt i,
+html body .card .card-foot > .card-sums .sum--customer-debt.sum--current-debt i,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face--debt i{
+  color:#fef3c7 !important;
+  filter:drop-shadow(0 0 7px rgba(251,191,36,.40)) !important;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt.debt-credit,
+html body .card .card-foot > .card-sums .sum--customer-debt.sum--current-debt.debt-credit,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle.debt-credit .assal-toggle-face--debt{
+  color:#ecfdf5 !important;
+  background:linear-gradient(135deg,#065f46 0%,#059669 48%,#0f766e 100%) !important;
+  border-color:rgba(110,231,183,.62) !important;
+  box-shadow:0 12px 26px rgba(5,150,105,.24), 0 0 0 1px rgba(255,255,255,.07) inset !important;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt.debt-zero,
+html body .card .card-foot > .card-sums .sum--customer-debt.sum--current-debt.debt-zero,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle.debt-zero .assal-toggle-face--debt{
+  color:#f8fafc !important;
+  background:linear-gradient(135deg,#1e293b 0%,#334155 48%,#0f172a 100%) !important;
+  border-color:rgba(148,163,184,.48) !important;
+  box-shadow:0 10px 22px rgba(15,23,42,.22), 0 0 0 1px rgba(255,255,255,.06) inset !important;
+}
+@keyframes assalCurrentDebtElegantShine{
+  0%,68%,100%{ right:-60%; opacity:0; }
+  74%{ opacity:.16; }
+  84%{ opacity:.52; }
+  94%{ right:118%; opacity:0; }
+}
+@media (prefers-reduced-motion: reduce){
+  html body .card .card-foot > .card-sums .sum--customer-debt::before,
+  html body .card .card-foot > .card-sums .sum--customer-debt.sum--current-debt::before,
+  html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face--debt::before{
+    animation:none !important;
+    display:none !important;
+  }
+}
+</style>
+<script id="assal-current-debt-badge-shine-label-final">
+(function(){
+  if(window.__ASSAL_CURRENT_DEBT_BADGE_SHINE_LABEL_FINAL__) return;
+  window.__ASSAL_CURRENT_DEBT_BADGE_SHINE_LABEL_FINAL__ = true;
+  var CURRENT_DEBT_LABEL = 'الدين الحالي للزبون';
+  function cleanText(v){ return String(v == null ? '' : v); }
+  function normalizeInfo(info){
+    info = info || {amount:0, cls:'debt-zero', icon:'fa-solid fa-circle-check', label:CURRENT_DEBT_LABEL, text:'0'};
+    var amount = Math.round(Number(info.amount || 0));
+    if(amount < 0){ info.label = 'رصيد للزبون'; }
+    else { info.label = CURRENT_DEBT_LABEL; }
+    if(!info.cls) info.cls = amount < 0 ? 'debt-credit' : (amount > 0 ? 'debt-positive' : 'debt-zero');
+    if(!info.icon) info.icon = amount < 0 ? 'fa-solid fa-wallet' : (amount > 0 ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-circle-check');
+    return info;
+  }
+  function htmlEscape(v){
+    return cleanText(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  var previousBadgeInfo = window.assalCustomerDebtBadgeInfo;
+  if(typeof previousBadgeInfo === 'function' && !previousBadgeInfo.__assalCurrentDebtShineLabelWrapped){
+    var wrappedInfo = function(){
+      var info = null;
+      try{ info = previousBadgeInfo.apply(this, arguments); }catch(_){ }
+      return normalizeInfo(info);
+    };
+    wrappedInfo.__assalCurrentDebtShineLabelWrapped = true;
+    window.assalCustomerDebtBadgeInfo = wrappedInfo;
+  }
+  function getInfo(customer){
+    try{
+      if(typeof window.assalCustomerDebtBadgeInfo === 'function') return normalizeInfo(window.assalCustomerDebtBadgeInfo(customer));
+    }catch(_){ }
+    return normalizeInfo(null);
+  }
+  function getDetail(customer){
+    try{ if(typeof window.assalCustomerDebtBreakdownTitle === 'function') return window.assalCustomerDebtBreakdownTitle(customer) || ''; }catch(_){ }
+    return '';
+  }
+  var previousBadgeHtml = window.assalCustomerDebtBadgeHtml;
+  window.assalCustomerDebtBadgeHtml = function(customer){
+    try{
+      if(typeof window.assalIsSheetCustomerName === 'function' && !window.assalIsSheetCustomerName(customer || '')) return '';
+      var display = customer;
+      try{ if(typeof window.assalSheetCustomerDisplayName === 'function') display = window.assalSheetCustomerDisplayName(customer || '') || customer; }catch(_){ }
+      var info = getInfo(display);
+      var detail = getDetail(display);
+      return '<span class="sum-badge sum--customer-debt sum--current-debt ' + htmlEscape(info.cls) + '" data-customer="' + htmlEscape(display) + '" title="' + htmlEscape(detail) + '"><i class="' + htmlEscape(info.icon) + '"></i><span>' + htmlEscape(info.label) + ': ' + htmlEscape(info.text == null ? '0' : info.text) + '</span></span>';
+    }catch(_){
+      try{ return previousBadgeHtml ? previousBadgeHtml.apply(this, arguments) : ''; }catch(__){ return ''; }
+    }
+  };
+  function fixCurrentDebtBadgeLabels(root){
+    root = root || document;
+    try{
+      Array.prototype.forEach.call(root.querySelectorAll('.sum--customer-debt[data-customer]'), function(el){
+        var customer = el.getAttribute('data-customer') || '';
+        var info = getInfo(customer);
+        el.classList.add('sum--current-debt');
+        el.classList.remove('debt-positive','debt-zero','debt-credit');
+        if(info.cls) el.classList.add(info.cls);
+        var icon = el.querySelector('i');
+        if(icon && info.icon) icon.className = info.icon;
+        var text = el.querySelector('span');
+        if(text) text.textContent = (info.label || CURRENT_DEBT_LABEL) + ': ' + (info.text == null ? '0' : info.text);
+        el.setAttribute('title', getDetail(customer));
+      });
+      Array.prototype.forEach.call(root.querySelectorAll('.assal-partial-debt-toggle[data-customer]'), function(el){
+        var customer = el.getAttribute('data-customer') || '';
+        var info = getInfo(customer);
+        el.classList.remove('debt-positive','debt-zero','debt-credit');
+        if(info.cls) el.classList.add(info.cls);
+        var icon = el.querySelector('.assal-toggle-face--debt i');
+        if(icon && info.icon) icon.className = info.icon;
+        var text = el.querySelector('.assal-toggle-face--debt span');
+        if(text) text.textContent = (info.label || CURRENT_DEBT_LABEL) + ': ' + (info.text == null ? '0' : info.text);
+        var partialTitle = el.getAttribute('data-partial-title') || 'يوجد تسديد جزئي';
+        el.setAttribute('title', (partialTitle + '\n' + getDetail(customer)).trim());
+      });
+    }catch(_){ }
+  }
+  window.assalFixCurrentDebtLabels = fixCurrentDebtBadgeLabels;
+  function wrapAfter(name){
+    var old = window[name];
+    if(typeof old !== 'function' || old.__assalCurrentDebtShineLabelWrapped) return;
+    var wrapped = function(){
+      var r;
+      try{ r = old.apply(this, arguments); }catch(e){ throw e; }
+      setTimeout(function(){ fixCurrentDebtBadgeLabels(document); }, 0);
+      return r;
+    };
+    wrapped.__assalCurrentDebtShineLabelWrapped = true;
+    window[name] = wrapped;
+  }
+  wrapAfter('assalRefreshCustomerDebtBadges');
+  wrapAfter('assalRefreshPartialDebtToggleBadges');
+  // لا نلف renderBoard/ضغط البادجات حتى لا تتكرر معالجة كل البطاقات بعد التسديد الجزئي.
+  var oldToggleHtml = window.assalPartialDebtToggleBadgeHtml;
+  if(typeof oldToggleHtml === 'function' && !oldToggleHtml.__assalCurrentDebtShineLabelWrapped){
+    var wrappedToggle = function(){
+      var html = '';
+      try{ html = oldToggleHtml.apply(this, arguments) || ''; }catch(_){ html = ''; }
+      return cleanText(html)
+        .replace(/الدين الكلي للزبون/g, CURRENT_DEBT_LABEL)
+        .replace(/الدين الحالي(?!\s*للزبون)/g, CURRENT_DEBT_LABEL)
+        .replace(/دين الزبون/g, CURRENT_DEBT_LABEL);
+    };
+    wrappedToggle.__assalCurrentDebtShineLabelWrapped = true;
+    window.assalPartialDebtToggleBadgeHtml = wrappedToggle;
+  }
+  setTimeout(function(){ fixCurrentDebtBadgeLabels(document); }, 0);
+})();
+</script>
+<!-- ===== /ASSAL CURRENT DEBT BADGE LABEL + ELEGANT FLASH - FINAL SAFE UI PATCH ===== -->
+
+
+
+<!-- ===== ASSAL CUSTOMER DEBT STATEMENT MODAL - FINAL READONLY PATCH ===== -->
+<style id="assal-customer-statement-modal-final-style">
+  #assalCustomerStatementBackdrop{
+    position:fixed;
+    inset:0;
+    z-index:99998;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:clamp(7px,1.3vw,14px);
+    background:
+      radial-gradient(circle at 12% 8%,rgba(56,189,248,.22),transparent 30%),
+      radial-gradient(circle at 88% 14%,rgba(168,85,247,.20),transparent 34%),
+      radial-gradient(circle at 50% 120%,rgba(34,197,94,.10),transparent 36%),
+      rgba(2,6,23,.78);
+    backdrop-filter:blur(16px) saturate(1.16);
+    -webkit-backdrop-filter:blur(16px) saturate(1.16);
+  }
+  #assalCustomerStatementBackdrop.active{display:flex;}
+  .assal-statement-modal{
+    direction:rtl;
+    width:min(1220px,98vw);
+    max-height:94vh;
+    overflow:hidden;
+    border-radius:30px;
+    border:1px solid rgba(186,230,253,.24);
+    background:
+      radial-gradient(circle at 16% 2%,rgba(59,130,246,.27),transparent 30%),
+      radial-gradient(circle at 86% 92%,rgba(168,85,247,.20),transparent 34%),
+      linear-gradient(135deg,rgba(15,23,42,.96),rgba(15,23,42,.88) 52%,rgba(30,41,59,.84));
+    box-shadow:
+      0 36px 110px rgba(0,0,0,.64),
+      0 0 0 1px rgba(255,255,255,.06) inset,
+      0 0 60px rgba(59,130,246,.13);
+    color:#e5edf8;
+    font-family:inherit;
+    position:relative;
+  }
+  .assal-statement-modal::before{
+    content:"";
+    position:absolute;
+    inset:0 0 auto 0;
+    height:5px;
+    background:linear-gradient(90deg,#22d3ee,#3b82f6,#8b5cf6,#d946ef,#22d3ee);
+    opacity:.95;
+  }
+  .assal-statement-modal::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background:linear-gradient(120deg,transparent 0 42%,rgba(255,255,255,.055) 50%,transparent 58% 100%);
+    transform:translateX(45%);
+    opacity:.35;
+  }
+  .assal-statement-head{
+    position:relative;
+    z-index:2;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:15px 18px 12px;
+    border-bottom:1px solid rgba(148,163,184,.16);
+    background:linear-gradient(135deg,rgba(15,23,42,.96),rgba(30,41,59,.72));
+  }
+  .assal-statement-title{display:flex;align-items:center;gap:12px;min-width:0;}
+  .assal-statement-title i{
+    width:46px;height:46px;display:grid;place-items:center;border-radius:18px;color:#eff6ff;
+    background:linear-gradient(135deg,#06b6d4,#2563eb 48%,#7c3aed);
+    box-shadow:0 17px 36px rgba(59,130,246,.30), inset 0 0 0 1px rgba(255,255,255,.20);
+    flex:0 0 auto;
+  }
+  .assal-statement-title strong{display:block;font-size:19px;font-weight:1000;color:#f8fafc;line-height:1.2;letter-spacing:-.25px;}
+  .assal-statement-title span{display:block;margin-top:3px;font-size:12px;color:#b8c5d7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62vw;}
+  .assal-statement-close{
+    border:1px solid rgba(248,113,113,.34);
+    background:linear-gradient(135deg,rgba(127,29,29,.95),rgba(185,28,28,.86));
+    color:#fee2e2;border-radius:16px;min-width:44px;height:40px;cursor:pointer;font-weight:900;display:grid;place-items:center;
+    box-shadow:0 12px 28px rgba(127,29,29,.25);flex:0 0 auto;
+  }
+  .assal-statement-body{position:relative;z-index:1;padding:12px;overflow:hidden;}
+  .assal-statement-dashboard{
+    display:grid;
+    grid-template-columns:minmax(250px,.92fr) minmax(0,1.55fr) minmax(270px,.95fr);
+    gap:10px;
+    align-items:stretch;
+    margin-bottom:10px;
+  }
+  .assal-statement-current,
+  .assal-statement-opening,
+  .assal-statement-chip{
+    position:relative;overflow:hidden;border:1px solid rgba(148,163,184,.16);border-radius:22px;
+    background:linear-gradient(180deg,rgba(30,41,59,.70),rgba(15,23,42,.56));
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.035),0 16px 36px rgba(2,6,23,.22);
+    min-width:0;
+  }
+  .assal-statement-current{padding:14px;background:radial-gradient(circle at top left,rgba(255,255,255,.18),transparent 32%),linear-gradient(135deg,rgba(37,99,235,.97),rgba(79,70,229,.90) 52%,rgba(126,34,206,.86));border-color:rgba(147,197,253,.42);}
+  .assal-statement-current::after{content:"";position:absolute;top:-35%;bottom:-35%;width:38%;right:-55%;transform:skewX(-18deg);background:linear-gradient(90deg,transparent,rgba(255,255,255,.34),transparent);animation:assalStatementShine 4.8s ease-in-out infinite;pointer-events:none;}
+  @keyframes assalStatementShine{0%,70%,100%{right:-55%;opacity:0;}78%{opacity:.45;}92%{right:112%;opacity:0;}}
+  .assal-statement-kicker{display:flex;align-items:center;gap:8px;font-size:12px;color:#cbd5e1;font-weight:950;position:relative;z-index:1;}
+  .assal-statement-current .assal-statement-kicker{color:#dbeafe;}
+  .assal-statement-amount{position:relative;z-index:1;margin-top:8px;font-size:clamp(24px,3vw,38px);line-height:1;font-weight:1000;letter-spacing:.2px;color:#fff;text-shadow:0 9px 24px rgba(0,0,0,.22);white-space:nowrap;}
+  .assal-statement-amount.credit{color:#bbf7d0;}
+  .assal-statement-amount.zero{color:#dcfce7;}
+  .assal-statement-sub{position:relative;z-index:1;margin-top:8px;color:#b8c5d7;font-size:12px;line-height:1.55;}
+  .assal-statement-current .assal-statement-sub{color:#dbeafe;opacity:.92;}
+  .assal-statement-opening{padding:12px;display:flex;flex-direction:column;justify-content:center;}
+  .assal-statement-opening .assal-statement-amount{font-size:clamp(18px,2vw,25px);}
+  .assal-statement-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+  .assal-statement-chip{padding:11px;}
+  .assal-statement-chip span{display:flex;align-items:center;gap:6px;color:#9fb0c6;font-size:11px;font-weight:950;margin-bottom:5px;white-space:nowrap;}
+  .assal-statement-chip b{display:block;color:#f8fafc;font-size:16px;font-weight:1000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:ltr;text-align:right;}
+  .assal-statement-chip.pay b,.assal-statement-chip.return b{color:#fecaca;}
+  .assal-statement-chip.withdraw b{color:#fde68a;}
+  .assal-statement-chip.cards b{color:#bfdbfe;}
+  .assal-statement-section-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:4px 2px 9px;color:#f8fafc;font-weight:1000;font-size:14px;}
+  .assal-statement-section-title small{color:#b9c6d8;font-weight:900;background:rgba(148,163,184,.10);border:1px solid rgba(148,163,184,.14);border-radius:999px;padding:4px 10px;white-space:nowrap;}
+  .assal-statement-list{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(188px,1fr));
+    gap:9px;
+    overflow:visible;
+    align-items:stretch;
+  }
+  .assal-statement-card{
+    min-width:0;position:relative;overflow:hidden;border:1px solid rgba(148,163,184,.15);border-radius:22px;padding:10px;
+    background:linear-gradient(180deg,rgba(15,23,42,.80),rgba(15,23,42,.52));
+    box-shadow:0 14px 30px rgba(2,6,23,.20),inset 0 0 0 1px rgba(255,255,255,.025);
+  }
+  .assal-statement-card.card{background:radial-gradient(circle at top right,rgba(59,130,246,.18),transparent 42%),linear-gradient(180deg,rgba(15,23,42,.82),rgba(15,23,42,.52));}
+  .assal-statement-card.pay{background:radial-gradient(circle at top right,rgba(34,197,94,.15),transparent 42%),linear-gradient(180deg,rgba(15,23,42,.82),rgba(15,23,42,.52));}
+  .assal-statement-card.withdraw{background:radial-gradient(circle at top right,rgba(245,158,11,.16),transparent 42%),linear-gradient(180deg,rgba(15,23,42,.82),rgba(15,23,42,.52));}
+  .assal-statement-card-head{display:flex;align-items:center;justify-content:space-between;gap:7px;margin-bottom:9px;}
+  .assal-statement-date{display:flex;align-items:center;gap:5px;color:#cbd5e1;font-size:11px;font-weight:900;white-space:nowrap;}
+  .assal-statement-date b{font-size:11px;color:#f8fafc;direction:ltr;font-weight:1000;}
+  .assal-statement-date span{font-size:10px;color:#94a3b8;}
+  .assal-statement-type{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:4px 8px;font-size:10.5px;font-weight:1000;border:1px solid rgba(255,255,255,.11);white-space:nowrap;}
+  .assal-statement-type.card{background:rgba(37,99,235,.20);color:#bfdbfe;}
+  .assal-statement-type.pay{background:rgba(22,101,52,.20);color:#bbf7d0;}
+  .assal-statement-type.withdraw{background:rgba(180,83,9,.20);color:#fde68a;}
+  .assal-statement-name{font-size:12px;color:#e5edf8;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:7px;}
+  .assal-statement-parts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:9px;}
+  .assal-statement-part{display:flex;align-items:center;justify-content:space-between;gap:5px;border-radius:13px;padding:6px 7px;font-size:10.5px;font-weight:950;color:#dbeafe;background:rgba(30,41,59,.70);border:1px solid rgba(148,163,184,.16);min-width:0;}
+  .assal-statement-part .lbl{color:#9fb0c6;white-space:nowrap;}
+  .assal-statement-part .val{color:#e5edf8;white-space:nowrap;direction:ltr;text-align:left;}
+  .assal-statement-part.return .val,.assal-statement-part.pay .val{color:#fecaca;}
+  .assal-statement-part.withdraw .val{color:#fde68a;}
+  .assal-statement-note{grid-column:1/-1;display:block;border-radius:13px;padding:6px 8px;font-size:10.5px;line-height:1.45;font-weight:900;color:#cbd5e1;background:rgba(15,23,42,.52);border:1px dashed rgba(148,163,184,.18);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .assal-statement-net{display:flex;align-items:center;justify-content:space-between;gap:6px;border-radius:16px;padding:8px 10px;font-weight:1000;white-space:nowrap;color:#e0f2fe;background:linear-gradient(135deg,rgba(14,116,144,.34),rgba(30,64,175,.28));border:1px solid rgba(14,165,233,.22);box-shadow:inset 0 0 0 1px rgba(255,255,255,.025);}
+  .assal-statement-net strong{font-size:11px;color:#bcd4ee;}
+  .assal-statement-net b{font-size:13px;direction:ltr;}
+  .assal-statement-net.negative{color:#fecaca;background:linear-gradient(135deg,rgba(127,29,29,.48),rgba(153,27,27,.30));border-color:rgba(248,113,113,.25);}
+  .assal-statement-net.positive{color:#dbeafe;}
+  .assal-statement-empty{border:1px dashed rgba(148,163,184,.25);border-radius:20px;padding:18px;text-align:center;color:#94a3b8;background:rgba(15,23,42,.42);font-weight:900;grid-column:1/-1;}
+  .assal-density-dense .assal-statement-dashboard{grid-template-columns:minmax(220px,.85fr) minmax(0,1.7fr) minmax(238px,.85fr);gap:8px;}
+  .assal-density-dense .assal-statement-list{grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:7px;}
+  .assal-density-dense .assal-statement-card{padding:8px;border-radius:18px;}
+  .assal-density-dense .assal-statement-parts{gap:5px;}
+  .assal-density-dense .assal-statement-part{padding:5px 6px;font-size:10px;}
+  .assal-density-ultra .assal-statement-body{padding:10px;}
+  .assal-density-ultra .assal-statement-dashboard{grid-template-columns:minmax(200px,.8fr) minmax(0,1.8fr) minmax(220px,.78fr);gap:7px;margin-bottom:7px;}
+  .assal-density-ultra .assal-statement-current{padding:10px;}
+  .assal-density-ultra .assal-statement-opening{padding:10px;}
+  .assal-density-ultra .assal-statement-summary{gap:6px;}
+  .assal-density-ultra .assal-statement-chip{padding:8px;border-radius:16px;}
+  .assal-density-ultra .assal-statement-list{grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:6px;}
+  .assal-density-ultra .assal-statement-card{padding:7px;border-radius:16px;}
+  .assal-density-ultra .assal-statement-card-head{margin-bottom:6px;}
+  .assal-density-ultra .assal-statement-name{font-size:10.5px;margin-bottom:5px;}
+  .assal-density-ultra .assal-statement-type{font-size:9.5px;padding:3px 6px;}
+  .assal-density-ultra .assal-statement-date{font-size:9.5px;}
+  .assal-density-ultra .assal-statement-date b{font-size:9.5px;}
+  .assal-density-ultra .assal-statement-parts{gap:4px;margin-bottom:6px;}
+  .assal-density-ultra .assal-statement-part{padding:4px 5px;font-size:9.2px;border-radius:11px;}
+  .assal-density-ultra .assal-statement-note{font-size:9px;padding:4px 5px;}
+  .assal-density-ultra .assal-statement-net{padding:6px 7px;border-radius:13px;}
+  .assal-density-ultra .assal-statement-net b{font-size:11px;}
+  html body .sum--customer-debt[data-customer],
+  html body .assal-partial-debt-toggle[data-customer] .assal-toggle-face--debt{cursor:pointer;}
+  @media(max-width:860px){
+    #assalCustomerStatementBackdrop{padding:6px;align-items:flex-start;}
+    .assal-statement-modal{width:99vw;border-radius:22px;max-height:none;margin-top:6px;}
+    .assal-statement-head{padding:12px 12px 10px;}
+    .assal-statement-title i{width:39px;height:39px;border-radius:15px;}
+    .assal-statement-title strong{font-size:16px;}
+    .assal-statement-body{padding:8px;}
+    .assal-statement-dashboard{grid-template-columns:1fr 1fr;gap:7px;}
+    .assal-statement-current{grid-column:1/-1;}
+    .assal-statement-summary{grid-column:1/-1;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;}
+    .assal-statement-chip{padding:7px;border-radius:14px;}
+    .assal-statement-chip span{font-size:9.5px;margin-bottom:3px;}
+    .assal-statement-chip b{font-size:12px;}
+    .assal-statement-opening{padding:9px;border-radius:17px;}
+    .assal-statement-list{grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:6px;}
+    .assal-statement-card{padding:7px;border-radius:16px;}
+    .assal-statement-parts{gap:4px;margin-bottom:6px;}
+    .assal-statement-part{font-size:9.5px;padding:4px 5px;border-radius:11px;}
+    .assal-statement-net{padding:6px 7px;}
+  }
+  @media(max-width:520px){
+    .assal-statement-dashboard{grid-template-columns:1fr;}
+    .assal-statement-summary{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .assal-statement-list{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .assal-statement-amount{font-size:24px;}
+  }
+  @media (prefers-reduced-motion: reduce){.assal-statement-current::after{animation:none;display:none;}}
+</style>
+
+<script id="assal-customer-statement-modal-final-script">
+(function(){
+  'use strict';
+  if(window.__ASSAL_CUSTOMER_STATEMENT_MODAL_FINAL__) return;
+  window.__ASSAL_CUSTOMER_STATEMENT_MODAL_FINAL__ = true;
+
+  function latin(s){
+    return String(s == null ? '' : s)
+      .replace(/[\u0660-\u0669]/g, function(ch){ return String(ch.charCodeAt(0) - 0x0660); })
+      .replace(/[\u06F0-\u06F9]/g, function(ch){ return String(ch.charCodeAt(0) - 0x06F0); });
+  }
+  function money(v){
+    if(v == null || v === '') return 0;
+    if(typeof v === 'number') return isFinite(v) ? v : 0;
+    var n = Number(latin(v).replace(/[,،]/g,'').replace(/[^\d.\-]/g,''));
+    return isFinite(n) ? n : 0;
+  }
+  function fmt(v){
+    var n = Math.abs(Math.round(money(v)));
+    try{ if(typeof window.formatIQD === 'function') return window.formatIQD(n); }catch(_){ }
+    try{ return n.toLocaleString('en-US'); }catch(_){ return String(n); }
+  }
+  function signed(v){
+    var n = Math.round(money(v));
+    if(n < 0) return '-' + fmt(n);
+    if(n > 0) return fmt(n);
+    return '0';
+  }
+  function esc(s){
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/"/g,'&quot;')
+      .replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function nrm(s){
+    s = latin(s == null ? '' : s).trim().toLowerCase();
+    s = s.replace(/[\u064B-\u065F\u0670]/g,'').replace(/ـ/g,'');
+    s = s.replace(/[إأآا]/g,'ا').replace(/[ىي]/g,'ي').replace(/ة/g,'ه');
+    s = s.replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/\s+/g,' ');
+    return s.trim();
+  }
+  function cmp(s){ return nrm(s).replace(/[^\u0621-\u064A\d]+/g,''); }
+  function resolveName(raw){
+    try{ if(typeof window.assalDebtDeepResolveName === 'function') return window.assalDebtDeepResolveName(raw || '') || ''; }catch(_){ }
+    try{ if(typeof window.assalSheetCustomerDisplayName === 'function') return window.assalSheetCustomerDisplayName(raw || '') || ''; }catch(_){ }
+    return String(raw == null ? '' : raw).trim();
+  }
+  function getCards(dayVal){
+    try{ if(typeof window.__getCardsFromDayVal__ === 'function') return window.__getCardsFromDayVal__(dayVal) || []; }catch(_){ }
+    if(Array.isArray(dayVal)) return dayVal;
+    if(dayVal && Array.isArray(dayVal.cards)) return dayVal.cards;
+    if(dayVal && Array.isArray(dayVal.bills)) return dayVal.bills;
+    return [];
+  }
+  function typeNorm(v){
+    try{ if(typeof window.normalizeBillType === 'function') return window.normalizeBillType(v); }catch(_){ }
+    var s = String(v == null ? '' : v).trim();
+    var u = s.toUpperCase();
+    if(s === 'بيع' || s === 'أجل' || s === 'اجل' || u === 'SELL' || u === 'SALE' || u === 'CREDIT') return 'اجل';
+    if(s === 'راجع' || u === 'RETURN') return 'راجع';
+    if(s === 'نقدي' || u === 'CASH') return 'نقدي';
+    if(s === 'جملة' || u === 'WHOLESALE') return 'جملة';
+    return s;
+  }
+  function payKind(v){
+    try{ if(typeof window.assalDebtBadgePaymentKind === 'function') return window.assalDebtBadgePaymentKind(v); }catch(_){ }
+    var s = String(v == null ? '' : v).trim();
+    var u = s.toUpperCase();
+    if(s === 'سحب' || /WITHDRAW|OUT|TAKE/.test(u)) return 'سحب';
+    if(s === 'تسديد' || s === 'دفع' || /PAY|PAID|IN/.test(u)) return 'تسديد';
+    return s;
+  }
+  function lineAmount(ln){
+    var price = money(ln && ln.price);
+    var q = money((ln && ln.qty != null) ? ln.qty : 1);
+    if(!isFinite(q) || q <= 0) q = 1;
+    return Math.round(price * q);
+  }
+  function localISO(d){
+    try{
+      var x = new Date(d);
+      if(isNaN(x.getTime())) return '';
+      return x.getFullYear() + '-' + String(x.getMonth()+1).padStart(2,'0') + '-' + String(x.getDate()).padStart(2,'0');
+    }catch(_){ return ''; }
+  }
+  function extractISO(raw){
+    try{ if(typeof window.assalDebtExtractISODate === 'function') return window.assalDebtExtractISODate(raw) || ''; }catch(_){ }
+    if(raw == null || raw === '') return '';
+    if(raw instanceof Date) return localISO(raw);
+    var s = latin(String(raw).trim()).replace(/\s*([\/\-.])\s*/g,'$1');
+    var m = s.match(/(\d{4})[-\/.](\d{1,2})[-\.\/](\d{1,2})/);
+    if(m) return m[1] + '-' + String(m[2]).padStart(2,'0') + '-' + String(m[3]).padStart(2,'0');
+    m = s.match(/(\d{1,2})[-\/.](\d{1,2})[-\.\/](\d{4})/);
+    if(m){
+      var a = Number(m[1]), b = Number(m[2]);
+      if(b > 12 && a <= 12) return m[3] + '-' + String(a).padStart(2,'0') + '-' + String(b).padStart(2,'0');
+      return m[3] + '-' + String(b).padStart(2,'0') + '-' + String(a).padStart(2,'0');
+    }
+    return '';
+  }
+  function movementISO(dayKey, obj){
+    var arr = [];
+    try{ if(obj) arr = [obj.date,obj.day,obj.createdAt,obj.updatedAt,obj.at,obj.timestamp,obj.created,obj.time]; }catch(_){ }
+    arr.push(dayKey);
+    for(var i=0;i<arr.length;i++){ var iso = extractISO(arr[i]); if(iso) return iso; }
+    return '';
+  }
+  function fmtDate(iso){
+    if(!iso) return '—';
+    try{ if(typeof window.fmtDMY === 'function') return window.fmtDMY(iso); }catch(_){ }
+    var m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m ? (m[3] + '-' + m[2] + '-' + m[1]) : String(iso);
+  }
+  function fmtTime(v){
+    try{ if(typeof window.arTime === 'function') return window.arTime(v); }catch(_){ }
+    try{
+      if(!v) return '';
+      var d = new Date(v);
+      if(isNaN(d.getTime())) return '';
+      return d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+    }catch(_){ return ''; }
+  }
+  function includeMovement(customer, dayKey, obj){
+    try{ if(typeof window.assalDebtMovementAfterOpening === 'function') return !!window.assalDebtMovementAfterOpening(customer, dayKey, obj || {}); }catch(_){ return false; }
+    return true;
+  }
+  function getBreakdown(customer){
+    try{ if(typeof window.assalGetCustomerDebtBreakdown === 'function') return window.assalGetCustomerDebtBreakdown(customer) || {}; }catch(_){ }
+    return {name:customer,opening:0,cards:0,financialPay:0,financialWithdraw:0,total:0,updatedISO:'',startISO:''};
+  }
+  function cardParts(card){
+    var purchaseAll = 0, paidLines = 0, unpaid = 0, returned = 0, partial = 0, count = 0;
+    try{
+      var cardType = typeNorm(card && (card.billType || card.type || card.kind || ''));
+      var lines = Array.isArray(card && card.lines) ? card.lines : [];
+      lines.forEach(function(ln){
+        if(!ln || ln.deletedAt) return;
+        count++;
+        var amt = lineAmount(ln);
+        if(!amt) return;
+        var lt = typeNorm(ln.type || ln.billType || cardType);
+        if(cardType === 'نقدي' || lt === 'نقدي') return;
+        if(cardType === 'راجع' || lt === 'راجع' || ln.returned){ returned += amt; return; }
+        purchaseAll += amt;
+        if(ln.paid) paidLines += amt;
+        else unpaid += amt;
+      });
+      var cap = (typeof window.assalCardPartialBaseUnpaid === 'function') ? window.assalCardPartialBaseUnpaid(card) : Infinity;
+      var parts = (typeof window.assalGetCardPartialPayments === 'function') ? window.assalGetCardPartialPayments(card) : (Array.isArray(card && card.partialPayments) ? card.partialPayments : []);
+      (parts || []).forEach(function(pp){
+        if(!pp || pp.deletedAt) return;
+        var amt = money(pp.amount);
+        if(!amt || cap <= 0) return;
+        amt = Math.min(amt, cap);
+        cap -= amt;
+        partial += amt;
+      });
+    }catch(_){ }
+    var net = unpaid - returned - partial;
+    try{
+      if(typeof window.assalDebtCardEffectForLedger === 'function'){
+        var x = Number(window.assalDebtCardEffectForLedger(card));
+        if(isFinite(x)) net = Math.round(x);
+      }
+    }catch(_){ }
+    return {purchaseAll:Math.round(purchaseAll),paidLines:Math.round(paidLines),unpaid:Math.round(unpaid),returned:Math.round(returned),partial:Math.round(partial),net:Math.round(net),count:count};
+  }
+  function sortKey(iso, rawTime){
+    var base = String(iso || '0000-00-00');
+    var t = '';
+    try{
+      var d = rawTime ? new Date(rawTime) : null;
+      if(d && !isNaN(d.getTime())) t = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ':' + String(d.getSeconds()).padStart(2,'0');
+    }catch(_){ }
+    return base + 'T' + (t || '12:00:00');
+  }
+  function collectStatement(customer){
+    var display = resolveName(customer) || String(customer == null ? '' : customer).trim();
+    var b = getBreakdown(display);
+    var entries = [];
+    var target = cmp(display);
+    try{
+      var daysObj = (typeof window.days !== 'undefined' && window.days) ? window.days : (typeof days !== 'undefined' ? days : {});
+      Object.keys(daysObj || {}).forEach(function(dayKey){
+        var cards = getCards(daysObj[dayKey]);
+        (cards || []).forEach(function(card){
+          if(!card || card.deletedAt) return;
+          var raw = card.customer || card.cust || card.name || '';
+          var dn = resolveName(raw) || raw;
+          if(cmp(dn) !== target) return;
+          if(!includeMovement(display, dayKey, card)) return;
+          var p = cardParts(card);
+          if(!p.unpaid && !p.returned && !p.partial && !p.net) return;
+          var iso = movementISO(dayKey, card) || dayKey;
+          entries.push({
+            kind:'card', iso:iso, time:fmtTime(card.createdAt || card.at || card.updatedAt), order:sortKey(iso, card.createdAt || card.at || card.updatedAt),
+            title:'بطاقة', parts:p, net:p.net, id:card.id || ''
+          });
+        });
+      });
+    }catch(_){ }
+    try{
+      var rows = (typeof window.assalDebtDeepCollectPaymentRows === 'function') ? window.assalDebtDeepCollectPaymentRows() : [];
+      (rows || []).forEach(function(x){
+        var row = (x && x.row) || {};
+        if(!row || row.deletedAt) return;
+        var raw = row.cust || row.customer || row.name || '';
+        var dn = resolveName(raw) || raw;
+        if(cmp(dn) !== target) return;
+        var dayKey = (x && x.dayKey) || row.day || row.date || '';
+        if(!includeMovement(display, dayKey, row)) return;
+        var amt = Math.round(money(row.amount));
+        if(!amt) return;
+        var kind = payKind(row.kind || row.type || '');
+        if(kind !== 'تسديد' && kind !== 'سحب') return;
+        var iso = movementISO(dayKey, row) || dayKey;
+        var net = (kind === 'سحب') ? amt : -amt;
+        entries.push({kind:kind === 'سحب' ? 'withdraw' : 'pay', iso:iso, time:fmtTime(row.createdAt || row.at || row.updatedAt || row.time), order:sortKey(iso, row.createdAt || row.at || row.updatedAt || row.time), title:kind, amount:amt, net:net, note:row.note || row.notes || row.memo || ''});
+      });
+    }catch(_){ }
+    entries.sort(function(a,bb){ return String(a.order).localeCompare(String(bb.order)); });
+    return {customer:display, breakdown:b, entries:entries};
+  }
+  function part(label, amount, cls, prefix){
+    if(!amount) return '';
+    var txt = (prefix || '') + fmt(amount);
+    return '<span class="assal-statement-part ' + esc(cls || '') + '"><span class="lbl">' + esc(label) + '</span><span class="val">' + esc(txt) + '</span></span>';
+  }
+  function cardTitle(e){
+    if(e && e.id) return '#' + e.id;
+    return 'بطاقة الزبون';
+  }
+  function rowHtml(e){
+    var neg = e.net < 0;
+    var pos = e.net > 0;
+    var date = fmtDate(e.iso);
+    var time = e.time || '';
+    if(e.kind === 'card'){
+      var p = e.parts || {};
+      return '<div class="assal-statement-card card">' +
+        '<div class="assal-statement-card-head">' +
+          '<span class="assal-statement-type card"><i class="fa-regular fa-rectangle-list"></i> بطاقة</span>' +
+          '<span class="assal-statement-date"><b>' + esc(date) + '</b>' + (time ? '<span>' + esc(time) + '</span>' : '') + '</span>' +
+        '</div>' +
+        '<div class="assal-statement-name">' + esc(cardTitle(e)) + '</div>' +
+        '<div class="assal-statement-parts">' +
+          part('شراء', p.purchaseAll, '', '') +
+          part('مسدد', p.paidLines, 'pay', '-') +
+          part('متبقي', p.unpaid, '', '') +
+          part('راجع', p.returned, 'return', '-') +
+          part('جزئي', p.partial, 'pay', '-') +
+        '</div>' +
+        '<div class="assal-statement-net ' + (neg ? 'negative' : (pos ? 'positive' : '')) + '"><strong>الصافي</strong><b>' + esc(signed(e.net)) + '</b></div>' +
+      '</div>';
+    }
+    if(e.kind === 'pay'){
+      return '<div class="assal-statement-card pay">' +
+        '<div class="assal-statement-card-head">' +
+          '<span class="assal-statement-type pay"><i class="fa-solid fa-circle-arrow-down"></i> تسديد</span>' +
+          '<span class="assal-statement-date"><b>' + esc(date) + '</b>' + (time ? '<span>' + esc(time) + '</span>' : '') + '</span>' +
+        '</div>' +
+        '<div class="assal-statement-name">تسديد مالي</div>' +
+        '<div class="assal-statement-parts">' + part('المبلغ', e.amount, 'pay', '-') + (e.note ? '<span class="assal-statement-note">' + esc(e.note) + '</span>' : '') + '</div>' +
+        '<div class="assal-statement-net negative"><strong>الصافي</strong><b>-' + esc(fmt(e.amount)) + '</b></div>' +
+      '</div>';
+    }
+    return '<div class="assal-statement-card withdraw">' +
+      '<div class="assal-statement-card-head">' +
+        '<span class="assal-statement-type withdraw"><i class="fa-solid fa-circle-arrow-up"></i> سحب</span>' +
+        '<span class="assal-statement-date"><b>' + esc(date) + '</b>' + (time ? '<span>' + esc(time) + '</span>' : '') + '</span>' +
+      '</div>' +
+      '<div class="assal-statement-name">سحب مالي</div>' +
+      '<div class="assal-statement-parts">' + part('المبلغ', e.amount, 'withdraw', '+') + (e.note ? '<span class="assal-statement-note">' + esc(e.note) + '</span>' : '') + '</div>' +
+      '<div class="assal-statement-net positive"><strong>الصافي</strong><b>+' + esc(fmt(e.amount)) + '</b></div>' +
+    '</div>';
+  }
+  function renderModal(customer){
+    var data = collectStatement(customer);
+    var b = data.breakdown || {};
+    var total = Math.round(money(b.total));
+    var currentCls = total < 0 ? 'credit' : (total === 0 ? 'zero' : '');
+    var openingDate = b.updatedISO || '';
+    var startDate = b.startISO || '';
+    var count = data.entries.length;
+    var density = count > 12 ? (count > 24 ? 'assal-density-ultra' : 'assal-density-dense') : 'assal-density-normal';
+    var rows = data.entries.map(rowHtml).join('') || '<div class="assal-statement-empty">لا توجد حركات لهذا الزبون ضمن الحساب الحالي.</div>';
+    return '<div class="assal-statement-modal ' + density + '" role="dialog" aria-modal="true">' +
+      '<div class="assal-statement-head">' +
+        '<div class="assal-statement-title"><i class="fa-solid fa-chart-line"></i><div><strong>لوحة حساب الزبون</strong><span>' + esc(data.customer || customer || '') + '</span></div></div>' +
+        '<button type="button" class="assal-statement-close" title="إغلاق"><i class="fa-solid fa-xmark"></i></button>' +
+      '</div>' +
+      '<div class="assal-statement-body">' +
+        '<div class="assal-statement-dashboard">' +
+          '<div class="assal-statement-current"><div class="assal-statement-kicker"><i class="fa-solid fa-bolt"></i> الدين الحالي</div><div class="assal-statement-amount ' + currentCls + '">' + esc(signed(total)) + '</div><div class="assal-statement-sub">يشمل الرصيد السابق وكل حركات البطاقات والسحوبات والتسديدات.</div></div>' +
+          '<div class="assal-statement-summary">' +
+            '<div class="assal-statement-chip"><span><i class="fa-regular fa-flag"></i> الرصيد السابق</span><b>' + esc(signed(b.opening || 0)) + '</b></div>' +
+            '<div class="assal-statement-chip cards"><span><i class="fa-regular fa-rectangle-list"></i> صافي البطاقات</span><b>' + esc(signed(b.cards || 0)) + '</b></div>' +
+            '<div class="assal-statement-chip withdraw"><span><i class="fa-solid fa-circle-arrow-up"></i> السحوبات</span><b>+' + esc(fmt(b.financialWithdraw || 0)) + '</b></div>' +
+            '<div class="assal-statement-chip pay"><span><i class="fa-solid fa-circle-arrow-down"></i> التسديدات</span><b>-' + esc(fmt(b.financialPay || 0)) + '</b></div>' +
+          '</div>' +
+          '<div class="assal-statement-opening"><div class="assal-statement-kicker"><i class="fa-regular fa-calendar-check"></i> الرصيد الافتتاحي</div><div class="assal-statement-amount ' + (Math.round(money(b.opening)) < 0 ? 'credit' : (Math.round(money(b.opening)) === 0 ? 'zero' : '')) + '">' + esc(signed(b.opening || 0)) + '</div><div class="assal-statement-sub">تاريخ الرصيد: <b>' + esc(fmtDate(openingDate)) + '</b>' + (startDate ? '<br>بداية الحساب: <b>' + esc(fmtDate(startDate)) + '</b>' : '') + '</div></div>' +
+        '</div>' +
+        '<div class="assal-statement-section-title"><span><i class="fa-solid fa-wand-magic-sparkles"></i> الحركات بشكل بطاقات</span><small>' + esc(String(count)) + ' حركة</small></div>' +
+        '<div class="assal-statement-list">' + rows + '</div>' +
+      '</div>' +
+    '</div>';
+  }
+  function openStatement(customer){
+    customer = resolveName(customer) || String(customer == null ? '' : customer).trim();
+    if(!customer) return;
+    var bd = document.getElementById('assalCustomerStatementBackdrop');
+    if(!bd){
+      bd = document.createElement('div');
+      bd.id = 'assalCustomerStatementBackdrop';
+      document.body.appendChild(bd);
+    }
+    bd.innerHTML = renderModal(customer);
+    bd.classList.add('active');
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+  }
+  function closeStatement(){
+    var bd = document.getElementById('assalCustomerStatementBackdrop');
+    if(bd){ bd.classList.remove('active'); bd.innerHTML = ''; }
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
+  }
+  window.assalOpenCustomerDebtStatement = openStatement;
+  window.assalCloseCustomerDebtStatement = closeStatement;
+  document.addEventListener('click', function(e){
+    try{
+      var close = e.target && e.target.closest && e.target.closest('.assal-statement-close');
+      if(close){ e.preventDefault(); closeStatement(); return; }
+      var backdrop = e.target && e.target.id === 'assalCustomerStatementBackdrop';
+      if(backdrop){ closeStatement(); return; }
+      var debtFace = e.target && e.target.closest && e.target.closest('.assal-toggle-face--debt');
+      var badge = e.target && e.target.closest && e.target.closest('.sum--customer-debt[data-customer]');
+      var holder = badge || (debtFace && debtFace.closest('.assal-partial-debt-toggle[data-customer]'));
+      if(holder){
+        var customer = holder.getAttribute('data-customer') || '';
+        if(customer){ e.preventDefault(); e.stopPropagation(); openStatement(customer); }
+      }
+    }catch(_){ }
+  }, true);
+  document.addEventListener('keydown', function(e){ if(e && e.key === 'Escape') closeStatement(); });
+})();
+</script>
+<!-- ===== /ASSAL CUSTOMER DEBT STATEMENT MODAL - FINAL READONLY PATCH ===== -->
 
 </body>
 </html>
