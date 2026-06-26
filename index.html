@@ -4009,38 +4009,193 @@ body{ padding-top: var(--hdr-h); }
   line-height:1.8;
 }
 .assal-pass-card{
-  width:min(420px, calc(100vw - 36px));
-  border:1px solid rgba(124,58,237,.35);
-  border-radius:16px;
-  background:linear-gradient(180deg,#0f1a33,#0d172d);
-  box-shadow:0 22px 56px rgba(0,0,0,.55);
-  padding:16px;
+  width:min(440px, calc(100vw - 34px));
+  position:relative;
+  overflow:hidden;
+  border:1px solid rgba(45,212,191,.34);
+  border-radius:22px;
+  background:
+    radial-gradient(520px 240px at 90% -10%, rgba(45,212,191,.20), transparent 58%),
+    radial-gradient(420px 240px at 5% 0%, rgba(124,58,237,.20), transparent 58%),
+    linear-gradient(145deg, rgba(15,25,49,.98), rgba(8,14,29,.98));
+  box-shadow:0 28px 80px rgba(0,0,0,.62), inset 0 1px 0 rgba(255,255,255,.06);
+  padding:20px;
   display:flex;
   flex-direction:column;
-  gap:12px;
+  gap:13px;
   color:#e7eef9;
   text-align:center;
 }
+.assal-pass-card::before{
+  content:"";
+  position:absolute;
+  inset:-120px -80px auto auto;
+  width:220px;
+  height:220px;
+  border-radius:999px;
+  background:radial-gradient(circle, rgba(45,212,191,.28), transparent 68%);
+  pointer-events:none;
+}
+.assal-pass-card::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(115deg, transparent 0%, rgba(255,255,255,.055) 42%, transparent 62%);
+  transform:translateX(110%);
+  animation:assalSecretSweep 5.2s ease-in-out infinite;
+  pointer-events:none;
+}
+@keyframes assalSecretSweep{
+  0%,62%{ transform:translateX(110%); opacity:0; }
+  72%{ opacity:1; }
+  100%{ transform:translateX(-110%); opacity:0; }
+}
+.assal-pass-icon{
+  width:54px;
+  height:54px;
+  border-radius:18px;
+  display:grid;
+  place-items:center;
+  margin:0 auto 2px;
+  color:#fff;
+  background:linear-gradient(135deg,#22d3ee,#7c3aed 70%);
+  box-shadow:0 16px 34px rgba(45,212,191,.18), 0 12px 28px rgba(124,58,237,.22);
+  font-size:22px;
+  position:relative;
+  z-index:1;
+}
 .assal-pass-title{
-  font-weight:900;
+  font-weight:950;
   color:#fff;
   display:flex;
   align-items:center;
   justify-content:center;
   gap:8px;
+  font-size:18px;
+  position:relative;
+  z-index:1;
 }
-.assal-pass-msg{
-  min-height:18px;
-  color:#fca5a5;
+.assal-pass-hint{
+  color:#a9b8ce;
   font-size:12px;
   font-weight:800;
+  line-height:1.8;
+  margin-top:-5px;
+  position:relative;
+  z-index:1;
+}
+.assal-secret-label{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  text-align:right;
+  position:relative;
+  z-index:1;
+}
+.assal-secret-label > span{
+  color:#dbeafe;
+  font-size:12px;
+  font-weight:900;
+  padding-inline:4px;
+}
+.assal-secret-box{
+  height:54px;
+  border-radius:16px;
+  border:1px solid rgba(148,163,184,.26);
+  background:linear-gradient(180deg, rgba(7,14,30,.92), rgba(8,18,39,.92));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 14px 30px rgba(0,0,0,.22);
+  position:relative;
+  overflow:hidden;
+}
+.assal-secret-box:focus-within{
+  border-color:rgba(45,212,191,.70);
+  box-shadow:0 0 0 3px rgba(45,212,191,.12), inset 0 1px 0 rgba(255,255,255,.06), 0 16px 34px rgba(45,212,191,.08);
+}
+.assal-secret-real{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  border:0;
+  outline:0;
+  background:transparent;
+  color:transparent !important;
+  caret-color:#67e8f9;
+  text-shadow:0 0 0 transparent;
+  padding:0 16px;
+  direction:ltr;
+  text-align:center;
+  font-size:20px;
+  font-weight:900;
+  letter-spacing:4px;
+  z-index:2;
+}
+.assal-secret-real::selection{ background:rgba(45,212,191,.22); color:transparent; }
+.assal-secret-mask{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  pointer-events:none;
+  padding:0 14px;
+  z-index:1;
+}
+.assal-code-placeholder{
+  color:#7d8aa1;
+  font-size:13px;
+  font-weight:800;
+  letter-spacing:0;
+}
+.assal-code-dots{
+  color:#f8fafc;
+  font-size:28px;
+  letter-spacing:8px;
+  line-height:1;
+  text-shadow:0 0 18px rgba(45,212,191,.35);
+}
+.assal-pass-msg{
+  min-height:20px;
+  color:#fecaca;
+  font-size:12px;
+  font-weight:900;
+  line-height:1.7;
+  position:relative;
+  z-index:1;
+}
+.assal-pass-card.is-invalid .assal-secret-box{
+  border-color:rgba(248,113,113,.75);
+  box-shadow:0 0 0 3px rgba(248,113,113,.12), inset 0 1px 0 rgba(255,255,255,.05);
+  animation:assalSecretShake .28s ease-in-out;
+}
+@keyframes assalSecretShake{
+  0%,100%{ transform:translateX(0); }
+  25%{ transform:translateX(5px); }
+  75%{ transform:translateX(-5px); }
 }
 .assal-pass-actions{
-  display:flex;
-  justify-content:center;
-  gap:8px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  position:relative;
+  z-index:1;
 }
-
+.assal-pass-actions .modal-btn{
+  height:42px;
+  border-radius:13px;
+  font-weight:950;
+}
+.assal-pass-actions .assal-secret-ok{
+  background:linear-gradient(135deg,#06b6d4,#7c3aed) !important;
+  border-color:rgba(45,212,191,.38) !important;
+  color:#fff !important;
+  box-shadow:0 12px 26px rgba(6,182,212,.16);
+}
+.assal-pass-actions .assal-secret-cancel{
+  background:rgba(15,23,42,.72) !important;
+  border-color:rgba(148,163,184,.18) !important;
+  color:#dbeafe !important;
+}
 /* ===== ASSAL Advanced Download Rescue Modal (ADD-ONLY) ===== */
 .assal-download-rescue-shell{
   width:min(980px, calc(100vw - 28px));
@@ -14283,13 +14438,21 @@ function assalAdvEnsurePasswordModal(){
   root.id = 'assalAdvPassBackdrop';
   root.className = 'assal-adv-backdrop';
   root.innerHTML = `
-    <div class="assal-pass-card" role="dialog" aria-modal="true" aria-label="رمز سري">
-      <div class="assal-pass-title"><i class="fa-solid fa-lock"></i><span id="assalAdvPassTitle">رمز سري</span></div>
-      <input id="assalAdvPassInput" class="field" type="password" inputmode="numeric" autocomplete="off" placeholder="أدخل الرمز السري">
+    <div class="assal-pass-card" role="dialog" aria-modal="true" aria-label="رمز التحقق">
+      <div class="assal-pass-icon"><i class="fa-solid fa-shield-halved"></i></div>
+      <div class="assal-pass-title"><span id="assalAdvPassTitle">رمز التحقق</span></div>
+      <div class="assal-pass-hint" id="assalAdvPassHint">أدخل الرمز السري لإكمال العملية داخل التطبيق.</div>
+      <label class="assal-secret-label">
+        <span>الرمز السري</span>
+        <div class="assal-secret-box">
+          <input id="assalAdvCodeInput" class="assal-secret-real" type="text" inputmode="numeric" enterkeyhint="done" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="assal_gate_code_entry" data-lpignore="true" data-1p-ignore="true" aria-label="إدخال الرمز السري">
+          <div id="assalAdvCodeMask" class="assal-secret-mask"><span class="assal-code-placeholder">أدخل الرمز السري</span></div>
+        </div>
+      </label>
       <div id="assalAdvPassMsg" class="assal-pass-msg"></div>
       <div class="assal-pass-actions">
-        <button id="assalAdvPassCancel" class="modal-btn ghost">إلغاء</button>
-        <button id="assalAdvPassOk" class="modal-btn danger">دخول</button>
+        <button id="assalAdvPassCancel" class="modal-btn ghost assal-secret-cancel">إلغاء</button>
+        <button id="assalAdvPassOk" class="modal-btn danger assal-secret-ok">تأكيد</button>
       </div>
     </div>`;
   document.body.appendChild(root);
@@ -14298,14 +14461,31 @@ function assalAdvEnsurePasswordModal(){
 function assalAdvancedAskPassword(title='إدخال الرمز السري'){
   return new Promise((resolve)=>{
     const root = assalAdvEnsurePasswordModal();
+    const card = root.querySelector('.assal-pass-card');
     const titleEl = root.querySelector('#assalAdvPassTitle');
-    const input = root.querySelector('#assalAdvPassInput');
+    const hintEl = root.querySelector('#assalAdvPassHint');
+    const input = root.querySelector('#assalAdvCodeInput');
+    const mask = root.querySelector('#assalAdvCodeMask');
     const msg = root.querySelector('#assalAdvPassMsg');
     const ok = root.querySelector('#assalAdvPassOk');
     const cancel = root.querySelector('#assalAdvPassCancel');
     titleEl.textContent = title;
+    hintEl.textContent = title && String(title).includes('استيراد')
+      ? 'أدخل الرمز السري لاستيراد نسخة احتياطية بأمان.'
+      : 'أدخل الرمز السري لفتح خيارات نسخ اليوم.';
     input.value = '';
     msg.textContent = '';
+    card?.classList.remove('is-invalid');
+    const updateMask = ()=>{
+      const raw = String(input.value || '');
+      if(raw){
+        const dots = '•'.repeat(Math.min(raw.length, 18));
+        mask.innerHTML = `<span class="assal-code-dots">${dots}</span>`;
+      }else{
+        mask.innerHTML = `<span class="assal-code-placeholder">أدخل الرمز السري</span>`;
+      }
+    };
+    updateMask();
     root.classList.add('active');
     document.body.classList.add('modal-open');
     setTimeout(()=> input.focus(), 60);
@@ -14316,21 +14496,37 @@ function assalAdvancedAskPassword(title='إدخال الرمز السري'){
       ok.onclick = null;
       cancel.onclick = null;
       input.onkeydown = null;
+      input.oninput = null;
       resolve(val);
     };
     ok.onclick = ()=>{
       if(String(input.value || '').trim() === ASSAL_ADVANCED_PASSWORD){
         cleanup(true);
       }else{
-        msg.textContent = 'الرمز غير صحيح';
-        input.select();
+        msg.textContent = 'الرمز غير صحيح، حاول مرة ثانية';
+        card?.classList.remove('is-invalid');
+        void card?.offsetWidth;
+        card?.classList.add('is-invalid');
+        input.focus();
+        try{ input.select(); }catch(_e){}
         try{ showToast?.('error','الرمز غير صحيح'); }catch(_e){}
       }
     };
     cancel.onclick = ()=> cleanup(false);
+    input.oninput = ()=>{
+      card?.classList.remove('is-invalid');
+      msg.textContent = '';
+      updateMask();
+    };
     input.onkeydown = (e)=>{
-      if(e.key === 'Enter') ok.click();
-      if(e.key === 'Escape') cleanup(false);
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        ok.click();
+      }
+      if(e.key === 'Escape'){
+        e.preventDefault();
+        cleanup(false);
+      }
     };
   });
 }
@@ -21678,5 +21874,308 @@ html body .card .card-foot > .card-sums .assal-partial-debt-toggle.debt-zero .as
 </script>
 <!-- ===== /ASSAL CUSTOMER DEBT STATEMENT MODAL - FINAL READONLY PATCH ===== -->
 
+
+
+<!-- ASSAL ADVANCED SECRET MODAL ULTRA STYLE FINAL - UI ONLY -->
+<style id="assal-adv-secret-ultra-style-final">
+/* ===== ASSAL • Ultra Premium Secret / Advanced windows (UI-only) ===== */
+#assalAdvPassBackdrop.assal-adv-backdrop,
+#assalAdvancedBackupsModal.assal-adv-backdrop,
+#assalDownloadRescueModal.assal-adv-backdrop{
+  background:
+    radial-gradient(900px 420px at 72% 0%, rgba(34,211,238,.24), transparent 62%),
+    radial-gradient(760px 380px at 6% 8%, rgba(168,85,247,.22), transparent 58%),
+    radial-gradient(680px 360px at 50% 110%, rgba(16,185,129,.14), transparent 56%),
+    rgba(2,6,23,.78) !important;
+  backdrop-filter:blur(14px) saturate(1.28) !important;
+  -webkit-backdrop-filter:blur(14px) saturate(1.28) !important;
+  padding:18px !important;
+}
+#assalAdvPassBackdrop.active .assal-pass-card,
+#assalAdvancedBackupsModal.active .assal-adv-shell,
+#assalDownloadRescueModal.active .assal-download-rescue-shell{
+  animation:assalUltraPop .28s cubic-bezier(.2,.9,.2,1) both;
+}
+@keyframes assalUltraPop{
+  from{opacity:0; transform:translateY(12px) scale(.975); filter:blur(4px)}
+  to{opacity:1; transform:translateY(0) scale(1); filter:blur(0)}
+}
+#assalAdvPassBackdrop .assal-pass-card{
+  width:min(470px, calc(100vw - 34px)) !important;
+  border-radius:30px !important;
+  padding:0 !important;
+  gap:0 !important;
+  overflow:hidden !important;
+  isolation:isolate !important;
+  text-align:center !important;
+  color:#f8fbff !important;
+  border:1px solid rgba(125,211,252,.30) !important;
+  background:
+    linear-gradient(150deg, rgba(15,23,42,.98), rgba(17,24,39,.96) 42%, rgba(24,12,53,.96)),
+    linear-gradient(135deg, rgba(34,211,238,.10), rgba(168,85,247,.08)) !important;
+  box-shadow:
+    0 34px 120px rgba(0,0,0,.72),
+    0 0 0 1px rgba(255,255,255,.045) inset,
+    0 0 54px rgba(34,211,238,.14) !important;
+}
+#assalAdvPassBackdrop .assal-pass-card::before{
+  content:"" !important;
+  position:absolute !important;
+  inset:-90px -70px auto auto !important;
+  width:260px !important;
+  height:260px !important;
+  border-radius:50% !important;
+  background:radial-gradient(circle, rgba(34,211,238,.34), rgba(124,58,237,.14) 44%, transparent 70%) !important;
+  filter:blur(2px) !important;
+  opacity:.9 !important;
+  pointer-events:none !important;
+}
+#assalAdvPassBackdrop .assal-pass-card::after{
+  content:"" !important;
+  position:absolute !important;
+  inset:0 !important;
+  background:linear-gradient(108deg, transparent 0%, transparent 40%, rgba(255,255,255,.12) 48%, transparent 58%, transparent 100%) !important;
+  transform:translateX(120%) !important;
+  animation:assalUltraSecretSweep 5.6s ease-in-out infinite !important;
+  pointer-events:none !important;
+  z-index:0 !important;
+}
+@keyframes assalUltraSecretSweep{
+  0%,62%{transform:translateX(120%); opacity:0}
+  72%{opacity:.9}
+  100%{transform:translateX(-120%); opacity:0}
+}
+#assalAdvPassBackdrop .assal-pass-icon{
+  width:72px !important;
+  height:72px !important;
+  border-radius:24px !important;
+  margin:24px auto 12px !important;
+  font-size:29px !important;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255,255,255,.38), transparent 28%),
+    linear-gradient(135deg,#06b6d4 0%,#3b82f6 46%,#8b5cf6 100%) !important;
+  box-shadow:0 20px 42px rgba(59,130,246,.25), 0 16px 38px rgba(139,92,246,.24), inset 0 1px 0 rgba(255,255,255,.32) !important;
+}
+#assalAdvPassBackdrop .assal-pass-icon::after{
+  content:"";
+  position:absolute;
+  inset:-7px;
+  border-radius:28px;
+  border:1px solid rgba(125,211,252,.25);
+  box-shadow:0 0 24px rgba(34,211,238,.13);
+}
+#assalAdvPassBackdrop .assal-pass-title{
+  font-size:22px !important;
+  font-weight:1000 !important;
+  letter-spacing:-.3px !important;
+  color:#fff !important;
+  padding-inline:26px !important;
+  text-shadow:0 10px 24px rgba(0,0,0,.28) !important;
+}
+#assalAdvPassBackdrop .assal-pass-title::after{
+  content:"";
+  display:block;
+  width:74px;
+  height:4px;
+  border-radius:999px;
+  margin:10px auto 0;
+  background:linear-gradient(90deg,#22d3ee,#a78bfa,#34d399);
+  box-shadow:0 0 18px rgba(34,211,238,.32);
+}
+#assalAdvPassBackdrop .assal-pass-hint{
+  margin:0 auto !important;
+  padding:0 32px 16px !important;
+  max-width:390px !important;
+  color:#bfd4ef !important;
+  font-size:13px !important;
+  line-height:1.9 !important;
+  font-weight:850 !important;
+}
+#assalAdvPassBackdrop .assal-secret-label{
+  margin:0 24px 0 !important;
+  padding:16px !important;
+  border:1px solid rgba(148,163,184,.18) !important;
+  border-radius:24px !important;
+  background:linear-gradient(180deg, rgba(15,23,42,.62), rgba(8,13,28,.64)) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 18px 44px rgba(0,0,0,.18) !important;
+}
+#assalAdvPassBackdrop .assal-secret-label > span{
+  color:#e0f2fe !important;
+  font-size:13px !important;
+  font-weight:1000 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  padding-inline:2px !important;
+}
+#assalAdvPassBackdrop .assal-secret-label > span::before{
+  content:"أدخل الرمز ثم اضغط Enter";
+  color:#93c5fd;
+  font-size:11px;
+  font-weight:850;
+  opacity:.9;
+}
+#assalAdvPassBackdrop .assal-secret-box{
+  height:64px !important;
+  border-radius:20px !important;
+  border:1px solid rgba(125,211,252,.28) !important;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px) 0 0/36px 100%,
+    radial-gradient(circle at 12% 0%, rgba(34,211,238,.13), transparent 35%),
+    linear-gradient(180deg, rgba(2,8,23,.98), rgba(8,16,36,.98)) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 16px 36px rgba(0,0,0,.25) !important;
+}
+#assalAdvPassBackdrop .assal-secret-box:focus-within{
+  border-color:rgba(34,211,238,.86) !important;
+  box-shadow:0 0 0 4px rgba(34,211,238,.13), 0 0 36px rgba(34,211,238,.13), inset 0 1px 0 rgba(255,255,255,.08) !important;
+}
+#assalAdvPassBackdrop .assal-secret-real{
+  font-size:23px !important;
+  letter-spacing:7px !important;
+  padding-inline:20px !important;
+  font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+}
+#assalAdvPassBackdrop .assal-code-placeholder{
+  color:#7dd3fc !important;
+  opacity:.74 !important;
+  font-size:14px !important;
+  font-weight:950 !important;
+}
+#assalAdvPassBackdrop .assal-code-dots{
+  color:#ffffff !important;
+  font-size:31px !important;
+  letter-spacing:10px !important;
+  text-shadow:0 0 18px rgba(34,211,238,.45), 0 0 34px rgba(139,92,246,.22) !important;
+}
+#assalAdvPassBackdrop .assal-pass-msg{
+  min-height:28px !important;
+  margin:8px 28px 2px !important;
+  color:#fecaca !important;
+  background:rgba(127,29,29,.18) !important;
+  border:1px solid rgba(248,113,113,.18) !important;
+  border-radius:14px !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  font-size:12px !important;
+  font-weight:1000 !important;
+}
+#assalAdvPassBackdrop .assal-pass-msg:empty{
+  background:transparent !important;
+  border-color:transparent !important;
+}
+#assalAdvPassBackdrop .assal-pass-actions{
+  display:grid !important;
+  grid-template-columns:1fr 1.25fr !important;
+  gap:12px !important;
+  padding:0 24px 24px !important;
+}
+#assalAdvPassBackdrop .assal-pass-actions .modal-btn{
+  height:50px !important;
+  border-radius:18px !important;
+  font-size:14px !important;
+  font-weight:1000 !important;
+  letter-spacing:-.1px !important;
+  transition:transform .14s ease, filter .14s ease, box-shadow .14s ease !important;
+}
+#assalAdvPassBackdrop .assal-pass-actions .modal-btn:hover{ transform:translateY(-1px) !important; filter:brightness(1.05) !important; }
+#assalAdvPassBackdrop .assal-pass-actions .assal-secret-ok{
+  background:linear-gradient(135deg,#22d3ee 0%,#3b82f6 48%,#8b5cf6 100%) !important;
+  border-color:rgba(125,211,252,.38) !important;
+  box-shadow:0 18px 34px rgba(59,130,246,.22), 0 0 30px rgba(34,211,238,.10) !important;
+}
+#assalAdvPassBackdrop .assal-pass-actions .assal-secret-ok::before{content:"✓ ";}
+#assalAdvPassBackdrop .assal-pass-actions .assal-secret-cancel{
+  background:linear-gradient(180deg, rgba(15,23,42,.96), rgba(15,23,42,.78)) !important;
+  border-color:rgba(148,163,184,.22) !important;
+  color:#dbeafe !important;
+}
+#assalAdvPassBackdrop .assal-pass-actions .assal-secret-cancel::before{content:"× ";}
+#assalAdvPassBackdrop .assal-pass-card.is-invalid .assal-secret-box{
+  border-color:rgba(251,113,133,.85) !important;
+  box-shadow:0 0 0 4px rgba(251,113,133,.13), 0 0 32px rgba(248,113,113,.16), inset 0 1px 0 rgba(255,255,255,.06) !important;
+}
+/* Advanced backup/import list window: premium glass board */
+#assalAdvancedBackupsModal .assal-adv-shell,
+#assalDownloadRescueModal .assal-download-rescue-shell{
+  width:min(1120px, calc(100vw - 28px)) !important;
+  border-radius:26px !important;
+  padding:16px !important;
+  border:1px solid rgba(125,211,252,.26) !important;
+  background:
+    radial-gradient(900px 380px at 88% -12%, rgba(34,211,238,.16), transparent 60%),
+    radial-gradient(760px 340px at 4% 0%, rgba(168,85,247,.15), transparent 58%),
+    linear-gradient(145deg, rgba(15,23,42,.985), rgba(10,16,34,.97) 58%, rgba(20,12,43,.97)) !important;
+  box-shadow:0 34px 120px rgba(0,0,0,.72), 0 0 0 1px rgba(255,255,255,.04) inset !important;
+}
+#assalAdvancedBackupsModal .assal-adv-head,
+#assalDownloadRescueModal .assal-adv-head{
+  border-radius:20px !important;
+  padding:13px 14px !important;
+  border:1px solid rgba(125,211,252,.19) !important;
+  background:linear-gradient(135deg, rgba(15,23,42,.72), rgba(30,41,59,.42)) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 14px 34px rgba(0,0,0,.20) !important;
+}
+#assalAdvancedBackupsModal .assal-adv-title,
+#assalDownloadRescueModal .assal-adv-title{
+  font-size:17px !important;
+  font-weight:1000 !important;
+  color:#fff !important;
+}
+#assalAdvancedBackupsModal .assal-adv-title i,
+#assalDownloadRescueModal .assal-adv-title i{
+  width:40px !important;
+  height:40px !important;
+  border-radius:15px !important;
+  background:linear-gradient(135deg,#22d3ee,#3b82f6 48%,#8b5cf6) !important;
+  box-shadow:0 14px 28px rgba(59,130,246,.24) !important;
+}
+#assalAdvancedBackupsModal .assal-adv-body,
+#assalDownloadRescueModal .assal-adv-body{
+  padding:6px 2px 2px !important;
+}
+#assalAdvancedBackupsModal .assal-adv-note,
+#assalDownloadRescueModal .assal-adv-note{
+  border-radius:18px !important;
+  border:1px solid rgba(251,191,36,.28) !important;
+  background:linear-gradient(135deg, rgba(120,53,15,.30), rgba(15,23,42,.56)) !important;
+  color:#fde68a !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06) !important;
+}
+#assalAdvancedBackupsModal .assal-adv-grid{ gap:12px !important; }
+#assalAdvancedBackupsModal .assal-adv-card{
+  border-radius:20px !important;
+  padding:13px !important;
+  border:1px solid rgba(125,211,252,.17) !important;
+  background:linear-gradient(165deg, rgba(15,23,42,.88), rgba(8,13,28,.92)) !important;
+  box-shadow:0 18px 42px rgba(0,0,0,.31), inset 0 1px 0 rgba(255,255,255,.045) !important;
+}
+#assalAdvancedBackupsModal .assal-adv-card.server-current{
+  border-color:rgba(52,211,153,.38) !important;
+  box-shadow:0 18px 42px rgba(16,185,129,.08), 0 18px 42px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.05) !important;
+}
+#assalAdvancedBackupsModal .assal-adv-card-title i{ color:#67e8f9 !important; }
+#assalAdvancedBackupsModal .assal-adv-stat{
+  border-radius:13px !important;
+  background:linear-gradient(180deg, rgba(15,23,42,.78), rgba(8,13,28,.88)) !important;
+  border-color:rgba(148,163,184,.16) !important;
+}
+#assalAdvancedBackupsModal .assal-adv-stat span{ color:#93a4ba !important; font-weight:850 !important; }
+#assalAdvancedBackupsModal .assal-adv-stat b{ color:#f8fafc !important; font-weight:1000 !important; }
+#assalAdvancedBackupsModal .assal-adv-download,
+#assalAdvancedBackupsModal .assal-adv-btn.download,
+#assalAdvancedBackupsModal .assal-adv-btn.view{
+  border-radius:14px !important;
+  background:linear-gradient(135deg,#06b6d4,#3b82f6 48%,#8b5cf6) !important;
+  box-shadow:0 14px 28px rgba(59,130,246,.16) !important;
+}
+@media(max-width:560px){
+  #assalAdvPassBackdrop .assal-pass-card{width:calc(100vw - 24px) !important;border-radius:24px !important;}
+  #assalAdvPassBackdrop .assal-secret-label{margin-inline:16px !important;padding:13px !important;}
+  #assalAdvPassBackdrop .assal-pass-actions{padding-inline:16px !important;grid-template-columns:1fr !important;}
+  #assalAdvancedBackupsModal .assal-adv-shell{width:calc(100vw - 18px) !important;border-radius:22px !important;}
+}
+</style>
+<!-- /ASSAL ADVANCED SECRET MODAL ULTRA STYLE FINAL -->
 </body>
 </html>
