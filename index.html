@@ -4154,6 +4154,136 @@ body{ padding-top: var(--hdr-h); }
   }
 }
 
+
+
+/* =========================================================
+   ASSAL RETURN CONFIRM WINDOWS — COLOR + ENTER ACCEPT
+   واجهة تحذير الراجع فقط: ألوان أنيقة + Enter يقبل الراجع
+========================================================= */
+#modal.assal-return-confirm-modal .modal-card{
+  width:min(540px, calc(100vw - 28px)) !important;
+  padding:18px !important;
+  border-radius:24px !important;
+  overflow:hidden !important;
+  position:relative !important;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(139,92,246,.28), transparent 34%),
+    radial-gradient(circle at 82% 18%, rgba(14,165,233,.18), transparent 32%),
+    linear-gradient(180deg, rgba(15,23,42,.98), rgba(2,6,23,.98)) !important;
+  border:1px solid rgba(255,255,255,.12) !important;
+  box-shadow:0 26px 80px rgba(2,6,23,.72), inset 0 1px 0 rgba(255,255,255,.08) !important;
+}
+#modal.assal-return-confirm-modal .modal-card:before{
+  content:"";
+  position:absolute; inset:-70px auto auto -70px;
+  width:170px; height:170px; border-radius:999px;
+  background:rgba(255,255,255,.08);
+  filter:blur(22px);
+  pointer-events:none;
+}
+#modal.assal-return-confirm-modal .modal-head{
+  font-size:18px !important;
+  font-weight:900 !important;
+  letter-spacing:-.2px !important;
+  color:#fff !important;
+}
+#modal.assal-return-confirm-modal .modal-body{
+  width:100% !important;
+  color:#e5e7eb !important;
+  font-size:14px !important;
+  line-height:1.75 !important;
+}
+#modal.assal-return-confirm-modal .modal-actions{
+  gap:10px !important;
+  margin-top:2px !important;
+}
+#modal.assal-return-confirm-modal .modal-btn{
+  min-width:132px !important;
+  height:42px !important;
+  border-radius:15px !important;
+  font-weight:900 !important;
+  letter-spacing:-.15px !important;
+  transition:transform .15s ease, filter .15s ease, box-shadow .15s ease !important;
+}
+#modal.assal-return-confirm-modal .modal-btn:hover{ transform:translateY(-1px) !important; filter:brightness(1.06) !important; }
+#modal.assal-return-confirm-modal #modal-cancel{
+  background:linear-gradient(180deg, rgba(15,23,42,.88), rgba(15,23,42,.62)) !important;
+  color:#cbd5e1 !important;
+  border:1px solid rgba(148,163,184,.28) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05) !important;
+}
+#modal.assal-return-confirm-old #modal-confirm{
+  background:linear-gradient(135deg,#f97316,#ef4444) !important;
+  color:#fff !important;
+  border:1px solid rgba(251,146,60,.55) !important;
+  box-shadow:0 14px 34px rgba(239,68,68,.34), inset 0 1px 0 rgba(255,255,255,.15) !important;
+}
+#modal.assal-return-confirm-missing #modal-confirm{
+  background:linear-gradient(135deg,#06b6d4,#7c3aed) !important;
+  color:#fff !important;
+  border:1px solid rgba(125,211,252,.42) !important;
+  box-shadow:0 14px 34px rgba(124,58,237,.34), inset 0 1px 0 rgba(255,255,255,.15) !important;
+}
+.assal-return-pop{
+  text-align:right;
+  width:100%;
+  display:grid;
+  gap:12px;
+}
+.assal-return-pop__hero{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:12px;
+  border-radius:20px;
+  background:linear-gradient(135deg, rgba(255,255,255,.075), rgba(255,255,255,.025));
+  border:1px solid rgba(255,255,255,.10);
+}
+.assal-return-pop__icon{
+  width:48px;height:48px;border-radius:18px;
+  display:grid;place-items:center;
+  color:#fff;font-size:20px;
+  flex:0 0 auto;
+  box-shadow:0 16px 35px rgba(0,0,0,.26), inset 0 1px 0 rgba(255,255,255,.18);
+}
+.assal-return-pop--old .assal-return-pop__icon{ background:linear-gradient(135deg,#f59e0b,#ef4444); }
+.assal-return-pop--missing .assal-return-pop__icon{ background:linear-gradient(135deg,#06b6d4,#7c3aed); }
+.assal-return-pop__title{font-size:17px;font-weight:950;color:#fff;line-height:1.4}
+.assal-return-pop__sub{font-size:12px;color:#cbd5e1;margin-top:2px}
+.assal-return-pop__box{
+  padding:13px 14px;
+  border-radius:18px;
+  background:rgba(15,23,42,.62);
+  border:1px solid rgba(255,255,255,.10);
+  color:#e5e7eb;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+}
+.assal-return-pop--old .assal-return-pop__box{ border-color:rgba(251,146,60,.28); background:linear-gradient(135deg, rgba(251,146,60,.10), rgba(15,23,42,.62)); }
+.assal-return-pop--missing .assal-return-pop__box{ border-color:rgba(125,211,252,.25); background:linear-gradient(135deg, rgba(14,165,233,.10), rgba(15,23,42,.62)); }
+.assal-return-pop__pill{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 10px;border-radius:999px;
+  margin-inline:3px;
+  font-weight:950;color:#fff;
+  white-space:nowrap;
+}
+.assal-return-pop--old .assal-return-pop__pill{ background:rgba(245,158,11,.18); border:1px solid rgba(251,191,36,.35); color:#fde68a; }
+.assal-return-pop--missing .assal-return-pop__pill{ background:rgba(14,165,233,.16); border:1px solid rgba(125,211,252,.32); color:#bae6fd; }
+.assal-return-pop__hint{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:10px 12px;border-radius:16px;
+  background:rgba(2,6,23,.35);
+  border:1px dashed rgba(148,163,184,.28);
+  color:#a5b4fc;
+  font-size:12px;
+}
+.assal-return-pop__kbd{
+  direction:ltr;
+  display:inline-grid;place-items:center;
+  min-width:42px;height:24px;padding:0 8px;border-radius:9px;
+  background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);
+  color:#fff;font-weight:900;font-family:ui-monospace,Menlo,Consolas,monospace;
+}
 </style>
 
 <style id="debts-only-styles">
@@ -7070,22 +7200,395 @@ document.getElementById('item')?.addEventListener('change', tryFillPrice);
 
 
 
+
+/* =========================================================
+   ASSAL RETURN ITEM 7-DAY CHECK — DEEP SAFE FIX
+   - يعمل فقط عند نوع الفاتورة "راجع"
+   - بعد Enter من حقل المادة يفحص أحدث شراء صالح لنفس المادة ونفس الزبون
+   - الشراء الصالح = غير راجع + غير مسدد + غير محذوف
+   - إذا غير موجود: نافذة تأكيد، قبول الراجع يكمل ويترك السعر فارغاً
+   - إذا موجود: يملأ السعر من أحدث شراء صالح، وإذا أقدم من 7 أيام تظهر نافذة تأكيد
+   - لا يغيّر الحفظ/الرفع/الدمج/السيرفر، فقط يحرس إدخال الراجع
+========================================================= */
+window.__assalReturnItemValidation = null;
+
+function assalReturnToast(type, message, timeout){
+  try{
+    if(typeof window.showToast === 'function') window.showToast(type, message, timeout || 2600);
+    else if(typeof showToast === 'function') showToast(type, message, timeout || 2600);
+  }catch(_){ }
+}
+function assalReturnSimpleKey(v){
+  return String(v == null ? '' : v).trim().replace(/\s+/g,' ').toLowerCase();
+}
+function assalReturnDayDate(dayKey){
+  try{
+    const s = String(dayKey || '').slice(0,10);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+    const d = new Date(s + 'T00:00:00');
+    return isNaN(d.getTime()) ? null : d;
+  }catch(_){ return null; }
+}
+function assalReturnPickDate(dayKey, card, line){
+  const raw = (line && (line.at || line.createdAt || line.updatedAt)) ||
+              (card && (card.createdAt || card.updatedAt || card.date)) || '';
+  try{
+    const d = raw ? new Date(raw) : null;
+    if(d && !isNaN(d.getTime())) return d;
+  }catch(_){ }
+  const dd = assalReturnDayDate(dayKey);
+  return dd || new Date();
+}
+function assalReturnDaysLabel(n){
+  n = Number(n || 0);
+  if(n <= 0) return 'نفس يوم الشراء';
+  if(n === 1) return 'قبل يوم واحد';
+  if(n === 2) return 'قبل يومين';
+  return 'قبل ' + n + ' يوم';
+}
+function assalReturnNoteText(daysCount){
+  if(Number(daysCount || 0) <= 0) return 'استرجاع: المادة مأخوذة في نفس يوم الشراء';
+  return 'استرجاع: المادة مأخوذة ' + assalReturnDaysLabel(daysCount) + ' من تاريخ الشراء';
+}
+function assalReturnMergeNote(existing, autoNote){
+  existing = String(existing || '').trim();
+  autoNote = String(autoNote || '').trim();
+  if(!autoNote) return existing;
+  if(!existing) return autoNote;
+  if(existing.indexOf(autoNote) !== -1) return existing;
+  return existing + ' | ' + autoNote;
+}
+function assalReturnLineType(line, card){
+  return String((line && (line.type || line.billType)) || (card && (card.billType || card.type)) || '').trim();
+}
+function assalReturnIsReturnedLine(line, card){
+  const t = assalReturnLineType(line, card);
+  const u = t.toUpperCase();
+  return !!(line && line.returned) || t === 'راجع' || u === 'RETURN';
+}
+function assalReturnIsPaidLine(line, card){
+  const t = assalReturnLineType(line, card);
+  const u = t.toUpperCase();
+  if(!line) return false;
+  if(line.paid || line.paidAt || line.paidDate || line.paymentAt) return true;
+  if(t === 'نقدي' || u === 'CASH') return true;
+  // إذا البطاقة كلها مسددة، لا نعتبر أي سطر غير راجع شراءً صالحاً للراجع.
+  if(card && card.paidAll && !assalReturnIsReturnedLine(line, card)) return true;
+  return false;
+}
+function assalReturnLines(card){
+  if(!card) return [];
+  if(Array.isArray(card.lines)) return card.lines;
+  if(Array.isArray(card.items)) return card.items;
+  return [];
+}
+function assalReturnFindLatestPurchase(customer, itemName, returnDayKey){
+  const custKey = assalReturnSimpleKey(customer);
+  const itemKey = assalReturnSimpleKey(itemName);
+  const selectedDate = assalReturnDayDate(returnDayKey || (typeof selectedDay !== 'undefined' ? selectedDay : '')) || new Date();
+  const selectedEnd = new Date(selectedDate.getTime());
+  selectedEnd.setHours(23,59,59,999);
+  if(!custKey || !itemKey || !window.days) return null;
+
+  let best = null;
+  Object.keys(window.days || {}).forEach(function(dayKey){
+    const dayDate = assalReturnDayDate(dayKey);
+    if(dayDate && dayDate.getTime() > selectedEnd.getTime()) return;
+    const dayVal = window.days[dayKey];
+    const cards = Array.isArray(dayVal) ? dayVal : (dayVal && Array.isArray(dayVal.cards) ? dayVal.cards : []);
+    cards.forEach(function(card){
+      if(!card || card.deletedAt) return;
+      if(assalReturnSimpleKey(card.customer || card.name || '') !== custKey) return;
+      assalReturnLines(card).forEach(function(line){
+        if(!line || line.deletedAt) return;
+        if(assalReturnSimpleKey(line.item || line.name || '') !== itemKey) return;
+
+        // الشرط المهم: لا نعتمد المادة إذا كانت راجعة أو مسددة.
+        if(assalReturnIsReturnedLine(line, card)) return;
+        if(assalReturnIsPaidLine(line, card)) return;
+
+        const dt = assalReturnPickDate(dayKey, card, line);
+        if(dt.getTime() > selectedEnd.getTime()) return;
+        if(!best || dt.getTime() > best.time){
+          best = { dayKey: dayKey, card: card, line: line, date: dt, time: dt.getTime() };
+        }
+      });
+    });
+  });
+  return best;
+}
+function assalReturnEscapeHTML(v){
+  return String(v == null ? '' : v).replace(/[&<>"]/g, function(ch){
+    return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]);
+  });
+}
+function assalReturnBuildOldReturnMessage(itemName, customer, label){
+  const safeItem = assalReturnEscapeHTML(itemName);
+  const safeCustomer = assalReturnEscapeHTML(customer);
+  const safeLabel = assalReturnEscapeHTML(label);
+  return '' +
+    '<div class="assal-return-pop assal-return-pop--old">' +
+      '<div class="assal-return-pop__hero">' +
+        '<span class="assal-return-pop__icon"><i class="fa-solid fa-triangle-exclamation"></i></span>' +
+        '<div><div class="assal-return-pop__title">تنبيه مدة الراجع</div><div class="assal-return-pop__sub">يرجى التأكد قبل قبول الاسترجاع</div></div>' +
+      '</div>' +
+      '<div class="assal-return-pop__box">' +
+        'المادة <b>' + safeItem + '</b> للزبون <b>' + safeCustomer + '</b> مأخوذة <span class="assal-return-pop__pill"><i class="fa-regular fa-clock"></i>' + safeLabel + '</span> وهي خارج مدة 7 أيام.' +
+      '</div>' +
+      '<div class="assal-return-pop__hint"><span>قبول الراجع يكمل الإدخال وينتقل إلى حقل العدد مع إضافة ملاحظة بعدد الأيام.</span><span class="assal-return-pop__kbd">Enter</span></div>' +
+    '</div>';
+}
+function assalReturnBuildMissingReturnMessage(itemName, customer){
+  const safeItem = assalReturnEscapeHTML(itemName);
+  const safeCustomer = assalReturnEscapeHTML(customer);
+  return '' +
+    '<div class="assal-return-pop assal-return-pop--missing">' +
+      '<div class="assal-return-pop__hero">' +
+        '<span class="assal-return-pop__icon"><i class="fa-solid fa-circle-info"></i></span>' +
+        '<div><div class="assal-return-pop__title">تنبيه راجع</div><div class="assal-return-pop__sub">المادة غير مثبتة ضمن مشتريات هذا الزبون</div></div>' +
+      '</div>' +
+      '<div class="assal-return-pop__box">' +
+        'المادة <b>' + safeItem + '</b> لم يتم شراؤها من قبل الزبون <b>' + safeCustomer + '</b> مسبقاً.' +
+      '</div>' +
+      '<div class="assal-return-pop__hint"><span>قبول الراجع يكمل الإدخال، ويبقى السعر فارغاً لأن النظام لم يجد سعر شراء سابق.</span><span class="assal-return-pop__kbd">Enter</span></div>' +
+    '</div>';
+}
+function assalReturnDecorateConfirm(kind){
+  try{
+    const modal = document.getElementById('modal');
+    const ok = document.getElementById('modal-confirm');
+    const cancel = document.getElementById('modal-cancel');
+    if(!modal) return;
+    modal.classList.add('assal-return-confirm-modal');
+    modal.classList.toggle('assal-return-confirm-old', kind === 'old');
+    modal.classList.toggle('assal-return-confirm-missing', kind === 'missing');
+    if(ok){
+      ok.classList.remove('danger');
+      ok.innerHTML = '<i class="fa-solid fa-check"></i> قبول الراجع';
+    }
+    if(cancel){
+      cancel.innerHTML = '<i class="fa-solid fa-xmark"></i> إلغاء';
+    }
+  }catch(_){ }
+}
+function assalReturnClearConfirmDecor(){
+  try{
+    const modal = document.getElementById('modal');
+    const ok = document.getElementById('modal-confirm');
+    const cancel = document.getElementById('modal-cancel');
+    if(modal){
+      modal.classList.remove('assal-return-confirm-modal','assal-return-confirm-old','assal-return-confirm-missing');
+    }
+    if(ok){
+      ok.style.removeProperty('background');
+      ok.style.removeProperty('color');
+      ok.style.removeProperty('border-color');
+      ok.style.removeProperty('box-shadow');
+    }
+    if(cancel){
+      cancel.style.removeProperty('background');
+      cancel.style.removeProperty('color');
+      cancel.style.removeProperty('border-color');
+      cancel.style.removeProperty('box-shadow');
+    }
+  }catch(_){ }
+}
+async function assalReturnConfirmWithEnter(promise){
+  const onKey = function(ev){
+    try{
+      const modal = document.getElementById('modal');
+      if(!modal || !modal.classList.contains('active') || !modal.classList.contains('assal-return-confirm-modal')) return;
+      if(ev.key === 'Enter'){
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        ev.stopPropagation();
+        document.getElementById('modal-confirm')?.click?.();
+      }
+    }catch(_){ }
+  };
+  const attachTimer = setTimeout(function(){ window.addEventListener('keydown', onKey, true); }, 0);
+  try{
+    return await promise;
+  }finally{
+    clearTimeout(attachTimer);
+    window.removeEventListener('keydown', onKey, true);
+    assalReturnClearConfirmDecor();
+  }
+}
+async function assalReturnConfirmOldReturn(customer, itemName, daysCount, label){
+  if(typeof showConfirm !== 'function') return false;
+  const p = showConfirm({
+    title: 'تنبيه مدة الراجع',
+    message: assalReturnBuildOldReturnMessage(itemName, customer, label),
+    okText: 'قبول الراجع',
+    cancelText: 'إلغاء',
+    danger: false
+  });
+  assalReturnDecorateConfirm('old');
+  return await assalReturnConfirmWithEnter(p);
+}
+async function assalReturnConfirmMissingReturn(customer, itemName){
+  if(typeof showConfirm !== 'function') return false;
+  const p = showConfirm({
+    title: 'تنبيه راجع',
+    message: assalReturnBuildMissingReturnMessage(itemName, customer),
+    okText: 'قبول الراجع',
+    cancelText: 'إلغاء',
+    danger: false
+  });
+  assalReturnDecorateConfirm('missing');
+  return await assalReturnConfirmWithEnter(p);
+}
+function assalReturnNotFoundNoteText(){
+  return 'استرجاع: تم قبول الراجع رغم أن المادة لم يتم شراؤها من قبل الزبون مسبقاً';
+}
+function assalReturnLinePrice(line){
+  if(!line) return '';
+  const keys = ['price','unitPrice','sellPrice','salePrice','originalPrice'];
+  for(const k of keys){
+    if(line[k] !== undefined && line[k] !== null && String(line[k]).trim() !== ''){
+      const n = (typeof parseIQD === 'function') ? Number(parseIQD(line[k])) : Number(String(line[k]).replace(/[^\d.]/g,''));
+      if(isFinite(n) && n > 0) return n;
+    }
+  }
+  // fallback فقط إذا السطر قديم مخزن كمجموع وليس كسعر مفرد
+  const totalRaw = line.total || line.amount || line.sum;
+  const qtyRaw = line.qty || line.quantity || 1;
+  const total = (typeof parseIQD === 'function') ? Number(parseIQD(totalRaw)) : Number(String(totalRaw || '').replace(/[^\d.]/g,''));
+  const qty = Number(String(qtyRaw || '1').replace(/[^\d.]/g,'')) || 1;
+  if(isFinite(total) && total > 0) return Math.round(total / qty);
+  return '';
+}
+function assalReturnSetPriceValue(value, mode){
+  const priceEl = document.getElementById('price');
+  if(!priceEl) return;
+  if(mode === 'clear'){
+    priceEl.value = '';
+    return;
+  }
+  const n = Number(value || 0);
+  if(isFinite(n) && n > 0){
+    priceEl.value = (typeof formatIQD === 'function') ? formatIQD(n) : n.toLocaleString('en-US');
+  }
+}
+function assalReturnFillPriceFromFound(found){
+  const p = assalReturnLinePrice(found && found.line);
+  if(p !== '') assalReturnSetPriceValue(p);
+  return p;
+}
+function assalReturnApplyNote(noteText){
+  const noteEl = document.getElementById('note');
+  if(noteEl){
+    noteEl.value = assalReturnMergeNote(noteEl.value, noteText);
+  }
+}
+async function assalReturnValidateCurrentItem(opts){
+  opts = opts || {};
+  const type = String(document.getElementById('type')?.value || '').trim();
+  if(type !== 'راجع') return { ok:true, notReturn:true };
+
+  const customer = String(document.getElementById('cust')?.value || '').trim();
+  const itemName = String(document.getElementById('item')?.value || '').trim();
+  const dayKey = (typeof selectedDay !== 'undefined' && selectedDay) ? selectedDay : (window.selectedDay || '');
+  const key = assalReturnSimpleKey(customer) + '::' + assalReturnSimpleKey(itemName) + '::' + dayKey;
+
+  window.__assalReturnItemValidation = null;
+  if(!customer || !itemName) return { ok:true, empty:true };
+
+  const found = assalReturnFindLatestPurchase(customer, itemName, dayKey);
+  if(!found){
+    const acceptedMissing = await assalReturnConfirmMissingReturn(customer, itemName);
+    if(!acceptedMissing){
+      assalReturnSetPriceValue('', 'clear');
+      window.__assalReturnItemValidation = { ok:false, reason:'not-found-cancelled', key:key };
+      return window.__assalReturnItemValidation;
+    }
+    const noteTextMissing = assalReturnNotFoundNoteText();
+    assalReturnSetPriceValue('', 'clear');
+    assalReturnApplyNote(noteTextMissing);
+    window.__assalReturnItemValidation = { ok:true, acceptedMissing:true, key:key, noteText:noteTextMissing, found:null };
+    return window.__assalReturnItemValidation;
+  }
+
+  const purchasePrice = assalReturnLinePrice(found.line);
+  const selectedDate = assalReturnDayDate(dayKey) || new Date();
+  const purchaseDay = assalReturnDayDate(found.dayKey) || new Date(found.date);
+  const ms = selectedDate.getTime() - purchaseDay.getTime();
+  const daysCount = Math.max(0, Math.floor(ms / 86400000));
+  const label = assalReturnDaysLabel(daysCount);
+  const noteText = assalReturnNoteText(daysCount);
+
+  if(daysCount > 7){
+    if(opts.allowOldConfirm){
+      const accepted = await assalReturnConfirmOldReturn(customer, itemName, daysCount, label);
+      if(!accepted){
+        window.__assalReturnItemValidation = { ok:false, reason:'older-than-7-cancelled', key:key, days:daysCount, label:label, found:found };
+        return window.__assalReturnItemValidation;
+      }
+      assalReturnFillPriceFromFound(found);
+      assalReturnApplyNote(noteText);
+      window.__assalReturnItemValidation = { ok:true, acceptedOld:true, key:key, days:daysCount, label:label, noteText:noteText, found:found, purchasePrice:purchasePrice };
+      return window.__assalReturnItemValidation;
+    }
+    window.__assalReturnItemValidation = { ok:false, reason:'older-than-7', key:key, days:daysCount, label:label, found:found };
+    return window.__assalReturnItemValidation;
+  }
+
+  assalReturnFillPriceFromFound(found);
+  assalReturnApplyNote(noteText);
+  window.__assalReturnItemValidation = { ok:true, key:key, days:daysCount, label:label, noteText:noteText, found:found, purchasePrice:purchasePrice };
+  if(opts.toast !== false){
+    assalReturnToast('info','المادة مسجلة على الزبون (' + label + ')', 1800);
+  }
+  return window.__assalReturnItemValidation;
+}
+async function assalReturnGuardEnterAsync(e, onOk){
+  try{
+    e?.preventDefault?.();
+    e?.stopImmediatePropagation?.();
+    e?.stopPropagation?.();
+  }catch(_){ }
+
+  const res = await assalReturnValidateCurrentItem({ toast:true, allowOldConfirm:true });
+  if(res && res.ok){
+    try{ if(typeof onOk === 'function') onOk(res); }catch(_){ }
+    return true;
+  }
+  setTimeout(function(){
+    const itemEl = document.getElementById('item');
+    itemEl?.focus?.();
+    itemEl?.select?.();
+  }, 0);
+  return false;
+}
+async function assalReturnValidateBeforeAdd(customer, itemName, dayKey){
+  const type = String(document.getElementById('type')?.value || '').trim();
+  if(type !== 'راجع') return { ok:true, notReturn:true };
+  const key = assalReturnSimpleKey(customer) + '::' + assalReturnSimpleKey(itemName) + '::' + dayKey;
+  const cached = window.__assalReturnItemValidation;
+  if(cached && cached.ok && cached.key === key) return cached;
+  return await assalReturnValidateCurrentItem({ toast:true, allowOldConfirm:true });
+}
+
 // تنقّل الكيبورد داخل قائمة الاقتراحات
 // تنقّل الكيبورد داخل قائمة اقتراح المواد
-document.getElementById('item')?.addEventListener('keydown', (e)=>{
+document.getElementById('item')?.addEventListener('keydown', async (e)=>{
   const host = document.getElementById('itemSuggestions');
   const visible = host && host.style.display === 'block';
+
+  const goQty = ()=>{
+    const qtyEl = document.getElementById('qty');
+    if(qtyEl){
+      qtyEl.focus();
+      if(qtyEl.select) qtyEl.select();
+    }
+  };
 
   // إذا القائمة ما مفتوحة
   if(!visible){
     if(e.key === 'Enter'){
-      // إنتر بدون لست → روح للكمية
-      e.preventDefault();
-      const qtyEl = document.getElementById('qty');
-      if(qtyEl){
-        qtyEl.focus();
-        if(qtyEl.select) qtyEl.select();
-      }
+      // إنتر بدون لست → فحص راجع ثم روح للكمية إذا مسموح
+      await assalReturnGuardEnterAsync(e, goQty);
     }
     return;
   }
@@ -7128,12 +7631,7 @@ document.getElementById('item')?.addEventListener('keydown', (e)=>{
       if(p !== '') priceEl.value = formatIQD(p);
     }
 
-    // روح للكمية
-    const qtyEl = document.getElementById('qty');
-    if(qtyEl){
-      qtyEl.focus();
-      if(qtyEl.select) qtyEl.select();
-    }
+    await assalReturnGuardEnterAsync(e, goQty);
   }
 
   // Escape: غلق الليست
@@ -8231,13 +8729,20 @@ async function processToastQueueUnified(){
 document.getElementById('btnAdd').onclick = async () => {
   const customer = (document.getElementById('cust').value || '').trim();
   const item     = (document.getElementById('item').value || '').trim();
-  const priceVal = Number(parseIQD(document.getElementById('price').value) || 0);
+  let priceVal = Number(parseIQD(document.getElementById('price').value) || 0);
   let   qty  = String(document.getElementById('qty').value || '1').trim();
   const cat  = (document.getElementById('cat').value || '').trim();
   const type = (document.getElementById('type').value || 'اجل').trim(); // بيع / راجع
-  const note = (document.getElementById('note').value || '').trim();
+  let note = (document.getElementById('note').value || '').trim();
 
   if (!customer || !item) return;
+  const __returnCheck = await assalReturnValidateBeforeAdd(customer, item, selectedDay);
+  if (__returnCheck && __returnCheck.ok === false) return;
+  if (type === 'راجع' && __returnCheck && __returnCheck.noteText) {
+    note = assalReturnMergeNote(note, __returnCheck.noteText);
+  }
+  // أعد قراءة السعر بعد فحص الراجع، لأن الفحص قد يملأ السعر من أحدث شراء أو يفرغه إذا المادة غير مشتراة.
+  priceVal = Number(parseIQD(document.getElementById('price').value) || 0);
   if (!/^\d+$/.test(qty)) qty = '1';
   if (!days[selectedDay]) days[selectedDay] = [];
 
@@ -11539,7 +12044,13 @@ function exportCardPDF_Vector(card, dayKey){
     }
   })(theDayISO);
 
-  const payload = { dateStr, card, known: CUSTOMERS || [] };
+  let finalCustomerDebt = null;
+  try{
+    if(card && card.customer && typeof assalGetCustomerDebtAmount === 'function'){
+      finalCustomerDebt = Math.round(Number(assalGetCustomerDebtAmount(card.customer)) || 0);
+    }
+  }catch(_){ finalCustomerDebt = null; }
+  const payload = { dateStr, card, known: CUSTOMERS || [], finalCustomerDebt };
 
   const w = window.open('', '_blank');
   if (!w){
@@ -11886,6 +12397,22 @@ function exportCardPDF_Vector(card, dayKey){
         .totals-main .totals-value{
           font-size:13px;
         }
+        .customer-final-debt-row{
+          border-top:2px solid #0f172a !important;
+          margin-top:5px !important;
+          padding-top:6px !important;
+          background:#f8fafc;
+          border-radius:8px;
+          padding-inline:6px;
+        }
+        .customer-final-debt-row .totals-label{
+          color:#0f172a !important;
+          font-weight:900 !important;
+        }
+        .customer-final-debt-row .totals-value{
+          font-size:14px !important;
+          font-weight:900 !important;
+        }
         /* ✅ قيمة بالسالب باللون الأحمر */
         .totals-value-minus,
         .totals-value-negative{
@@ -12010,6 +12537,17 @@ function exportCardPDF_Vector(card, dayKey){
           const card  = PAYLOAD.card || {};
           const KNOWN = Array.isArray(PAYLOAD.known) ? PAYLOAD.known : [];
           const dateStr = PAYLOAD.dateStr || '';
+          const finalCustomerDebtNum = Number(PAYLOAD.finalCustomerDebt);
+          const hasFinalCustomerDebt = Number.isFinite(finalCustomerDebtNum);
+          const finalCustomerDebtText = hasFinalCustomerDebt
+            ? ((finalCustomerDebtNum < 0 ? '-' : '') + formatIQD(Math.abs(Math.round(finalCustomerDebtNum))))
+            : '';
+          const finalCustomerDebtRowHtml = hasFinalCustomerDebt
+            ? ('<div class="totals-row totals-main customer-final-debt-row">' +
+                '<div class="totals-label">الرصيد النهائي للزبون</div>' +
+                '<div class="totals-value '+ (finalCustomerDebtNum < 0 ? 'totals-value-negative' : '') +'">'+ finalCustomerDebtText +'</div>' +
+              '</div>')
+            : '';
 
           if(!card || !Array.isArray(card.lines) || !card.lines.length){
             root.textContent = 'لا توجد بيانات للبطاقة';
@@ -12230,6 +12768,7 @@ function exportCardPDF_Vector(card, dayKey){
                 paidRowHtml +
                 returnedRowHtml +
                 finalRowHtml +
+                finalCustomerDebtRowHtml +
               '</div>' +
             '</div>' +
 
@@ -17152,7 +17691,22 @@ function printPaymentReceipt(row){
     const amtNum = Number(String(row?.amount ?? '').replace(/[^\d.]/g,'')) || 0;
     const amtStr = amtNum.toLocaleString('ar-IQ') + ' د.ع';
 
-    const cust  = esc(row?.cust  || '');
+    const rawCust = row?.cust || row?.customer || row?.name || '';
+    const cust  = esc(rawCust);
+    let receiptDebtValue = null;
+    try{
+      if(rawCust && typeof assalGetCustomerDebtAmount === 'function'){
+        receiptDebtValue = Math.round(Number(assalGetCustomerDebtAmount(rawCust)) || 0);
+      }
+    }catch(_){ receiptDebtValue = null; }
+    const hasReceiptDebt = Number.isFinite(receiptDebtValue);
+    const receiptDebtStr = hasReceiptDebt
+      ? ((receiptDebtValue < 0 ? '-' : '') + Math.abs(receiptDebtValue).toLocaleString('ar-IQ') + ' د.ع')
+      : '';
+    const receiptDebtLabel = (kind === 'سحب') ? 'الرصيد الحالي للزبون' : 'الدين المتبقي';
+    const receiptDebtHtml = hasReceiptDebt
+      ? `<div class="remainingDebt"><div class="label">${esc(receiptDebtLabel)}</div><div class="val ${receiptDebtValue < 0 ? 'neg' : ''}">${esc(receiptDebtStr)}</div></div>`
+      : '';
     const notes = esc(row?.notes || '');
     const date  = esc(row?.date  || '');
     const time  = esc(row?.time  || '');
@@ -17270,6 +17824,16 @@ function printPaymentReceipt(row){
   }
   .amount .label{ color:var(--muted); font-size:11.5px; font-weight:900; }
   .amount .val{ font-weight:900; font-size:22px; margin-top:2px; font-variant-numeric: tabular-nums; letter-spacing:.2px; }
+  .remainingDebt{
+    margin-top:8px;
+    border:1px solid rgba(37,99,235,.28);
+    border-radius:14px;
+    padding:9px 12px;
+    background:linear-gradient(135deg, rgba(37,99,235,.08), rgba(176,138,42,.06)), #fff;
+  }
+  .remainingDebt .label{ color:#1d4ed8; font-size:11.5px; font-weight:900; }
+  .remainingDebt .val{ font-weight:900; font-size:18px; margin-top:2px; font-variant-numeric: tabular-nums; }
+  .remainingDebt .val.neg{ color:#b91c1c; }
 
   .tableWrap{
     margin-top:10px;
@@ -17383,6 +17947,7 @@ function printPaymentReceipt(row){
         <div class="label">إجمالي المبلغ (IQD)</div>
         <div class="val">${esc(amtStr)}</div>
       </div>
+      ${receiptDebtHtml}
 
       <div class="tableWrap">
         <table>
