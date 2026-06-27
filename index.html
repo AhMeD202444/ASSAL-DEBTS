@@ -4379,6 +4379,18 @@ body{ padding-top: var(--hdr-h); }
   border:1px solid rgba(125,211,252,.42) !important;
   box-shadow:0 14px 34px rgba(124,58,237,.34), inset 0 1px 0 rgba(255,255,255,.15) !important;
 }
+#modal.assal-return-confirm-returned #modal-confirm{
+  background:linear-gradient(135deg,#f43f5e,#fb7185) !important;
+  color:#fff !important;
+  border:1px solid rgba(251,113,133,.52) !important;
+  box-shadow:0 14px 34px rgba(244,63,94,.34), inset 0 1px 0 rgba(255,255,255,.15) !important;
+}
+#modal.assal-return-confirm-paid #modal-confirm{
+  background:linear-gradient(135deg,#22c55e,#16a34a) !important;
+  color:#fff !important;
+  border:1px solid rgba(74,222,128,.48) !important;
+  box-shadow:0 14px 34px rgba(34,197,94,.30), inset 0 1px 0 rgba(255,255,255,.15) !important;
+}
 .assal-return-pop{
   text-align:right;
   width:100%;
@@ -4403,6 +4415,8 @@ body{ padding-top: var(--hdr-h); }
 }
 .assal-return-pop--old .assal-return-pop__icon{ background:linear-gradient(135deg,#f59e0b,#ef4444); }
 .assal-return-pop--missing .assal-return-pop__icon{ background:linear-gradient(135deg,#06b6d4,#7c3aed); }
+.assal-return-pop--returned .assal-return-pop__icon{ background:linear-gradient(135deg,#f43f5e,#fb7185); }
+.assal-return-pop--paid .assal-return-pop__icon{ background:linear-gradient(135deg,#22c55e,#16a34a); }
 .assal-return-pop__title{font-size:17px;font-weight:950;color:#fff;line-height:1.4}
 .assal-return-pop__sub{font-size:12px;color:#cbd5e1;margin-top:2px}
 .assal-return-pop__box{
@@ -4415,6 +4429,8 @@ body{ padding-top: var(--hdr-h); }
 }
 .assal-return-pop--old .assal-return-pop__box{ border-color:rgba(251,146,60,.28); background:linear-gradient(135deg, rgba(251,146,60,.10), rgba(15,23,42,.62)); }
 .assal-return-pop--missing .assal-return-pop__box{ border-color:rgba(125,211,252,.25); background:linear-gradient(135deg, rgba(14,165,233,.10), rgba(15,23,42,.62)); }
+.assal-return-pop--returned .assal-return-pop__box{ border-color:rgba(251,113,133,.28); background:linear-gradient(135deg, rgba(244,63,94,.12), rgba(15,23,42,.62)); }
+.assal-return-pop--paid .assal-return-pop__box{ border-color:rgba(74,222,128,.26); background:linear-gradient(135deg, rgba(34,197,94,.11), rgba(15,23,42,.62)); }
 .assal-return-pop__pill{
   display:inline-flex;align-items:center;gap:6px;
   padding:4px 10px;border-radius:999px;
@@ -4424,6 +4440,8 @@ body{ padding-top: var(--hdr-h); }
 }
 .assal-return-pop--old .assal-return-pop__pill{ background:rgba(245,158,11,.18); border:1px solid rgba(251,191,36,.35); color:#fde68a; }
 .assal-return-pop--missing .assal-return-pop__pill{ background:rgba(14,165,233,.16); border:1px solid rgba(125,211,252,.32); color:#bae6fd; }
+.assal-return-pop--returned .assal-return-pop__pill{ background:rgba(244,63,94,.17); border:1px solid rgba(251,113,133,.34); color:#fecdd3; }
+.assal-return-pop--paid .assal-return-pop__pill{ background:rgba(34,197,94,.16); border:1px solid rgba(74,222,128,.32); color:#bbf7d0; }
 .assal-return-pop__hint{
   display:flex;align-items:center;justify-content:space-between;gap:8px;
   padding:10px 12px;border-radius:16px;
@@ -7437,15 +7455,19 @@ function assalReturnLines(card){
   if(Array.isArray(card.items)) return card.items;
   return [];
 }
-function assalReturnFindLatestPurchase(customer, itemName, returnDayKey){
+function assalReturnFindItemHistory(customer, itemName, returnDayKey){
   const custKey = assalReturnSimpleKey(customer);
   const itemKey = assalReturnSimpleKey(itemName);
   const selectedDate = assalReturnDayDate(returnDayKey || (typeof selectedDay !== 'undefined' ? selectedDay : '')) || new Date();
   const selectedEnd = new Date(selectedDate.getTime());
   selectedEnd.setHours(23,59,59,999);
-  if(!custKey || !itemKey || !window.days) return null;
+  const out = { valid:null, paid:null, returned:null, anyPurchase:null };
+  if(!custKey || !itemKey || !window.days) return out;
 
-  let best = null;
+  function keepNewest(kind, rec){
+    if(!out[kind] || rec.time > out[kind].time) out[kind] = rec;
+  }
+
   Object.keys(window.days || {}).forEach(function(dayKey){
     const dayDate = assalReturnDayDate(dayKey);
     if(dayDate && dayDate.getTime() > selectedEnd.getTime()) return;
@@ -7458,19 +7480,27 @@ function assalReturnFindLatestPurchase(customer, itemName, returnDayKey){
         if(!line || line.deletedAt) return;
         if(assalReturnSimpleKey(line.item || line.name || '') !== itemKey) return;
 
-        // الشرط المهم: لا نعتمد المادة إذا كانت راجعة أو مسددة.
-        if(assalReturnIsReturnedLine(line, card)) return;
-        if(assalReturnIsPaidLine(line, card)) return;
-
         const dt = assalReturnPickDate(dayKey, card, line);
         if(dt.getTime() > selectedEnd.getTime()) return;
-        if(!best || dt.getTime() > best.time){
-          best = { dayKey: dayKey, card: card, line: line, date: dt, time: dt.getTime() };
+        const rec = { dayKey: dayKey, card: card, line: line, date: dt, time: dt.getTime() };
+
+        if(assalReturnIsReturnedLine(line, card)){
+          keepNewest('returned', rec);
+          return;
         }
+
+        // سطر شراء حقيقي: إمّا صالح للراجع مباشرة، أو موجود لكنه مسدد ويحتاج تحذير خاص.
+        keepNewest('anyPurchase', rec);
+        if(assalReturnIsPaidLine(line, card)) keepNewest('paid', rec);
+        else keepNewest('valid', rec);
       });
     });
   });
-  return best;
+  return out;
+}
+function assalReturnFindLatestPurchase(customer, itemName, returnDayKey){
+  const history = assalReturnFindItemHistory(customer, itemName, returnDayKey);
+  return history && history.valid ? history.valid : null;
 }
 function assalReturnEscapeHTML(v){
   return String(v == null ? '' : v).replace(/[&<>"]/g, function(ch){
@@ -7508,6 +7538,36 @@ function assalReturnBuildMissingReturnMessage(itemName, customer){
       '<div class="assal-return-pop__hint"><span>قبول الراجع يكمل الإدخال، ويبقى السعر فارغاً لأن النظام لم يجد سعر شراء سابق.</span><span class="assal-return-pop__kbd">Enter</span></div>' +
     '</div>';
 }
+function assalReturnBuildAlreadyReturnedMessage(itemName, customer){
+  const safeItem = assalReturnEscapeHTML(itemName);
+  const safeCustomer = assalReturnEscapeHTML(customer);
+  return '' +
+    '<div class="assal-return-pop assal-return-pop--returned">' +
+      '<div class="assal-return-pop__hero">' +
+        '<span class="assal-return-pop__icon"><i class="fa-solid fa-arrow-rotate-left"></i></span>' +
+        '<div><div class="assal-return-pop__title">تنبيه راجع مكرر</div><div class="assal-return-pop__sub">هذه المادة مسجلة كراجع مسبقاً لهذا الزبون</div></div>' +
+      '</div>' +
+      '<div class="assal-return-pop__box">' +
+        'المادة <b>' + safeItem + '</b> للزبون <b>' + safeCustomer + '</b> تم إرجاعها مسبقاً <span class="assal-return-pop__pill"><i class="fa-solid fa-rotate-left"></i>مرجعة مسبقاً</span>.' +
+      '</div>' +
+      '<div class="assal-return-pop__hint"><span>قبول الراجع يكمل الإدخال ويضيف ملاحظة بأن المادة كانت مرجعة مسبقاً.</span><span class="assal-return-pop__kbd">Enter</span></div>' +
+    '</div>';
+}
+function assalReturnBuildPaidReturnMessage(itemName, customer){
+  const safeItem = assalReturnEscapeHTML(itemName);
+  const safeCustomer = assalReturnEscapeHTML(customer);
+  return '' +
+    '<div class="assal-return-pop assal-return-pop--paid">' +
+      '<div class="assal-return-pop__hero">' +
+        '<span class="assal-return-pop__icon"><i class="fa-solid fa-circle-check"></i></span>' +
+        '<div><div class="assal-return-pop__title">تنبيه مادة مسددة</div><div class="assal-return-pop__sub">المادة موجودة ضمن المشتريات لكنها مسددة</div></div>' +
+      '</div>' +
+      '<div class="assal-return-pop__box">' +
+        'المادة <b>' + safeItem + '</b> للزبون <b>' + safeCustomer + '</b> تم تسديدها مسبقاً <span class="assal-return-pop__pill"><i class="fa-solid fa-check"></i>مسددة مسبقاً</span>.' +
+      '</div>' +
+      '<div class="assal-return-pop__hint"><span>قبول الراجع يكمل الإدخال ويستخدم سعر الشراء الأصلي مع إضافة ملاحظة التسديد.</span><span class="assal-return-pop__kbd">Enter</span></div>' +
+    '</div>';
+}
 function assalReturnDecorateConfirm(kind){
   try{
     const modal = document.getElementById('modal');
@@ -7517,6 +7577,8 @@ function assalReturnDecorateConfirm(kind){
     modal.classList.add('assal-return-confirm-modal');
     modal.classList.toggle('assal-return-confirm-old', kind === 'old');
     modal.classList.toggle('assal-return-confirm-missing', kind === 'missing');
+    modal.classList.toggle('assal-return-confirm-returned', kind === 'returned');
+    modal.classList.toggle('assal-return-confirm-paid', kind === 'paid');
     if(ok){
       ok.classList.remove('danger');
       ok.innerHTML = '<i class="fa-solid fa-check"></i> قبول الراجع';
@@ -7532,7 +7594,7 @@ function assalReturnClearConfirmDecor(){
     const ok = document.getElementById('modal-confirm');
     const cancel = document.getElementById('modal-cancel');
     if(modal){
-      modal.classList.remove('assal-return-confirm-modal','assal-return-confirm-old','assal-return-confirm-missing');
+      modal.classList.remove('assal-return-confirm-modal','assal-return-confirm-old','assal-return-confirm-missing','assal-return-confirm-returned','assal-return-confirm-paid');
     }
     if(ok){
       ok.style.removeProperty('background');
@@ -7594,8 +7656,38 @@ async function assalReturnConfirmMissingReturn(customer, itemName){
   assalReturnDecorateConfirm('missing');
   return await assalReturnConfirmWithEnter(p);
 }
+async function assalReturnConfirmAlreadyReturned(customer, itemName){
+  if(typeof showConfirm !== 'function') return false;
+  const p = showConfirm({
+    title: 'تنبيه راجع مكرر',
+    message: assalReturnBuildAlreadyReturnedMessage(itemName, customer),
+    okText: 'قبول الراجع',
+    cancelText: 'إلغاء',
+    danger: false
+  });
+  assalReturnDecorateConfirm('returned');
+  return await assalReturnConfirmWithEnter(p);
+}
+async function assalReturnConfirmPaidReturn(customer, itemName){
+  if(typeof showConfirm !== 'function') return false;
+  const p = showConfirm({
+    title: 'تنبيه مادة مسددة',
+    message: assalReturnBuildPaidReturnMessage(itemName, customer),
+    okText: 'قبول الراجع',
+    cancelText: 'إلغاء',
+    danger: false
+  });
+  assalReturnDecorateConfirm('paid');
+  return await assalReturnConfirmWithEnter(p);
+}
 function assalReturnNotFoundNoteText(){
   return 'استرجاع: تم قبول الراجع رغم أن المادة لم يتم شراؤها من قبل الزبون مسبقاً';
+}
+function assalReturnAlreadyReturnedNoteText(){
+  return 'استرجاع: تم قبول الراجع رغم أن المادة مسجلة كمرجعة مسبقاً لهذا الزبون';
+}
+function assalReturnPaidNoteText(){
+  return 'استرجاع: تم قبول الراجع رغم أن المادة كانت مسددة مسبقاً لهذا الزبون';
 }
 function assalReturnLinePrice(line){
   if(!line) return '';
@@ -7650,8 +7742,75 @@ async function assalReturnValidateCurrentItem(opts){
   window.__assalReturnItemValidation = null;
   if(!customer || !itemName) return { ok:true, empty:true };
 
-  const found = assalReturnFindLatestPurchase(customer, itemName, dayKey);
+  const history = assalReturnFindItemHistory(customer, itemName, dayKey);
+  const found = history && history.valid ? history.valid : null;
+
+  const makeDateInfo = function(src){
+    const selectedDate = assalReturnDayDate(dayKey) || new Date();
+    const purchaseDay = assalReturnDayDate(src && src.dayKey) || new Date(src && src.date);
+    const ms = selectedDate.getTime() - purchaseDay.getTime();
+    const daysCount = Math.max(0, Math.floor(ms / 86400000));
+    const label = assalReturnDaysLabel(daysCount);
+    return { daysCount:daysCount, label:label, noteText:assalReturnNoteText(daysCount) };
+  };
+
+  if(found && history && history.returned){
+    const acceptedReturned = await assalReturnConfirmAlreadyReturned(customer, itemName);
+    if(!acceptedReturned){
+      window.__assalReturnItemValidation = { ok:false, reason:'already-returned-cancelled', key:key, found:found, returnedMatch:history.returned };
+      return window.__assalReturnItemValidation;
+    }
+    const info = makeDateInfo(found);
+    const purchasePrice = assalReturnFillPriceFromFound(found);
+    const noteTextReturned = assalReturnMergeNote(info.noteText, assalReturnAlreadyReturnedNoteText());
+    assalReturnApplyNote(noteTextReturned);
+    window.__assalReturnItemValidation = { ok:true, acceptedAlreadyReturned:true, key:key, days:info.daysCount, label:info.label, noteText:noteTextReturned, found:found, returnedMatch:history.returned, purchasePrice:purchasePrice };
+    return window.__assalReturnItemValidation;
+  }
+
+  // إذا أحدث شراء مطابق لهذه المادة مسدد، لا نعامله كأنه غير مشتريها ولا نرجع لشراء أقدم غير مسدد.
+  if(history && history.paid && (!found || history.paid.time >= found.time)){
+    const acceptedPaid = await assalReturnConfirmPaidReturn(customer, itemName);
+    if(!acceptedPaid){
+      window.__assalReturnItemValidation = { ok:false, reason:'paid-purchase-cancelled', key:key, paidMatch:history.paid, found:found };
+      return window.__assalReturnItemValidation;
+    }
+    const info = makeDateInfo(history.paid);
+    const purchasePrice = assalReturnFillPriceFromFound(history.paid);
+    const noteTextPaid = assalReturnMergeNote(info.noteText, assalReturnPaidNoteText());
+    assalReturnApplyNote(noteTextPaid);
+    window.__assalReturnItemValidation = { ok:true, acceptedPaidReturn:true, key:key, days:info.daysCount, label:info.label, noteText:noteTextPaid, found:history.paid, paidMatch:history.paid, purchasePrice:purchasePrice };
+    return window.__assalReturnItemValidation;
+  }
+
   if(!found){
+    if(history && history.returned){
+      const acceptedReturnedOnly = await assalReturnConfirmAlreadyReturned(customer, itemName);
+      if(!acceptedReturnedOnly){
+        window.__assalReturnItemValidation = { ok:false, reason:'already-returned-cancelled', key:key, returnedMatch:history.returned };
+        return window.__assalReturnItemValidation;
+      }
+      const priceFromReturn = assalReturnFillPriceFromFound(history.returned);
+      const noteTextReturnedOnly = assalReturnAlreadyReturnedNoteText();
+      assalReturnApplyNote(noteTextReturnedOnly);
+      window.__assalReturnItemValidation = { ok:true, acceptedAlreadyReturned:true, key:key, noteText:noteTextReturnedOnly, found:null, returnedMatch:history.returned, purchasePrice:priceFromReturn };
+      return window.__assalReturnItemValidation;
+    }
+
+    if(history && history.paid){
+      const acceptedPaid = await assalReturnConfirmPaidReturn(customer, itemName);
+      if(!acceptedPaid){
+        window.__assalReturnItemValidation = { ok:false, reason:'paid-purchase-cancelled', key:key, paidMatch:history.paid };
+        return window.__assalReturnItemValidation;
+      }
+      const info = makeDateInfo(history.paid);
+      const purchasePrice = assalReturnFillPriceFromFound(history.paid);
+      const noteTextPaid = assalReturnMergeNote(info.noteText, assalReturnPaidNoteText());
+      assalReturnApplyNote(noteTextPaid);
+      window.__assalReturnItemValidation = { ok:true, acceptedPaidReturn:true, key:key, days:info.daysCount, label:info.label, noteText:noteTextPaid, found:history.paid, paidMatch:history.paid, purchasePrice:purchasePrice };
+      return window.__assalReturnItemValidation;
+    }
+
     const acceptedMissing = await assalReturnConfirmMissingReturn(customer, itemName);
     if(!acceptedMissing){
       assalReturnSetPriceValue('', 'clear');
@@ -7666,12 +7825,10 @@ async function assalReturnValidateCurrentItem(opts){
   }
 
   const purchasePrice = assalReturnLinePrice(found.line);
-  const selectedDate = assalReturnDayDate(dayKey) || new Date();
-  const purchaseDay = assalReturnDayDate(found.dayKey) || new Date(found.date);
-  const ms = selectedDate.getTime() - purchaseDay.getTime();
-  const daysCount = Math.max(0, Math.floor(ms / 86400000));
-  const label = assalReturnDaysLabel(daysCount);
-  const noteText = assalReturnNoteText(daysCount);
+  const info = makeDateInfo(found);
+  const daysCount = info.daysCount;
+  const label = info.label;
+  const noteText = info.noteText;
 
   if(daysCount > 7){
     if(opts.allowOldConfirm){
@@ -8986,6 +9143,7 @@ document.getElementById('btnAdd').onclick = async () => {
     at: nowISOVal2,
     deletedAt: null
   });
+  if (type === 'راجع') window.__assalReturnItemValidation = null;
 
   // حدّث آخر نشاط وارفع البطاقة للأعلى (حذرًا)
   card.updatedAt = nowISOVal2;
