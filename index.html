@@ -22302,5 +22302,147 @@ html body .card .card-foot > .card-sums .assal-toggle-face{
 })();
 </script>
 <!-- /ASSAL UI MOTION PERFORMANCE SAFE FINAL -->
+
+
+<!-- ASSAL BLANK OPENING ZERO CUTOFF FINAL -->
+<script id="assal-blank-opening-zero-cutoff-final">
+/* =========================================================
+   ASSAL DEBTS - BLANK OPENING BALANCE = ZERO + SAFE CUTOFF
+   تعديل محاسبي محدود جداً:
+   - إذا اسم الزبون موجود في شيت DEBTS وخانة الرصيد فارغة/صفر، تُعتبر صف رصيد افتتاحي قيمته 0.
+   - وجود تاريخ تحديث الرصيد يعني أن حركات نفس يوم D داخلة ضمن الإقفال، والحساب يبدأ من اليوم التالي فقط.
+   - الزبون غير الموجود في DEBTS يبقى على سلوك الزبون الجديد كما هو.
+   - لا يغيّر الحفظ، الرفع، الدمج، السيرفر، البيع، الراجع، التسديد، السحب، الحذف، الطباعة، أو تصميم الواجهة.
+========================================================= */
+(function(){
+  'use strict';
+  if(window.__ASSAL_BLANK_OPENING_ZERO_CUTOFF_FINAL__) return;
+  window.__ASSAL_BLANK_OPENING_ZERO_CUTOFF_FINAL__ = true;
+
+  var previousMovementAfterOpening = window.assalDebtMovementAfterOpening;
+  var previousOpeningInfoForCustomer = window.assalDebtOpeningInfoForCustomer;
+
+  function latinDigits(s){
+    return String(s == null ? '' : s)
+      .replace(/[\u0660-\u0669]/g, function(ch){ return String(ch.charCodeAt(0) - 0x0660); })
+      .replace(/[\u06F0-\u06F9]/g, function(ch){ return String(ch.charCodeAt(0) - 0x06F0); });
+  }
+
+  function localISO(d){
+    try{
+      var x = new Date(d);
+      if(isNaN(x.getTime())) return '';
+      return x.getFullYear() + '-' + String(x.getMonth()+1).padStart(2,'0') + '-' + String(x.getDate()).padStart(2,'0');
+    }catch(_){ return ''; }
+  }
+
+  function isoFrom(v){
+    try{
+      if(typeof window.assalDebtExtractISODate === 'function'){
+        var z = window.assalDebtExtractISODate(v);
+        if(z) return z;
+      }
+    }catch(_){ }
+    if(v == null || v === '') return '';
+    if(v instanceof Date) return localISO(v);
+    if(typeof v === 'number'){
+      try{
+        if(isFinite(v) && v > 20000 && v < 80000){
+          return localISO(new Date(Math.round((v - 25569) * 86400 * 1000)));
+        }
+      }catch(_){ }
+    }
+    try{
+      var s = latinDigits(String(v).trim()).replace(/\s*([\/\-.])\s*/g, '$1');
+      if(!s) return '';
+      var m = s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
+      if(m) return m[1] + '-' + String(m[2]).padStart(2,'0') + '-' + String(m[3]).padStart(2,'0');
+      m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})/);
+      if(m){
+        var a = Number(m[1]), b = Number(m[2]);
+        if(b > 12 && a >= 1 && a <= 12) return m[3] + '-' + String(a).padStart(2,'0') + '-' + String(b).padStart(2,'0');
+        return m[3] + '-' + String(b).padStart(2,'0') + '-' + String(a).padStart(2,'0');
+      }
+      var d = new Date(s);
+      return isNaN(d.getTime()) ? '' : localISO(d);
+    }catch(_){ return ''; }
+  }
+
+  function nextISO(iso){
+    try{
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(String(iso || ''))) return '';
+      var d = new Date(String(iso) + 'T00:00:00');
+      if(isNaN(d.getTime())) return '';
+      d.setDate(d.getDate() + 1);
+      return localISO(d);
+    }catch(_){ return ''; }
+  }
+
+  function movementISO(dayKey, obj){
+    var candidates = [];
+    try{
+      if(obj){
+        candidates.push(obj.date, obj.day, obj.createdAt, obj.updatedAt, obj.at, obj.timestamp, obj.created, obj.time);
+      }
+    }catch(_){ }
+    candidates.push(dayKey);
+    for(var i=0;i<candidates.length;i++){
+      var iso = isoFrom(candidates[i]);
+      if(iso) return iso;
+    }
+    return '';
+  }
+
+  function displayLimitISO(){
+    try{
+      if(typeof window.assalDebtDisplayLimitISO === 'function') return window.assalDebtDisplayLimitISO() || '';
+    }catch(_){ }
+    return localISO(new Date());
+  }
+
+  function openingInfo(rawName){
+    try{
+      if(typeof previousOpeningInfoForCustomer === 'function') return previousOpeningInfoForCustomer(rawName || '') || null;
+    }catch(_){ }
+    try{
+      if(typeof window.assalDebtOpeningInfoForCustomer === 'function') return window.assalDebtOpeningInfoForCustomer(rawName || '') || null;
+    }catch(_){ }
+    return null;
+  }
+
+  window.assalDebtMovementAfterOpening = function(rawName, dayKey, obj){
+    var info = openingInfo(rawName || '');
+    var iso = movementISO(dayKey, obj || {});
+    if(!iso) return false;
+
+    var limit = displayLimitISO();
+    if(limit && iso > limit) return false;
+
+    // أهم قاعدة: وجود اسم الزبون داخل DEBTS يعني عنده نقطة إقفال رصيد، حتى لو الرصيد فارغ أو صفر.
+    // لذلك حركات نفس يوم تاريخ الإقفال لا تُحسب مرة ثانية؛ يبدأ الحساب من اليوم التالي فقط.
+    if(info){
+      var updated = String(info.updatedISO || '');
+      var start = String(info.startISO || '') || nextISO(updated);
+      if(updated && start) return iso >= start;
+      // إذا الاسم موجود لكن تاريخ الإقفال غير واضح، نبقيه مقفولاً على الرصيد فقط حتى لا تتكرر الذمم.
+      return false;
+    }
+
+    // الأسماء غير الموجودة في DEBTS تبقى على سلوك الزبون الجديد السابق كما هو.
+    if(typeof previousMovementAfterOpening === 'function'){
+      try{ return !!previousMovementAfterOpening(rawName, dayKey, obj || {}); }catch(_){ return false; }
+    }
+    return true;
+  };
+
+  try{ if(typeof window.assalDebtFastInvalidate === 'function') window.assalDebtFastInvalidate(); }catch(_){ }
+  try{ if(typeof window.assalInvalidateDebtBadgeCache === 'function') window.assalInvalidateDebtBadgeCache(); }catch(_){ }
+  try{ if(typeof window.assalDeepRefreshAllDebts === 'function') window.assalDeepRefreshAllDebts(); }catch(_){ }
+  try{ if(typeof window.assalRefreshCustomerDebtBadges === 'function') window.assalRefreshCustomerDebtBadges(); }catch(_){ }
+  try{ if(typeof window.assalRefreshPartialDebtToggleBadges === 'function') window.assalRefreshPartialDebtToggleBadges(); }catch(_){ }
+})();
+</script>
+<!-- /ASSAL BLANK OPENING ZERO CUTOFF FINAL -->
+
 </body>
 </html>
