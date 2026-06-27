@@ -20426,7 +20426,11 @@ html body .card .card-foot > .card-sums.assal-badges-ultra .assal-toggle-face i{
 </style>
 <script id="assal-smart-badges-balanced-final-script">
 (function(){
+  // Performance-safe balanced badges:
+  // نفس التصميم والمنطق، لكن قياس/تصغير البادجات يتم فقط للصفوف الظاهرة أو القريبة من الشاشة.
   var scheduled = 0;
+  var observedRows = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
+  var io = null;
 
   function txt(el){ return String((el && el.textContent) || '').replace(/\s+/g,' ').trim(); }
   function valueAfterColon(text){
@@ -20445,7 +20449,7 @@ html body .card .card-foot > .card-sums.assal-badges-ultra .assal-toggle-face i{
     }
     return badge.querySelector ? badge.querySelector('span') : null;
   }
-  function setBadgeText(badge, label, mode){
+  function setBadgeText(badge, label){
     var sp = findMainSpan(badge);
     if(!sp) return;
     var val = valueAfterColon(txt(sp));
@@ -20459,7 +20463,7 @@ html body .card .card-foot > .card-sums.assal-badges-ultra .assal-toggle-face i{
     var isCredit = /رصيد/.test(old);
     var label = isCredit
       ? (mode === 'normal' ? 'رصيد للزبون' : 'رصيد')
-      : (mode === 'normal' ? 'الدين الكلي للزبون' : (mode === 'tight' ? 'دين الزبون' : 'دين'));
+      : (mode === 'normal' ? 'الدين الحالي للزبون' : (mode === 'tight' ? 'الدين الحالي' : 'دين'));
     sp.textContent = label + ': ' + val;
   }
   function applyMode(row, mode){
@@ -20470,11 +20474,11 @@ html body .card .card-foot > .card-sums.assal-badges-ultra .assal-toggle-face i{
 
     Array.prototype.forEach.call(row.querySelectorAll('.sum-badge'), function(badge){
       try{
-        if(badge.classList.contains('sum--items')) return setBadgeText(badge, 'مواد', mode);
-        if(badge.classList.contains('sum--total')) return setBadgeText(badge, mode === 'normal' ? 'المجموع الكلي' : 'الكلي', mode);
-        if(badge.classList.contains('sum--paid-total')) return setBadgeText(badge, mode === 'normal' ? 'مجموع التسديد' : (mode === 'tight' ? 'التسديد' : 'سدد'), mode);
-        if(badge.classList.contains('sum--returned')) return setBadgeText(badge, mode === 'normal' ? 'مجموع الراجع' : (mode === 'tight' ? 'الراجع' : 'راجع'), mode);
-        if(badge.classList.contains('sum--final') || badge.classList.contains('sum--final-negative')) return setBadgeText(badge, mode === 'normal' ? 'المجموع النهائي' : (mode === 'tight' ? 'النهائي' : 'نهائي'), mode);
+        if(badge.classList.contains('sum--items')) return setBadgeText(badge, 'مواد');
+        if(badge.classList.contains('sum--total')) return setBadgeText(badge, mode === 'normal' ? 'المجموع الكلي' : 'الكلي');
+        if(badge.classList.contains('sum--paid-total')) return setBadgeText(badge, mode === 'normal' ? 'مجموع التسديد' : (mode === 'tight' ? 'التسديد' : 'سدد'));
+        if(badge.classList.contains('sum--returned')) return setBadgeText(badge, mode === 'normal' ? 'مجموع الراجع' : (mode === 'tight' ? 'الراجع' : 'راجع'));
+        if(badge.classList.contains('sum--final') || badge.classList.contains('sum--final-negative')) return setBadgeText(badge, mode === 'normal' ? 'المجموع النهائي' : (mode === 'tight' ? 'النهائي' : 'نهائي'));
         if(badge.classList.contains('sum--customer-debt')) return setDebtText(findMainSpan(badge), mode);
       }catch(_){ }
     });
@@ -20493,7 +20497,7 @@ html body .card .card-foot > .card-sums.assal-badges-ultra .assal-toggle-face i{
   }
   function one(row){
     try{
-      if(!row) return;
+      if(!row || !row.isConnected) return;
       applyMode(row, 'normal');
       if(fits(row)) return;
       applyMode(row, 'tight');
@@ -20503,9 +20507,38 @@ html body .card .card-foot > .card-sums.assal-badges-ultra .assal-toggle-face i{
       applyMode(row, 'ultra');
     }catch(_){ }
   }
+  function nearViewport(row){
+    try{
+      var r = row.getBoundingClientRect();
+      var vh = window.innerHeight || document.documentElement.clientHeight || 700;
+      return r.width > 0 && r.height > 0 && r.bottom >= -220 && r.top <= vh + 220;
+    }catch(_){ return true; }
+  }
+  function observeRow(row){
+    try{
+      if(!row || !io) return;
+      if(observedRows && observedRows.has(row)) return;
+      if(observedRows) observedRows.add(row);
+      io.observe(row);
+    }catch(_){ }
+  }
+  if('IntersectionObserver' in window){
+    try{
+      io = new IntersectionObserver(function(entries){
+        entries.forEach(function(en){
+          if(en && (en.isIntersecting || en.intersectionRatio > 0)) one(en.target);
+        });
+      }, {root:null, rootMargin:'220px 0px', threshold:0});
+    }catch(_){ io = null; }
+  }
   function run(){
     scheduled = 0;
-    try{ Array.prototype.forEach.call(document.querySelectorAll('.card .card-foot > .card-sums'), one); }catch(_){ }
+    try{
+      Array.prototype.forEach.call(document.querySelectorAll('.card .card-foot > .card-sums'), function(row){
+        observeRow(row);
+        if(!io || nearViewport(row)) one(row);
+      });
+    }catch(_){ }
   }
   function schedule(){
     if(scheduled) return;
@@ -20530,10 +20563,10 @@ html body .card .card-foot > .card-sums.assal-badges-ultra .assal-toggle-face i{
   wrapOnce('assalRefreshCustomerDebtBadges');
   wrapOnce('assalRefreshPartialDebtToggleBadges');
   window.addEventListener('resize', schedule, {passive:true});
-  document.addEventListener('DOMContentLoaded', function(){ schedule(); setTimeout(schedule, 180); });
+  document.addEventListener('DOMContentLoaded', function(){ schedule(); setTimeout(schedule, 220); });
   document.addEventListener('click', function(e){
     try{
-      if(e.target && e.target.closest && e.target.closest('.card, .card-foot, .partial-pay-card-btn, .card-pay-all-btn, .note-btn')) setTimeout(schedule, 60);
+      if(e.target && e.target.closest && e.target.closest('.card, .card-foot, .partial-pay-card-btn, .card-pay-all-btn, .note-btn')) setTimeout(schedule, 70);
     }catch(_){ }
   }, true);
 })();
@@ -22177,5 +22210,97 @@ html body .card .card-foot > .card-sums .assal-partial-debt-toggle.debt-zero .as
 }
 </style>
 <!-- /ASSAL ADVANCED SECRET MODAL ULTRA STYLE FINAL -->
+
+
+<!-- ASSAL UI MOTION PERFORMANCE SAFE FINAL - VISUAL-ONLY OPTIMIZATION -->
+<style id="assal-ui-motion-performance-safe-final">
+/* يحافظ على نفس الشكل، لكن يوقف اللمعة المتحركة عن العناصر غير الظاهرة لتخفيف الرسم على المتصفح */
+html body .card .card-foot > .card-sums .sum--customer-debt::before,
+html body .card .card-foot > .card-sums .sum--customer-debt.sum--current-debt::before,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face--debt::before{
+  animation:none !important;
+  opacity:0 !important;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt.assal-motion-visible::before,
+html body .card .card-foot > .card-sums .sum--customer-debt.sum--current-debt.assal-motion-visible::before,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle.assal-motion-visible .assal-toggle-face--debt::before{
+  animation:assalCurrentDebtElegantShine 4.8s ease-in-out infinite !important;
+}
+html body .card .card-foot > .card-sums .sum-badge,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle,
+html body .card .card-foot > .card-sums .assal-toggle-face{
+  contain:layout paint style;
+}
+#assalCustomerStatementBackdrop .assal-statement-modal,
+#assalCustomerStatementBackdrop .assal-statement-dashboard,
+#assalCustomerStatementBackdrop .assal-statement-list,
+#assalCustomerStatementBackdrop .assal-statement-card{
+  contain:layout paint style;
+}
+#assalCustomerStatementBackdrop:not(.active){
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+}
+@media (prefers-reduced-motion: reduce){
+  html body .card .card-foot > .card-sums .sum--customer-debt.assal-motion-visible::before,
+  html body .card .card-foot > .card-sums .sum--customer-debt.sum--current-debt.assal-motion-visible::before,
+  html body .card .card-foot > .card-sums .assal-partial-debt-toggle.assal-motion-visible .assal-toggle-face--debt::before{
+    animation:none !important;
+  }
+}
+</style>
+<script id="assal-ui-motion-performance-safe-final">
+(function(){
+  if(window.__ASSAL_UI_MOTION_PERFORMANCE_SAFE_FINAL__) return;
+  window.__ASSAL_UI_MOTION_PERFORMANCE_SAFE_FINAL__ = true;
+  var observed = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
+  var io = null;
+  function setVisible(el, yes){
+    try{ if(el && el.classList) el.classList.toggle('assal-motion-visible', !!yes); }catch(_){ }
+  }
+  function scan(){
+    try{
+      var nodes = document.querySelectorAll('.card .card-foot > .card-sums .sum--customer-debt, .card .card-foot > .card-sums .assal-partial-debt-toggle');
+      Array.prototype.forEach.call(nodes, function(el){
+        if(!io){ setVisible(el, true); return; }
+        if(observed && observed.has(el)) return;
+        if(observed) observed.add(el);
+        io.observe(el);
+      });
+    }catch(_){ }
+  }
+  if('IntersectionObserver' in window){
+    try{
+      io = new IntersectionObserver(function(entries){
+        entries.forEach(function(en){ setVisible(en.target, en.isIntersecting || en.intersectionRatio > 0); });
+      }, {root:null, rootMargin:'180px 0px', threshold:0});
+    }catch(_){ io = null; }
+  }
+  var scheduled = 0;
+  function scheduleScan(){
+    if(scheduled) return;
+    scheduled = 1;
+    (window.requestAnimationFrame || function(fn){ return setTimeout(fn, 32); })(function(){ scheduled = 0; scan(); });
+  }
+  function wrapAfter(name){
+    var old = window[name];
+    if(typeof old !== 'function' || old.__assalMotionPerfWrapped) return;
+    var wrapped = function(){
+      var r = old.apply(this, arguments);
+      scheduleScan();
+      return r;
+    };
+    wrapped.__assalMotionPerfWrapped = true;
+    window[name] = wrapped;
+  }
+  wrapAfter('renderBoard');
+  wrapAfter('assalRefreshCustomerDebtBadges');
+  wrapAfter('assalRefreshPartialDebtToggleBadges');
+  document.addEventListener('DOMContentLoaded', function(){ scheduleScan(); setTimeout(scheduleScan, 250); });
+  window.addEventListener('resize', scheduleScan, {passive:true});
+  setTimeout(scheduleScan, 0);
+})();
+</script>
+<!-- /ASSAL UI MOTION PERFORMANCE SAFE FINAL -->
 </body>
 </html>
