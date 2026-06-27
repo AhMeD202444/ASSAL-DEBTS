@@ -21865,9 +21865,43 @@ html body .card .card-foot > .card-sums .assal-partial-debt-toggle.debt-zero .as
       '</div>' +
     '</div>';
   }
-  function openStatement(customer){
+  var assalStatementReturnPoint = null;
+  function assalStatementScrollY(){
+    try{ return window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0; }catch(_){ return 0; }
+  }
+  function assalStatementCaptureReturnPoint(trigger){
+    var anchor = null, top = null;
+    try{
+      anchor = trigger && trigger.closest ? (trigger.closest('.card') || trigger.closest('[data-card-id]') || trigger) : null;
+      if(anchor && anchor.getBoundingClientRect) top = anchor.getBoundingClientRect().top;
+    }catch(_){ anchor = null; top = null; }
+    return { y:assalStatementScrollY(), anchor:anchor || null, top:(typeof top === 'number' && isFinite(top)) ? top : null };
+  }
+  function assalStatementRestoreReturnPoint(point){
+    if(!point) return;
+    function apply(){
+      try{
+        if(point.anchor && document.documentElement.contains(point.anchor) && point.top !== null){
+          var nowTop = point.anchor.getBoundingClientRect().top;
+          if(typeof nowTop === 'number' && isFinite(nowTop)){
+            var delta = nowTop - point.top;
+            if(Math.abs(delta) > 1){ window.scrollBy(0, delta); return; }
+          }
+        }
+      }catch(_){ }
+      try{
+        var y = Number(point.y || 0);
+        if(isFinite(y) && Math.abs(assalStatementScrollY() - y) > 1) window.scrollTo(0, y);
+      }catch(_){ }
+    }
+    apply();
+    try{ if(window.requestAnimationFrame) requestAnimationFrame(apply); }catch(_){ }
+    setTimeout(apply, 80);
+  }
+  function openStatement(customer, trigger){
     customer = resolveName(customer) || String(customer == null ? '' : customer).trim();
     if(!customer) return;
+    assalStatementReturnPoint = assalStatementCaptureReturnPoint(trigger || null);
     var bd = document.getElementById('assalCustomerStatementBackdrop');
     if(!bd){
       bd = document.createElement('div');
@@ -21876,14 +21910,17 @@ html body .card .card-foot > .card-sums .assal-partial-debt-toggle.debt-zero .as
     }
     bd.innerHTML = renderModal(customer);
     bd.classList.add('active');
-    document.documentElement.style.overflow = 'hidden';
-    document.body.style.overflow = 'hidden';
+    // نفس سلوك نافذة التسديد الجزئي: قفل الصفحة عبر كلاس واحد فقط بدون لمس html/body overflow مباشرة.
+    document.body.classList.add('modal-open');
   }
   function closeStatement(){
+    var point = assalStatementReturnPoint;
+    assalStatementReturnPoint = null;
     var bd = document.getElementById('assalCustomerStatementBackdrop');
     if(bd){ bd.classList.remove('active'); bd.innerHTML = ''; }
-    document.documentElement.style.overflow = '';
-    document.body.style.overflow = '';
+    // نفس سلوك نافذة التسديد الجزئي، مع ترجيع موضع البطاقة إذا حاول المتصفح يقفز للأعلى.
+    document.body.classList.remove('modal-open');
+    assalStatementRestoreReturnPoint(point);
   }
   window.assalOpenCustomerDebtStatement = openStatement;
   window.assalCloseCustomerDebtStatement = closeStatement;
@@ -21898,7 +21935,7 @@ html body .card .card-foot > .card-sums .assal-partial-debt-toggle.debt-zero .as
       var holder = badge || (debtFace && debtFace.closest('.assal-partial-debt-toggle[data-customer]'));
       if(holder){
         var customer = holder.getAttribute('data-customer') || '';
-        if(customer){ e.preventDefault(); e.stopPropagation(); openStatement(customer); }
+        if(customer){ e.preventDefault(); e.stopPropagation(); openStatement(customer, holder); }
       }
     }catch(_){ }
   }, true);
