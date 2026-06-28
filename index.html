@@ -23281,6 +23281,12 @@ html body .card .card-foot > .card-sums .assal-toggle-face{
   window.__ASSAL_CUSTOMER_RANGE_STATEMENT_LEDGER_POLISHED_FINAL__ = true;
 
   var state = { name:'', amount:0, mode:'summary', scope:'current', data:null, rendered:false };
+  var LEDGER_MIN_ISO = '2026-06-25';
+  var LEDGER_MIN_LABEL = '25-06-2026';
+
+  function ledgerMinToast(){
+    try{ window.showToast('warn','كشف الحساب متاح من '+LEDGER_MIN_LABEL+' فما فوق فقط'); }catch(_){}
+  }
 
   function latin(s){ return String(s==null?'':s).replace(/[\u0660-\u0669]/g,function(ch){return String(ch.charCodeAt(0)-0x0660);}).replace(/[\u06F0-\u06F9]/g,function(ch){return String(ch.charCodeAt(0)-0x06F0);}); }
   function money(v){ if(v==null||v==='') return 0; if(typeof v==='number') return isFinite(v)?v:0; var n=Number(latin(v).replace(/[,،]/g,'').replace(/[^\d.\-]/g,'')); return isFinite(n)?n:0; }
@@ -23428,6 +23434,33 @@ html body .card .card-foot > .card-sums .assal-toggle-face{
   }
 
   function currentControls(){ var from=document.getElementById('assalLedgerFrom'); var to=document.getElementById('assalLedgerTo'); return {from:from,to:to,fromISO:(from&&from.value)||'',toISO:(to&&to.value)||''}; }
+  function normalizeLedgerDateInput(input){
+    if(!input) return true;
+    try{ input.min = LEDGER_MIN_ISO; }catch(_){}
+    var v=String(input.value||'');
+    if(v && v < LEDGER_MIN_ISO){
+      input.value = LEDGER_MIN_ISO;
+      ledgerMinToast();
+      return false;
+    }
+    return true;
+  }
+  function validateLedgerPeriod(){
+    var c=currentControls();
+    if(!c.from||!c.to) return null;
+    var okFrom=normalizeLedgerDateInput(c.from);
+    var okTo=normalizeLedgerDateInput(c.to);
+    c=currentControls();
+    if(!okFrom || !okTo){
+      clearPreview('تم منع التاريخ الأقل من '+LEDGER_MIN_LABEL+'. اضغط عرض بعد اختيار الفترة الصحيحة.');
+      return null;
+    }
+    if(c.fromISO&&c.toISO&&c.fromISO>c.toISO){
+      try{ window.showToast('warn','تاريخ البداية أكبر من تاريخ النهاية'); }catch(_){}
+      return null;
+    }
+    return c;
+  }
   function clearPreview(msg){ var host=document.getElementById('assalLedgerPreview'); state.data=null; state.rendered=false; if(host){ host.innerHTML='<div class="assal-ledger-hint"><i class="fa-solid fa-sliders"></i>'+esc(msg||'اختر الفترة ونوع الكشف وطريقة الحساب، ثم اضغط عرض.')+'<small>زر الطباعة يولّد الكشف حسب الخيارات الحالية حتى لو لم تضغط عرض.</small></div>'; } }
 
   function renderRows(data){
@@ -23437,9 +23470,9 @@ html body .card .card-foot > .card-sums .assal-toggle-face{
   }
 
   function renderPreview(){
-    var host=document.getElementById('assalLedgerPreview'); var c=currentControls(); var fromISO=c.fromISO; var toISO=c.toISO;
-    if(!host||!c.from||!c.to) return;
-    if(fromISO&&toISO&&fromISO>toISO){ try{ window.showToast('warn','تاريخ البداية أكبر من تاريخ النهاية'); }catch(_){} return; }
+    var host=document.getElementById('assalLedgerPreview'); var c=validateLedgerPeriod();
+    if(!host||!c||!c.from||!c.to) return;
+    var fromISO=c.fromISO; var toISO=c.toISO;
     var data=buildData(state.name, fromISO, toISO); state.data=data; state.rendered=true;
     var count=(state.mode==='detail'?data.rows.length:data.summaryRows.length);
     var note=data.archive?'<div class="assal-ledger-note"><i class="fa-solid fa-box-archive"></i> هذا كشف أرشيف للفترة فقط؛ يستخدم أرشيف الأرصدة الافتتاحية إن وجد ولا يغيّر الدين الحالي للزبون.</div>':'<div class="assal-ledger-note"><i class="fa-solid fa-scale-balanced"></i> هذا الكشف حسب الرصيد الحالي ويحترم تاريخ الرصيد الافتتاحي المعتمد.</div>';
@@ -23471,6 +23504,11 @@ html body .card .card-foot > .card-sums .assal-toggle-face{
       '<div class="assal-ledger-box"><div class="assal-ledger-box-title"><i class="fa-solid fa-route"></i> طريقة الحساب داخل الكشف</div><div class="assal-ledger-options"><button type="button" class="assal-ledger-option active" data-ledger-scope="current"><i class="fa-solid fa-scale-balanced"></i> حسب الرصيد الحالي</button><button type="button" class="assal-ledger-option" data-ledger-scope="archive"><i class="fa-solid fa-box-archive"></i> أرشيف كامل للفترة</button></div></div>'+
       '</div><div class="assal-ledger-actionbar"><button type="button" id="assalLedgerShow" class="assal-ledger-btn primary"><i class="fa-solid fa-eye"></i> عرض</button><button type="button" id="assalLedgerPrint" class="assal-ledger-btn print"><i class="fa-solid fa-print"></i> طباعة</button><button type="button" id="assalLedgerCancel" class="assal-ledger-btn ghost"><i class="fa-solid fa-arrow-right-from-bracket"></i> إغلاق</button></div><div id="assalLedgerPreview"></div></div></div>';
     document.body.appendChild(bd);
+    try{
+      var __lf=bd.querySelector('#assalLedgerFrom'), __lt=bd.querySelector('#assalLedgerTo');
+      if(__lf) __lf.min=LEDGER_MIN_ISO;
+      if(__lt) __lt.min=LEDGER_MIN_ISO;
+    }catch(_){}
     bd.addEventListener('click',function(e){ if(e.target&&e.target.id==='assalLedgerStatementBackdrop') closeModal(); });
     bd.querySelector('#assalLedgerClose').addEventListener('click',closeModal);
     bd.querySelector('#assalLedgerCancel').addEventListener('click',closeModal);
@@ -23478,16 +23516,16 @@ html body .card .card-foot > .card-sums .assal-toggle-face{
     bd.querySelector('#assalLedgerPrint').addEventListener('click',function(e){ e.preventDefault(); printStatement(); });
     bd.querySelectorAll('[data-ledger-mode]').forEach(function(btn){ btn.addEventListener('click',function(){ state.mode=btn.getAttribute('data-ledger-mode')||'summary'; bd.querySelectorAll('[data-ledger-mode]').forEach(function(b){ b.classList.toggle('active',b===btn); }); clearPreview('تم تغيير نوع الكشف، اضغط عرض حتى تظهر النتائج الجديدة.'); }); });
     bd.querySelectorAll('[data-ledger-scope]').forEach(function(btn){ btn.addEventListener('click',function(){ state.scope=btn.getAttribute('data-ledger-scope')||'current'; bd.querySelectorAll('[data-ledger-scope]').forEach(function(b){ b.classList.toggle('active',b===btn); }); clearPreview(state.scope==='archive'?'تم اختيار أرشيف كامل للفترة. اضغط عرض لعرض الحركات قبل تاريخ الرصيد الافتتاحي عند الحاجة.':'تم اختيار الكشف حسب الرصيد الحالي. اضغط عرض لعرض النتائج.'); }); });
-    bd.querySelector('#assalLedgerFrom').addEventListener('change',function(){ clearPreview('تم تغيير تاريخ البداية، اضغط عرض لتحديث الكشف.'); });
-    bd.querySelector('#assalLedgerTo').addEventListener('change',function(){ clearPreview('تم تغيير تاريخ النهاية، اضغط عرض لتحديث الكشف.'); });
+    bd.querySelector('#assalLedgerFrom').addEventListener('change',function(){ if(!normalizeLedgerDateInput(this)){ clearPreview('تم منع التاريخ الأقل من '+LEDGER_MIN_LABEL+'. اضغط عرض بعد اختيار الفترة الصحيحة.'); return; } clearPreview('تم تغيير تاريخ البداية، اضغط عرض لتحديث الكشف.'); });
+    bd.querySelector('#assalLedgerTo').addEventListener('change',function(){ if(!normalizeLedgerDateInput(this)){ clearPreview('تم منع التاريخ الأقل من '+LEDGER_MIN_LABEL+'. اضغط عرض بعد اختيار الفترة الصحيحة.'); return; } clearPreview('تم تغيير تاريخ النهاية، اضغط عرض لتحديث الكشف.'); });
     return bd;
   }
 
   function openModal(opts){
     opts=opts||{}; state.name=resolveName(opts.name)||String(opts.name||'').trim(); state.amount=Math.round(money(opts.amount||0)); state.mode='summary'; state.scope='current'; state.data=null; state.rendered=false;
-    var bd=ensureModal(); var to=nowISO(); var from=monthStart(to);
+    var bd=ensureModal(); var to=nowISO(); if(to && to < LEDGER_MIN_ISO) to=LEDGER_MIN_ISO; var from=monthStart(to); if(from && from < LEDGER_MIN_ISO) from=LEDGER_MIN_ISO;
     var n=bd.querySelector('#assalLedgerCustomerName'); if(n) n.textContent=state.name;
-    var f=bd.querySelector('#assalLedgerFrom'); var t=bd.querySelector('#assalLedgerTo'); if(f) f.value=from; if(t) t.value=to;
+    var f=bd.querySelector('#assalLedgerFrom'); var t=bd.querySelector('#assalLedgerTo'); if(f){ f.min=LEDGER_MIN_ISO; f.value=from; } if(t){ t.min=LEDGER_MIN_ISO; t.value=to; }
     bd.querySelectorAll('[data-ledger-mode]').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-ledger-mode')==='summary'); });
     bd.querySelectorAll('[data-ledger-scope]').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-ledger-scope')==='current'); });
     bd.classList.add('active'); document.body.classList.add('modal-open');
@@ -23499,7 +23537,7 @@ html body .card .card-foot > .card-sums .assal-toggle-face{
 
   function printStatement(){
     try{
-      var c=currentControls(); if(c.fromISO&&c.toISO&&c.fromISO>c.toISO){ try{ window.showToast('warn','تاريخ البداية أكبر من تاريخ النهاية'); }catch(_){} return; }
+      var c=validateLedgerPeriod(); if(!c) return;
       var data=buildData(state.name,c.fromISO,c.toISO);
       var rows=state.mode==='detail'?data.rows:data.summaryRows;
       var modeTitle=(state.mode==='detail'?'كشف تفصيلي بالأيتمات':'كشف مجاميع فقط')+' • '+data.scopeTitle;
@@ -23707,5 +23745,6 @@ html body .card .card-foot > .card-sums .assal-toggle-face{
 })();
 </script>
 <!-- /ASSAL OPENING BALANCE HISTORY + RETURN SMART NOTES FINAL -->
+<!-- ASSAL RANGE STATEMENT MIN DATE TOAST FINAL: كشف الحساب لا يقبل تاريخ أقل من 25-06-2026 داخل النافذة فقط -->
 </body>
 </html>
