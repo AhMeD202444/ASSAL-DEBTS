@@ -23746,5 +23746,264 @@ html body .card .card-foot > .card-sums .assal-toggle-face{
 </script>
 <!-- /ASSAL OPENING BALANCE HISTORY + RETURN SMART NOTES FINAL -->
 <!-- ASSAL RANGE STATEMENT MIN DATE TOAST FINAL: كشف الحساب لا يقبل تاريخ أقل من 25-06-2026 داخل النافذة فقط -->
+<!-- ASSAL FINAL DEBT BADGE + DEBTS LOADING MOTION FINAL: واجهة فقط -->
+<style id="assal-final-debt-badge-loading-final-style">
+/* بادج الدين النهائي: أولوية ظهور الرقم كاملاً مع تصغير ذكي عند الزحام */
+html body .card .card-foot > .card-sums .sum--customer-debt,
+html body .card .card-foot > .card-sums .sum--customer-debt.sum--current-debt,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face--debt{
+  max-width:100% !important;
+  min-width:0 !important;
+  flex-shrink:0 !important;
+  padding-inline:8px !important;
+  gap:4px !important;
+  letter-spacing:0 !important;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt > span,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face--debt > span{
+  direction:rtl !important;
+  unicode-bidi:plaintext !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:3px !important;
+  white-space:nowrap !important;
+  max-width:100% !important;
+  overflow:visible !important;
+  text-overflow:clip !important;
+  flex:0 0 auto !important;
+  min-width:0 !important;
+  line-height:1.15 !important;
+}
+html body .card .card-foot > .card-sums .assal-final-debt-amount{
+  direction:ltr !important;
+  unicode-bidi:isolate !important;
+  display:inline-block !important;
+  white-space:nowrap !important;
+  font-weight:950 !important;
+  letter-spacing:.05px !important;
+  flex:0 0 auto !important;
+}
+html body .card .card-foot > .card-sums .assal-final-debt-label{
+  white-space:nowrap !important;
+  font-weight:900 !important;
+  flex:0 0 auto !important;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt.assal-final-debt-tight,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face--debt.assal-final-debt-tight{
+  font-size:10.6px !important;
+  padding-inline:6px !important;
+  gap:3px !important;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt.assal-final-debt-micro,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face--debt.assal-final-debt-micro{
+  font-size:9.2px !important;
+  padding-inline:4px !important;
+  gap:2px !important;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt.assal-final-debt-number-only .assal-final-debt-label,
+html body .card .card-foot > .card-sums .assal-toggle-face--debt.assal-final-debt-number-only .assal-final-debt-label{
+  display:none !important;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt.assal-final-debt-number-only,
+html body .card .card-foot > .card-sums .assal-toggle-face--debt.assal-final-debt-number-only{
+  font-size:10px !important;
+  padding-inline:7px !important;
+}
+/* حركة خفيفة لعبارة جاري جلب الديون داخل نافذة ديون الزبائن */
+html body .debts-loading{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:10px !important;
+  min-height:74px !important;
+  color:#e7eef9 !important;
+  text-shadow:0 0 12px rgba(34,211,238,.22) !important;
+  animation:assalDebtsLoadingPulse 1.35s ease-in-out infinite !important;
+}
+html body .debts-loading::before{
+  content:"";
+  width:22px;
+  height:22px;
+  border-radius:999px;
+  border:3px solid rgba(148,163,184,.28);
+  border-top-color:#22d3ee;
+  border-inline-start-color:#8b5cf6;
+  box-shadow:0 0 18px rgba(34,211,238,.22);
+  animation:assalDebtsLoadingSpin .85s linear infinite;
+  flex:0 0 auto;
+}
+html body .debts-loading .dots{
+  display:inline-block !important;
+  min-width:24px !important;
+  text-align:right !important;
+  animation:assalDebtsLoadingDots .9s ease-in-out infinite !important;
+}
+@keyframes assalDebtsLoadingSpin{to{transform:rotate(360deg)}}
+@keyframes assalDebtsLoadingPulse{0%,100%{opacity:.74;transform:translateY(0)}50%{opacity:1;transform:translateY(-1px)}}
+@keyframes assalDebtsLoadingDots{0%,100%{opacity:.25;transform:translateX(0)}50%{opacity:1;transform:translateX(-3px)}}
+@media (prefers-reduced-motion: reduce){
+  html body .debts-loading,
+  html body .debts-loading::before,
+  html body .debts-loading .dots{animation:none !important;}
+}
+</style>
+<script id="assal-final-debt-badge-loading-final-script">
+(function(){
+  if(window.__ASSAL_FINAL_DEBT_BADGE_LOADING_FINAL__) return;
+  window.__ASSAL_FINAL_DEBT_BADGE_LOADING_FINAL__ = true;
+  var FINAL_LABEL = 'الدين النهائي';
+  function txt(v){ return String(v == null ? '' : v); }
+  function esc(v){ return txt(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function normalizeAmountText(v){
+    v = txt(v).trim();
+    v = v.replace(/^[^:：]*[:：]\s*/,'').trim();
+    v = v.replace(/\s*د\.?ع\.?\s*$/,'').trim();
+    return v || '0';
+  }
+  function finalDebtInner(amountText, label){
+    amountText = normalizeAmountText(amountText);
+    label = label || FINAL_LABEL;
+    return '<span class="assal-final-debt-label">' + esc(label) + ':</span><span class="assal-final-debt-amount" dir="ltr">' + esc(amountText) + '</span>';
+  }
+  function forceInfo(info){
+    info = info || {};
+    info.label = FINAL_LABEL;
+    if(info.text == null || info.text === '') info.text = '0';
+    return info;
+  }
+  var oldInfo = window.assalCustomerDebtBadgeInfo;
+  if(typeof oldInfo === 'function' && !oldInfo.__assalFinalDebtLabelWrapped){
+    var wrappedInfo = function(){
+      var info = null;
+      try{ info = oldInfo.apply(this, arguments); }catch(_){ info = {}; }
+      return forceInfo(info);
+    };
+    wrappedInfo.__assalFinalDebtLabelWrapped = true;
+    window.assalCustomerDebtBadgeInfo = wrappedInfo;
+  }
+  function getInfo(customer){
+    try{ if(typeof window.assalCustomerDebtBadgeInfo === 'function') return forceInfo(window.assalCustomerDebtBadgeInfo(customer)); }catch(_){ }
+    return forceInfo({text:'0', cls:'debt-zero', icon:'fa-solid fa-circle-check'});
+  }
+  function getTitle(customer){
+    try{ if(typeof window.assalCustomerDebtBreakdownTitle === 'function') return window.assalCustomerDebtBreakdownTitle(customer) || ''; }catch(_){ }
+    return '';
+  }
+  var oldHtml = window.assalCustomerDebtBadgeHtml;
+  if(typeof oldHtml === 'function' && !oldHtml.__assalFinalDebtLabelWrapped){
+    var wrappedHtml = function(customer){
+      try{
+        if(typeof window.assalIsSheetCustomerName === 'function' && !window.assalIsSheetCustomerName(customer || '')) return '';
+        var display = customer || '';
+        try{ if(typeof window.assalSheetCustomerDisplayName === 'function') display = window.assalSheetCustomerDisplayName(customer || '') || customer || ''; }catch(_){ }
+        var info = getInfo(display);
+        var cls = info.cls || 'debt-zero';
+        var icon = info.icon || 'fa-solid fa-circle-check';
+        return '<span class="sum-badge sum--customer-debt sum--current-debt ' + esc(cls) + '" data-customer="' + esc(display) + '" title="' + esc(getTitle(display)) + '"><i class="' + esc(icon) + '"></i><span>' + finalDebtInner(info.text, FINAL_LABEL) + '</span></span>';
+      }catch(_){ try{ return oldHtml.apply(this, arguments); }catch(__){ return ''; } }
+    };
+    wrappedHtml.__assalFinalDebtLabelWrapped = true;
+    window.assalCustomerDebtBadgeHtml = wrappedHtml;
+  }
+  function isOut(row, el){
+    try{
+      if(!row || !el) return false;
+      var rr = row.getBoundingClientRect();
+      var er = el.getBoundingClientRect();
+      return (er.left < rr.left - 1 || er.right > rr.right + 1 || row.scrollWidth > row.clientWidth + 1);
+    }catch(_){ return false; }
+  }
+  function fitOne(el, row){
+    try{
+      if(!el || !el.classList) return;
+      el.classList.remove('assal-final-debt-tight','assal-final-debt-micro','assal-final-debt-number-only');
+      var label = el.querySelector('.assal-final-debt-label');
+      if(label) label.textContent = FINAL_LABEL + ':';
+      if(!isOut(row, el)) return;
+      el.classList.add('assal-final-debt-tight');
+      if(label) label.textContent = 'النهائي:';
+      if(!isOut(row, el)) return;
+      el.classList.add('assal-final-debt-micro');
+      if(!isOut(row, el)) return;
+      el.classList.add('assal-final-debt-number-only');
+    }catch(_){ }
+  }
+  function updateRoot(root){
+    root = root || document;
+    try{
+      Array.prototype.forEach.call(root.querySelectorAll('.sum--customer-debt[data-customer]'), function(el){
+        var customer = el.getAttribute('data-customer') || '';
+        var info = getInfo(customer);
+        el.classList.add('sum--current-debt');
+        el.classList.remove('debt-positive','debt-zero','debt-credit');
+        if(info.cls) el.classList.add(info.cls);
+        var icon = el.querySelector('i');
+        if(icon && info.icon) icon.className = info.icon;
+        var sp = el.querySelector('span');
+        if(sp) sp.innerHTML = finalDebtInner(info.text, FINAL_LABEL);
+        el.setAttribute('title', getTitle(customer));
+        fitOne(el, el.closest('.card-sums'));
+      });
+      Array.prototype.forEach.call(root.querySelectorAll('.assal-partial-debt-toggle[data-customer]'), function(tg){
+        var customer = tg.getAttribute('data-customer') || '';
+        var info = getInfo(customer);
+        tg.classList.remove('debt-positive','debt-zero','debt-credit');
+        if(info.cls) tg.classList.add(info.cls);
+        var icon = tg.querySelector('.assal-toggle-face--debt i');
+        if(icon && info.icon) icon.className = info.icon;
+        var face = tg.querySelector('.assal-toggle-face--debt');
+        var sp = tg.querySelector('.assal-toggle-face--debt span');
+        if(sp) sp.innerHTML = finalDebtInner(info.text, FINAL_LABEL);
+        fitOne(face, tg.closest('.card-sums'));
+      });
+    }catch(_){ }
+  }
+  window.assalApplyFinalDebtBadgeLabel = updateRoot;
+  function wrapAfter(name){
+    var old = window[name];
+    if(typeof old !== 'function' || old.__assalFinalDebtLabelWrapped) return;
+    var wrapped = function(){
+      var r = old.apply(this, arguments);
+      setTimeout(function(){ updateRoot(document); }, 0);
+      return r;
+    };
+    wrapped.__assalFinalDebtLabelWrapped = true;
+    window[name] = wrapped;
+  }
+  wrapAfter('assalRefreshCustomerDebtBadges');
+  wrapAfter('assalRefreshPartialDebtToggleBadges');
+  wrapAfter('assalBalancedCardBadges');
+  try{
+    var oldToggle = window.assalPartialDebtToggleBadgeHtml;
+    if(typeof oldToggle === 'function' && !oldToggle.__assalFinalDebtLabelWrapped){
+      var wrappedToggle = function(){
+        var html = '';
+        try{ html = oldToggle.apply(this, arguments) || ''; }catch(_){ html = ''; }
+        return txt(html)
+          .replace(/الدين الحالي للزبون/g, FINAL_LABEL)
+          .replace(/الدين الكلي للزبون/g, FINAL_LABEL)
+          .replace(/الدين الحالي/g, FINAL_LABEL)
+          .replace(/دين الزبون/g, FINAL_LABEL);
+      };
+      wrappedToggle.__assalFinalDebtLabelWrapped = true;
+      window.assalPartialDebtToggleBadgeHtml = wrappedToggle;
+    }
+  }catch(_){ }
+  setTimeout(function(){ updateRoot(document); }, 0);
+  setTimeout(function(){ updateRoot(document); }, 250);
+  try{
+    var mo = new MutationObserver(function(muts){
+      var need = false;
+      for(var i=0;i<muts.length;i++){
+        if(muts[i].addedNodes && muts[i].addedNodes.length){ need = true; break; }
+      }
+      if(need) setTimeout(function(){ updateRoot(document); }, 0);
+    });
+    mo.observe(document.body || document.documentElement, {childList:true, subtree:true});
+  }catch(_){ }
+})();
+</script>
+<!-- /ASSAL FINAL DEBT BADGE + DEBTS LOADING MOTION FINAL -->
 </body>
 </html>
