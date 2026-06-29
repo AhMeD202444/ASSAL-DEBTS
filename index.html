@@ -24358,5 +24358,126 @@ html body .debts-loading .dots{
 })();
 </script>
 <!-- /ASSAL FINAL DEBT BADGE + DEBTS LOADING MOTION FINAL -->
+
+<!-- ASSAL BADGE STATEMENT POINTERDOWN FIX FINAL - UI EVENT ONLY -->
+<style id="assal-badge-statement-pointerdown-fix-style">
+  html body .card .card-foot > .card-sums .sum--customer-debt[data-customer],
+  html body .card .card-foot > .card-sums .sum--customer-debt[data-customer] *,
+  html body .card .card-foot > .card-sums .assal-partial-debt-toggle[data-customer],
+  html body .card .card-foot > .card-sums .assal-partial-debt-toggle[data-customer] .assal-toggle-face--debt,
+  html body .card .card-foot > .card-sums .assal-partial-debt-toggle[data-customer] .assal-toggle-face--debt *{
+    cursor:pointer !important;
+  }
+  html body .card .card-foot > .card-sums .sum--customer-debt[data-customer],
+  html body .card .card-foot > .card-sums .assal-partial-debt-toggle[data-customer] .assal-toggle-face--debt{
+    pointer-events:auto !important;
+    touch-action:manipulation !important;
+    -webkit-tap-highlight-color:rgba(34,211,238,.18) !important;
+  }
+</style>
+<script id="assal-badge-statement-pointerdown-fix-final">
+(function(){
+  'use strict';
+  if(window.__ASSAL_BADGE_STATEMENT_POINTERDOWN_FIX_FINAL__) return;
+  window.__ASSAL_BADGE_STATEMENT_POINTERDOWN_FIX_FINAL__ = true;
+
+  function closest(el, sel){
+    try{ return el && el.closest ? el.closest(sel) : null; }catch(_){ return null; }
+  }
+  function resolveHolder(target){
+    var badge = closest(target, '.sum--customer-debt[data-customer]');
+    if(badge) return badge;
+    var debtFace = closest(target, '.assal-toggle-face--debt');
+    if(debtFace){
+      var toggle = closest(debtFace, '.assal-partial-debt-toggle[data-customer]');
+      if(toggle) return toggle;
+    }
+    return null;
+  }
+  function markBadges(root){
+    root = root || document;
+    try{
+      Array.prototype.forEach.call(root.querySelectorAll('.sum--customer-debt[data-customer], .assal-partial-debt-toggle[data-customer]'), function(el){
+        el.setAttribute('role','button');
+        el.setAttribute('tabindex','0');
+        el.setAttribute('data-assal-statement-click','1');
+        if(!el.getAttribute('aria-label')) el.setAttribute('aria-label','فتح لوحة حساب الزبون');
+      });
+    }catch(_){ }
+  }
+  function stop(ev){
+    try{ if(ev && ev.preventDefault) ev.preventDefault(); }catch(_){ }
+    try{ if(ev && ev.stopPropagation) ev.stopPropagation(); }catch(_){ }
+    try{ if(ev && ev.stopImmediatePropagation) ev.stopImmediatePropagation(); }catch(_){ }
+  }
+  function openFromHolder(holder, ev){
+    try{
+      if(!holder) return false;
+      var customer = holder.getAttribute('data-customer') || '';
+      if(!customer) return false;
+      stop(ev);
+      if(typeof window.assalOpenCustomerDebtStatement === 'function'){
+        window.assalOpenCustomerDebtStatement(customer, holder);
+        return true;
+      }
+      setTimeout(function(){
+        try{
+          if(typeof window.assalOpenCustomerDebtStatement === 'function') window.assalOpenCustomerDebtStatement(customer, holder);
+        }catch(_){ }
+      }, 0);
+      return true;
+    }catch(_){ return false; }
+  }
+  function handlePress(ev){
+    try{
+      var holder = resolveHolder(ev && ev.target);
+      if(!holder) return;
+      openFromHolder(holder, ev);
+    }catch(_){ }
+  }
+  function handleClick(ev){
+    try{
+      var holder = resolveHolder(ev && ev.target);
+      if(!holder) return;
+      // إذا فتحناها من pointerdown، امنع الكلك اللاحق من تشغيل أي حدث بطاقة آخر.
+      var bd = document.getElementById('assalCustomerStatementBackdrop');
+      if(bd && bd.classList && bd.classList.contains('active')){ stop(ev); return; }
+      openFromHolder(holder, ev);
+    }catch(_){ }
+  }
+  function handleKey(ev){
+    try{
+      var key = ev && (ev.key || ev.code);
+      if(key !== 'Enter' && key !== ' ' && key !== 'Spacebar') return;
+      var holder = resolveHolder(ev && ev.target);
+      if(!holder) return;
+      openFromHolder(holder, ev);
+    }catch(_){ }
+  }
+
+  // pointerdown يفتح فوراً قبل أي تحديث/حركة بالبادج، وهذا يعيد السلوك السابق بثبات.
+  document.addEventListener('pointerdown', handlePress, true);
+  document.addEventListener('mousedown', function(ev){
+    try{ if(window.PointerEvent) return; handlePress(ev); }catch(_){ handlePress(ev); }
+  }, true);
+  document.addEventListener('click', handleClick, true);
+  document.addEventListener('keydown', handleKey, true);
+
+  markBadges(document);
+  try{
+    var mo = new MutationObserver(function(muts){
+      var need = false;
+      for(var i=0;i<muts.length;i++){
+        if(muts[i].addedNodes && muts[i].addedNodes.length){ need = true; break; }
+      }
+      if(need) setTimeout(function(){ markBadges(document); }, 0);
+    });
+    mo.observe(document.body || document.documentElement, {childList:true, subtree:true});
+  }catch(_){ }
+  setTimeout(function(){ markBadges(document); }, 150);
+})();
+</script>
+<!-- /ASSAL BADGE STATEMENT POINTERDOWN FIX FINAL -->
+
 </body>
 </html>
