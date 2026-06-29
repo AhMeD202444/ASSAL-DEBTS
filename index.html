@@ -3762,6 +3762,356 @@ body{ padding-top: var(--hdr-h); }
 
 
   
+
+
+/* ===== [ASSAL FINAL] Storage modal ultra polish - واجهة فقط ===== */
+#storageModal .storage-modal-card{
+  width:min(880px, calc(100vw - 22px)) !important;
+  max-width:880px !important;
+  max-height:calc(100dvh - 26px) !important;
+  overflow:hidden !important;
+  padding:0 !important;
+  border-radius:26px !important;
+  align-items:stretch !important;
+  text-align:initial !important;
+  position:relative !important;
+  isolation:isolate;
+  background:
+    radial-gradient(520px 260px at 8% -8%, rgba(124,58,237,.32), transparent 62%),
+    radial-gradient(460px 240px at 98% 4%, rgba(6,182,212,.22), transparent 60%),
+    linear-gradient(145deg, rgba(15,23,42,.98), rgba(9,14,28,.98) 58%, rgba(13,20,38,.98)) !important;
+  border:1px solid rgba(148,163,184,.18) !important;
+  box-shadow:
+    0 26px 70px rgba(0,0,0,.55),
+    inset 0 1px 0 rgba(255,255,255,.08) !important;
+}
+#storageModal.active .storage-modal-card{
+  animation: assalStoragePop .26s cubic-bezier(.2,.9,.2,1) both;
+}
+#storageModal .storage-modal-card::before{
+  content:'';
+  position:absolute;
+  inset:-1px;
+  border-radius:inherit;
+  pointer-events:none;
+  background:linear-gradient(135deg, rgba(255,255,255,.14), transparent 22%, transparent 72%, rgba(34,211,238,.12));
+  mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  padding:1px;
+  -webkit-mask-composite:xor;
+  mask-composite:exclude;
+  z-index:2;
+}
+#storageModal .storage-modal-card::after{
+  content:'';
+  position:absolute;
+  width:180px;
+  height:180px;
+  left:-70px;
+  bottom:-80px;
+  border-radius:999px;
+  background:radial-gradient(circle, rgba(14,165,233,.18), transparent 67%);
+  filter:blur(4px);
+  pointer-events:none;
+  animation: assalStorageGlow 4.2s ease-in-out infinite;
+  z-index:-1;
+}
+#storageModal .storage-header{
+  margin:0 !important;
+  padding:20px 22px 18px !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  gap:14px !important;
+  background:
+    linear-gradient(90deg, rgba(124,58,237,.22), rgba(14,165,233,.13), rgba(15,23,42,.22));
+  border-bottom:1px solid rgba(148,163,184,.14);
+}
+#storageModal .storage-header-main{
+  display:flex !important;
+  align-items:center !important;
+  gap:14px !important;
+  min-width:0;
+}
+#storageModal .storage-icon-circle{
+  width:58px !important;
+  height:58px !important;
+  border-radius:18px !important;
+  flex:0 0 auto;
+  font-size:24px !important;
+  background:
+    linear-gradient(145deg, rgba(34,211,238,.98), rgba(124,58,237,.98)) !important;
+  box-shadow:
+    0 16px 34px rgba(14,165,233,.18),
+    0 12px 32px rgba(124,58,237,.30),
+    inset 0 1px 0 rgba(255,255,255,.28) !important;
+  animation: assalStorageIconFloat 3.2s ease-in-out infinite;
+}
+#storageModal .storage-title{
+  font-size:22px !important;
+  line-height:1.25 !important;
+  font-weight:950 !important;
+  letter-spacing:-.2px;
+  color:#f8fafc !important;
+  white-space:nowrap;
+}
+#storageModal .storage-subtitle{
+  font-size:13px !important;
+  color:#cbd5e1 !important;
+  margin-top:6px !important;
+  line-height:1.65;
+}
+#storageModal .code-chip{
+  background:rgba(2,6,23,.42) !important;
+  border-color:rgba(148,163,184,.28) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+}
+#storageModal .storage-badge{
+  min-height:34px;
+  padding:7px 13px !important;
+  border-radius:999px !important;
+  font-size:12px !important;
+  font-weight:900 !important;
+  gap:7px !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+}
+#storageModal .storage-badge::before{
+  width:9px !important;
+  height:9px !important;
+  box-shadow:0 0 0 4px currentColor;
+  opacity:.85;
+  animation: assalStorageDot 1.55s ease-in-out infinite;
+}
+#storageModal .storage-body{
+  padding:18px 22px 14px !important;
+  overflow:auto;
+  min-height:0;
+}
+#storageModal .storage-bar-outer{
+  height:18px !important;
+  margin:0 0 16px !important;
+  border-radius:999px !important;
+  background:
+    linear-gradient(180deg, rgba(2,6,23,.86), rgba(15,23,42,.88)) !important;
+  border:1px solid rgba(148,163,184,.16) !important;
+  box-shadow:
+    inset 0 2px 8px rgba(0,0,0,.42),
+    0 10px 26px rgba(0,0,0,.20);
+}
+#storageModal .storage-bar-outer::before{
+  content:'مساحة التخزين المستخدمة';
+  position:absolute;
+  inset-inline-start:14px;
+  top:50%;
+  transform:translateY(-50%);
+  z-index:2;
+  color:rgba(255,255,255,.76);
+  font-size:10.5px;
+  font-weight:900;
+  pointer-events:none;
+}
+#storageModal .storage-bar-inner{
+  position:relative;
+  height:100% !important;
+  border-radius:999px !important;
+  background:linear-gradient(90deg, #22c55e 0%, #10b981 36%, #f59e0b 72%, #ef4444 100%) !important;
+  box-shadow:
+    0 0 18px rgba(34,197,94,.18),
+    inset 0 1px 0 rgba(255,255,255,.35) !important;
+  overflow:hidden;
+  transition:width .65s cubic-bezier(.22,1,.36,1) !important;
+}
+#storageModal .storage-bar-inner::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  width:42%;
+  transform:translateX(135%);
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,.42), transparent);
+  animation: assalStorageShimmer 2.1s ease-in-out infinite;
+}
+#storageModal .storage-grid{
+  grid-template-columns:repeat(3, minmax(0,1fr)) !important;
+  gap:12px !important;
+  margin-bottom:14px !important;
+}
+#storageModal .storage-kpi{
+  position:relative;
+  overflow:hidden;
+  min-height:82px;
+  padding:14px 15px !important;
+  border-radius:18px !important;
+  background:
+    linear-gradient(180deg, rgba(15,23,42,.74), rgba(11,18,32,.72)) !important;
+  border:1px solid rgba(148,163,184,.17) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.05),
+    0 12px 28px rgba(0,0,0,.18) !important;
+}
+#storageModal.active .storage-kpi{ animation: assalStorageKpiUp .32s ease both; }
+#storageModal.active .storage-kpi:nth-child(2){ animation-delay:.04s; }
+#storageModal.active .storage-kpi:nth-child(3){ animation-delay:.08s; }
+#storageModal .storage-kpi::before{
+  content:'';
+  position:absolute;
+  inset-inline-start:0;
+  top:0;
+  width:4px;
+  height:100%;
+  background:linear-gradient(180deg, #22d3ee, #8b5cf6);
+  opacity:.75;
+}
+#storageModal .storage-kpi-label{
+  font-size:12px !important;
+  font-weight:800;
+  color:#94a3b8 !important;
+  margin-bottom:8px !important;
+}
+#storageModal .storage-kpi-value{
+  font-size:18px !important;
+  line-height:1.25;
+  font-weight:950 !important;
+  color:#f8fafc !important;
+  direction:ltr;
+  unicode-bidi:plaintext;
+}
+#storageModal .storage-stats{
+  border-radius:17px;
+  padding:13px 15px;
+  background:rgba(2,6,23,.28);
+  border:1px solid rgba(148,163,184,.14);
+  color:#e5e7eb !important;
+  font-size:13px !important;
+  line-height:1.9 !important;
+}
+#storageModal .storage-more{
+  margin-top:10px !important;
+  background:rgba(15,23,42,.46);
+}
+#storageModal .storage-more-text{
+  font-weight:850;
+  margin-bottom:8px !important;
+  color:#f8fafc;
+}
+#storageModal .storage-list{
+  margin:8px 0 0 !important;
+  padding:0 18px 0 0 !important;
+  color:#cbd5e1;
+}
+#storageModal .storage-list li{
+  margin:7px 0;
+  padding-inline-start:2px;
+}
+#storageModal .storage-list strong{
+  color:#fef3c7;
+  direction:ltr;
+  unicode-bidi:plaintext;
+}
+#storageModal .storage-footer-note{
+  margin-top:12px !important;
+  padding:11px 13px;
+  border-radius:15px;
+  background:linear-gradient(90deg, rgba(14,165,233,.10), rgba(124,58,237,.10));
+  border:1px solid rgba(125,211,252,.15);
+  color:#cbd5e1 !important;
+  font-size:12px !important;
+  line-height:1.85;
+}
+#storageModal .storage-actions{
+  margin:0 !important;
+  padding:12px 22px 18px !important;
+  justify-content:center !important;
+  border-top:1px solid rgba(148,163,184,.10);
+  background:linear-gradient(180deg, rgba(15,23,42,.20), rgba(2,6,23,.28));
+}
+#storageModal .storage-actions .modal-btn.danger-solid{
+  min-width:190px !important;
+  height:46px;
+  border-radius:999px !important;
+  font-size:14px;
+  font-weight:950 !important;
+  background:linear-gradient(135deg, #ef4444, #f43f5e) !important;
+  box-shadow:
+    0 16px 30px rgba(239,68,68,.22),
+    inset 0 1px 0 rgba(255,255,255,.18) !important;
+}
+#storageModal .storage-actions .modal-btn.danger-solid:hover{
+  transform:translateY(-1px);
+}
+@keyframes assalStoragePop{
+  from{ opacity:0; transform:translateY(14px) scale(.975); filter:blur(3px); }
+  to{ opacity:1; transform:translateY(0) scale(1); filter:blur(0); }
+}
+@keyframes assalStorageIconFloat{
+  0%,100%{ transform:translateY(0); }
+  50%{ transform:translateY(-4px); }
+}
+@keyframes assalStorageDot{
+  0%,100%{ opacity:.42; box-shadow:0 0 0 0 currentColor; }
+  50%{ opacity:1; box-shadow:0 0 0 5px transparent; }
+}
+@keyframes assalStorageShimmer{
+  0%{ transform:translateX(140%); opacity:0; }
+  20%,65%{ opacity:.8; }
+  100%{ transform:translateX(-260%); opacity:0; }
+}
+@keyframes assalStorageGlow{
+  0%,100%{ opacity:.55; transform:scale(1); }
+  50%{ opacity:.95; transform:scale(1.08); }
+}
+@keyframes assalStorageKpiUp{
+  from{ opacity:0; transform:translateY(8px); }
+  to{ opacity:1; transform:translateY(0); }
+}
+@media (max-width:720px){
+  #storageModal .storage-modal-card{
+    width:calc(100vw - 14px) !important;
+    border-radius:22px !important;
+  }
+  #storageModal .storage-header{
+    padding:16px 14px 14px !important;
+    align-items:flex-start !important;
+  }
+  #storageModal .storage-header-main{
+    gap:10px !important;
+  }
+  #storageModal .storage-icon-circle{
+    width:50px !important;
+    height:50px !important;
+    border-radius:16px !important;
+    font-size:21px !important;
+  }
+  #storageModal .storage-title{
+    font-size:18px !important;
+  }
+  #storageModal .storage-subtitle{
+    font-size:12px !important;
+  }
+  #storageModal .storage-body{
+    padding:14px 14px 12px !important;
+  }
+  #storageModal .storage-grid{
+    grid-template-columns:1fr !important;
+    gap:9px !important;
+  }
+  #storageModal .storage-kpi{
+    min-height:auto;
+    padding:11px 13px !important;
+  }
+  #storageModal .storage-kpi-value{
+    font-size:16px !important;
+  }
+  #storageModal .storage-actions{
+    padding:10px 14px 14px !important;
+  }
+}
+@media (prefers-reduced-motion: reduce){
+  #storageModal *{
+    animation:none !important;
+    transition:none !important;
+  }
+}
+
 /* =================== إضافة عمود طباعة للحسابات المالية =================== */
 .payments-header-row,
 .payment-row{
@@ -11763,9 +12113,12 @@ async function openStorageUsageModal(){
   const pctKpi     = document.getElementById('storagePctKpi');
   const badge      = document.getElementById('storageBadge');
 
-  // شريط النسبة
+  // شريط النسبة - حركة فتح خفيفة فقط، بدون تغيير الحساب
   if(bar){
-    bar.style.width = pct + '%';
+    bar.style.width = '0%';
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => { bar.style.width = pct + '%'; });
+    });
   }
 
   // KPIs رقمية
