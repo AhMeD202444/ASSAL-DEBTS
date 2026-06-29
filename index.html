@@ -8862,20 +8862,41 @@ function migrateLegacySellToAjal(daysObj){
   return changed;
 }
 
+let __assalDeferredDebtUiTimer = null;
+function assalScheduleDebtUiRefresh(delay){
+  try{ if(__assalDeferredDebtUiTimer) clearTimeout(__assalDeferredDebtUiTimer); }catch(_){}
+  const wait = (typeof delay === 'number') ? delay : 180;
+  __assalDeferredDebtUiTimer = setTimeout(function(){
+    __assalDeferredDebtUiTimer = null;
+    try{ window.refreshDebtsUI?.(); }catch(_){}
+    try{ window.assalRefreshCustomerDebtBadges?.(); }catch(_){}
+  }, wait);
+}
+window.assalScheduleDebtUiRefresh = assalScheduleDebtUiRefresh;
+
 function save(){
   const res = saveDaysToStorageBalanced(days);
   if(!res || !res.ok){
     showToast?.('error','تعذر الحفظ المحلي. لم يتم حذف أي بيانات. خذ نسخة احتياطية أو استخدم جهاز/متصفح بمساحة أكبر.');
     try{ openStorageUsageModal?.(); }catch{}
-    return;
+    return res;
   }
   LAST_EDIT_TS = Date.now(); // حتى نمنع المزامنة مباشرة بعد أي تعديل
   SYNC_BLOCK_UNTIL = Date.now() + 20_000; // هدنة 20 ثانية إضافية
 
   // تحديث نافذة ديون الزبائن وبادجات الدين — قراءة وحساب فقط، بدون تغيير أي حركة
+  // الأداء: إبطال الكاش فوراً، وتأجيل إعادة الرسم/الحساب الثقيل حتى لا يؤخر رجوع مؤشر الإدخال.
   try{ window.assalInvalidateDebtBadgeCache?.(); }catch(_){}
-  try{ window.refreshDebtsUI?.(); }catch(_){}
-  try{ window.assalRefreshCustomerDebtBadges?.(); }catch(_){}
+  try{
+    if(typeof window.assalScheduleDebtUiRefresh === 'function') window.assalScheduleDebtUiRefresh(180);
+    else {
+      setTimeout(function(){
+        try{ window.refreshDebtsUI?.(); }catch(_){}
+        try{ window.assalRefreshCustomerDebtBadges?.(); }catch(_){}
+      }, 180);
+    }
+  }catch(_){}
+  return res;
 }
 
 
@@ -9539,8 +9560,9 @@ document.getElementById('btnAdd').onclick = async () => {
 
   // أضف السطر
   card.lines ||= [];
+  const __assalNewLineId = makeId();
   card.lines.push({
-    lineId   : makeId(),
+    lineId   : __assalNewLineId,
     item, cat, price: priceVal, qty, note, type,
     paid: (type==='نقدي'), returned: (type==='راجع'),
     createdAt: nowISOVal2,
@@ -9548,6 +9570,10 @@ document.getElementById('btnAdd').onclick = async () => {
     at: nowISOVal2,
     deletedAt: null
   });
+  try{
+    window.__assalLastAddedCardId = String(card.id || '');
+    window.__assalLastAddedLineId = String(__assalNewLineId || '');
+  }catch(_){ }
   if (type === 'راجع') window.__assalReturnItemValidation = null;
 
   // حدّث آخر نشاط وارفع البطاقة للأعلى (حذرًا)
@@ -9565,17 +9591,36 @@ document.getElementById('btnAdd').onclick = async () => {
 
   save();
 
-  // تنظيف الحقول
-  document.getElementById('item').value  = '';
-  document.getElementById('price').value = '';
-  document.getElementById('qty').value   = '';
-  document.getElementById('note').value  = '';
-  document.getElementById('item').focus();
+  // تنظيف الحقول + إرجاع المؤشر للسلوك القديم: خانة اسم الزبون
+  const __assalCustomerInput = document.getElementById('cust');
+  const __assalItemInput = document.getElementById('item');
+  const __assalPriceInput = document.getElementById('price');
+  const __assalQtyInput = document.getElementById('qty');
+  const __assalNoteInput = document.getElementById('note');
+  if(__assalItemInput) __assalItemInput.value  = '';
+  if(__assalPriceInput) __assalPriceInput.value = '';
+  if(__assalQtyInput) __assalQtyInput.value   = '';
+  if(__assalNoteInput) __assalNoteInput.value  = '';
+  const __assalRestoreCustomerFocus = ()=>{
+    try{
+      if(__assalCustomerInput){
+        __assalCustomerInput.focus({preventScroll:true});
+        __assalCustomerInput.select?.();
+      }
+    }catch(_){
+      try{ __assalCustomerInput && __assalCustomerInput.focus(); __assalCustomerInput && __assalCustomerInput.select?.(); }catch(__){}
+    }
+  };
 
-  renderBoard?.();
-  renderRail?.();
-  refreshStats?.();
-  focusNewCard?.(card);
+  // أولوية الاستجابة: رجّع المؤشر فوراً، ثم ارسم، ثم ثبّت المؤشر مرة ثانية بعد الرسم.
+  __assalRestoreCustomerFocus();
+  try{ renderBoard?.(); }catch(_){}
+  try{ renderRail?.(); }catch(_){}
+  try{ refreshStats?.(); }catch(_){}
+  try{ window.assalSoftFlashAddedCardAndItem && window.assalSoftFlashAddedCardAndItem(card, __assalNewLineId); }catch(_){}
+  __assalRestoreCustomerFocus();
+  setTimeout(__assalRestoreCustomerFocus, 0);
+  requestAnimationFrame(function(){ __assalRestoreCustomerFocus(); });
   showToast?.('success','تمت الإضافة');
 };
 
@@ -10747,6 +10792,7 @@ custWrap.appendChild(typeBadge);
       .filter(ln => !ln.deletedAt) // لا تعرض السطور المعلمة محذوف
       .forEach((ln) => {
         const it = CE('div', 'item');
+        try{ if(ln && ln.lineId) it.setAttribute('data-line-id', String(ln.lineId)); }catch(_){ }
         if (ln.returned) it.classList.add('returned');
         if (ln.paid) it.classList.add('paid');
 
@@ -24478,6 +24524,107 @@ html body .debts-loading .dots{
 })();
 </script>
 <!-- /ASSAL BADGE STATEMENT POINTERDOWN FIX FINAL -->
+
+
+
+
+
+<!-- ASSAL LEAN ADD UI PERFORMANCE FINAL - UI ONLY -->
+<style id="assal-lean-add-ui-performance-final-style">
+/* تخفيف الحركات الثقيلة في مسار الإضافة بدون تغيير الحساب أو التصميم العام */
+html body .card.flash-card,
+html body .flash-card{
+  animation: none !important;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt::before,
+html body .card .card-foot > .card-sums .sum--customer-debt.sum--current-debt::before,
+html body .card .card-foot > .card-sums .sum--customer-debt::after,
+html body .card .card-foot > .card-sums .sum--customer-debt.sum--current-debt::after,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face--debt::before,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face--debt::after{
+  animation: none !important;
+  opacity: .035 !important;
+}
+html body .card .card-foot > .card-sums .sum-badge,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle,
+html body .card .card-foot > .card-sums .assal-toggle-face,
+html body .card,
+html body .item{
+  transition-duration: .08s !important;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face--debt{
+  box-shadow: 0 4px 12px rgba(0,0,0,.18), inset 0 0 0 1px rgba(255,255,255,.04) !important;
+}
+</style>
+<!-- /ASSAL LEAN ADD UI PERFORMANCE FINAL -->
+
+
+
+
+<!-- ASSAL RESTORE CARD + ITEM SOFT FLASH FINAL - UI ONLY -->
+<style id="assal-restore-card-item-soft-flash-final-style">
+@keyframes assal-card-soft-flash-final{
+  0%{ outline:0 solid rgba(34,211,238,0); box-shadow:0 14px 32px rgba(0,0,0,.38); filter:none; }
+  22%{ outline:2px solid rgba(34,211,238,.48); box-shadow:0 0 0 3px rgba(34,211,238,.14), 0 14px 32px rgba(0,0,0,.38); }
+  100%{ outline:0 solid rgba(34,211,238,0); box-shadow:0 14px 32px rgba(0,0,0,.38); filter:none; }
+}
+@keyframes assal-item-soft-flash-final{
+  0%{ background-color:rgba(34,211,238,0); outline:0 solid rgba(34,211,238,0); }
+  28%{ background-color:rgba(34,211,238,.14); outline:1px solid rgba(34,211,238,.34); }
+  100%{ background-color:rgba(34,211,238,0); outline:0 solid rgba(34,211,238,0); }
+}
+html body .card.assal-card-soft-flash-final{
+  animation:assal-card-soft-flash-final .78s ease-out 1 !important;
+  will-change:outline, box-shadow;
+}
+html body .card .item.assal-item-soft-flash-final{
+  animation:assal-item-soft-flash-final .82s ease-out 1 !important;
+  will-change:background-color, outline;
+}
+</style>
+<script id="assal-restore-card-item-soft-flash-final-script">
+(function(){
+  'use strict';
+  if(window.__ASSAL_RESTORE_CARD_ITEM_SOFT_FLASH_FINAL__) return;
+  window.__ASSAL_RESTORE_CARD_ITEM_SOFT_FLASH_FINAL__ = true;
+  function cssEsc(v){
+    v = String(v == null ? '' : v);
+    if(window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(v);
+    return v.replace(/\\/g,'\\\\').replace(/"/g,'\\"');
+  }
+  function pulse(el, cls, ms){
+    try{
+      if(!el) return;
+      el.classList.remove(cls);
+      void el.offsetWidth;
+      el.classList.add(cls);
+      setTimeout(function(){ try{ el.classList.remove(cls); }catch(_){ } }, ms || 900);
+    }catch(_){ }
+  }
+  window.assalSoftFlashAddedCardAndItem = function(card, lineId){
+    try{
+      var cid = card && card.id;
+      if(!cid) return;
+      requestAnimationFrame(function(){
+        try{
+          var cardEl = document.getElementById('card-' + cid);
+          pulse(cardEl, 'assal-card-soft-flash-final', 900);
+          if(cardEl && lineId != null){
+            var itemEl = cardEl.querySelector('.item[data-line-id="' + cssEsc(lineId) + '"]');
+            if(!itemEl){
+              var items = cardEl.querySelectorAll('.items .item');
+              itemEl = items && items.length ? items[items.length - 1] : null;
+            }
+            pulse(itemEl, 'assal-item-soft-flash-final', 950);
+          }
+        }catch(_){ }
+      });
+    }catch(_){ }
+  };
+})();
+</script>
+<!-- /ASSAL RESTORE CARD + ITEM SOFT FLASH FINAL -->
 
 </body>
 </html>
