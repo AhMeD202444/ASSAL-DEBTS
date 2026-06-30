@@ -5519,6 +5519,7 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
 }
 </style>
 
+<!-- ASSAL FINAL NO DELAYED CUSTOMER FOCUS PATCH - UI ONLY -->
 </head>
 
 <body>
@@ -8863,6 +8864,22 @@ function migrateLegacySellToAjal(daysObj){
 }
 
 let __assalDeferredDebtUiTimer = null;
+let __assalFastDebtBadgeRefreshPending = false;
+function assalRequestFastDebtBadgeRefresh(){
+  // تحديث خفيف للبادجات الظاهرة فقط بأقرب فريم؛ لا يفتح/يعيد بناء نافذة الديون حتى لا تثقل الواجهة.
+  try{ window.assalInvalidateDebtBadgeCache?.(); }catch(_){ }
+  if(__assalFastDebtBadgeRefreshPending) return;
+  __assalFastDebtBadgeRefreshPending = true;
+  const run = function(){
+    __assalFastDebtBadgeRefreshPending = false;
+    try{ window.assalInvalidateDebtBadgeCache?.(); }catch(_){ }
+    try{ window.assalRefreshCustomerDebtBadges?.(); }catch(_){ }
+    try{ window.assalRefreshPartialDebtToggleBadges?.(); }catch(_){ }
+  };
+  try{ (window.requestAnimationFrame || function(fn){ return setTimeout(fn, 16); })(run); }catch(_){ setTimeout(run, 16); }
+}
+window.assalRequestFastDebtBadgeRefresh = assalRequestFastDebtBadgeRefresh;
+
 function assalScheduleDebtUiRefresh(delay){
   try{ if(__assalDeferredDebtUiTimer) clearTimeout(__assalDeferredDebtUiTimer); }catch(_){}
   const wait = (typeof delay === 'number') ? delay : 180;
@@ -8887,6 +8904,7 @@ function save(){
   // تحديث نافذة ديون الزبائن وبادجات الدين — قراءة وحساب فقط، بدون تغيير أي حركة
   // الأداء: إبطال الكاش فوراً، وتأجيل إعادة الرسم/الحساب الثقيل حتى لا يؤخر رجوع مؤشر الإدخال.
   try{ window.assalInvalidateDebtBadgeCache?.(); }catch(_){}
+  try{ window.assalRequestFastDebtBadgeRefresh?.(); }catch(_){}
   try{
     if(typeof window.assalScheduleDebtUiRefresh === 'function') window.assalScheduleDebtUiRefresh(180);
     else {
@@ -9191,6 +9209,213 @@ initTransferFeature();
     function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
   /* ====== Enter Navigation (جديد) ====== */
+/* ASSAL FINAL FOCUS GUARD V2
+   واجهة فقط: يمنع سرقة الفوكس للخلف، ويفتح دورة إدخال جديدة إذا بقي المؤشر عالقاً بالملاحظات بعد الإضافة.
+   الفكرة: لا نعتمد على عدد ضغطات Enter، لأن ضغط Enter إضافي على note قد يكون سابقاً لرجوع الفوكس؛ القرار يكون حسب الحقل الحالي. */
+(function(){
+  window.__ASSAL_DOCK_LIGHT_FOCUS_GUARD_FINAL__ = true;
+  window.__ASSAL_DOCK_FINAL_FOCUS_GUARD_V2__ = true;
+  window.__assalDockUserSeq = window.__assalDockUserSeq || 0;
+  window.__assalAddFocusToken = window.__assalAddFocusToken || 0;
+
+  function isDockEventTarget(t){
+    try{ return !!(t && t.closest && t.closest('.dock')); }catch(_){ return false; }
+  }
+  function mark(e){
+    try{ if(isDockEventTarget(e.target)) window.__assalDockUserSeq = (window.__assalDockUserSeq || 0) + 1; }catch(_){ }
+  }
+  if(!window.__ASSAL_DOCK_FOCUS_MARK_EVENTS_BOUND__){
+    window.__ASSAL_DOCK_FOCUS_MARK_EVENTS_BOUND__ = true;
+    ['keydown','input','pointerdown','mousedown','touchstart'].forEach(function(ev){
+      try{ document.addEventListener(ev, mark, true); }catch(_){ }
+    });
+  }
+
+  function hasStartedNewDockEntry(){
+    try{
+      // بعد الإضافة نحن نفرّغ هذه الحقول. إذا امتلأ أحدها قبل رجوع الفوكس، فهذا يعني المستخدم بدأ إدخالاً جديداً فلا نسحبه.
+      return ['item','price','qty','note'].some(function(id){
+        var el = document.getElementById(id);
+        return !!(el && String(el.value || '').trim());
+      });
+    }catch(_){ return false; }
+  }
+
+  window.assalCanRestoreCustomerFocus = function(){
+    try{
+      var ae = document.activeElement;
+      if(!ae || ae === document.body || ae === document.documentElement) return true;
+      var id = ae.id || '';
+      if(id === 'cust') return true;
+
+      // إذا بقي المؤشر في نهاية الدورة القديمة، نرجعه للاسم حتى لا يعلق على الملاحظات.
+      if(id === 'note' || id === 'btnAdd') return !hasStartedNewDockEntry();
+
+      // إذا المستخدم سبقنا ووصل لحقل بداية/وسط دورة جديدة، لا نسحب المؤشر للخلف.
+      if(ae.closest && ae.closest('.dock')) return false;
+
+      return true;
+    }catch(_){ return true; }
+  };
+
+  window.assalSafeRestoreCustomerFocus = function(fn, startSeq, token){
+    var raf = window.requestAnimationFrame || function(cb){ return setTimeout(cb, 16); };
+    var run = function(){
+      try{
+        if(typeof fn !== 'function') return;
+        if(token && token !== window.__assalAddFocusToken) return;
+
+        var ae = document.activeElement;
+        var id = (ae && ae.id) || '';
+        var movedAfterAdd = (typeof startSeq === 'number') && ((window.__assalDockUserSeq || 0) > startSeq);
+        var stuckAtOldEnd = (id === 'note' || id === 'btnAdd') && !hasStartedNewDockEntry();
+
+        // إذا المستخدم ضغط Enter/كتب/لمس داخل الدوك بعد نجاح الإضافة، لا نرجعه للاسم؛
+        // الاستثناء الوحيد: إذا بقي فعلاً عالقاً في نهاية الدورة القديمة (note/btnAdd) والحقول فاضية.
+        if(movedAfterAdd && !stuckAtOldEnd) return;
+
+        if(typeof window.assalCanRestoreCustomerFocus === 'function' && !window.assalCanRestoreCustomerFocus()) return;
+        fn();
+      }catch(_){ }
+    };
+    try{ raf(function(){ setTimeout(run, 0); }); }catch(_){ setTimeout(run, 16); }
+  };
+
+})();
+
+/* ===== ASSAL HARD DOCK FOCUS SHIELD - UI ONLY =====
+   حل دفاعي نهائي: إذا المستخدم وصل فعلياً إلى نوع الفاتورة/الصنف/المادة/السعر/العدد،
+   امنع أي فوكس مؤجل قديم من الرجوع إلى اسم الزبون خلال لحظة قصيرة.
+   هذا لا يغير الحفظ ولا الديون؛ فقط يمنع cust.focus المؤجل إذا صار المستخدم متقدم بالحقل التالي.
+*/
+(function(){
+  'use strict';
+  if(window.__ASSAL_HARD_DOCK_FOCUS_SHIELD_FINAL__) return;
+  window.__ASSAL_HARD_DOCK_FOCUS_SHIELD_FINAL__ = true;
+
+  var nativeFocus = null;
+  var nativeInputSelect = null;
+  var shieldUntil = 0;
+  var shieldTargetId = '';
+  var restoreTimer = 0;
+  var PROTECTED = { type:1, cat:1, item:1, price:1, qty:1 };
+
+  function now(){ return Date.now ? Date.now() : (new Date()).getTime(); }
+  function byId(id){ try{ return document.getElementById(id); }catch(_){ return null; } }
+  function inDock(el){ try{ return !!(el && el.closest && el.closest('.dock')); }catch(_){ return false; } }
+  function isRealUserEvent(ev){ try{ return !!(ev && ev.isTrusted !== false); }catch(_){ return true; } }
+
+  function clearShield(){
+    shieldUntil = 0;
+    shieldTargetId = '';
+    if(restoreTimer){ try{ clearTimeout(restoreTimer); }catch(_){} restoreTimer = 0; }
+  }
+
+  function protect(id, ms){
+    if(!id || !PROTECTED[id]) return;
+    shieldTargetId = id;
+    shieldUntil = Math.max(shieldUntil || 0, now() + (ms || 1400));
+  }
+  window.assalProtectDockFocus = function(id, ms){ try{ protect(id, ms || 1800); }catch(_){ } };
+
+  function shouldBlockCustomerFocus(){
+    try{
+      if(!shieldTargetId || now() > shieldUntil) return false;
+      var t = byId(shieldTargetId);
+      if(!t || !inDock(t)) return false;
+      // إذا المستخدم حالياً في نهاية الدورة القديمة، لا نحظر الرجوع للاسم.
+      var ae = document.activeElement;
+      var aid = (ae && ae.id) || '';
+      if(aid === 'note' || aid === 'btnAdd') return false;
+      return true;
+    }catch(_){ return false; }
+  }
+
+  function restoreProtectedTarget(){
+    try{
+      if(!shouldBlockCustomerFocus()) return;
+      var t = byId(shieldTargetId);
+      if(!t) return;
+      nativeFocus.call(t, {preventScroll:true});
+      try{ t.select && t.select(); }catch(_){ }
+      if(t.id === 'type' && typeof window.showTypePanel === 'function') window.showTypePanel();
+      if(t.id === 'cat'  && typeof window.showCatPanel === 'function')  window.showCatPanel();
+    }catch(_){ }
+  }
+
+  try{
+    nativeFocus = HTMLElement.prototype.focus;
+    if(typeof nativeFocus === 'function' && !nativeFocus.__assalHardDockShieldWrapped){
+      var wrappedFocus = function(){
+        try{
+          if(this && this.id === 'cust' && shouldBlockCustomerFocus()){
+            if(restoreTimer){ try{ clearTimeout(restoreTimer); }catch(_){} }
+            restoreTimer = setTimeout(restoreProtectedTarget, 0);
+            return;
+          }
+        }catch(_){ }
+        return nativeFocus.apply(this, arguments);
+      };
+      wrappedFocus.__assalHardDockShieldWrapped = true;
+      HTMLElement.prototype.focus = wrappedFocus;
+    }
+
+    // مهم جداً: بعض المتصفحات تجعل input.select() يركز الحقل حتى لو منعنا focus().
+    // لذلك نمنع select() على اسم الزبون أيضاً إذا كان المستخدم وصل فعلاً إلى type/cat/item/price/qty.
+    nativeInputSelect = window.HTMLInputElement && HTMLInputElement.prototype && HTMLInputElement.prototype.select;
+    if(typeof nativeInputSelect === 'function' && !nativeInputSelect.__assalHardDockShieldSelectWrapped){
+      var wrappedSelect = function(){
+        try{
+          if(this && this.id === 'cust' && shouldBlockCustomerFocus()){
+            if(restoreTimer){ try{ clearTimeout(restoreTimer); }catch(_){} }
+            restoreTimer = setTimeout(restoreProtectedTarget, 0);
+            return;
+          }
+        }catch(_){ }
+        return nativeInputSelect.apply(this, arguments);
+      };
+      wrappedSelect.__assalHardDockShieldSelectWrapped = true;
+      HTMLInputElement.prototype.select = wrappedSelect;
+    }
+  }catch(_){ }
+
+  document.addEventListener('focusin', function(ev){
+    try{
+      var el = ev.target;
+      if(!inDock(el)) return;
+      var id = el.id || '';
+      if(id === 'cust'){
+        // كلك/رجوع يدوي للزبون يلغي القفل، أما فوكس مؤجل من السكربت سيتم اعتراضه من wrapper أعلاه.
+        return;
+      }
+      if(PROTECTED[id]) protect(id, 1600);
+    }catch(_){ }
+  }, true);
+
+  document.addEventListener('keydown', function(ev){
+    try{
+      if(!isRealUserEvent(ev)) return;
+      var el = ev.target;
+      if(!inDock(el)) return;
+      var id = el.id || '';
+      // المستخدم يريد فعلاً يرجع للاسم بالسهم اليمين من النوع: لا نمنعه.
+      if(id === 'type' && ev.key === 'ArrowRight'){ clearShield(); return; }
+      if(PROTECTED[id]) protect(id, 1600);
+      if(id === 'cust' && ev.key === 'Enter') protect('type', 1600);
+    }catch(_){ }
+  }, true);
+
+  document.addEventListener('pointerdown', function(ev){
+    try{
+      var el = ev.target;
+      if(!inDock(el)) return;
+      var id = el.id || '';
+      if(id === 'cust') clearShield();
+      else if(PROTECTED[id]) protect(id, 1600);
+    }catch(_){ }
+  }, true);
+})();
+
 /* التسلسل المطلوب: cust -> type -> cat -> item -> qty -> note */
 const order = ['cust','type','cat','item','price','qty','note'];
 
@@ -9297,6 +9522,7 @@ if(id === 'cust'){
 
   closeOverlaysForTarget(target);
 
+  try{ window.assalProtectDockFocus && window.assalProtectDockFocus('type', 2200); }catch(_){ }
   target?.focus();
   target?.select?.();
   showTypePanel();   // بدل openSelect
@@ -9311,15 +9537,9 @@ if(id === 'type'){
 }
 
 if(id === 'note'){
+  // الإضافة فقط. رجوع الفوكس للزبون صار من داخل زر الإضافة وبحارس آمن،
+  // حتى لا يرجع المؤشر للخلف إذا ضغطت Enter بسرعة وانتقلت للنوع/الصنف.
   document.getElementById('btnAdd').click();
-  setTimeout(()=>{
-    const target = document.getElementById('cust');
-
-    closeOverlaysForTarget(target);
-
-    target?.focus();
-    target?.select?.();
-  }, 0);
   return;
 }
 
@@ -9465,6 +9685,10 @@ async function processToastQueueUnified(){
 /* ====== إضافة سطر (ذكي لليوم السابق) ====== */
 // ==== إضافة سطر مع تحذير عند الإضافة ليوم سابق (نسخة مُحدَّثة جاهزة للاستبدال) ====
 document.getElementById('btnAdd').onclick = async () => {
+  // مهم: لا نحجز توكن الفوكس قبل التأكد أن الإضافة حقيقية؛
+  // ضغط Enter زائد على خانة الملاحظات بعد التفريغ لا يجوز أن يلغي رجوع الفوكس للإضافة السابقة.
+  let __assalFocusStartSeq = 0;
+  let __assalFocusToken = 0;
   const customer = (document.getElementById('cust').value || '').trim();
   const item     = (document.getElementById('item').value || '').trim();
   let priceVal = Number(parseIQD(document.getElementById('price').value) || 0);
@@ -9589,6 +9813,9 @@ document.getElementById('btnAdd').onclick = async () => {
     if (!days[selectedDay].includes(card)) days[selectedDay].unshift(card);
   }
 
+  __assalFocusStartSeq = (window.__assalDockUserSeq || 0);
+  __assalFocusToken = (window.__assalAddFocusToken = (window.__assalAddFocusToken || 0) + 1);
+
   save();
 
   // تنظيف الحقول + إرجاع المؤشر للسلوك القديم: خانة اسم الزبون
@@ -9603,22 +9830,27 @@ document.getElementById('btnAdd').onclick = async () => {
   if(__assalNoteInput) __assalNoteInput.value  = '';
   const __assalRestoreCustomerFocus = ()=>{
     try{
+      const ae = document.activeElement;
+      const aid = (ae && ae.id) || '';
+      const protectedNow = ['type','cat','item','price','qty'].includes(aid);
+      if(protectedNow) return;
+      if(typeof window.assalCanRestoreCustomerFocus === 'function' && !window.assalCanRestoreCustomerFocus()) return;
       if(__assalCustomerInput){
         __assalCustomerInput.focus({preventScroll:true});
         __assalCustomerInput.select?.();
       }
     }catch(_){
-      try{ __assalCustomerInput && __assalCustomerInput.focus(); __assalCustomerInput && __assalCustomerInput.select?.(); }catch(__){}
+      // لا نعمل fallback إجباري؛ fallback القديم كان يرجّع الفوكس للاسم حتى عندما يكون المستخدم وصل للنوع.
     }
   };
 
-  // ASSAL SAFE DOCK STABLE: نرسم مرة واحدة ثم نرجّع الفوكس مرة واحدة فقط.
-  // بدون تغيير الحفظ/الديون/الدمج/التسديد؛ هذا يمنع شدّ الفوكس المتكرر الذي كان يسبب تعليق الدوك.
+  // ASSAL SAFE DOCK STABLE: نرسم مرة واحدة ثم نرجّع الفوكس فوراً فقط إذا بقي المؤشر في نهاية دورة الإدخال.
+  // لا يوجد setTimeout/RAF لرجوع اسم الزبون بعد الإضافة حتى لا يلحق المستخدم ويرجعه من نوع الفاتورة إلى الاسم.
   try{ renderBoard?.(); }catch(_){}
   try{ renderRail?.(); }catch(_){}
   try{ refreshStats?.(); }catch(_){}
   try{ window.assalSoftFlashAddedCardAndItem && window.assalSoftFlashAddedCardAndItem(card, __assalNewLineId); }catch(_){}
-  setTimeout(__assalRestoreCustomerFocus, 0);
+  __assalRestoreCustomerFocus();
   showToast?.('success','تمت الإضافة');
 };
 
@@ -10634,9 +10866,22 @@ function assalStableMasonryPatchChildren(host, frag){
       return;
     }
 
+    // ASSAL FINAL HEIGHT GUARD: لا نترك minHeight قديم يراكم فراغاً شاسعاً إذا صار رندر سريع وراء رندر.
+    try{
+      if(host.__assalStableHeightTimer){
+        clearTimeout(host.__assalStableHeightTimer);
+        host.__assalStableHeightTimer = null;
+        host.style.minHeight = host.__assalStableOldMinHeight || '';
+        host.__assalStableOldMinHeight = '';
+      }
+    }catch(_){ }
+
     const oldMinHeight = host.style.minHeight || '';
     const oldHeight = host.offsetHeight || 0;
-    if(oldHeight > 0) host.style.minHeight = Math.ceil(oldHeight) + 'px';
+    if(oldHeight > 0){
+      host.__assalStableOldMinHeight = oldMinHeight;
+      host.style.minHeight = Math.ceil(oldHeight) + 'px';
+    }
 
     const oldById = new Map();
     Array.from(host.children || []).forEach(function(el){
@@ -10666,9 +10911,25 @@ function assalStableMasonryPatchChildren(host, frag){
     }
 
     if(oldHeight > 0){
+      try{ if(host.__assalStableHeightTimer) clearTimeout(host.__assalStableHeightTimer); }catch(_){ }
+      host.__assalStableHeightTimer = setTimeout(function(){
+        try{
+          host.style.minHeight = host.__assalStableOldMinHeight || oldMinHeight || '';
+          host.__assalStableOldMinHeight = '';
+          host.__assalStableHeightTimer = null;
+        }catch(_){ }
+      }, 140);
+      // احتياط خفيف: إذا صار رندر/ستاك غريب، لا تبقى قيمة minHeight معلّقة.
       setTimeout(function(){
-        try{ host.style.minHeight = oldMinHeight; }catch(_){ }
-      }, 420);
+        try{
+          if(host.__assalStableHeightTimer){
+            clearTimeout(host.__assalStableHeightTimer);
+            host.__assalStableHeightTimer = null;
+          }
+          host.style.minHeight = host.__assalStableOldMinHeight || oldMinHeight || '';
+          host.__assalStableOldMinHeight = '';
+        }catch(_){ }
+      }, 520);
     }
   }catch(err){
     // fallback آمن فقط إذا فشل التحديث المستقر.
