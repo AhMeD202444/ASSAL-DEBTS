@@ -9208,7 +9208,26 @@ initTransferFeature();
     
     function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
-  /* ====== Enter Navigation (جديد) ====== */
+  /* ===== ASSAL ROOT FIX: fast Enter focus without delayed select stealing =====
+   السبب الجذري: selectAll المؤجل كان يرجع يركز cust بعد انتقال المستخدم إلى type.
+   هذا helper مصدر واحد للرجوع إلى اسم الزبون، بدون setTimeout. */
+window.__assalAddBusy = false;
+function assalFocusCustomerNoScroll(selectText){
+  try{
+    var cust = document.getElementById('cust');
+    if(!cust || cust.disabled || cust.readOnly) return false;
+    try{ if(typeof hideItemSuggestions === 'function') hideItemSuggestions(); }catch(_){ }
+    try{ if(typeof hideCatPanel === 'function') hideCatPanel(); }catch(_){ }
+    try{ if(typeof hideTypePanel === 'function') hideTypePanel(); }catch(_){ }
+    try{ cust.focus({preventScroll:true}); }catch(_){ try{ cust.focus(); }catch(__){ } }
+    if(selectText && document.activeElement === cust){
+      try{ cust.select && cust.select(); }catch(_){ }
+    }
+    return true;
+  }catch(_){ return false; }
+}
+
+/* ====== Enter Navigation (جديد) ====== */
 /* ====== Enter Navigation (جديد) ====== */
 /* التسلسل المطلوب: cust -> type -> cat -> item -> qty -> note */
 const order = ['cust','type','cat','item','price','qty','note'];
@@ -9330,15 +9349,13 @@ if(id === 'type'){
 }
 
 if(id === 'note'){
-  document.getElementById('btnAdd').click();
-  setTimeout(()=>{
-    const target = document.getElementById('cust');
-
-    closeOverlaysForTarget(target);
-
-    target?.focus();
-    target?.select?.();
-  }, 0);
+  // ROOT FIX: إضافة واحدة فقط، ثم رجوع فوري لاسم الزبون بدون setTimeout.
+  // ضغطة Enter السريعة التالية تشتغل على cust وتفتح type طبيعياً.
+  e.stopImmediatePropagation();
+  if(!window.__assalAddBusy){
+    document.getElementById('btnAdd')?.click();
+  }
+  assalFocusCustomerNoScroll(true);
   return;
 }
 
@@ -9493,7 +9510,10 @@ document.getElementById('btnAdd').onclick = async () => {
   let note = (document.getElementById('note').value || '').trim();
 
   if (!customer || !item) return;
-  const __returnCheck = await assalReturnValidateBeforeAdd(customer, item, selectedDay);
+  if(window.__assalAddBusy) return;
+  window.__assalAddBusy = true;
+  try {
+    const __returnCheck = await assalReturnValidateBeforeAdd(customer, item, selectedDay);
   if (__returnCheck && __returnCheck.ok === false) return;
   if (type === 'راجع' && __returnCheck && __returnCheck.noteText) {
     note = assalReturnMergeNote(note, __returnCheck.noteText);
@@ -9610,25 +9630,37 @@ document.getElementById('btnAdd').onclick = async () => {
 
   save();
 
-  // ASSAL DOCK OLD SOURCE BEHAVIOR FINAL:
-  // نفس سلوك الدوك من الملف القديم السليم: بعد الإضافة تُفرغ حقول الآيتم ويرجع الفوكس إلى اسم المادة.
-  // هذا تعديل فوكس/دوك فقط ولا يمس الراجع أو رسائله أو منع الشراء أو منطق الديون.
-  const __assalItemInput = document.getElementById('item');
+  // ASSAL ROOT FIX: تنظيف حقول السطر فقط، والرجوع لاسم الزبون بدون سرقة لاحقة.
+  // إذا المستخدم انتقل بنفسه إلى type/cat/item أثناء انتظار الإضافة، لا نلمس الفوكس.
+  const __assalCustInput  = document.getElementById('cust');
+  const __assalItemInput  = document.getElementById('item');
   const __assalPriceInput = document.getElementById('price');
-  const __assalQtyInput = document.getElementById('qty');
-  const __assalNoteInput = document.getElementById('note');
-  if(__assalItemInput) __assalItemInput.value  = '';
+  const __assalQtyInput   = document.getElementById('qty');
+  const __assalNoteInput  = document.getElementById('note');
+  const __assalAddBtnEl   = document.getElementById('btnAdd');
+  const __assalActiveBeforeFinalFocus = document.activeElement;
+  const __assalCanConfirmCustomerFocus = (
+    !__assalActiveBeforeFinalFocus ||
+    __assalActiveBeforeFinalFocus === document.body ||
+    __assalActiveBeforeFinalFocus === __assalCustInput ||
+    __assalActiveBeforeFinalFocus === __assalNoteInput ||
+    __assalActiveBeforeFinalFocus === __assalAddBtnEl
+  );
+  if(__assalItemInput)  __assalItemInput.value  = '';
   if(__assalPriceInput) __assalPriceInput.value = '';
-  if(__assalQtyInput) __assalQtyInput.value   = '';
-  if(__assalNoteInput) __assalNoteInput.value  = '';
-  try{ __assalItemInput && __assalItemInput.focus(); }catch(_){ }
+  if(__assalQtyInput)   __assalQtyInput.value   = '';
+  if(__assalNoteInput)  __assalNoteInput.value  = '';
+  if(__assalCanConfirmCustomerFocus){ try{ assalFocusCustomerNoScroll(true); }catch(_){ } }
 
   renderBoard?.();
   renderRail?.();
   refreshStats?.();
   try{ window.assalSoftFlashAddedCardAndItem && window.assalSoftFlashAddedCardAndItem(card, __assalNewLineId); }catch(_){ }
-  focusNewCard?.(card);
   showToast?.('success','تمت الإضافة');
+  } finally {
+    window.__assalAddBusy = false;
+    try{ document.getElementById('btnAdd')?.removeAttribute('data-busy'); }catch(_){ }
+  }
 };
 
 
@@ -25059,8 +25091,10 @@ html body .masonry > .card{
   function selectAll(el){
     try{
       if(!canSelect(el)) return;
+      // ROOT FIX: لا تسمح لـ select() أن يرجع الفوكس لحقل قديم بعد انتقال المستخدم إلى type/cat.
+      if(document.activeElement !== el) return;
       el.select();
-      if(typeof el.setSelectionRange === 'function'){
+      if(typeof el.setSelectionRange === 'function' && document.activeElement === el){
         try{ el.setSelectionRange(0, String(el.value || '').length); }catch(_){ }
       }
     }catch(_){ }
@@ -25069,8 +25103,15 @@ html body .masonry > .card{
   function selectSoon(el){
     try{
       if(!canSelect(el)) return;
-      // ننتظر أقل لحظة حتى لا يتغلب الكلك نفسه على التحديد، بدون تغيير الفوكس أو Enter.
-      setTimeout(function(){ selectAll(el); }, 0);
+      var token = (el.__assalSelectSoonToken = (el.__assalSelectSoonToken || 0) + 1);
+      // ننتظر أقل لحظة، لكن نتحقق أن الفوكس لم ينتقل لحقل آخر قبل تنفيذ select().
+      setTimeout(function(){
+        try{
+          if(el.__assalSelectSoonToken !== token) return;
+          if(document.activeElement !== el) return;
+          selectAll(el);
+        }catch(_){ }
+      }, 0);
     }catch(_){ }
   }
 
@@ -25090,6 +25131,10 @@ html body .masonry > .card{
       el.addEventListener('touchend', function(){
         selectSoon(el);
       }, {capture:true, passive:true});
+
+      el.addEventListener('blur', function(){
+        try{ el.__assalSelectSoonToken = (el.__assalSelectSoonToken || 0) + 1; }catch(_){ }
+      }, true);
 
       // يمنع الماوس من إلغاء التحديد بعد focus/click، ولا يغيّر أي منطق إدخال.
       el.addEventListener('mouseup', function(ev){
@@ -25467,12 +25512,9 @@ html body .card .card-foot > .card-sums.assal-badges-ultra{
             return;
           }
           var itemEl = findItem(cardEl, lineId);
-          // السكرول رجع، لكن مرة واحدة فقط بعد الرندر، حتى تظهر البطاقة/المادة المضافة بدون شدّ الدوك.
-          scrollToAddedCard(cardEl);
-          pulse(cardEl, 'assal-smooth-added-card-pulse', 820);
-          pulse(cardEl, 'assal-card-soft-flash-final', 820);
-          pulse(itemEl, 'assal-smooth-added-item-pulse', 900);
-          pulse(itemEl, 'assal-item-soft-flash-final', 900);
+          // ROOT FIX: لا يوجد scrollTo بعد الإضافة حتى لا يخنق الدوك ولا يقطع التنقل السريع.
+          pulse(cardEl, 'assal-smooth-added-card-pulse', 420);
+          pulse(itemEl, 'assal-smooth-added-item-pulse', 420);
         }catch(_){ }
       }
       (window.requestAnimationFrame || function(fn){ return setTimeout(fn, 16); })(go);
@@ -25493,5 +25535,30 @@ html body .card .card-foot > .card-sums.assal-badges-ultra{
      تم نقل سلوك شريط الدوك من الملف القديم السليم: Enter/focus وبعد الإضافة يرجع إلى اسم المادة.
      تم حذف حراس الفوكس الحديثة التي تغيّر السلوك بين الأجهزة.
      لا تغيير لمنطق الراجع أو رسائل الراجع أو منع الشراء أو الديون/الحفظ/الرفع/الدمج/التسديد. -->
+
+
+<!-- ASSAL ROOT FAST ENTER + SELECT GUARD PERFORMANCE FINAL - UI ONLY -->
+<style id="assal-root-fast-enter-select-guard-performance-final">
+/* تقليل خانق Lenovo/Firefox بدون تغيير مقاسات أو ترتيب أو منطق. */
+@supports (-moz-appearance:none){
+  html body .dock-inner,
+  html body .ribbon,
+  html body .board-head,
+  html body .footer{
+    backdrop-filter:none !important;
+    -webkit-backdrop-filter:none !important;
+  }
+}
+html body .dock,
+html body .dock *{
+  backface-visibility:visible !important;
+  -webkit-backface-visibility:visible !important;
+}
+html body .dock{
+  will-change:auto !important;
+  transform:translateX(50%) !important;
+}
+</style>
+<!-- /ASSAL ROOT FAST ENTER + SELECT GUARD PERFORMANCE FINAL -->
 </body>
 </html>
