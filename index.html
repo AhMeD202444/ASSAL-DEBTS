@@ -6015,7 +6015,7 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
   .att-camera-panel.is-live .att-camera-placeholder,.att-camera-panel.is-captured .att-camera-placeholder{display:none;}
   .att-camera-panel.is-error{border-color:rgba(239,68,68,.38);background:linear-gradient(135deg,rgba(127,29,29,.18),rgba(14,165,233,.06));}
   .att-person-btn.att-busy,.att-confirm.att-busy{opacity:.62!important;pointer-events:none!important;}
-  .att-photo-btn{margin-top:5px;height:26px;border:1px solid rgba(14,165,233,.32);background:#061324;color:#bfdbfe;border-radius:999px;padding:0 9px;font-size:10.5px;font-weight:950;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;}
+  .att-photo-btn{margin-top:0;height:24px;border:1px solid rgba(14,165,233,.32);background:#061324;color:#bfdbfe;border-radius:999px;padding:0 8px;font-size:10.5px;font-weight:950;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:4px;line-height:1;white-space:nowrap;vertical-align:middle;}
   .att-photo-btn:hover{filter:brightness(1.08);border-color:rgba(18,209,180,.44);}
   .att-people{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
   .att-person{position:relative;min-height:190px;border:1px solid rgba(148,163,184,.17);border-radius:20px;background:linear-gradient(135deg,#0b1428,#12183b);padding:20px 18px 16px;display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:auto auto;gap:12px;align-items:center;overflow:hidden;}
@@ -6082,7 +6082,13 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
   .att-table td{padding:10px;border-bottom:1px solid rgba(148,163,184,.10);text-align:center;font-weight:900;color:#e7eef9;vertical-align:middle;}
   .att-table tr:last-child td{border-bottom:0;}
   .att-present{color:#bbf7d0!important;}.att-absent{color:#94a3b8!important;}.att-timeout-note{max-width:210px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .att-date-cell{white-space:nowrap;color:#bfdbfe!important;}.att-time-cell small{display:block;color:#93a6c2;font-size:10.5px;margin-top:2px;}
+  .att-date-cell{white-space:nowrap;color:#bfdbfe!important;}
+  .att-time-cell{white-space:nowrap;padding-top:8px!important;padding-bottom:8px!important;}
+  .att-log-line{display:inline-flex;align-items:center;justify-content:center;gap:7px;flex-wrap:nowrap;max-width:100%;white-space:nowrap;vertical-align:middle;}
+  .att-log-time{display:inline-block;color:#bbf7d0;font-weight:950;font-size:13px;line-height:1;}
+  .att-log-state{display:inline-block;color:#93a6c2;font-size:10.5px;font-weight:950;line-height:1;border:1px solid rgba(148,163,184,.16);background:rgba(15,23,42,.55);border-radius:999px;padding:4px 7px;margin:0;}
+  .att-log-empty{display:inline-block;color:#94a3b8;font-weight:950;line-height:1;}
+  .att-time-cell small{display:inline-block;color:#93a6c2;font-size:10.5px;margin:0;}
   @media (max-width:900px){
     .att-box{padding:14px;overflow:auto;}
     .att-head,.att-report-head,.att-people,.att-info-row,.att-actions,.att-report-stats,.att-report-grid,.att-timeout-form,.att-camera-panel{grid-template-columns:1fr;}
@@ -7008,8 +7014,11 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
     return st.days[day];
   }
   function todayMap(){ return todayRec(readState()).employees || {}; }
-  function todayNames(map){ map = map || todayMap(); return EMPLOYEES.map(function(e){ return map[e.name] ? e.name : ''; }).filter(Boolean); }
-  function isCompleteToday(){ var map = todayMap(); return EMPLOYEES.every(function(e){ return !!map[e.name]; }); }
+  function isPresentRecord(rec){ return !!(rec && rec.present !== false); }
+  function todayNames(map){ map = map || todayMap(); return EMPLOYEES.map(function(e){ return isPresentRecord(map[e.name]) ? e.name : ''; }).filter(Boolean); }
+  function presentCountToday(map){ map = map || todayMap(); return EMPLOYEES.reduce(function(n,e){ return n + (isPresentRecord(map[e.name]) ? 1 : 0); }, 0); }
+  function missingCountToday(map){ return Math.max(0, EMPLOYEES.length - presentCountToday(map)); }
+  function isCompleteToday(){ return missingCountToday(todayMap()) <= 0; }
   function afterStartTime(){ var d = new Date(); return d.getHours() >= START_HOUR; }
   function isGateOpen(){ var gate = $('assalAttendanceGate'); return !!(gate && gate.classList.contains('assal-attendance-active')); }
   function normalizeCode(v){ return String(v || '').trim().toLowerCase(); }
@@ -7438,9 +7447,9 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
       if(!cmpRows.length){ logBody.innerHTML = '<tr><td colspan="3">لا يوجد سجل حضور لهذا الشهر.</td></tr>'; }
       else{
         function cellHtml(rec){
-          if(!rec) return '—';
+          if(!rec) return '<span class="att-log-empty">—</span>';
           var btn = rec.photoKey ? '<button type="button" class="att-photo-btn" data-photo-key="' + esc(rec.photoKey) + '"><i class="fa-solid fa-camera"></i><span>الصورة</span></button>' : '';
-          return esc(normalizeAnyTime(rec.time)) + '<small>حضور</small>' + btn;
+          return '<span class="att-log-line"><b class="att-log-time">' + esc(normalizeAnyTime(rec.time)) + '</b><small class="att-log-state">حضور</small>' + btn + '</span>';
         }
         logBody.innerHTML = cmpRows.map(function(r){
           return '<tr><td class="att-date-cell">' + esc(r.day) + '</td>' +
@@ -7527,23 +7536,49 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
     closeGate(null);
   }
   function noteActivity(){ if(!isGateOpen()) lastActivityAt = Date.now(); }
+  function elementVisible(el){
+    if(!el) return false;
+    try{
+      var cs = window.getComputedStyle ? window.getComputedStyle(el) : null;
+      return !!(el.offsetParent || el.getClientRects().length) && (!cs || (cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity || 1) !== 0));
+    }catch(_){ return !!(el && el.style && el.style.display !== 'none'); }
+  }
+  function attendanceSignedIn(){
+    if(window.IS_SIGNED_IN === true) return true;
+    var login = $('loginGate'), splash = $('authSplash');
+    if(elementVisible(login) || elementVisible(splash)) return false;
+    var badge = $('userBadge'), logout = $('btnLogout');
+    if(badge && String(badge.textContent || '').trim()) return true;
+    if(elementVisible(logout)) return true;
+    return false;
+  }
   function appReadyForAttendance(){
     if(window.__ASSAL_SINGLE_WINDOW_LOCKED__) return false;
-    if(window.IS_SIGNED_IN !== true) return false;
     var login = $('loginGate'), splash = $('authSplash');
-    if(login && login.style.display && login.style.display !== 'none') return false;
-    if(splash && splash.style.display && splash.style.display !== 'none') return false;
+    if(elementVisible(login) || elementVisible(splash)) return false;
+    if(!attendanceSignedIn()) return false;
     if(document.visibilityState !== 'visible') return false;
     return true;
   }
   function shouldAutoOpen(){
     if(!appReadyForAttendance()) return false;
     if(!afterStartTime()) return false;
-    if(isCompleteToday()) return false;
+    var map = todayMap();
+    var presentCount = presentCountToday(map);
+    var missingCount = Math.max(0, EMPLOYEES.length - presentCount);
+    if(missingCount <= 0) return false;
     if(isGateOpen()) return false;
-    if(Date.now() < nextPromptAt) return false;
-    if(Date.now() - lastActivityAt < IDLE_MS) return false;
+    // إذا لا يوجد أي حضور اليوم، لا ننتظر دورة الـ10 دقائق؛ النافذة واجبة الظهور بعد هدوء قصير فقط.
+    if(presentCount > 0 && Date.now() < nextPromptAt) return false;
+    var neededIdle = presentCount === 0 ? Math.min(3000, IDLE_MS) : IDLE_MS;
+    if(Date.now() - lastActivityAt < neededIdle) return false;
     return true;
+  }
+  function nudgeAutoPrompt(){
+    nextPromptAt = 0;
+    lastActivityAt = Date.now() - IDLE_MS - 1;
+    setTimeout(function(){ if(shouldAutoOpen()) openGate('auto-auth-ready'); }, 1200);
+    setTimeout(function(){ if(shouldAutoOpen()) openGate('auto-auth-ready-late'); }, 3200);
   }
   function startAutoPromptLoop(){
     if(autoTimer) clearInterval(autoTimer);
@@ -7589,6 +7624,8 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
   window.showAssalAttendanceGate = openGate;
   window.ASSAL_ATTENDANCE_EXPORT = exportAttendance;
   window.ASSAL_ATTENDANCE_IMPORT = importAttendance;
+  window.ASSAL_ATTENDANCE_AUTO_CHECK = nudgeAutoPrompt;
+  try{ window.addEventListener('assal:auth-ready', nudgeAutoPrompt, false); }catch(_){ }
 })();
 </script>
 <!-- ===== ASSAL ATTENDANCE TEST GATE - END ===== -->
@@ -19630,7 +19667,7 @@ function hideGate(){
 
 // UI عند الدخول/الخروج
 function setSignedInUI(user){
-  IS_SIGNED_IN = true;
+  window.IS_SIGNED_IN = true;
   const badge = document.getElementById('userBadge');
   if(badge){ badge.textContent = user?.email || ''; badge.style.display = ''; }
   if(btnLogout){ btnLogout.style.display = ''; btnLogout.title = `تسجيل خروج (${user?.email||''})`; }
@@ -19640,7 +19677,7 @@ function setSignedInUI(user){
 
 
 function setSignedOutUI(){
-  IS_SIGNED_IN = false;
+  window.IS_SIGNED_IN = false;
   const badge = document.getElementById('userBadge');
   if(badge){ badge.textContent = ''; badge.style.display = 'none'; }
   if(btnLogout){ btnLogout.style.display = 'none'; btnLogout.title = 'تسجيل خروج'; }
@@ -19695,6 +19732,9 @@ btnEl?.addEventListener('click', async ()=>{
     }
 
     setSignedInUI(user);
+    try{
+      setTimeout(()=>{ window.dispatchEvent(new CustomEvent('assal:auth-ready')); window.ASSAL_ATTENDANCE_AUTO_CHECK && window.ASSAL_ATTENDANCE_AUTO_CHECK(); }, 2500);
+    }catch(_){ }
     // هنا لا نعرض توستين مع بعض؛ نظام الطابور يضمن واحد ورا الثاني تلقائيًا
   }catch(e){
     hideSplash();
@@ -19741,6 +19781,11 @@ onAuthStateChanged(auth, async (user)=>{
 } else {
   showToast('info','هذه الحاسبة فرعية: لا مزامنة تلقائية. استعمل زر "سحب النسخة" عند الحاجة.');
 }
+
+      try{
+        window.dispatchEvent(new CustomEvent('assal:auth-ready'));
+        window.ASSAL_ATTENDANCE_AUTO_CHECK && window.ASSAL_ATTENDANCE_AUTO_CHECK();
+      }catch(_){ }
 
       
       
