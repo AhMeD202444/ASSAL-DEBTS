@@ -5783,6 +5783,1817 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
 })();
 </script>
 <!-- ===== ASSAL SAFE SINGLE WINDOW LOCK - END ===== -->
+<!-- ===== ASSAL ATTENDANCE TEST GATE - START ===== -->
+<div id="assalAttendanceGate" aria-hidden="true">
+  <div class="att-box" role="dialog" aria-modal="true" aria-labelledby="attTitle">
+
+    <section id="attMainView" class="att-view active" aria-label="حضور اليوم">
+      <div class="att-head">
+        <div class="att-icon"><i class="fa-solid fa-fingerprint"></i></div>
+        <div class="att-title-wrap">
+          <h2 id="attTitle">حضور اليوم</h2>
+          <p>كل موظف يسجل حضوره برمزه الشخصي فقط. تظهر النافذة من 8 صباحاً حتى يكتمل حضور الكادر.</p>
+        </div>
+        <div class="att-count" id="assalAttendanceSelectedCount">0</div>
+      </div>
+
+      <div class="att-info-row">
+        <div class="att-info"><i class="fa-regular fa-calendar-days"></i><span id="assalAttendanceDateText">—</span></div>
+        <div class="att-info"><i class="fa-regular fa-clock"></i><span id="assalAttendanceTimeText">—</span></div>
+      </div>
+
+      <div class="att-camera-panel" id="attCameraPanel" aria-label="نافذة كاميرا الحضور" aria-hidden="true">
+        <div class="att-camera-card" role="dialog" aria-modal="true" aria-labelledby="attCameraEmployee">
+          <div class="att-camera-glow att-camera-glow-a"></div>
+          <div class="att-camera-glow att-camera-glow-b"></div>
+
+          <div class="att-camera-top">
+            <div class="att-camera-logo"><i class="fa-solid fa-camera-retro"></i></div>
+            <div class="att-camera-heading">
+              <div class="att-camera-kicker">توثيق حضور بالصورة</div>
+              <div class="att-camera-title" id="attCameraEmployee">لا توجد عملية حالياً</div>
+            </div>
+            <button id="attCameraBackBtn" class="att-camera-close" type="button" title="رجوع للمحاولة">
+              <i class="fa-solid fa-arrow-right"></i>
+              <span>رجوع</span>
+            </button>
+          </div>
+
+          <div class="att-camera-content">
+            <div class="att-camera-box">
+              <video id="attCameraVideo" autoplay muted playsinline></video>
+              <canvas id="attCameraCanvas" hidden></canvas>
+              <img id="attCameraPhoto" alt="صورة الحضور" />
+              <div class="att-face-frame" aria-hidden="true"></div>
+              <div class="att-camera-scan" aria-hidden="true"></div>
+              <div class="att-camera-placeholder" id="attCameraPlaceholder">
+                <i class="fa-solid fa-user-lock"></i>
+                <span>بانتظار الرمز الصحيح</span>
+              </div>
+            </div>
+
+            <div class="att-camera-side">
+              <div class="att-camera-countdown" id="attCameraCountdown">—</div>
+              <div class="att-camera-status" id="attCameraStatus">بعد إدخال الرمز الصحيح تفتح نافذة تصوير مستقلة. يجب ظهور شخص واضح داخل المربع قبل اعتماد الحضور.</div>
+              <div class="att-camera-tips">
+                <div><i class="fa-solid fa-face-smile"></i><span>اجعل وجهك وسط الإطار</span></div>
+                <div><i class="fa-solid fa-lightbulb"></i><span>تأكد من وجود إضاءة كافية</span></div>
+                <div><i class="fa-solid fa-shield-halved"></i><span>الصورة تحفظ محلياً على هذا الجهاز فقط</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="att-people" aria-label="حضور الموظفين">
+        <div class="att-person" data-emp="مصطفى">
+          <span class="att-avatar"><i class="fa-solid fa-user"></i></span>
+          <span class="att-text">
+            <strong>مصطفى</strong>
+            <small class="assal-attendance-state">بانتظار الرمز</small>
+          </span>
+          <span class="att-check"><i class="fa-solid fa-check"></i></span>
+          <div class="att-code-row">
+            <input id="attCodeMustafa" name="assal_att_code_mustafa" class="att-code-input" type="password" inputmode="text" enterkeyhint="done" lang="en" dir="ltr" placeholder="اكتب الرمز" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-emp="مصطفى" data-lpignore="true" data-1p-ignore="true" aria-label="رمز مصطفى">
+            <button class="att-person-btn" type="button" data-emp="مصطفى"><i class="fa-solid fa-user-check"></i><span>حضور مصطفى</span></button>
+          </div>
+        </div>
+
+        <div class="att-person" data-emp="إسماعيل">
+          <span class="att-avatar"><i class="fa-solid fa-user"></i></span>
+          <span class="att-text">
+            <strong>إسماعيل</strong>
+            <small class="assal-attendance-state">بانتظار الرمز</small>
+          </span>
+          <span class="att-check"><i class="fa-solid fa-check"></i></span>
+          <div class="att-code-row">
+            <input id="attCodeIsmail" name="assal_att_code_ismail" class="att-code-input" type="password" inputmode="text" enterkeyhint="done" lang="en" dir="ltr" placeholder="اكتب الرمز" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-emp="إسماعيل" data-lpignore="true" data-1p-ignore="true" aria-label="رمز إسماعيل">
+            <button class="att-person-btn" type="button" data-emp="إسماعيل"><i class="fa-solid fa-user-check"></i><span>حضور إسماعيل</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="att-selected">
+        <span>حضور اليوم:</span>
+        <b id="assalAttendanceQuickNames">لا يوجد حضور مسجل</b>
+      </div>
+
+      <div class="att-actions">
+        <button id="assalAttendanceConfirm" class="att-confirm" type="button">
+          <i class="fa-solid fa-lock-open"></i>
+          <span>سجل حضور أحد الموظفين أولاً</span>
+        </button>
+        <button id="assalAttendanceReport" class="att-report" type="button">
+          <i class="fa-solid fa-list-check"></i>
+          <span>كشف الحضور</span>
+        </button>
+      </div>
+
+      <div id="assalAttendanceMsg" class="att-msg" role="status" aria-live="polite"></div>
+    </section>
+
+    <section id="attReportView" class="att-view" aria-label="كشف الحضور والزمنيات">
+      <div class="att-report-head">
+        <button id="attBackToMain" class="att-back" type="button"><i class="fa-solid fa-arrow-right"></i><span>رجوع للحضور</span></button>
+        <div class="att-report-title-wrap">
+          <h2>كشف الحضور والزمنيات</h2>
+          <p>جدول حضور مقارن لمصطفى وإسماعيل مع سجل الزمنيات للشهر الحالي</p>
+        </div>
+        <div class="att-report-head-actions">
+          <button id="attPrintReport" class="att-print" type="button"><i class="fa-solid fa-print"></i><span>طباعة الكشف</span></button>
+          <div class="att-report-month" id="attReportMonthText">—</div>
+        </div>
+      </div>
+
+      <div class="att-report-stats">
+        <div class="att-rstat"><span>حضور الشهر</span><b id="attMonthAttendanceCount">0</b></div>
+        <div class="att-rstat"><span>زمنيات الشهر</span><b id="attMonthTimeoutCount">0</b></div>
+        <div class="att-rstat"><span>آخر تحديث</span><b id="attReportNowText">—</b></div>
+      </div>
+
+      <div class="att-timeout-panel">
+        <div class="att-panel-title"><i class="fa-solid fa-person-walking-arrow-right"></i><span>تسجيل خروج زمنية</span></div>
+        <div class="att-timeout-form">
+          <select id="attTimeoutEmployee" class="att-timeout-input" aria-label="اسم الموظف للزمنية">
+            <option value="مصطفى">مصطفى</option>
+            <option value="إسماعيل">إسماعيل</option>
+          </select>
+          <div class="att-time12-wrap" aria-label="وقت الخروج زمنية بصيغة 12 ساعة">
+            <input id="attTimeoutTime" class="att-timeout-input att-time-12" type="text" inputmode="numeric" dir="ltr" maxlength="5" placeholder="04:00" autocomplete="off" aria-label="وقت الخروج زمنية">
+            <select id="attTimeoutPeriod" class="att-timeout-input att-period" aria-label="صباحاً أو مساءً">
+              <option value="ص">ص</option>
+              <option value="م">م</option>
+            </select>
+          </div>
+          <input id="attTimeoutNote" class="att-timeout-input" type="text" placeholder="ملاحظة: خروج زمنية" autocomplete="off" aria-label="ملاحظة الزمنية">
+          <button id="attTimeoutSave" class="att-timeout-save" type="button"><i class="fa-solid fa-plus"></i><span>حفظ الزمنية</span></button>
+        </div>
+        <div id="attTimeoutMsg" class="att-timeout-msg" role="status" aria-live="polite"></div>
+      </div>
+
+      <div class="att-report-grid">
+        <div class="att-report-card">
+          <div class="att-report-card-head"><i class="fa-solid fa-user-check"></i><span>جدول الحضور</span><em>يعرض 5 أيام والباقي سكرول</em></div>
+          <div class="att-table-scroll att-attendance-scroll nice-scroll">
+            <table class="att-table att-compare-table">
+              <thead><tr><th>التاريخ</th><th>مصطفى</th><th>إسماعيل</th></tr></thead>
+              <tbody id="assalAttendanceLog"><tr><td colspan="3">لا يوجد سجل حضور لهذا الشهر.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="att-report-card">
+          <div class="att-report-card-head"><i class="fa-solid fa-clock-rotate-left"></i><span>سجل الزمنيات</span><em>خروج مؤقت محفوظ للشهر</em></div>
+          <div class="att-table-scroll att-timeout-scroll nice-scroll">
+            <table class="att-table att-timeout-table">
+              <thead><tr><th>التاريخ</th><th>الموظف</th><th>الوقت</th><th>الملاحظة</th></tr></thead>
+              <tbody id="assalTimeoutLog"><tr><td colspan="4">لا توجد زمنيات مسجلة لهذا الشهر.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<style>
+  #assalAttendanceGate{
+    position:fixed;
+    inset:0;
+    z-index:2147483500;
+    display:none;
+    place-items:center;
+    padding:16px;
+    background:rgba(2,6,23,.78);
+    backdrop-filter:blur(8px);
+    color:#e7eef9;
+    font-family:var(--ui-font,"Cairo",system-ui),sans-serif;
+    pointer-events:auto;
+  }
+  #assalAttendanceGate.assal-attendance-active{display:grid!important;}
+  html.assal-attendance-locked,
+  html.assal-attendance-locked body{overflow:hidden!important;overscroll-behavior:none!important;}
+  #assalAttendanceGate *{box-sizing:border-box;}
+  .att-box{
+    width:min(1100px,calc(100vw - 28px));
+    max-height:min(94vh,850px);
+    overflow:hidden;
+    border-radius:24px;
+    border:1px solid rgba(18,209,180,.36);
+    border-top:4px solid rgba(18,209,180,.90);
+    background:linear-gradient(180deg,#0d1730,#0a1327);
+    box-shadow:0 30px 90px rgba(0,0,0,.65),inset 0 0 0 1px rgba(255,255,255,.035);
+    padding:20px 22px 22px;
+    position:relative;
+  }
+  .att-view{display:none;}
+  .att-view.active{display:block;animation:attIn .16s ease-out both;}
+  @keyframes attIn{from{opacity:.4;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+  .att-head,.att-report-head{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;margin-bottom:14px;}
+  .att-icon{width:72px;height:72px;border-radius:18px;display:grid;place-items:center;color:#fff;font-size:30px;background:linear-gradient(135deg,var(--brand,#12d1b4),var(--brand-2,#7c3aed));box-shadow:0 16px 34px rgba(124,58,237,.32);}
+  .att-title-wrap{text-align:center;min-width:0;}
+  .att-title-wrap h2,.att-report-title-wrap h2{margin:0;color:#fff;font-size:30px;font-weight:950;line-height:1.25;}
+  .att-title-wrap p,.att-report-title-wrap p{margin:5px 0 0;color:#b9c7da;font-size:14px;font-weight:800;line-height:1.7;}
+  .att-count{width:64px;height:64px;border-radius:18px;background:#0a1224;border:1px solid rgba(148,163,184,.16);display:grid;place-items:center;color:#bbf7d0;font-size:24px;font-weight:950;}
+  .att-info-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;}
+  .att-info{height:58px;border-radius:16px;border:1px solid rgba(148,163,184,.14);background:#081122;display:flex;align-items:center;justify-content:center;gap:10px;font-size:14px;font-weight:950;color:#e7eef9;}
+  .att-info i{color:#67e8f9;}
+  .att-camera-panel{display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:14px;align-items:stretch;margin:0 0 18px;border:1px solid rgba(18,209,180,.22);background:linear-gradient(135deg,rgba(18,209,180,.08),rgba(14,165,233,.07));border-radius:20px;padding:12px;overflow:hidden;}
+  .att-camera-box{position:relative;min-height:214px;border-radius:18px;background:#030712;border:1px solid rgba(148,163,184,.18);overflow:hidden;display:grid;place-items:center;}
+  .att-camera-box video,.att-camera-box img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;}
+  .att-camera-box video{transform:scaleX(-1);}
+  .att-camera-box img{background:#030712;}
+  .att-camera-placeholder{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#b7c6dd;text-align:center;font-weight:900;}
+  .att-camera-placeholder i{width:58px;height:58px;border-radius:18px;display:grid;place-items:center;background:linear-gradient(135deg,#0e7490,#155e75);color:#ecfeff;font-size:23px;box-shadow:0 12px 28px rgba(14,116,144,.25);}
+  .att-camera-side{min-width:0;display:flex;flex-direction:column;justify-content:center;gap:8px;padding:6px 8px;text-align:center;}
+  .att-camera-kicker{align-self:center;border:1px solid rgba(14,165,233,.22);background:#061324;color:#67e8f9;border-radius:999px;padding:4px 12px;font-size:12px;font-weight:950;}
+  .att-camera-title{color:#fff;font-size:20px;font-weight:950;line-height:1.35;}
+  .att-camera-status{color:#c6d4ea;font-size:13px;font-weight:850;line-height:1.85;}
+  .att-camera-countdown{height:42px;min-width:88px;align-self:center;border-radius:14px;border:1px solid rgba(148,163,184,.16);background:#081122;color:#bbf7d0;display:grid;place-items:center;font-size:18px;font-weight:950;padding:0 14px;}
+  .att-camera-panel.is-live .att-camera-box video{display:block;}
+  .att-camera-panel.is-captured .att-camera-box img{display:block;}
+  .att-camera-panel.is-live .att-camera-placeholder,.att-camera-panel.is-captured .att-camera-placeholder{display:none;}
+  .att-camera-panel.is-error{border-color:rgba(239,68,68,.38);background:linear-gradient(135deg,rgba(127,29,29,.18),rgba(14,165,233,.06));}
+  .att-person-btn.att-busy,.att-confirm.att-busy{opacity:.62!important;pointer-events:none!important;}
+  .att-photo-btn{margin-top:5px;height:26px;border:1px solid rgba(14,165,233,.32);background:#061324;color:#bfdbfe;border-radius:999px;padding:0 9px;font-size:10.5px;font-weight:950;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;}
+  .att-photo-btn:hover{filter:brightness(1.08);border-color:rgba(18,209,180,.44);}
+  .att-people{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+  .att-person{position:relative;min-height:190px;border:1px solid rgba(148,163,184,.17);border-radius:20px;background:linear-gradient(135deg,#0b1428,#12183b);padding:20px 18px 16px;display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:auto auto;gap:12px;align-items:center;overflow:hidden;}
+  .att-person::before{content:"";position:absolute;inset:0;opacity:.0;background:linear-gradient(135deg,rgba(18,209,180,.13),rgba(124,58,237,.14));pointer-events:none;}
+  .att-avatar{width:70px;height:70px;border-radius:18px;background:linear-gradient(135deg,var(--brand,#12d1b4),var(--brand-2,#7c3aed));display:grid;place-items:center;color:#fff;font-size:27px;box-shadow:0 14px 30px rgba(14,165,233,.18);z-index:1;}
+  .att-text{z-index:1;min-width:0;}
+  .att-text strong{display:block;font-size:28px;line-height:1.2;color:#fff;font-weight:950;}
+  .att-text small{display:block;margin-top:7px;font-size:14px;font-weight:900;color:#9fb0c8;}
+  .att-check{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#071120;border:1px solid rgba(148,163,184,.18);color:transparent;z-index:1;}
+  .att-code-row{grid-column:1 / -1;display:grid;grid-template-columns:1fr 180px;gap:10px;z-index:1;}
+  .att-code-input,.att-timeout-input{height:48px;border:1px solid rgba(148,163,184,.16);border-radius:14px;background:#050b16;color:#e7eef9;outline:none;padding:0 14px;font-family:var(--ui-font,"Cairo",system-ui);font-weight:900;font-size:15px;}
+  .att-code-input{letter-spacing:3px;text-align:center;font-family:Consolas,"Courier New",monospace!important;-webkit-text-security:disc!important;text-security:disc!important;caret-color:#12d1b4!important;}
+  .att-code-input::-ms-reveal,.att-code-input::-ms-clear{display:none!important;width:0!important;height:0!important;}
+  .att-code-input:focus,.att-timeout-input:focus{border-color:rgba(18,209,180,.55);box-shadow:0 0 0 3px rgba(18,209,180,.12);}
+  .att-person-btn{height:48px;border:0;border-radius:14px;cursor:pointer;background:linear-gradient(135deg,#0e7490,#155e75);color:#ecfeff;font-weight:950;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:14px;}
+  .att-person-btn:hover,.att-confirm:not(.att-disabled):hover,.att-report:hover,.att-back:hover,.att-timeout-save:hover,.att-print:hover{filter:brightness(1.05);transform:translateY(-1px);}
+  .att-person.is-checked{border-color:rgba(18,209,180,.62);box-shadow:0 16px 34px rgba(18,209,180,.14),inset 0 0 0 1px rgba(255,255,255,.035);}
+  .att-person.is-checked::before{opacity:1;}
+  .att-person.is-checked .att-check{background:linear-gradient(135deg,#16a34a,#0f766e);color:#fff;border-color:rgba(34,197,94,.42);}
+  .att-person.is-checked .assal-attendance-state{color:#bbf7d0;}
+  .att-person.is-checked .att-code-input,.att-person.is-checked .att-person-btn{opacity:.48;pointer-events:none;}
+  .att-selected{min-height:52px;border-radius:16px;border:1px solid rgba(148,163,184,.14);background:#081122;display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:14px;font-size:15px;font-weight:900;}
+  .att-selected span{color:#aebbd0}.att-selected b{color:#f8fafc;}
+  .att-actions{display:grid;grid-template-columns:1fr 210px;gap:12px;}
+  .att-confirm,.att-report,.att-back,.att-timeout-save,.att-print{height:60px;border-radius:16px;border:1px solid rgba(148,163,184,.16);cursor:pointer;font-weight:950;font-size:16px;display:inline-flex;align-items:center;justify-content:center;gap:10px;transition:.16s ease;}
+  .att-confirm{background:linear-gradient(135deg,#0e7490,#155e75);color:#fff;border-color:rgba(14,116,144,.45);}
+  .att-confirm.ready{background:linear-gradient(135deg,var(--brand,#12d1b4),var(--brand-2,#7c3aed));border-color:transparent;}
+  .att-confirm.att-disabled{opacity:.55;cursor:not-allowed;}
+  .att-report,.att-back{background:#081122;color:#e7eef9;}
+  .att-msg,.att-timeout-msg{min-height:24px;text-align:center;font-size:13px;font-weight:900;line-height:1.7;margin-top:8px;}
+  .att-report-head{margin-bottom:14px;}
+  .att-report-title-wrap{text-align:center;}
+  .att-report-head-actions{display:flex;align-items:center;gap:8px;justify-content:flex-end;}
+  .att-report-month{min-width:156px;height:54px;border-radius:16px;border:1px solid rgba(148,163,184,.14);display:grid;place-items:center;background:#081122;color:#bbf7d0;font-weight:950;}
+  .att-back{min-width:176px;height:54px;}
+  .att-print{background:linear-gradient(135deg,#16a34a,#0f766e);color:#fff;border-color:rgba(34,197,94,.35);height:54px;min-width:150px;}
+  .att-report-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px;}
+  .att-rstat{height:88px;border-radius:16px;border:1px solid rgba(148,163,184,.14);background:#081122;display:grid;place-items:center;padding:10px;text-align:center;}
+  .att-rstat span{font-size:13px;color:#9fb0c8;font-weight:900;}.att-rstat b{font-size:21px;color:#fff;font-weight:950;}
+  .att-timeout-panel{border-radius:18px;border:1px solid rgba(18,209,180,.25);background:rgba(18,209,180,.08);padding:14px;margin-bottom:14px;}
+  .att-panel-title{display:flex;align-items:center;gap:8px;margin-bottom:12px;color:#e7eef9;font-size:17px;font-weight:950;}.att-panel-title i{color:#67e8f9;}
+  .att-timeout-form{
+    display:grid;
+    grid-template-columns:minmax(170px,180px) minmax(172px,190px) minmax(260px,1fr) minmax(170px,188px);
+    gap:10px;
+    align-items:center;
+  }
+  .att-timeout-form > *{min-width:0;}
+  .att-timeout-input{width:100%;min-width:0;}
+  .att-time12-wrap{display:grid;grid-template-columns:minmax(0,1fr) 58px;gap:8px;min-width:0;width:100%;} 
+  .att-time-12{width:100%;min-width:0;text-align:center;font-family:Consolas,"Courier New",monospace!important;direction:ltr;}
+  .att-period{width:58px;min-width:58px;padding:0;text-align:center;text-align-last:center;}
+  #attTimeoutNote{min-width:0;width:100%;overflow:hidden;text-overflow:ellipsis;}
+  .att-timeout-save{height:48px;min-width:0;background:linear-gradient(135deg,#0e7490,#155e75);color:#fff;border-color:rgba(14,116,144,.45);}
+  .att-report-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .att-report-card{border-radius:18px;border:1px solid rgba(148,163,184,.14);background:#081122;padding:12px;min-width:0;}
+  .att-report-card-head{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;font-weight:950;color:#e7eef9;}
+  .att-report-card-head i{color:#67e8f9;}.att-report-card-head em{font-style:normal;color:#9fb0c8;font-size:11px;margin-inline-start:auto;}
+  .att-table-scroll{overflow:auto;border-radius:14px;border:1px solid rgba(148,163,184,.12);background:#050b16;}
+  .att-attendance-scroll{max-height:244px;}
+  .att-timeout-scroll{max-height:244px;}
+  .att-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px;}
+  .att-table th{position:sticky;top:0;z-index:1;background:#0f1a33;color:#dbeafe;font-weight:950;padding:10px;border-bottom:1px solid rgba(148,163,184,.14);white-space:nowrap;}
+  .att-table td{padding:10px;border-bottom:1px solid rgba(148,163,184,.10);text-align:center;font-weight:900;color:#e7eef9;vertical-align:middle;}
+  .att-table tr:last-child td{border-bottom:0;}
+  .att-present{color:#bbf7d0!important;}.att-absent{color:#94a3b8!important;}.att-timeout-note{max-width:210px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .att-date-cell{white-space:nowrap;color:#bfdbfe!important;}.att-time-cell small{display:block;color:#93a6c2;font-size:10.5px;margin-top:2px;}
+  @media (max-width:900px){
+    .att-box{padding:14px;overflow:auto;}
+    .att-head,.att-report-head,.att-people,.att-info-row,.att-actions,.att-report-stats,.att-report-grid,.att-timeout-form,.att-camera-panel{grid-template-columns:1fr;}
+    .att-camera-box{min-height:220px;}
+    .att-title-wrap,.att-report-title-wrap{text-align:center;}
+    .att-count{margin:auto;}
+    .att-code-row{grid-template-columns:1fr;}
+    .att-report-head-actions{justify-content:center;flex-wrap:wrap;}
+    .att-back,.att-print,.att-report-month{width:100%;}
+  }
+
+
+  /* ===== Smart independent camera modal ===== */
+  #assalAttendanceGate .att-camera-panel{
+    position:fixed !important;
+    inset:0 !important;
+    z-index:2147483600 !important;
+    display:none !important;
+    place-items:center !important;
+    margin:0 !important;
+    padding:18px !important;
+    border:0 !important;
+    border-radius:0 !important;
+    background:
+      radial-gradient(850px 520px at 82% 0%, rgba(18,209,180,.18), transparent 62%),
+      radial-gradient(760px 480px at 8% 12%, rgba(124,58,237,.22), transparent 62%),
+      rgba(2,6,23,.78) !important;
+    backdrop-filter:blur(13px) !important;
+    overflow:auto !important;
+  }
+  #assalAttendanceGate .att-camera-panel.is-active{ display:grid !important; }
+  #assalAttendanceGate .att-camera-card{
+    width:min(880px, calc(100vw - 30px));
+    border-radius:28px;
+    border:1px solid rgba(18,209,180,.36);
+    border-top:4px solid rgba(18,209,180,.92);
+    background:linear-gradient(180deg, rgba(13,23,48,.98), rgba(8,17,34,.99));
+    box-shadow:0 34px 96px rgba(0,0,0,.72), inset 0 0 0 1px rgba(255,255,255,.04);
+    padding:18px;
+    position:relative;
+    overflow:hidden;
+    animation:attCameraModalIn .22s ease-out both;
+  }
+  @keyframes attCameraModalIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+  #assalAttendanceGate .att-camera-glow{position:absolute;border-radius:50%;filter:blur(30px);opacity:.20;pointer-events:none;}
+  #assalAttendanceGate .att-camera-glow-a{width:270px;height:270px;top:-90px;inset-inline-end:-70px;background:radial-gradient(circle, rgba(124,58,237,.85), transparent 70%);}
+  #assalAttendanceGate .att-camera-glow-b{width:260px;height:260px;bottom:-100px;inset-inline-start:-80px;background:radial-gradient(circle, rgba(18,209,180,.72), transparent 72%);}
+  #assalAttendanceGate .att-camera-top{
+    position:relative;z-index:1;
+    display:grid;
+    grid-template-columns:auto 1fr auto;
+    gap:12px;
+    align-items:center;
+    margin-bottom:14px;
+  }
+  #assalAttendanceGate .att-camera-logo{
+    width:62px;height:62px;border-radius:20px;display:grid;place-items:center;
+    color:#fff;font-size:25px;
+    background:linear-gradient(135deg,var(--brand,#12d1b4),var(--brand-2,#7c3aed));
+    box-shadow:0 16px 34px rgba(124,58,237,.28);
+  }
+  #assalAttendanceGate .att-camera-heading{min-width:0;text-align:center;}
+  #assalAttendanceGate .att-camera-kicker{
+    display:inline-flex;align-items:center;justify-content:center;
+    border:1px solid rgba(14,165,233,.24);background:#061324;color:#67e8f9;
+    border-radius:999px;padding:4px 13px;font-size:12px;font-weight:950;margin-bottom:6px;
+  }
+  #assalAttendanceGate .att-camera-title{color:#fff;font-size:24px;font-weight:950;line-height:1.35;}
+  #assalAttendanceGate .att-camera-close{
+    height:48px;min-width:118px;padding:0 14px;border-radius:16px;border:1px solid rgba(148,163,184,.16);
+    background:#081122;color:#e7eef9;cursor:pointer;font-weight:950;font-size:14px;
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:.16s ease;
+  }
+  #assalAttendanceGate .att-camera-close:hover{filter:brightness(1.06);transform:translateY(-1px);border-color:rgba(18,209,180,.32);}
+  #assalAttendanceGate .att-camera-content{position:relative;z-index:1;display:grid;grid-template-columns:minmax(320px,1.08fr) minmax(260px,.92fr);gap:16px;align-items:stretch;}
+  #assalAttendanceGate .att-camera-box{
+    position:relative !important;
+    min-height:0 !important;
+    aspect-ratio:4/3;
+    border-radius:24px !important;
+    background:radial-gradient(circle at center,#111827,#020617) !important;
+    border:1px solid rgba(148,163,184,.18) !important;
+    overflow:hidden !important;
+    display:grid !important;
+    place-items:center !important;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.03), 0 18px 42px rgba(0,0,0,.36);
+  }
+  #assalAttendanceGate .att-camera-box video,
+  #assalAttendanceGate .att-camera-box img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;}
+  #assalAttendanceGate .att-camera-box video{transform:scaleX(-1);}
+  #assalAttendanceGate .att-camera-panel.is-live .att-camera-box video{display:block;}
+  #assalAttendanceGate .att-camera-panel.is-captured .att-camera-box img{display:block;}
+  #assalAttendanceGate .att-camera-placeholder{position:relative;z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#b7c6dd;text-align:center;font-weight:900;}
+  #assalAttendanceGate .att-camera-placeholder i{width:70px;height:70px;border-radius:22px;display:grid;place-items:center;background:linear-gradient(135deg,#0e7490,#155e75);color:#ecfeff;font-size:27px;box-shadow:0 14px 32px rgba(14,116,144,.27);}
+  #assalAttendanceGate .att-camera-panel.is-live .att-camera-placeholder,
+  #assalAttendanceGate .att-camera-panel.is-captured .att-camera-placeholder{display:none;}
+  #assalAttendanceGate .att-face-frame{
+    position:absolute;z-index:3;display:none;pointer-events:none;
+    inset:12% 24%;
+    border:2px solid rgba(236,254,255,.86);
+    border-radius:50% / 44%;
+    box-shadow:0 0 0 999px rgba(2,6,23,.18),0 0 22px rgba(18,209,180,.35),inset 0 0 18px rgba(18,209,180,.18);
+  }
+  #assalAttendanceGate .att-camera-panel.is-live .att-face-frame{display:block;}
+  #assalAttendanceGate .att-camera-scan{
+    position:absolute;z-index:3;display:none;pointer-events:none;inset:0;
+    background:linear-gradient(180deg,transparent 0%,rgba(18,209,180,.0) 42%,rgba(18,209,180,.42) 50%,rgba(18,209,180,.0) 58%,transparent 100%);
+    transform:translateY(-100%);
+    animation:attScan 1.75s ease-in-out infinite;
+  }
+  #assalAttendanceGate .att-camera-panel.is-live .att-camera-scan{display:block;}
+  @keyframes attScan{0%{transform:translateY(-100%)}100%{transform:translateY(100%)}}
+  #assalAttendanceGate .att-camera-side{min-width:0;display:flex;flex-direction:column;justify-content:center;gap:12px;padding:8px;text-align:center;}
+  #assalAttendanceGate .att-camera-countdown{
+    width:96px;height:96px;min-width:96px;align-self:center;border-radius:28px;
+    border:1px solid rgba(18,209,180,.28);background:linear-gradient(180deg,#081122,#061324);
+    color:#bbf7d0;display:grid;place-items:center;font-size:30px;font-weight:950;padding:0;
+    box-shadow:0 16px 36px rgba(18,209,180,.12), inset 0 0 0 1px rgba(255,255,255,.035);
+  }
+  #assalAttendanceGate .att-camera-status{color:#dbeafe;font-size:14px;font-weight:900;line-height:1.9;}
+  #assalAttendanceGate .att-camera-tips{display:grid;gap:8px;margin-top:2px;}
+  #assalAttendanceGate .att-camera-tips div{display:flex;align-items:center;gap:8px;text-align:start;border:1px solid rgba(148,163,184,.13);background:#081122;border-radius:14px;padding:9px 10px;color:#d7e5f5;font-size:12.5px;font-weight:850;line-height:1.6;}
+  #assalAttendanceGate .att-camera-tips i{color:#67e8f9;width:18px;text-align:center;}
+  #assalAttendanceGate .att-camera-panel.is-error .att-camera-card{border-color:rgba(239,68,68,.44);border-top-color:rgba(239,68,68,.85);}
+  #assalAttendanceGate .att-camera-panel.is-error .att-camera-countdown{color:#fecaca;border-color:rgba(239,68,68,.36);}
+  #assalAttendanceGate .att-camera-panel.is-captured .att-camera-countdown{color:#bbf7d0;border-color:rgba(34,197,94,.36);}
+  @media (max-width:760px){
+    #assalAttendanceGate .att-camera-panel{padding:10px !important;}
+    #assalAttendanceGate .att-camera-card{padding:14px;border-radius:24px;}
+    #assalAttendanceGate .att-camera-top{grid-template-columns:1fr;justify-items:center;text-align:center;}
+    #assalAttendanceGate .att-camera-content{grid-template-columns:1fr;}
+    #assalAttendanceGate .att-camera-box{aspect-ratio:4/3;}
+    #assalAttendanceGate .att-camera-close{width:100%;}
+    #assalAttendanceGate .att-face-frame{inset:12% 20%;}
+  }
+
+  /* ===== FINAL FIX: Elegant compact independent camera modal =====
+     إصلاح شكل نافذة الكاميرا حتى تكون مستقلة، أنيقة، ومركزة بدون تمدد عريض أو تداخل. */
+  #assalAttendanceGate .att-camera-panel{
+    position:fixed !important;
+    inset:0 !important;
+    z-index:2147483600 !important;
+    display:none !important;
+    place-items:center !important;
+    padding:16px !important;
+    margin:0 !important;
+    border:0 !important;
+    border-radius:0 !important;
+    background:
+      radial-gradient(780px 520px at 78% 5%, rgba(18,209,180,.16), transparent 62%),
+      radial-gradient(720px 500px at 12% 12%, rgba(124,58,237,.20), transparent 62%),
+      rgba(2,6,23,.78) !important;
+    backdrop-filter:blur(14px) !important;
+    overflow:auto !important;
+  }
+  #assalAttendanceGate .att-camera-panel.is-active{display:grid !important;}
+  #assalAttendanceGate .att-camera-card{
+    width:min(620px, calc(100vw - 28px)) !important;
+    max-height:calc(100vh - 34px) !important;
+    overflow:auto !important;
+    border-radius:28px !important;
+    border:1px solid rgba(18,209,180,.34) !important;
+    border-top:4px solid rgba(18,209,180,.95) !important;
+    background:linear-gradient(180deg, rgba(13,23,48,.985), rgba(8,17,34,.995)) !important;
+    box-shadow:0 34px 96px rgba(0,0,0,.76), inset 0 0 0 1px rgba(255,255,255,.04) !important;
+    padding:16px !important;
+  }
+  #assalAttendanceGate .att-camera-top{
+    display:grid !important;
+    grid-template-columns:auto 1fr auto !important;
+    align-items:center !important;
+    gap:10px !important;
+    margin-bottom:12px !important;
+  }
+  #assalAttendanceGate .att-camera-logo{
+    width:48px !important;
+    height:48px !important;
+    border-radius:16px !important;
+    font-size:20px !important;
+  }
+  #assalAttendanceGate .att-camera-heading{text-align:center !important;}
+  #assalAttendanceGate .att-camera-kicker{
+    padding:3px 10px !important;
+    font-size:11px !important;
+    margin-bottom:5px !important;
+  }
+  #assalAttendanceGate .att-camera-title{
+    font-size:21px !important;
+    line-height:1.35 !important;
+    white-space:nowrap !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+  }
+  #assalAttendanceGate .att-camera-close{
+    height:42px !important;
+    min-width:92px !important;
+    padding:0 12px !important;
+    border-radius:14px !important;
+  }
+  #assalAttendanceGate .att-camera-content{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:12px !important;
+  }
+  #assalAttendanceGate .att-camera-box{
+    width:100% !important;
+    min-height:0 !important;
+    aspect-ratio:4/3 !important;
+    border-radius:24px !important;
+    background:radial-gradient(circle at center,#111827,#020617) !important;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.035), 0 18px 42px rgba(0,0,0,.36) !important;
+  }
+  #assalAttendanceGate .att-camera-box video,
+  #assalAttendanceGate .att-camera-box img{
+    object-fit:cover !important;
+    object-position:center center !important;
+  }
+  #assalAttendanceGate .att-face-frame{
+    inset:10% 28% !important;
+    border-radius:50% / 44% !important;
+    border:2px solid rgba(236,254,255,.92) !important;
+    box-shadow:0 0 0 999px rgba(2,6,23,.14), 0 0 22px rgba(18,209,180,.34), inset 0 0 18px rgba(18,209,180,.16) !important;
+  }
+  #assalAttendanceGate .att-camera-side{
+    display:grid !important;
+    grid-template-columns:82px 1fr !important;
+    gap:10px !important;
+    align-items:center !important;
+    padding:0 !important;
+    text-align:start !important;
+  }
+  #assalAttendanceGate .att-camera-countdown{
+    width:82px !important;
+    height:82px !important;
+    min-width:82px !important;
+    border-radius:24px !important;
+    font-size:28px !important;
+  }
+  #assalAttendanceGate .att-camera-status{
+    text-align:start !important;
+    font-size:13.5px !important;
+    line-height:1.8 !important;
+  }
+  #assalAttendanceGate .att-camera-tips{
+    grid-column:1 / -1 !important;
+    grid-template-columns:1fr !important;
+    gap:6px !important;
+    margin-top:0 !important;
+  }
+  #assalAttendanceGate .att-camera-tips div{
+    padding:8px 10px !important;
+    border-radius:13px !important;
+    font-size:12.5px !important;
+  }
+  #assalAttendanceGate .att-camera-panel.is-error .att-camera-card{
+    border-color:rgba(239,68,68,.42) !important;
+    border-top-color:rgba(239,68,68,.92) !important;
+  }
+  #assalAttendanceGate .att-camera-panel.is-error .att-camera-box{
+    aspect-ratio:16/9 !important;
+  }
+  #assalAttendanceGate .att-camera-panel.is-error .att-camera-placeholder i{
+    background:linear-gradient(135deg,#7f1d1d,#991b1b) !important;
+    color:#fee2e2 !important;
+  }
+  @media (max-width:640px){
+    #assalAttendanceGate .att-camera-panel{padding:10px !important;}
+    #assalAttendanceGate .att-camera-card{width:calc(100vw - 20px) !important;padding:13px !important;border-radius:22px !important;}
+    #assalAttendanceGate .att-camera-top{grid-template-columns:1fr !important;justify-items:center !important;text-align:center !important;}
+    #assalAttendanceGate .att-camera-title{white-space:normal !important;}
+    #assalAttendanceGate .att-camera-close{width:100% !important;}
+    #assalAttendanceGate .att-camera-side{grid-template-columns:1fr !important;text-align:center !important;}
+    #assalAttendanceGate .att-camera-status{text-align:center !important;}
+    #assalAttendanceGate .att-camera-countdown{justify-self:center !important;}
+    #assalAttendanceGate .att-face-frame{inset:11% 22% !important;}
+  }
+
+
+  /* ===== CAMERA CENTER HEIGHT FINAL FIX - DO NOT MOVE =====
+     توسيط نافذة الكاميرا وإلغاء تمددها للجهة اليمنى، مع تقليل الارتفاع حتى لا يُقص الجزء السفلي. */
+  #assalAttendanceGate .att-camera-panel{
+    grid-template-columns:1fr !important;
+    grid-template-rows:1fr !important;
+    align-items:center !important;
+    justify-items:center !important;
+    place-items:center !important;
+    justify-content:center !important;
+    align-content:center !important;
+    padding:14px !important;
+    overflow:hidden !important;
+  }
+  #assalAttendanceGate .att-camera-card{
+    width:min(560px, calc(100vw - 34px)) !important;
+    max-width:min(560px, calc(100vw - 34px)) !important;
+    max-height:min(82vh, 610px) !important;
+    margin:auto !important;
+    overflow:auto !important;
+    padding:14px !important;
+    border-radius:24px !important;
+  }
+  #assalAttendanceGate .att-camera-top{
+    margin-bottom:8px !important;
+    gap:8px !important;
+  }
+  #assalAttendanceGate .att-camera-logo{
+    width:42px !important;
+    height:42px !important;
+    border-radius:14px !important;
+    font-size:18px !important;
+  }
+  #assalAttendanceGate .att-camera-title{
+    font-size:20px !important;
+    line-height:1.25 !important;
+  }
+  #assalAttendanceGate .att-camera-close{
+    height:38px !important;
+    min-width:86px !important;
+    border-radius:13px !important;
+  }
+  #assalAttendanceGate .att-camera-content{
+    grid-template-columns:1fr !important;
+    gap:9px !important;
+    align-items:center !important;
+  }
+  #assalAttendanceGate .att-camera-box{
+    width:100% !important;
+    height:clamp(210px, 34vh, 305px) !important;
+    min-height:210px !important;
+    max-height:305px !important;
+    aspect-ratio:auto !important;
+    margin:0 auto !important;
+    border-radius:21px !important;
+  }
+  #assalAttendanceGate .att-camera-box video,
+  #assalAttendanceGate .att-camera-box img{
+    width:100% !important;
+    height:100% !important;
+    object-fit:cover !important;
+    object-position:center center !important;
+  }
+  #assalAttendanceGate .att-face-frame{
+    inset:9% 29% !important;
+    border-radius:50% / 44% !important;
+  }
+  #assalAttendanceGate .att-camera-side{
+    display:grid !important;
+    grid-template-columns:64px 1fr !important;
+    gap:8px !important;
+    align-items:center !important;
+    padding:0 !important;
+    text-align:start !important;
+  }
+  #assalAttendanceGate .att-camera-countdown{
+    width:64px !important;
+    height:64px !important;
+    min-width:64px !important;
+    border-radius:18px !important;
+    font-size:22px !important;
+  }
+  #assalAttendanceGate .att-camera-status{
+    font-size:13px !important;
+    line-height:1.65 !important;
+    text-align:start !important;
+  }
+  #assalAttendanceGate .att-camera-tips{
+    display:none !important;
+  }
+  #assalAttendanceGate .att-camera-panel.is-error .att-camera-box{
+    height:clamp(175px, 28vh, 235px) !important;
+    min-height:175px !important;
+    max-height:235px !important;
+    aspect-ratio:auto !important;
+  }
+  @media (max-width:640px){
+    #assalAttendanceGate .att-camera-panel{padding:10px !important;}
+    #assalAttendanceGate .att-camera-card{
+      width:calc(100vw - 22px) !important;
+      max-width:calc(100vw - 22px) !important;
+      max-height:calc(100vh - 28px) !important;
+    }
+    #assalAttendanceGate .att-camera-box{
+      height:clamp(190px, 32vh, 260px) !important;
+      min-height:190px !important;
+      max-height:260px !important;
+    }
+    #assalAttendanceGate .att-camera-side{
+      grid-template-columns:1fr !important;
+      text-align:center !important;
+    }
+    #assalAttendanceGate .att-camera-status{text-align:center !important;}
+    #assalAttendanceGate .att-camera-countdown{justify-self:center !important;}
+    #assalAttendanceGate .att-face-frame{inset:10% 24% !important;}
+  }
+
+
+  /* ===== ATTENDANCE REPORT 5-ROWS SCROLL FINAL FIX - DO NOT MOVE =====
+     ضبط كشف الحضور والزمنيات: تصغير بادجات الزمنيات، وتثبيت عرض 5 صفوف فقط لكل جدول مع سكرول داخلي. */
+  #attReportView.active{
+    display:flex !important;
+    flex-direction:column !important;
+    min-height:0 !important;
+    max-height:calc(min(94vh, 850px) - 44px) !important;
+    overflow:hidden !important;
+  }
+  #attReportView .att-report-head{
+    flex:0 0 auto !important;
+    margin-bottom:8px !important;
+  }
+  #attReportView .att-report-title-wrap h2{
+    font-size:26px !important;
+    line-height:1.22 !important;
+  }
+  #attReportView .att-report-title-wrap p{
+    font-size:12.5px !important;
+    line-height:1.45 !important;
+    margin-top:3px !important;
+  }
+  #attReportView .att-back,
+  #attReportView .att-print,
+  #attReportView .att-report-month{
+    height:46px !important;
+    border-radius:14px !important;
+  }
+  #attReportView .att-report-stats{
+    flex:0 0 auto !important;
+    margin-bottom:9px !important;
+    gap:9px !important;
+  }
+  #attReportView .att-rstat{
+    height:62px !important;
+    padding:7px 8px !important;
+    border-radius:14px !important;
+  }
+  #attReportView .att-rstat span{
+    font-size:11.5px !important;
+    line-height:1.2 !important;
+  }
+  #attReportView .att-rstat b{
+    font-size:18px !important;
+    line-height:1.2 !important;
+  }
+  #attReportView .att-timeout-panel{
+    flex:0 0 auto !important;
+    padding:10px !important;
+    margin-bottom:9px !important;
+    border-radius:16px !important;
+  }
+  #attReportView .att-panel-title{
+    margin-bottom:7px !important;
+    font-size:15px !important;
+    line-height:1.25 !important;
+  }
+  #attReportView .att-timeout-form{
+    gap:8px !important;
+    grid-template-columns:minmax(142px,160px) minmax(148px,170px) minmax(220px,1fr) minmax(142px,160px) !important;
+  }
+  #attReportView .att-timeout-input,
+  #attReportView .att-timeout-save{
+    height:42px !important;
+    border-radius:12px !important;
+    font-size:13px !important;
+  }
+  #attReportView .att-time12-wrap{
+    grid-template-columns:minmax(0,1fr) 52px !important;
+    gap:6px !important;
+  }
+  #attReportView .att-period{
+    width:52px !important;
+    min-width:52px !important;
+  }
+  #attReportView .att-timeout-msg{
+    min-height:16px !important;
+    margin-top:4px !important;
+    font-size:11.5px !important;
+    line-height:1.35 !important;
+  }
+  #attReportView .att-report-grid{
+    flex:1 1 auto !important;
+    min-height:0 !important;
+    display:grid !important;
+    grid-template-columns:1fr 1fr !important;
+    gap:12px !important;
+    align-items:start !important;
+    overflow:hidden !important;
+  }
+  #attReportView .att-report-card{
+    min-height:0 !important;
+    overflow:hidden !important;
+    padding:10px !important;
+    border-radius:16px !important;
+    display:flex !important;
+    flex-direction:column !important;
+  }
+  #attReportView .att-report-card-head{
+    flex:0 0 auto !important;
+    min-height:28px !important;
+    margin-bottom:7px !important;
+    gap:7px !important;
+    justify-content:flex-start !important;
+    line-height:1.2 !important;
+  }
+  #attReportView .att-report-card-head span{
+    font-size:15px !important;
+    font-weight:950 !important;
+  }
+  #attReportView .att-report-card-head em{
+    height:18px !important;
+    max-height:18px !important;
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    padding:0 7px !important;
+    border-radius:999px !important;
+    background:#0b1327 !important;
+    border:1px solid rgba(148,163,184,.14) !important;
+    color:#9fb0c8 !important;
+    font-size:9.5px !important;
+    font-weight:900 !important;
+    line-height:18px !important;
+    white-space:nowrap !important;
+    margin-inline-start:auto !important;
+  }
+  #attReportView .att-table-scroll{
+    flex:0 0 auto !important;
+    height:236px !important;
+    max-height:236px !important;
+    min-height:236px !important;
+    overflow-y:auto !important;
+    overflow-x:auto !important;
+    scrollbar-gutter:stable !important;
+  }
+  #attReportView .att-attendance-scroll,
+  #attReportView .att-timeout-scroll{
+    height:236px !important;
+    max-height:236px !important;
+    min-height:236px !important;
+  }
+  #attReportView .att-table{
+    table-layout:fixed !important;
+    width:100% !important;
+  }
+  #attReportView .att-table th{
+    height:36px !important;
+    padding:6px 8px !important;
+    font-size:12px !important;
+    line-height:1.2 !important;
+  }
+  #attReportView .att-table td{
+    height:40px !important;
+    padding:6px 8px !important;
+    font-size:12px !important;
+    line-height:1.35 !important;
+  }
+  #attReportView .att-timeout-note{
+    max-width:160px !important;
+    white-space:nowrap !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+  }
+  @media (max-width:900px){
+    #attReportView.active{
+      max-height:none !important;
+      overflow:visible !important;
+    }
+    #attReportView .att-report-grid{
+      grid-template-columns:1fr !important;
+      overflow:visible !important;
+    }
+    #attReportView .att-timeout-form{
+      grid-template-columns:1fr !important;
+    }
+    #attReportView .att-table-scroll,
+    #attReportView .att-attendance-scroll,
+    #attReportView .att-timeout-scroll{
+      height:236px !important;
+      max-height:236px !important;
+      min-height:236px !important;
+    }
+  }
+
+
+
+  /* ===== CAMERA FIXED SQUARE NO-SCROLL FINAL - DO NOT MOVE =====
+     تثبيت نافذة الكاميرا بدون سكرول، وجعل خانة الصورة/الفيديو مربعة ومتمركزة. */
+  #assalAttendanceGate .att-camera-panel{
+    position:fixed !important;
+    inset:0 !important;
+    z-index:2147483600 !important;
+    display:none !important;
+    place-items:center !important;
+    padding:14px !important;
+    overflow:hidden !important;
+    background:rgba(2,6,23,.62) !important;
+    backdrop-filter:blur(5px) !important;
+  }
+  #assalAttendanceGate .att-camera-panel.is-active{
+    display:grid !important;
+  }
+  #assalAttendanceGate .att-camera-card{
+    width:min(500px, calc(100vw - 34px)) !important;
+    max-width:min(500px, calc(100vw - 34px)) !important;
+    height:auto !important;
+    max-height:calc(100vh - 34px) !important;
+    overflow:hidden !important;
+    margin:auto !important;
+    padding:13px !important;
+    border-radius:24px !important;
+    display:flex !important;
+    flex-direction:column !important;
+    gap:10px !important;
+  }
+  #assalAttendanceGate .att-camera-top{
+    flex:0 0 auto !important;
+    display:grid !important;
+    grid-template-columns:72px 1fr 72px !important;
+    align-items:center !important;
+    gap:8px !important;
+    margin:0 !important;
+    min-height:44px !important;
+  }
+  #assalAttendanceGate .att-camera-logo{
+    width:40px !important;
+    height:40px !important;
+    border-radius:13px !important;
+    font-size:17px !important;
+    justify-self:start !important;
+  }
+  #assalAttendanceGate .att-camera-heading{
+    text-align:center !important;
+    min-width:0 !important;
+  }
+  #assalAttendanceGate .att-camera-kicker{
+    padding:3px 10px !important;
+    font-size:11px !important;
+    line-height:1.4 !important;
+  }
+  #assalAttendanceGate .att-camera-title{
+    font-size:19px !important;
+    line-height:1.25 !important;
+    margin-top:4px !important;
+    white-space:nowrap !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+  }
+  #assalAttendanceGate .att-camera-close{
+    width:72px !important;
+    min-width:72px !important;
+    height:40px !important;
+    border-radius:13px !important;
+    padding:0 10px !important;
+    justify-self:end !important;
+  }
+  #assalAttendanceGate .att-camera-content{
+    flex:0 0 auto !important;
+    display:flex !important;
+    flex-direction:column !important;
+    align-items:center !important;
+    gap:10px !important;
+    overflow:hidden !important;
+    min-height:0 !important;
+  }
+  #assalAttendanceGate .att-camera-box{
+    width:min(360px, calc(100vw - 76px)) !important;
+    height:min(360px, calc(100vw - 76px)) !important;
+    min-width:0 !important;
+    min-height:0 !important;
+    max-width:360px !important;
+    max-height:360px !important;
+    aspect-ratio:1 / 1 !important;
+    margin:0 auto !important;
+    border-radius:22px !important;
+    overflow:hidden !important;
+    flex:0 0 auto !important;
+  }
+  #assalAttendanceGate .att-camera-box video,
+  #assalAttendanceGate .att-camera-box img{
+    position:absolute !important;
+    inset:0 !important;
+    width:100% !important;
+    height:100% !important;
+    object-fit:cover !important;
+    object-position:center center !important;
+    max-width:none !important;
+    max-height:none !important;
+  }
+  #assalAttendanceGate .att-face-frame{
+    inset:12% 22% !important;
+    border-radius:50% / 43% !important;
+  }
+  #assalAttendanceGate .att-camera-scan{
+    inset:10px !important;
+    border-radius:19px !important;
+  }
+  #assalAttendanceGate .att-camera-placeholder{
+    padding:12px !important;
+  }
+  #assalAttendanceGate .att-camera-placeholder i{
+    width:62px !important;
+    height:62px !important;
+    border-radius:20px !important;
+    font-size:24px !important;
+  }
+  #assalAttendanceGate .att-camera-side{
+    width:100% !important;
+    max-width:430px !important;
+    display:grid !important;
+    grid-template-columns:58px minmax(0,1fr) !important;
+    gap:9px !important;
+    align-items:center !important;
+    padding:0 !important;
+    margin:0 auto !important;
+    text-align:start !important;
+    overflow:hidden !important;
+  }
+  #assalAttendanceGate .att-camera-countdown{
+    width:58px !important;
+    height:58px !important;
+    min-width:58px !important;
+    border-radius:17px !important;
+    font-size:19px !important;
+    padding:0 !important;
+  }
+  #assalAttendanceGate .att-camera-status{
+    font-size:12.5px !important;
+    line-height:1.55 !important;
+    text-align:start !important;
+    max-height:62px !important;
+    overflow:hidden !important;
+  }
+  #assalAttendanceGate .att-camera-tips{
+    display:none !important;
+  }
+  #assalAttendanceGate .att-camera-panel.is-error .att-camera-box{
+    width:min(300px, calc(100vw - 92px)) !important;
+    height:min(300px, calc(100vw - 92px)) !important;
+    max-width:300px !important;
+    max-height:300px !important;
+    aspect-ratio:1 / 1 !important;
+  }
+  @media (max-height:720px){
+    #assalAttendanceGate .att-camera-card{
+      width:min(460px, calc(100vw - 30px)) !important;
+      padding:11px !important;
+      gap:8px !important;
+    }
+    #assalAttendanceGate .att-camera-box{
+      width:min(300px, calc(100vw - 90px)) !important;
+      height:min(300px, calc(100vw - 90px)) !important;
+      max-width:300px !important;
+      max-height:300px !important;
+    }
+    #assalAttendanceGate .att-camera-title{font-size:17px !important;}
+    #assalAttendanceGate .att-camera-side{grid-template-columns:50px minmax(0,1fr) !important;}
+    #assalAttendanceGate .att-camera-countdown{width:50px !important;height:50px !important;min-width:50px !important;font-size:17px !important;}
+    #assalAttendanceGate .att-camera-status{font-size:12px !important;line-height:1.45 !important;max-height:52px !important;}
+  }
+  @media (max-width:560px){
+    #assalAttendanceGate .att-camera-panel{padding:10px !important;}
+    #assalAttendanceGate .att-camera-card{
+      width:calc(100vw - 20px) !important;
+      max-width:calc(100vw - 20px) !important;
+      padding:11px !important;
+      border-radius:22px !important;
+    }
+    #assalAttendanceGate .att-camera-top{
+      grid-template-columns:1fr !important;
+      justify-items:center !important;
+      text-align:center !important;
+      gap:7px !important;
+    }
+    #assalAttendanceGate .att-camera-logo{justify-self:center !important;}
+    #assalAttendanceGate .att-camera-close{width:100% !important;justify-self:stretch !important;}
+    #assalAttendanceGate .att-camera-title{white-space:normal !important;}
+    #assalAttendanceGate .att-camera-box{
+      width:min(300px, calc(100vw - 56px)) !important;
+      height:min(300px, calc(100vw - 56px)) !important;
+      max-width:300px !important;
+      max-height:300px !important;
+    }
+    #assalAttendanceGate .att-camera-side{
+      grid-template-columns:1fr !important;
+      text-align:center !important;
+      justify-items:center !important;
+    }
+    #assalAttendanceGate .att-camera-status{text-align:center !important;max-height:70px !important;}
+  }
+
+
+</style>
+
+<script>
+(function(){
+  var STATE_KEY = 'assal_attendance_state_v2';
+  var LEGACY_ATT_KEY = 'assal_attendance_test_log_v1';
+  var LEGACY_TIMEOUT_KEY = 'assal_attendance_timeout_log_v1';
+  var START_HOUR = 8;
+  var RETRY_MS = 10 * 60 * 1000;
+  var IDLE_MS = 60 * 1000;
+  var EMPLOYEES = [
+    { name:'مصطفى', code:'mu1', input:'attCodeMustafa' },
+    { name:'إسماعيل', code:'is2', input:'attCodeIsmail' }
+  ];
+  var clockTimer = null;
+  var autoTimer = null;
+  var serverSyncTimer = null;
+  var serverSyncBusy = false;
+  var nextPromptAt = 0;
+  var lastActivityAt = Date.now() - IDLE_MS - 1;
+  var PHOTO_DB_NAME = 'assal_attendance_photos_db_v1';
+  var PHOTO_STORE = 'photos';
+  var cameraStream = null;
+  var captureBusy = false;
+
+  function $(id){ return document.getElementById(id); }
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];}); }
+  function todayKey(d){ d = d || new Date(); return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); }
+  function monthKey(d){ d = d || new Date(); return d.getFullYear() + '-' + pad(d.getMonth()+1); }
+  function arDate(d){ try{ return d.toLocaleDateString('ar-IQ',{weekday:'long',year:'numeric',month:'2-digit',day:'2-digit'}); }catch(_){ return todayKey(d); } }
+  function arMonth(d){ try{ return d.toLocaleDateString('ar-IQ',{year:'numeric',month:'long'}); }catch(_){ return monthKey(d); } }
+  function time12(d){
+    d = d || new Date();
+    var h = d.getHours(), m = d.getMinutes();
+    var p = h >= 12 ? 'م' : 'ص';
+    var hh = h % 12; if(hh === 0) hh = 12;
+    return pad(hh) + ':' + pad(m) + ' ' + p;
+  }
+  function splitTime12(d){
+    var txt = time12(d).split(' ');
+    return { hm: txt[0] || '08:00', period: txt[1] || 'ص' };
+  }
+  function normalizeAnyTime(v){
+    v = String(v || '').trim();
+    var m24 = v.match(/^(\d{1,2}):(\d{2})$/);
+    if(m24){
+      var h = parseInt(m24[1],10), mm = parseInt(m24[2],10);
+      if(h >= 0 && h <= 23 && mm >= 0 && mm <= 59){
+        var p = h >= 12 ? 'م' : 'ص';
+        var hh = h % 12; if(hh === 0) hh = 12;
+        return pad(hh) + ':' + pad(mm) + ' ' + p;
+      }
+    }
+    var m12 = v.match(/^(\d{1,2}):(\d{2})\s*([صم]|AM|PM|am|pm)$/);
+    if(m12){
+      var h2 = parseInt(m12[1],10), mm2 = parseInt(m12[2],10);
+      if(h2 >= 1 && h2 <= 12 && mm2 >= 0 && mm2 <= 59){
+        var p2 = /p/i.test(m12[3]) ? 'م' : (/a/i.test(m12[3]) ? 'ص' : m12[3]);
+        return pad(h2) + ':' + pad(mm2) + ' ' + p2;
+      }
+    }
+    return v || '—';
+  }
+  function cleanTimeInput(v){
+    v = String(v || '').replace(/[^0-9]/g,'').slice(0,4);
+    if(v.length >= 3) v = v.slice(0,2) + ':' + v.slice(2);
+    return v;
+  }
+  function validTime12(hm, period){
+    var m = String(hm || '').match(/^(\d{1,2}):(\d{2})$/);
+    if(!m) return null;
+    var h = parseInt(m[1],10), mi = parseInt(m[2],10);
+    if(h < 1 || h > 12 || mi < 0 || mi > 59) return null;
+    period = period === 'م' ? 'م' : 'ص';
+    return pad(h) + ':' + pad(mi) + ' ' + period;
+  }
+  function makeId(){ try{ if(typeof genId === 'function') return 'att_'+genId(); }catch(_){} return 'att_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8); }
+  function readJSON(key, fallback){ try{ var raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; }catch(_){ return fallback; } }
+  function writeJSON(key, obj){ try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(_){ } }
+  function emptyState(){ return { version:2, updatedAt:'', days:{} }; }
+  function normalizeState(st){
+    st = (st && typeof st === 'object') ? st : emptyState();
+    if(!st.days || typeof st.days !== 'object') st.days = {};
+    Object.keys(st.days).forEach(function(day){
+      var rec = st.days[day] || {};
+      if(!rec.employees || typeof rec.employees !== 'object') rec.employees = {};
+      if(!Array.isArray(rec.timeouts)) rec.timeouts = [];
+      st.days[day] = rec;
+    });
+    return st;
+  }
+  function migrateLegacyIfNeeded(st){
+    try{
+      var changed = false;
+      var legacy = readJSON(LEGACY_ATT_KEY, []);
+      if(Array.isArray(legacy)){
+        legacy.forEach(function(r){
+          if(!r || !r.day || !r.employee) return;
+          var day = String(r.day);
+          var emp = String(r.employee);
+          if(!st.days[day]) st.days[day] = { employees:{}, timeouts:[] };
+          if(!st.days[day].employees) st.days[day].employees = {};
+          if(!st.days[day].employees[emp]){
+            st.days[day].employees[emp] = { employee:emp, present:true, day:day, time:normalizeAnyTime(r.time), at:r.at || r.confirmedAt || new Date().toISOString(), source:'legacy' };
+            changed = true;
+          }
+        });
+      }
+      var oldTimeouts = readJSON(LEGACY_TIMEOUT_KEY, []);
+      if(Array.isArray(oldTimeouts)){
+        oldTimeouts.forEach(function(r){
+          if(!r || !r.day || !r.employee) return;
+          var day = String(r.day);
+          if(!st.days[day]) st.days[day] = { employees:{}, timeouts:[] };
+          if(!Array.isArray(st.days[day].timeouts)) st.days[day].timeouts = [];
+          var id = r.id || ('legacy_' + [r.day,r.employee,r.time,r.note].join('_'));
+          if(!st.days[day].timeouts.some(function(x){ return String(x.id) === String(id); })){
+            st.days[day].timeouts.push({ id:id, day:day, employee:String(r.employee), time:normalizeAnyTime(r.time), note:r.note || 'خروج زمنية', at:r.at || r.createdAt || new Date().toISOString(), source:'legacy' });
+            changed = true;
+          }
+        });
+      }
+      if(changed) st.updatedAt = new Date().toISOString();
+    }catch(_){ }
+    return st;
+  }
+  function readState(){ return migrateLegacyIfNeeded(normalizeState(readJSON(STATE_KEY, emptyState()))); }
+  function saveState(st){ st = normalizeState(st); st.updatedAt = new Date().toISOString(); writeJSON(STATE_KEY, st); return st; }
+  function todayRec(st){
+    st = st || readState(); var day = todayKey();
+    if(!st.days[day]) st.days[day] = { employees:{}, timeouts:[] };
+    if(!st.days[day].employees) st.days[day].employees = {};
+    if(!Array.isArray(st.days[day].timeouts)) st.days[day].timeouts = [];
+    return st.days[day];
+  }
+  function todayMap(){ return todayRec(readState()).employees || {}; }
+  function todayNames(map){ map = map || todayMap(); return EMPLOYEES.map(function(e){ return map[e.name] ? e.name : ''; }).filter(Boolean); }
+  function isCompleteToday(){ var map = todayMap(); return EMPLOYEES.every(function(e){ return !!map[e.name]; }); }
+  function afterStartTime(){ var d = new Date(); return d.getHours() >= START_HOUR; }
+  function isGateOpen(){ var gate = $('assalAttendanceGate'); return !!(gate && gate.classList.contains('assal-attendance-active')); }
+  function normalizeCode(v){ return String(v || '').trim().toLowerCase(); }
+
+  function hardenAttendanceCodeInputs(){
+    Array.prototype.slice.call(document.querySelectorAll('#assalAttendanceGate .att-code-input')).forEach(function(input){
+      try{ input.type = 'password'; }catch(_){ input.setAttribute('type','password'); }
+      input.setAttribute('autocomplete','off');
+      input.setAttribute('autocorrect','off');
+      input.setAttribute('autocapitalize','none');
+      input.setAttribute('spellcheck','false');
+      input.setAttribute('lang','en');
+      input.setAttribute('dir','ltr');
+      input.setAttribute('data-lpignore','true');
+      input.setAttribute('data-1p-ignore','true');
+    });
+  }
+
+  function wait(ms){ return new Promise(function(resolve){ setTimeout(resolve, ms); }); }
+  function setCaptureLock(on){
+    captureBusy = !!on;
+    Array.prototype.slice.call(document.querySelectorAll('#assalAttendanceGate .att-person-btn')).forEach(function(btn){ btn.classList.toggle('att-busy', !!on); btn.disabled = !!on || btn.disabled; });
+    var confirm = $('assalAttendanceConfirm'); if(confirm) confirm.classList.toggle('att-busy', !!on);
+    if(!on) syncPersonVisuals();
+  }
+  function stopCamera(){
+    try{
+      if(cameraStream){ cameraStream.getTracks().forEach(function(t){ try{ t.stop(); }catch(_){} }); }
+    }catch(_){ }
+    cameraStream = null;
+    var video = $('attCameraVideo');
+    if(video){ try{ video.pause(); video.srcObject = null; }catch(_){} }
+  }
+  function resetCameraPanel(){
+    stopCamera();
+    var panel = $('attCameraPanel'), photo = $('attCameraPhoto'), status = $('attCameraStatus'), emp = $('attCameraEmployee'), cd = $('attCameraCountdown');
+    if(panel){ panel.classList.remove('is-active','is-requesting','is-live','is-captured','is-error'); panel.setAttribute('aria-hidden','true'); }
+    if(photo){ photo.removeAttribute('src'); }
+    if(emp) emp.textContent = 'لا توجد عملية حالياً';
+    if(status) status.textContent = 'بعد إدخال الرمز الصحيح تفتح نافذة تصوير مستقلة. يجب ظهور شخص واضح داخل المربع قبل اعتماد الحضور.';
+    if(cd) cd.textContent = '—';
+  }
+  function setCameraStatus(mode, employeeName, text, countdown){
+    var panel = $('attCameraPanel'), emp = $('attCameraEmployee'), status = $('attCameraStatus'), cd = $('attCameraCountdown');
+    if(panel){
+      panel.classList.add('is-active');
+      panel.setAttribute('aria-hidden','false');
+      panel.classList.toggle('is-requesting', mode === 'requesting');
+      panel.classList.toggle('is-live', mode === 'live');
+      panel.classList.toggle('is-captured', mode === 'captured');
+      panel.classList.toggle('is-error', mode === 'error');
+    }
+    if(emp) emp.textContent = employeeName ? ('تصوير حضور ' + employeeName) : 'توثيق صورة الحضور';
+    if(status) status.textContent = text || '';
+    if(cd) cd.textContent = countdown || '—';
+  }
+  function cameraFailText(err){
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return 'المتصفح لا يدعم فتح الكاميرا من هذه الصفحة. شغّل التطبيق عبر HTTPS أو localhost.';
+    if(location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') return 'الكاميرا تحتاج تشغيل التطبيق عبر HTTPS أو localhost حتى يسمح المتصفح بفتحها.';
+    var specialMsg = err && err.message ? String(err.message) : '';
+    if(specialMsg.indexOf('ATTENDANCE_FRAME_CHECK_FAILED:') === 0) return specialMsg.replace('ATTENDANCE_FRAME_CHECK_FAILED:', '');
+    var name = err && err.name;
+    if(name === 'NotAllowedError' || name === 'PermissionDeniedError') return 'تم رفض صلاحية الكاميرا. لا يمكن تسجيل الحضور إلا بعد السماح بالكاميرا.';
+    if(name === 'NotFoundError' || name === 'DevicesNotFoundError') return 'لم يتم العثور على كاميرا متصلة بالحاسوب.';
+    if(name === 'NotReadableError' || name === 'TrackStartError') return 'الكاميرا مستخدمة من برنامج آخر أو غير متاحة حالياً.';
+    return 'تعذر فتح الكاميرا. تأكد من السماح للكاميرا ثم حاول مرة أخرى.';
+  }
+  function openPhotoDB(){
+    return new Promise(function(resolve, reject){
+      if(!window.indexedDB){ reject(new Error('NO_INDEXEDDB')); return; }
+      var req = indexedDB.open(PHOTO_DB_NAME, 1);
+      req.onupgradeneeded = function(){
+        var db = req.result;
+        if(!db.objectStoreNames.contains(PHOTO_STORE)) db.createObjectStore(PHOTO_STORE, { keyPath:'key' });
+      };
+      req.onsuccess = function(){ resolve(req.result); };
+      req.onerror = function(){ reject(req.error || new Error('DB_ERROR')); };
+    });
+  }
+  function saveAttendancePhoto(key, dataUrl, meta){
+    return openPhotoDB().then(function(db){
+      return new Promise(function(resolve, reject){
+        var tx = db.transaction(PHOTO_STORE, 'readwrite');
+        tx.objectStore(PHOTO_STORE).put(Object.assign({}, meta || {}, { key:key, dataUrl:dataUrl, savedAt:new Date().toISOString() }));
+        tx.oncomplete = function(){ try{ db.close(); }catch(_){} resolve(true); };
+        tx.onerror = function(){ try{ db.close(); }catch(_){} reject(tx.error || new Error('SAVE_PHOTO_ERROR')); };
+      });
+    });
+  }
+  function getAttendancePhoto(key){
+    return openPhotoDB().then(function(db){
+      return new Promise(function(resolve, reject){
+        var tx = db.transaction(PHOTO_STORE, 'readonly');
+        var req = tx.objectStore(PHOTO_STORE).get(key);
+        req.onsuccess = function(){ try{ db.close(); }catch(_){} resolve(req.result || null); };
+        req.onerror = function(){ try{ db.close(); }catch(_){} reject(req.error || new Error('GET_PHOTO_ERROR')); };
+      });
+    });
+  }
+  function drawAttendanceFrame(video, canvas){
+    if(!canvas) throw new Error('NO_CANVAS');
+    var vw = video.videoWidth || 640, vh = video.videoHeight || 480;
+    var out = 640;
+    var side = Math.max(1, Math.min(vw, vh));
+    var sx = Math.max(0, Math.round((vw - side) / 2));
+    var sy = Math.max(0, Math.round((vh - side) / 2));
+    canvas.width = out;
+    canvas.height = out;
+    var ctx = canvas.getContext('2d', { willReadFrequently:true });
+    ctx.drawImage(video, sx, sy, side, side, 0, 0, out, out);
+    return { ctx:ctx, width:out, height:out };
+  }
+  function assessAttendanceFrame(ctx, w, h){
+    try{
+      var data = ctx.getImageData(0, 0, w, h).data;
+      var step = Math.max(5, Math.floor(Math.min(w, h) / 110));
+      var sum = 0, sum2 = 0, count = 0, dark = 0, bright = 0;
+      var edgeSum = 0, edgeCount = 0;
+      var csum = 0, csum2 = 0, ccount = 0, cedgeSum = 0, cedgeCount = 0;
+      var cx1 = Math.floor(w * .22), cx2 = Math.ceil(w * .78), cy1 = Math.floor(h * .16), cy2 = Math.ceil(h * .86);
+      function lumAt(x, y){
+        var i = ((y * w) + x) * 4;
+        return (0.2126 * data[i]) + (0.7152 * data[i+1]) + (0.0722 * data[i+2]);
+      }
+      for(var y = 0; y < h; y += step){
+        for(var x = 0; x < w; x += step){
+          var l = lumAt(x, y);
+          sum += l; sum2 += l*l; count++;
+          if(l < 28) dark++;
+          if(l > 238) bright++;
+          if(x + step < w){ edgeSum += Math.abs(l - lumAt(x + step, y)); edgeCount++; }
+          if(y + step < h){ edgeSum += Math.abs(l - lumAt(x, y + step)); edgeCount++; }
+          if(x >= cx1 && x <= cx2 && y >= cy1 && y <= cy2){
+            csum += l; csum2 += l*l; ccount++;
+            if(x + step <= cx2){ cedgeSum += Math.abs(l - lumAt(x + step, y)); cedgeCount++; }
+            if(y + step <= cy2){ cedgeSum += Math.abs(l - lumAt(x, y + step)); cedgeCount++; }
+          }
+        }
+      }
+      var avg = sum / Math.max(1, count);
+      var sd = Math.sqrt(Math.max(0, (sum2 / Math.max(1, count)) - avg*avg));
+      var edge = edgeSum / Math.max(1, edgeCount);
+      var cavg = csum / Math.max(1, ccount);
+      var csd = Math.sqrt(Math.max(0, (csum2 / Math.max(1, ccount)) - cavg*cavg));
+      var cedge = cedgeSum / Math.max(1, cedgeCount);
+      var darkRatio = dark / Math.max(1, count);
+      var brightRatio = bright / Math.max(1, count);
+
+      if(avg < 34 || darkRatio > .58) return { ok:false, reason:'الصورة مظلمة جداً. زِد الإضاءة وقف أمام الكاميرا.' };
+      if(avg > 235 || brightRatio > .62) return { ok:false, reason:'الإضاءة قوية جداً أو الصورة بيضاء. عدّل اتجاه الكاميرا.' };
+      if(sd < 17 || edge < 4.2) return { ok:false, reason:'الصورة تبدو فارغة أو بدون تفاصيل كافية. يجب ظهور شخص أمام الكاميرا.' };
+      if(csd < 15 || cedge < 3.8) return { ok:false, reason:'لم تظهر تفاصيل كافية في منتصف الصورة. قف داخل مربع التصوير.' };
+      return { ok:true, avg:avg, sd:sd, edge:edge, centerSd:csd, centerEdge:cedge };
+    }catch(e){
+      return { ok:false, reason:'تعذر فحص الصورة. حاول مرة ثانية مع إضاءة أوضح.' };
+    }
+  }
+  async function capturePhotoForEmployee(emp){
+    setCaptureLock(true);
+    resetCameraPanel();
+    try{
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('NO_CAMERA_API');
+      setCameraStatus('requesting', emp.name, 'سيظهر طلب السماح بالكاميرا من المتصفح أو ويندوز. اضغط سماح حتى تبدأ نافذة التصوير.', 'سماح');
+      var stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user', width:{ ideal:960 }, height:{ ideal:720 } }, audio:false });
+      cameraStream = stream;
+      var video = $('attCameraVideo');
+      if(!video) throw new Error('NO_VIDEO_ELEMENT');
+      video.srcObject = stream;
+      try{ await video.play(); }catch(_){ }
+      setCameraStatus('live', emp.name, 'قف أمام الكاميرا وخلي الشخص واضح داخل المربع. لن يتم تسجيل الحضور إذا كانت الصورة فارغة.', '3');
+      await wait(850); setCameraStatus('live', emp.name, 'يتم فحص الإضاءة ووضوح الصورة. ثبت مكانك داخل الإطار.', '2');
+      await wait(850); setCameraStatus('live', emp.name, 'جاهز للفحص والالتقاط. لا تتحرك الآن.', '1');
+      await wait(850);
+      var canvas = $('attCameraCanvas');
+      var frame = null, check = null;
+      for(var attempt = 1; attempt <= 3; attempt++){
+        frame = drawAttendanceFrame(video, canvas);
+        check = assessAttendanceFrame(frame.ctx, frame.width, frame.height);
+        if(check && check.ok) break;
+        if(attempt < 3){
+          var reason = (check && check.reason) ? check.reason : 'الصورة غير واضحة. اقترب من الكاميرا.';
+          setCameraStatus('live', emp.name, reason + ' سنحاول مرة أخرى.', 'تحقق');
+          await wait(1150);
+        }
+      }
+      if(!check || !check.ok){
+        var finalReason = (check && check.reason) ? check.reason : 'لم يتم رصد صورة واضحة لشخص أمام الكاميرا.';
+        throw new Error('ATTENDANCE_FRAME_CHECK_FAILED:' + finalReason);
+      }
+      var dataUrl = canvas.toDataURL('image/jpeg', 0.78);
+      stopCamera();
+      var img = $('attCameraPhoto'); if(img) img.src = dataUrl;
+      setCameraStatus('captured', emp.name, 'تم قبول الصورة: الشخص ظاهر والإضاءة مناسبة. جاري حفظ الحضور محلياً...', 'تم');
+      return dataUrl;
+    }catch(err){
+      stopCamera();
+      var msg = cameraFailText(err);
+      setCameraStatus('error', emp.name, msg, '!');
+      throw new Error(msg);
+    }finally{
+      setCaptureLock(false);
+    }
+  }
+  async function showAttendancePhoto(key){
+    try{
+      var rec = await getAttendancePhoto(key);
+      if(!rec || !rec.dataUrl){ setTimeoutMsg('الصورة غير موجودة على هذا الجهاز.', false); return; }
+      var w = window.open('', '_blank', 'width=760,height=680');
+      if(!w){ setTimeoutMsg('اسمح بفتح النوافذ المنبثقة لعرض الصورة.', false); return; }
+      var title = 'صورة حضور ' + (rec.employee || '') + ' • ' + (rec.day || '');
+      var html = '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>'+esc(title)+'</title><style>body{margin:0;background:#0b1220;color:#e5e7eb;font-family:Cairo,Arial,sans-serif;display:grid;place-items:center;min-height:100vh}.card{width:min(680px,94vw);border:1px solid #1f2a44;border-radius:18px;background:#0f172a;padding:14px;box-shadow:0 22px 60px rgba(0,0,0,.45)}h3{margin:0 0 10px;text-align:center}img{width:100%;border-radius:14px;display:block}.meta{text-align:center;color:#cbd5e1;font-weight:800;margin-top:10px}</style></head><body><div class="card"><h3>'+esc(title)+'</h3><img src="'+rec.dataUrl+'"><div class="meta">الوقت: '+esc(rec.time || '')+'</div></div></body></html>';
+      w.document.open(); w.document.write(html); w.document.close(); try{ w.focus(); }catch(_){ }
+    }catch(e){ setTimeoutMsg('تعذر فتح صورة الحضور.', false); }
+  }
+
+  function mergeAttendance(remote, local){
+    var out = normalizeState(JSON.parse(JSON.stringify(remote && remote.days ? remote : emptyState())));
+    local = normalizeState(local && local.days ? local : emptyState());
+    function stamp(x){ var t = Date.parse((x && (x.at || x.updatedAt || x.createdAt)) || ''); return isNaN(t) ? 0 : t; }
+    Object.keys(local.days || {}).forEach(function(day){
+      if(!out.days[day]) out.days[day] = { employees:{}, timeouts:[] };
+      var L = local.days[day] || {}, O = out.days[day];
+      O.employees = O.employees || {}; L.employees = L.employees || {};
+      Object.keys(L.employees).forEach(function(emp){
+        if(!O.employees[emp] || stamp(L.employees[emp]) >= stamp(O.employees[emp])) O.employees[emp] = L.employees[emp];
+      });
+      var map = {};
+      (Array.isArray(O.timeouts) ? O.timeouts : []).forEach(function(r){ map[String(r.id || [r.day,r.employee,r.time,r.note].join('|'))] = r; });
+      (Array.isArray(L.timeouts) ? L.timeouts : []).forEach(function(r){
+        var k = String(r.id || [r.day,r.employee,r.time,r.note].join('|'));
+        if(!map[k] || stamp(r) >= stamp(map[k])) map[k] = r;
+      });
+      O.timeouts = Object.keys(map).map(function(k){ return map[k]; }).sort(function(a,b){ return stamp(b)-stamp(a); });
+    });
+    out.version = 2; out.updatedAt = new Date().toISOString();
+    return out;
+  }
+  function importAttendance(remote, opts){
+    try{
+      if(!remote || typeof remote !== 'object') return;
+      var merged = mergeAttendance(remote, readState());
+      saveState(merged);
+      syncPersonVisuals();
+      refreshReport();
+      if(!(opts && opts.silent)) setMsg('تم تحديث الحضور من السيرفر.', true);
+    }catch(e){ console.warn('[ASSAL attendance] import skipped:', e); }
+  }
+  function exportAttendance(){ return readState(); }
+
+  function queueServerSync(reason){
+    clearTimeout(serverSyncTimer);
+    serverSyncTimer = setTimeout(function(){ pushAttendanceToServer(reason); }, 1600);
+  }
+  async function pushAttendanceToServer(reason){
+    if(serverSyncBusy) return;
+    if(!navigator.onLine) return;
+    if(window.__ASSAL_SINGLE_WINDOW_LOCKED__) return;
+    if(typeof window.serverGetBackup !== 'function' || typeof window.serverPostBackup !== 'function') return;
+    if(window.IS_SIGNED_IN !== true) return;
+    serverSyncBusy = true;
+    var localBefore = exportAttendance();
+    try{
+      var server = await window.serverGetBackup();
+      if(!server || typeof server !== 'object' || !server.days){ serverSyncBusy = false; return; }
+      var mergedAttendance = mergeAttendance(server.attendance || emptyState(), localBefore);
+      var payload = Object.assign({}, server, { attendance: mergedAttendance, exportedAt:new Date().toISOString(), attendanceUpdatedAt:new Date().toISOString() });
+      await window.serverPostBackup(payload);
+      try{ if(window.showToast) window.showToast('success','تم رفع الحضور للسيرفر'); }catch(_){ }
+    }catch(e){ console.warn('[ASSAL attendance] server sync skipped:', e); }
+    finally{ serverSyncBusy = false; }
+  }
+  function installServerHooks(){
+    var tries = 0;
+    var t = setInterval(function(){
+      tries++;
+      var done = true;
+      if(typeof window.buildBackupPayload === 'function' && !window.buildBackupPayload.__attendanceWrapped){
+        var origBuild = window.buildBackupPayload;
+        var wrappedBuild = function(){
+          var p = origBuild.apply(this, arguments) || {};
+          try{ p.attendance = exportAttendance(); }catch(_){ }
+          return p;
+        };
+        wrappedBuild.__attendanceWrapped = true;
+        window.buildBackupPayload = wrappedBuild;
+      }
+      if(typeof window.serverGetBackup === 'function' && !window.serverGetBackup.__attendanceWrapped){
+        var origGet = window.serverGetBackup;
+        var wrappedGet = async function(){
+          var res = await origGet.apply(this, arguments);
+          try{ if(res && res.attendance) importAttendance(res.attendance, {silent:true}); }catch(_){ }
+          return res;
+        };
+        wrappedGet.__attendanceWrapped = true;
+        window.serverGetBackup = wrappedGet;
+      }
+      if(!(window.buildBackupPayload && window.buildBackupPayload.__attendanceWrapped)) done = false;
+      if(!(window.serverGetBackup && window.serverGetBackup.__attendanceWrapped)) done = false;
+      if(done || tries > 120) clearInterval(t);
+    }, 500);
+  }
+
+  function updateClock(){
+    var d = new Date();
+    if($('assalAttendanceDateText')) $('assalAttendanceDateText').textContent = arDate(d);
+    if($('assalAttendanceTimeText')) $('assalAttendanceTimeText').textContent = time12(d);
+  }
+  function setMsg(text, ok){ var msg = $('assalAttendanceMsg'); if(!msg) return; msg.style.color = ok ? '#bbf7d0' : '#fecaca'; msg.textContent = text || ''; }
+  function setTimeoutMsg(text, ok){ var msg = $('attTimeoutMsg'); if(!msg) return; msg.style.color = ok ? '#bbf7d0' : '#fecaca'; msg.textContent = text || ''; }
+  function switchView(view){
+    var main = $('attMainView'), rep = $('attReportView');
+    if(!main || !rep) return;
+    main.classList.toggle('active', view !== 'report');
+    rep.classList.toggle('active', view === 'report');
+    if(view === 'report') refreshReport();
+  }
+  function syncPersonVisuals(){
+    var map = todayMap();
+    var names = todayNames(map);
+    if($('assalAttendanceSelectedCount')) $('assalAttendanceSelectedCount').textContent = String(names.length);
+    if($('assalAttendanceQuickNames')){
+      $('assalAttendanceQuickNames').textContent = names.length ? names.map(function(n){ return n + ' (' + normalizeAnyTime(map[n].time || '—') + ')'; }).join('، ') : 'لا يوجد حضور مسجل';
+    }
+    EMPLOYEES.forEach(function(emp){
+      var person = document.querySelector('#assalAttendanceGate .att-person[data-emp="' + emp.name + '"]');
+      var rec = map[emp.name];
+      if(person){
+        person.classList.toggle('is-checked', !!rec);
+        var state = person.querySelector('.assal-attendance-state');
+        if(state) state.textContent = rec ? ('حاضر • ' + normalizeAnyTime(rec.time || '—')) : 'بانتظار الرمز';
+      }
+      var input = $(emp.input);
+      if(input){ input.disabled = !!rec; if(rec) input.value = ''; }
+      var btn = person ? person.querySelector('.att-person-btn') : null;
+      if(btn){ btn.disabled = !!rec; btn.querySelector('span').textContent = rec ? 'تم الحضور' : ('حضور ' + emp.name); }
+    });
+    var confirm = $('assalAttendanceConfirm');
+    if(confirm){
+      var s = confirm.querySelector('span');
+      var count = names.length;
+      confirm.classList.toggle('ready', count > 0);
+      confirm.classList.toggle('att-disabled', count === 0);
+      if(s){
+        if(isCompleteToday()) s.textContent = 'اكتمل الحضور • فتح التطبيق';
+        else if(count > 0) s.textContent = 'فتح التطبيق ومتابعة انتظار باقي الكادر';
+        else s.textContent = 'سجل حضور أحد الموظفين أولاً';
+      }
+    }
+  }
+  async function confirmEmployee(name){
+    if(captureBusy){ setMsg('جاري التقاط صورة الحضور، انتظر لحظات.', false); return; }
+    var emp = EMPLOYEES.filter(function(e){ return e.name === name; })[0];
+    if(!emp) return;
+    var st = readState();
+    var rec = todayRec(st);
+    if(rec.employees[emp.name]){ setMsg('حضور ' + emp.name + ' مسجل مسبقاً اليوم.', true); syncPersonVisuals(); return; }
+    var input = $(emp.input);
+    var code = normalizeCode(input && input.value).replace(/[^a-z0-9]/g,'').slice(0,12);
+    if(!code){ setMsg('اكتب رمز ' + emp.name + ' أولاً.', false); try{ input && input.focus({preventScroll:true}); }catch(_){} return; }
+    if(code !== emp.code){ setMsg('رمز ' + emp.name + ' غير صحيح.', false); if(input){ input.value=''; try{ input.focus({preventScroll:true}); }catch(_){} } return; }
+
+    setMsg('الرمز صحيح. سيتم فتح الكاميرا لتوثيق حضور ' + emp.name + '.', true);
+    var d = new Date();
+    var photoKey = 'att_photo_' + todayKey(d) + '_' + encodeURIComponent(emp.name) + '_' + Date.now().toString(36);
+    var photoData;
+    try{
+      photoData = await capturePhotoForEmployee(emp);
+      await saveAttendancePhoto(photoKey, photoData, { employee:emp.name, day:todayKey(d), time:time12(d), at:d.toISOString(), source:'local-camera' });
+    }catch(err){
+      setMsg((err && err.message) ? err.message : 'لم يتم تسجيل الحضور لأن صورة الكاميرا لم تُحفظ.', false);
+      try{ input && input.focus({preventScroll:true}); }catch(_){}
+      return;
+    }
+
+    st = readState();
+    rec = todayRec(st);
+    if(rec.employees[emp.name]){ setMsg('حضور ' + emp.name + ' مسجل مسبقاً اليوم.', true); syncPersonVisuals(); return; }
+    rec.employees[emp.name] = { employee:emp.name, present:true, day:todayKey(d), time:time12(d), at:d.toISOString(), source:'local-code-camera', photoKey:photoKey, photoSaved:true, photoLocalOnly:true };
+    saveState(st);
+    setMsg('تم تسجيل حضور ' + emp.name + ' بالصورة • ' + time12(d), true);
+    syncPersonVisuals();
+    refreshReport();
+    queueServerSync('attendance');
+    if(isCompleteToday()){
+      nextPromptAt = Infinity;
+      setTimeout(function(){ closeGate(rec.employees[emp.name]); }, 650);
+    }else{
+      nextPromptAt = Date.now() + RETRY_MS;
+      setTimeout(function(){ closeGate(rec.employees[emp.name]); }, 750);
+    }
+  }
+  function monthAttendanceRows(){
+    var st = readState(), mk = monthKey();
+    return Object.keys(st.days || {}).filter(function(day){ return day.indexOf(mk) === 0; }).map(function(day){
+      var emp = (st.days[day] && st.days[day].employees) || {};
+      return { day:day, mustafa:emp['مصطفى'] || null, ismail:emp['إسماعيل'] || null };
+    }).filter(function(r){ return r.mustafa || r.ismail; }).sort(function(a,b){ return b.day.localeCompare(a.day); });
+  }
+  function monthAttendanceDetails(){
+    var rows = [];
+    monthAttendanceRows().forEach(function(r){
+      if(r.mustafa) rows.push(r.mustafa);
+      if(r.ismail) rows.push(r.ismail);
+    });
+    return rows.sort(function(a,b){ return Date.parse(b.at || '') - Date.parse(a.at || ''); });
+  }
+  function monthTimeouts(){
+    var st = readState(), mk = monthKey(), out = [];
+    Object.keys(st.days || {}).forEach(function(day){
+      if(day.indexOf(mk) !== 0) return;
+      ((st.days[day] && st.days[day].timeouts) || []).forEach(function(r){ out.push(r); });
+    });
+    return out.sort(function(a,b){ return Date.parse(b.at || '') - Date.parse(a.at || ''); });
+  }
+  function refreshReport(){
+    var d = new Date();
+    var cmpRows = monthAttendanceRows();
+    var details = monthAttendanceDetails();
+    var timeouts = monthTimeouts();
+    if($('attReportMonthText')) $('attReportMonthText').textContent = arMonth(d);
+    if($('attReportNowText')) $('attReportNowText').textContent = time12(d);
+    if($('attMonthAttendanceCount')) $('attMonthAttendanceCount').textContent = String(details.length);
+    if($('attMonthTimeoutCount')) $('attMonthTimeoutCount').textContent = String(timeouts.length);
+    var logBody = $('assalAttendanceLog');
+    if(logBody){
+      if(!cmpRows.length){ logBody.innerHTML = '<tr><td colspan="3">لا يوجد سجل حضور لهذا الشهر.</td></tr>'; }
+      else{
+        function cellHtml(rec){
+          if(!rec) return '—';
+          var btn = rec.photoKey ? '<button type="button" class="att-photo-btn" data-photo-key="' + esc(rec.photoKey) + '"><i class="fa-solid fa-camera"></i><span>الصورة</span></button>' : '';
+          return esc(normalizeAnyTime(rec.time)) + '<small>حضور</small>' + btn;
+        }
+        logBody.innerHTML = cmpRows.map(function(r){
+          return '<tr><td class="att-date-cell">' + esc(r.day) + '</td>' +
+            '<td class="att-time-cell ' + (r.mustafa?'att-present':'att-absent') + '">' + cellHtml(r.mustafa) + '</td>' +
+            '<td class="att-time-cell ' + (r.ismail?'att-present':'att-absent') + '">' + cellHtml(r.ismail) + '</td></tr>';
+        }).join('');
+      }
+    }
+    var timeoutBody = $('assalTimeoutLog');
+    if(timeoutBody){
+      if(!timeouts.length){ timeoutBody.innerHTML = '<tr><td colspan="4">لا توجد زمنيات مسجلة لهذا الشهر.</td></tr>'; }
+      else{
+        timeoutBody.innerHTML = timeouts.map(function(r){
+          return '<tr><td class="att-date-cell">' + esc(r.day || '—') + '</td><td>' + esc(r.employee || '—') + '</td><td class="att-present">' + esc(normalizeAnyTime(r.time || '—')) + '</td><td class="att-timeout-note">' + esc(r.note || 'خروج زمنية') + '</td></tr>';
+        }).join('');
+      }
+    }
+  }
+  function saveTimeout(){
+    var empEl = $('attTimeoutEmployee'), timeEl = $('attTimeoutTime'), periodEl = $('attTimeoutPeriod'), noteEl = $('attTimeoutNote');
+    var emp = String(empEl && empEl.value || '').trim();
+    var hm = String(timeEl && timeEl.value || '').trim();
+    var period = String(periodEl && periodEl.value || 'ص').trim();
+    var time = validTime12(hm, period);
+    if(!emp){ setTimeoutMsg('اختر اسم الموظف.', false); return; }
+    if(!time){ setTimeoutMsg('اكتب الوقت بصيغة 12 ساعة مثل 04:00 واختر ص/م.', false); try{ timeEl && timeEl.focus({preventScroll:true}); }catch(_){} return; }
+    var note = String(noteEl && noteEl.value || '').trim() || 'خروج زمنية';
+    var d = new Date();
+    var st = readState();
+    var rec = todayRec(st);
+    rec.timeouts.push({ id:makeId(), day:todayKey(d), employee:emp, time:time, note:note, at:d.toISOString(), source:'local-timeout' });
+    saveState(st);
+    if(noteEl) noteEl.value = '';
+    setTimeoutMsg('تم حفظ الزمنية: ' + emp + ' • ' + time, true);
+    refreshReport();
+    queueServerSync('timeout');
+  }
+  function printReport(){
+    try{
+      var d = new Date();
+      var issued = arDate(d) + ' • ' + time12(d);
+      var cmpRows = monthAttendanceRows();
+      var details = monthAttendanceDetails();
+      var timeouts = monthTimeouts();
+      var cmpHtml = cmpRows.length ? cmpRows.slice().reverse().map(function(r,idx){
+        function pc(rec){ return rec ? (normalizeAnyTime(rec.time) + (rec.photoSaved ? ' • صورة محفوظة' : '')) : '—'; }
+        return '<tr><td>'+esc(idx+1)+'</td><td>'+esc(r.day)+'</td><td>'+esc(pc(r.mustafa))+'</td><td>'+esc(pc(r.ismail))+'</td></tr>';
+      }).join('') : '<tr><td colspan="4" class="empty">لا يوجد سجل حضور لهذا الشهر</td></tr>';
+      var timeoutHtml = timeouts.length ? timeouts.slice().reverse().map(function(r,idx){
+        return '<tr><td>'+esc(idx+1)+'</td><td>'+esc(r.day||'—')+'</td><td>'+esc(r.employee||'—')+'</td><td>'+esc(normalizeAnyTime(r.time||'—'))+'</td><td class="note">'+esc(r.note||'خروج زمنية')+'</td></tr>';
+      }).join('') : '<tr><td colspan="5" class="empty">لا توجد زمنيات مسجلة لهذا الشهر</td></tr>';
+      var detailsHtml = details.length ? details.slice().reverse().map(function(r,idx){
+        return '<tr><td>'+esc(idx+1)+'</td><td>'+esc(r.day||'—')+'</td><td>'+esc(r.employee||'—')+'</td><td>'+esc(normalizeAnyTime(r.time||'—'))+'</td></tr>';
+      }).join('') : '<tr><td colspan="4" class="empty">لا توجد تفاصيل حضور</td></tr>';
+      var css = '@page{size:A4;margin:10mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0;background:#fff;color:#0f172a;font-family:"Cairo","Segoe UI",Tahoma,Arial,sans-serif}.wrap{padding:10px}.doc{max-width:980px;margin:0 auto;border:1px solid #dbe3ef;border-radius:18px;overflow:hidden}.topbar{height:6px;background:linear-gradient(90deg,#0f766e,#0ea5e9,#7c3aed)}.head{display:flex;justify-content:space-between;gap:12px;padding:14px 16px;background:linear-gradient(180deg,#fff,#f8fafc);border-bottom:1px solid #e5e7eb}.brand b{display:block;font-size:20px;font-weight:900}.brand span,.title span{display:block;margin-top:3px;color:#64748b;font-size:12px;font-weight:800}.title{text-align:left}.title b{display:block;font-size:18px;font-weight:900}.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px}.m{border:1px solid #e5e7eb;border-radius:14px;padding:9px;text-align:center;background:#f8fafc}.m span{display:block;color:#64748b;font-size:11px;font-weight:900}.m b{display:block;margin-top:4px;font-size:15px;font-weight:900}.section{padding:0 12px 12px}.section h3{margin:8px 0 8px;font-size:15px;font-weight:900;color:#0f172a}table{width:100%;border-collapse:collapse;font-size:11.5px}th{background:#0f172a;color:#fff;padding:8px;border:1px solid #1f2937;white-space:nowrap}td{padding:7px;border:1px solid #e5e7eb;text-align:center;font-weight:750;vertical-align:top}tbody tr:nth-child(even) td{background:#f8fafc}.empty{color:#64748b;padding:18px}.note{text-align:right}.foot{display:flex;justify-content:space-between;gap:14px;padding:12px 16px;border-top:1px solid #e5e7eb;color:#64748b;font-size:12px;font-weight:800}.sig{display:inline-block;height:28px;border-bottom:1px solid #111;min-width:180px;vertical-align:middle}@media print{.wrap{padding:0}.doc{border-radius:0}}';
+      var html = '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>كشف الحضور والزمنيات</title><style>'+css+'</style></head><body><div class="wrap"><div class="doc"><div class="topbar"></div><div class="head"><div class="brand"><b>ASSAL DEBTS</b><span>مكتب عسل • كشف الحضور والزمنيات</span></div><div class="title"><b>كشف شهر '+esc(arMonth(d))+'</b><span>تاريخ الطباعة: '+esc(issued)+'</span></div></div><div class="meta"><div class="m"><span>حضور الشهر</span><b>'+esc(details.length)+'</b></div><div class="m"><span>أيام الحضور</span><b>'+esc(cmpRows.length)+'</b></div><div class="m"><span>زمنيات الشهر</span><b>'+esc(timeouts.length)+'</b></div><div class="m"><span>مصدر البيانات</span><b>محلي + سيرفر</b></div></div><div class="section"><h3>جدول مقارنة الحضور</h3><table><thead><tr><th>#</th><th>التاريخ</th><th>مصطفى</th><th>إسماعيل</th></tr></thead><tbody>'+cmpHtml+'</tbody></table></div><div class="section"><h3>سجل الزمنيات</h3><table><thead><tr><th>#</th><th>التاريخ</th><th>الموظف</th><th>وقت الخروج</th><th>الملاحظة</th></tr></thead><tbody>'+timeoutHtml+'</tbody></table></div><div class="section"><h3>تفاصيل الحضور</h3><table><thead><tr><th>#</th><th>التاريخ</th><th>الموظف</th><th>وقت الحضور</th></tr></thead><tbody>'+detailsHtml+'</tbody></table></div><div class="foot"><div>تم إنشاء الكشف إلكترونياً حسب سجلات الحضور والزمنيات وقت الطباعة.</div><div>التوقيع / الختم <span class="sig"></span></div></div></div></div><script>window.addEventListener("load",function(){setTimeout(function(){try{window.print();}catch(e){}},250);});<\/script></body></html>';
+      var w = window.open('', '_blank', 'width=980,height=760');
+      if(!w){ setTimeoutMsg('اسمح بفتح النوافذ المنبثقة حتى تتم الطباعة.', false); return; }
+      w.document.open(); w.document.write(html); w.document.close(); try{ w.focus(); }catch(_){ }
+    }catch(err){ console.error('attendance print error:', err); setTimeoutMsg('فشل طباعة الكشف.', false); }
+  }
+  function openGate(source){
+    hardenAttendanceCodeInputs();
+    if(window.__ASSAL_SINGLE_WINDOW_LOCKED__) return;
+    var gate = $('assalAttendanceGate'); if(!gate) return;
+    switchView('main'); resetCameraPanel(); setMsg('', true); setTimeoutMsg('', true); updateClock(); syncPersonVisuals();
+    var cur = splitTime12(new Date()); if($('attTimeoutTime') && !$('attTimeoutTime').value) $('attTimeoutTime').value = cur.hm; if($('attTimeoutPeriod')) $('attTimeoutPeriod').value = cur.period;
+    clearInterval(clockTimer); clockTimer = setInterval(updateClock, 15000);
+    document.documentElement.classList.add('assal-attendance-locked'); if(document.body) document.body.classList.add('assal-attendance-locked');
+    gate.classList.add('assal-attendance-active'); gate.setAttribute('aria-hidden','false');
+    nextPromptAt = Date.now() + RETRY_MS;
+    var firstOpen = EMPLOYEES.map(function(e){ return $(e.input); }).filter(function(input){ return input && !input.disabled; })[0];
+    try{ (firstOpen || $('assalAttendanceReport')).focus({preventScroll:true}); }catch(_){ }
+  }
+  function closeGate(record){
+    var gate = $('assalAttendanceGate'); clearInterval(clockTimer); resetCameraPanel();
+    if(gate){ gate.classList.remove('assal-attendance-active'); gate.setAttribute('aria-hidden','true'); }
+    switchView('main'); document.documentElement.classList.remove('assal-attendance-locked'); if(document.body) document.body.classList.remove('assal-attendance-locked');
+    try{ if(record && window.showToast){ window.showToast('success','تم تسجيل حضور ' + record.employee); } }catch(_){ }
+  }
+  function openAfterAnyConfirmed(){
+    var names = todayNames(todayMap());
+    if(!names.length){ setMsg('سجل حضور أحد الموظفين بالرمز حتى يتم فتح التطبيق.', false); return; }
+    closeGate(null);
+  }
+  function noteActivity(){ if(!isGateOpen()) lastActivityAt = Date.now(); }
+  function appReadyForAttendance(){
+    if(window.__ASSAL_SINGLE_WINDOW_LOCKED__) return false;
+    if(window.IS_SIGNED_IN !== true) return false;
+    var login = $('loginGate'), splash = $('authSplash');
+    if(login && login.style.display && login.style.display !== 'none') return false;
+    if(splash && splash.style.display && splash.style.display !== 'none') return false;
+    if(document.visibilityState !== 'visible') return false;
+    return true;
+  }
+  function shouldAutoOpen(){
+    if(!appReadyForAttendance()) return false;
+    if(!afterStartTime()) return false;
+    if(isCompleteToday()) return false;
+    if(isGateOpen()) return false;
+    if(Date.now() < nextPromptAt) return false;
+    if(Date.now() - lastActivityAt < IDLE_MS) return false;
+    return true;
+  }
+  function startAutoPromptLoop(){
+    if(autoTimer) clearInterval(autoTimer);
+    autoTimer = setInterval(function(){ if(shouldAutoOpen()) openGate('auto-8am'); }, 15000);
+    setTimeout(function(){ if(shouldAutoOpen()) openGate('auto-start'); }, 1200);
+  }
+  function bind(){
+    ['pointerdown','keydown','input','change','wheel','touchstart','scroll'].forEach(function(ev){ document.addEventListener(ev, noteActivity, true); });
+    var confirmBtn = $('assalAttendanceConfirm'), reportBtn = $('assalAttendanceReport'), headerBtn = $('btnAttendanceOpen'), backBtn = $('attBackToMain'), timeoutSave = $('attTimeoutSave'), printBtn = $('attPrintReport');
+    if(confirmBtn) confirmBtn.addEventListener('click', openAfterAnyConfirmed, false);
+    if(reportBtn) reportBtn.addEventListener('click', function(){ switchView('report'); }, false);
+    if(backBtn) backBtn.addEventListener('click', function(){ switchView('main'); }, false);
+    var cameraBackBtn = $('attCameraBackBtn');
+    if(cameraBackBtn) cameraBackBtn.addEventListener('click', function(){
+      if(captureBusy){ setMsg('جاري التقاط صورة الحضور، انتظر لحظات.', false); return; }
+      resetCameraPanel();
+      var firstOpen = EMPLOYEES.map(function(e){ return $(e.input); }).filter(function(input){ return input && !input.disabled; })[0];
+      try{ firstOpen && firstOpen.focus({preventScroll:true}); }catch(_){ }
+    }, false);
+    if(timeoutSave) timeoutSave.addEventListener('click', saveTimeout, false);
+    if(printBtn) printBtn.addEventListener('click', printReport, false);
+    var reportView = $('attReportView');
+    if(reportView){ reportView.addEventListener('click', function(ev){ var btn = ev.target && ev.target.closest ? ev.target.closest('.att-photo-btn') : null; if(btn){ ev.preventDefault(); showAttendancePhoto(btn.getAttribute('data-photo-key')); } }, false); }
+    if(headerBtn) headerBtn.addEventListener('click', function(){ openGate('manual'); }, false);
+    Array.prototype.slice.call(document.querySelectorAll('#assalAttendanceGate .att-person-btn')).forEach(function(btn){ btn.addEventListener('click', function(){ confirmEmployee(btn.getAttribute('data-emp')); }, false); });
+    Array.prototype.slice.call(document.querySelectorAll('#assalAttendanceGate .att-code-input')).forEach(function(input){
+      input.addEventListener('focus', function(){ try{ input.type='password'; }catch(_){} }, false);
+      input.addEventListener('input', function(){ try{ input.type='password'; }catch(_){} var v = normalizeCode(input.value).replace(/[^a-z0-9]/g,'').slice(0,12); if(input.value !== v) input.value = v; }, false);
+      input.addEventListener('keydown', function(ev){ if(ev.key === 'Enter'){ ev.preventDefault(); confirmEmployee(input.getAttribute('data-emp')); } }, false);
+    });
+    var timeEl = $('attTimeoutTime');
+    if(timeEl){
+      timeEl.addEventListener('input', function(){ var v = cleanTimeInput(timeEl.value); if(timeEl.value !== v) timeEl.value = v; }, false);
+      timeEl.addEventListener('blur', function(){ if(!timeEl.value){ var cur = splitTime12(new Date()); timeEl.value = cur.hm; if($('attTimeoutPeriod')) $('attTimeoutPeriod').value = cur.period; } }, false);
+    }
+    ['attTimeoutEmployee','attTimeoutTime','attTimeoutPeriod','attTimeoutNote'].forEach(function(id){ var el=$(id); if(el){ el.addEventListener('keydown', function(ev){ if(ev.key==='Enter'){ ev.preventDefault(); saveTimeout(); } }, false); } });
+    var gate = $('assalAttendanceGate');
+    if(gate){ gate.addEventListener('keydown', function(ev){ if(ev.key === 'Escape'){ ev.preventDefault(); ev.stopPropagation(); setMsg('نافذة الحضور إجبارية حتى تسجيل حضور أحد الموظفين، وتعود كل 10 دقائق لحين اكتمال الكادر.', false); } }, true); }
+    var cur = splitTime12(new Date()); if($('attTimeoutTime')) $('attTimeoutTime').value = cur.hm; if($('attTimeoutPeriod')) $('attTimeoutPeriod').value = cur.period;
+    syncPersonVisuals(); refreshReport(); installServerHooks(); startAutoPromptLoop();
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind); else bind();
+  window.showAssalAttendanceGate = openGate;
+  window.ASSAL_ATTENDANCE_EXPORT = exportAttendance;
+  window.ASSAL_ATTENDANCE_IMPORT = importAttendance;
+})();
+</script>
+<!-- ===== ASSAL ATTENDANCE TEST GATE - END ===== -->
+
+
 
   <!-- Header -->
   <div class="ribbon">
@@ -5800,6 +7611,15 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
 
       
       <div class="r-right">
+        
+        
+
+        <!-- [ADD-ONLY] زر حضور/كشف الحضور -->
+<button class="icon" id="btnAttendanceOpen"
+        title="حضور/كشف الحضور"
+        aria-label="حضور/كشف الحضور">
+  <i class="fa-solid fa-fingerprint"></i>
+</button>
         
         
         <!-- [NEW] زر بحث توافقات قطع الغيار -->
