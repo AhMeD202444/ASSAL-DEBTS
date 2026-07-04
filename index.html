@@ -6015,7 +6015,8 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
   .att-camera-panel.is-live .att-camera-placeholder,.att-camera-panel.is-captured .att-camera-placeholder{display:none;}
   .att-camera-panel.is-error{border-color:rgba(239,68,68,.38);background:linear-gradient(135deg,rgba(127,29,29,.18),rgba(14,165,233,.06));}
   .att-person-btn.att-busy,.att-confirm.att-busy{opacity:.62!important;pointer-events:none!important;}
-  .att-photo-btn{margin-top:0;height:24px;border:1px solid rgba(14,165,233,.32);background:#061324;color:#bfdbfe;border-radius:999px;padding:0 8px;font-size:10.5px;font-weight:950;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:4px;line-height:1;white-space:nowrap;vertical-align:middle;}
+  .att-photo-btn{margin-top:0;width:28px;height:24px;border:1px solid rgba(14,165,233,.32);background:#061324;color:#bfdbfe;border-radius:999px;padding:0;font-size:11px;font-weight:950;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:0;line-height:1;white-space:nowrap;vertical-align:middle;flex:0 0 auto;}
+  .att-photo-btn span{display:none!important;}
   .att-photo-btn:hover{filter:brightness(1.08);border-color:rgba(18,209,180,.44);}
   .att-people{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
   .att-person{position:relative;min-height:190px;border:1px solid rgba(148,163,184,.17);border-radius:20px;background:linear-gradient(135deg,#0b1428,#12183b);padding:20px 18px 16px;display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:auto auto;gap:12px;align-items:center;overflow:hidden;}
@@ -6084,9 +6085,9 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
   .att-present{color:#bbf7d0!important;}.att-absent{color:#94a3b8!important;}.att-timeout-note{max-width:210px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .att-date-cell{white-space:nowrap;color:#bfdbfe!important;}
   .att-time-cell{white-space:nowrap;padding-top:8px!important;padding-bottom:8px!important;}
-  .att-log-line{display:inline-flex;align-items:center;justify-content:center;gap:7px;flex-wrap:nowrap;max-width:100%;white-space:nowrap;vertical-align:middle;}
-  .att-log-time{display:inline-block;color:#bbf7d0;font-weight:950;font-size:13px;line-height:1;}
-  .att-log-state{display:inline-block;color:#93a6c2;font-size:10.5px;font-weight:950;line-height:1;border:1px solid rgba(148,163,184,.16);background:rgba(15,23,42,.55);border-radius:999px;padding:4px 7px;margin:0;}
+  .att-log-line{display:inline-flex;align-items:center;justify-content:center;gap:8px;flex-wrap:nowrap;max-width:100%;white-space:nowrap;vertical-align:middle;}
+  .att-log-time{display:inline-block;color:#bbf7d0;font-weight:950;font-size:13.5px;line-height:1;letter-spacing:.1px;}
+  .att-log-state{display:none!important;}
   .att-log-empty{display:inline-block;color:#94a3b8;font-weight:950;line-height:1;}
   .att-time-cell small{display:inline-block;color:#93a6c2;font-size:10.5px;margin:0;}
   @media (max-width:900px){
@@ -7448,8 +7449,8 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
       else{
         function cellHtml(rec){
           if(!rec) return '<span class="att-log-empty">—</span>';
-          var btn = rec.photoKey ? '<button type="button" class="att-photo-btn" data-photo-key="' + esc(rec.photoKey) + '"><i class="fa-solid fa-camera"></i><span>الصورة</span></button>' : '';
-          return '<span class="att-log-line"><b class="att-log-time">' + esc(normalizeAnyTime(rec.time)) + '</b><small class="att-log-state">حضور</small>' + btn + '</span>';
+          var btn = rec.photoKey ? '<button type="button" class="att-photo-btn" data-photo-key="' + esc(rec.photoKey) + '" title="عرض صورة الحضور" aria-label="عرض صورة الحضور"><i class="fa-solid fa-camera"></i><span>الصورة</span></button>' : '';
+          return '<span class="att-log-line"><b class="att-log-time">' + esc(normalizeAnyTime(rec.time)) + '</b>' + btn + '</span>';
         }
         logBody.innerHTML = cmpRows.map(function(r){
           return '<tr><td class="att-date-cell">' + esc(r.day) + '</td>' +
