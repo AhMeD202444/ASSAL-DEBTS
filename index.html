@@ -7562,6 +7562,8 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
     return true;
   }
   function shouldAutoOpen(){
+    if(window.ASSAL_IS_ADMIN_DEBTS === true) return false;
+    if(typeof isSubDevice === 'function' && isSubDevice()) return false;
     if(!appReadyForAttendance()) return false;
     if(!afterStartTime()) return false;
     var map = todayMap();
@@ -10434,14 +10436,71 @@ window.saveBigStoreAndWait     = saveBigStoreAndWait;
     
     /* ================= [NEW] Device Role (Main/Sub) ================= */
 const ROLE_KEY = 'assal:deviceRole'; // 'main' | 'sub'
+const ASSAL_MAIN_DEBTS_EMAIL  = 'assal-debts@assal.com';
+const ASSAL_ADMIN_DEBTS_EMAIL = 'admin-debts@assal.com';
+
+// حالة الدخول الحالية حتى تكون صلاحية الحاسبة مربوطة بالإيميل وليس بالجهاز
+window.ASSAL_LOGIN_EMAIL = window.ASSAL_LOGIN_EMAIL || '';
+window.ASSAL_FORCED_DEVICE_ROLE = window.ASSAL_FORCED_DEVICE_ROLE || '';
+window.ASSAL_IS_ADMIN_DEBTS = window.ASSAL_IS_ADMIN_DEBTS === true;
+window.ASSAL_IS_MAIN_DEBTS = window.ASSAL_IS_MAIN_DEBTS === true;
+
+function normalizeAssalLoginEmail(email){
+  return String(email || '').trim().toLowerCase().replace(/^['\"]+|['\"]+$/g, '');
+}
+
+function forcedRoleFromEmail(email){
+  const e = normalizeAssalLoginEmail(email);
+  if(e === ASSAL_ADMIN_DEBTS_EMAIL) return 'sub';
+  if(e === ASSAL_MAIN_DEBTS_EMAIL) return 'main';
+  return '';
+}
+
+function getForcedDeviceRole(){
+  const fromEmail = forcedRoleFromEmail(window.ASSAL_LOGIN_EMAIL || '');
+  if(fromEmail) return fromEmail;
+  const r = String(window.ASSAL_FORCED_DEVICE_ROLE || '').trim();
+  return (r === 'sub' || r === 'main') ? r : '';
+}
+
+function roleArabic(role){
+  return role === 'sub' ? 'فرعية / مدير' : (role === 'main' ? 'رئيسية' : 'غير محددة');
+}
+
+// يطبّق نوع الحاسبة قسراً حسب إيميل الدخول
+function applyForcedDeviceRoleFromEmail(email){
+  const clean = normalizeAssalLoginEmail(email);
+  const forced = forcedRoleFromEmail(clean);
+  window.ASSAL_LOGIN_EMAIL = clean;
+  window.ASSAL_FORCED_DEVICE_ROLE = forced || '';
+  window.ASSAL_IS_ADMIN_DEBTS = forced === 'sub';
+  window.ASSAL_IS_MAIN_DEBTS = forced === 'main';
+
+  // نخزنها محلياً فقط حتى كل أجزاء التطبيق القديمة التي تعتمد على ROLE_KEY تبقى منسجمة
+  if(forced){
+    try{ localStorage.setItem(ROLE_KEY, forced); }catch(_){ }
+  }
+  updateRoleUIState();
+  return forced;
+}
+window.ASSAL_APPLY_ROLE_FROM_EMAIL = applyForcedDeviceRoleFromEmail;
+window.ASSAL_NORMALIZE_LOGIN_EMAIL = normalizeAssalLoginEmail;
 
 // helpers
 function getDeviceRole(){
+  const forced = getForcedDeviceRole();
+  if(forced) return forced;
   const r = (localStorage.getItem(ROLE_KEY) || '').trim();
   return (r === 'sub' ? 'sub' : (r === 'main' ? 'main' : '')); // فاضي = غير محدد
 }
 function isSubDevice(){ return getDeviceRole() === 'sub'; }
 function setDeviceRole(role){
+  const forced = getForcedDeviceRole();
+  if(forced){
+    updateRoleUIState();
+    showToast('info', 'نوع الحاسبة محدد تلقائياً حسب إيميل الدخول: ' + roleArabic(forced));
+    return;
+  }
   localStorage.setItem(ROLE_KEY, role === 'sub' ? 'sub' : 'main');
   updateRoleUIState();
   showToast('success', role === 'sub' ? 'تم ضبط الهوية: حاسبة فرعية (حفظ محلي فقط)' : 'تم ضبط الهوية: حاسبة رئيسية');
@@ -10452,11 +10511,15 @@ function updateRoleUIState(){
   const exportBtn = document.getElementById('btnExportAll');
   const importBtn = document.getElementById('btnImportAll');
   const roleBtn   = document.getElementById('btnDeviceRole');
+  const btnM      = document.getElementById('setRoleMain');
+  const btnS      = document.getElementById('setRoleSub');
+  const forced    = getForcedDeviceRole();
+  const role      = getDeviceRole();
 
   if(exportBtn){
     exportBtn.disabled = isSubDevice();          // منع رفع
     exportBtn.title = isSubDevice()
-      ? 'غير متاح في الحاسبة الفرعية (حفظ محلي فقط)'
+      ? 'غير متاح في الحاسبة الفرعية / دخول المدير (حفظ محلي فقط)'
       : 'رفع النسخة للسيرفر';
   }
   if(importBtn){
@@ -10466,13 +10529,23 @@ function updateRoleUIState(){
       : 'سحب النسخة من السيرفر (دمج ذكي)';
   }
   if(roleBtn){
-    const r = getDeviceRole() || 'غير محددة';
-    roleBtn.title = `تحديد هوية الحاسبة (الحالية: ${r === 'sub' ? 'فرعية' : (r === 'main' ? 'رئيسية' : 'غير محددة')})`;
+    roleBtn.title = forced
+      ? `هوية الحاسبة محددة حسب الإيميل: ${roleArabic(role)}`
+      : `تحديد هوية الحاسبة (الحالية: ${roleArabic(role)})`;
+    roleBtn.classList.toggle('assal-role-forced', !!forced);
+  }
+  if(btnM){
+    btnM.disabled = !!forced;
+    btnM.title = forced ? 'نوع الحاسبة محدد حسب إيميل الدخول ولا يمكن تغييره يدوياً' : 'حاسبة رئيسية';
+  }
+  if(btnS){
+    btnS.disabled = !!forced;
+    btnS.title = forced ? 'نوع الحاسبة محدد حسب إيميل الدخول ولا يمكن تغييره يدوياً' : 'حاسبة فرعية (حفظ محلي فقط)';
   }
 }
 
 // نافذة الهوية (فتح/إغلاق + خيارات)
-/* نافذة الهوية (فتح/إغلاق + خيارات) — [UPDATED: بدون أي confirm] */
+/* نافذة الهوية (فتح/إغلاق + خيارات) — [UPDATED: الهوية تُفرض حسب الإيميل] */
 (function initRoleModal(){
   const bd   = document.getElementById('roleBackdrop');
   const md   = document.getElementById('roleModal');
@@ -10483,8 +10556,14 @@ function updateRoleUIState(){
   const btnS = document.getElementById('setRoleSub');
 
   function openModal(){
-    // [CHANGED] نخلي الرسالة عامة دائمًا بدون تلميح للتحويل/تأكيد
-    msg.textContent = 'اختر نوع هذه الحاسبة: رئيسية أو فرعية (الحفظ محلي فقط للفرعية).';
+    const forced = getForcedDeviceRole();
+    const email  = normalizeAssalLoginEmail(window.ASSAL_LOGIN_EMAIL || '');
+    if(msg){
+      msg.textContent = forced
+        ? ('هوية هذه الحاسبة محددة تلقائياً حسب الإيميل (' + email + '): ' + roleArabic(forced) + '. لا يمكن تغييرها يدوياً.')
+        : 'اختر نوع هذه الحاسبة: رئيسية أو فرعية (الحفظ محلي فقط للفرعية).';
+    }
+    updateRoleUIState();
     bd.classList.add('active');
     md.classList.add('active');
     document.body.classList.add('modal-open');
@@ -10499,16 +10578,15 @@ function updateRoleUIState(){
   close?.addEventListener('click', closeModal);
   bd?.addEventListener('click', (e)=>{ if(e.target === bd) closeModal(); });
 
-  // [CHANGED] بدون أي confirm — تغيير فوري
+  // إذا الإيميل يفرض نوع الحاسبة، setDeviceRole تمنع التغيير وتعرض توضيح فقط
   btnM?.addEventListener('click', ()=>{
-    setDeviceRole('main');   // يحدّث الواجهة ويعرض toast جاهز
-    closeModal();
+    setDeviceRole('main');
+    if(!getForcedDeviceRole()) closeModal();
   });
 
-  // [CHANGED] بدون أي confirm — تغيير فوري
   btnS?.addEventListener('click', ()=>{
-    setDeviceRole('sub');    // يحدّث الواجهة ويعرض toast جاهز
-    closeModal();
+    setDeviceRole('sub');
+    if(!getForcedDeviceRole()) closeModal();
   });
 
   // تهيئة أولية لحالة الأزرار
@@ -19669,29 +19747,38 @@ function hideGate(){
 // UI عند الدخول/الخروج
 function setSignedInUI(user){
   window.IS_SIGNED_IN = true;
+  const cleanEmail = (window.ASSAL_NORMALIZE_LOGIN_EMAIL ? window.ASSAL_NORMALIZE_LOGIN_EMAIL(user?.email) : String(user?.email || '').trim().toLowerCase());
+  window.ASSAL_LOGIN_EMAIL = cleanEmail;
   const badge = document.getElementById('userBadge');
-  if(badge){ badge.textContent = user?.email || ''; badge.style.display = ''; }
-  if(btnLogout){ btnLogout.style.display = ''; btnLogout.title = `تسجيل خروج (${user?.email||''})`; }
+  if(badge){ badge.textContent = cleanEmail || ''; badge.style.display = ''; }
+  if(btnLogout){ btnLogout.style.display = ''; btnLogout.title = `تسجيل خروج (${cleanEmail||''})`; }
   toggleControls(false);   // فعّل الأزرار
+  try{ window.ASSAL_APPLY_ROLE_FROM_EMAIL && window.ASSAL_APPLY_ROLE_FROM_EMAIL(cleanEmail); }catch(_){ }
   showToast?.('success','تم تسجيل الدخول بنجاح');
 }
 
 
 function setSignedOutUI(){
   window.IS_SIGNED_IN = false;
+  window.ASSAL_LOGIN_EMAIL = '';
+  window.ASSAL_FORCED_DEVICE_ROLE = '';
+  window.ASSAL_IS_ADMIN_DEBTS = false;
+  window.ASSAL_IS_MAIN_DEBTS = false;
   const badge = document.getElementById('userBadge');
   if(badge){ badge.textContent = ''; badge.style.display = 'none'; }
   if(btnLogout){ btnLogout.style.display = 'none'; btnLogout.title = 'تسجيل خروج'; }
   toggleControls(true);    // عطّل الأزرار
+  try{ window.updateRoleUIState && window.updateRoleUIState(); }catch(_){ }
   showToast?.('info','تم تسجيل الخروج');
 }
 
 // allowlist من Firestore
 async function isAllowed(email){
   try{
+    const cleanEmail = (window.ASSAL_NORMALIZE_LOGIN_EMAIL ? window.ASSAL_NORMALIZE_LOGIN_EMAIL(email) : String(email || '').trim().toLowerCase());
     const snap = await getDoc(doc(db, "allowlist", "assal"));
     const emails = (snap.exists() && Array.isArray(snap.data().emails)) ? snap.data().emails : [];
-    return emails.includes(email);
+    return emails.map(e => window.ASSAL_NORMALIZE_LOGIN_EMAIL ? window.ASSAL_NORMALIZE_LOGIN_EMAIL(e) : String(e || '').trim().toLowerCase()).includes(cleanEmail);
   }catch{ return false; }
 }
 
