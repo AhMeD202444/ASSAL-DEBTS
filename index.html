@@ -5520,6 +5520,121 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
 </style>
 
 <!-- ASSAL FINAL NO DELAYED CUSTOMER FOCUS PATCH - UI ONLY -->
+
+
+<!-- ASSAL INLINE ITEM EDIT FINAL: CSS only for in-card line edit -->
+<style>
+.card .item{
+  grid-template-columns:auto auto minmax(78px,.9fr) minmax(128px,1.35fr) minmax(86px,.82fr) minmax(48px,.45fr) minmax(110px,1.08fr) auto auto auto !important;
+}
+.card .item.assal-line-editing{
+  border-color:rgba(18,209,180,.55) !important;
+  background:linear-gradient(180deg,rgba(18,209,180,.10),rgba(12,21,41,.96)) !important;
+  box-shadow:0 0 0 3px rgba(18,209,180,.10), 0 14px 30px rgba(0,0,0,.18);
+}
+.card .item.assal-line-editing .btn-mini:not(.btn-edit){
+  opacity:.45;
+  pointer-events:none;
+}
+.card .item .btn-edit{
+  color:#dbeafe;
+  border-color:rgba(59,130,246,.42);
+  background:linear-gradient(180deg,#12305f,#0b1f3c);
+}
+.card .item .btn-edit:hover{box-shadow:0 0 0 3px rgba(59,130,246,.18)}
+.card .item .btn-edit.is-active{
+  color:#fff7ed;
+  border-color:rgba(245,158,11,.60);
+  background:linear-gradient(135deg,#b45309,#7c2d12);
+  box-shadow:0 0 0 3px rgba(245,158,11,.14);
+}
+.card .item .btn-edit.is-locked,
+.card .item .btn-edit:disabled{
+  opacity:.38;
+  cursor:not-allowed;
+  filter:grayscale(.35);
+}
+.assal-inline-field-wrap{position:relative;min-width:0;width:100%;}
+.assal-inline-input{
+  width:100%;height:32px;min-width:0;
+  border:1px solid rgba(18,209,180,.32);
+  border-radius:10px;
+  background:#071225;
+  color:#e7eef9;
+  font:inherit;font-size:12px;font-weight:900;
+  padding:5px 9px;
+  outline:none;
+  text-align:center;
+}
+.assal-inline-input:focus{
+  border-color:rgba(18,209,180,.70);
+  box-shadow:0 0 0 3px rgba(18,209,180,.13);
+}
+.assal-inline-input.assal-inline-note{text-align:right;font-weight:800;}
+.assal-inline-price{
+  border-color:rgba(148,163,184,.22) !important;
+  background:#081122 !important;
+}
+.assal-inline-panel,
+.assal-inline-suggestions{
+  display:none;
+  position:absolute;
+  inset-inline:0;
+  bottom:calc(100% + 6px);
+  top:auto;
+  z-index:3200;
+  max-height:236px;
+  overflow:auto;
+  overscroll-behavior:contain;
+  margin:0;
+  padding:6px 0;
+  list-style:none;
+  border:1px solid rgba(18,209,180,.28);
+  border-radius:12px;
+  background:#0b1327;
+  box-shadow:0 16px 34px rgba(0,0,0,.46);
+}
+.assal-inline-field-wrap.assal-open-up > .assal-inline-panel,
+.assal-inline-field-wrap.assal-open-up > .assal-inline-suggestions{
+  top:auto;
+  bottom:calc(100% + 6px);
+}
+.assal-inline-field-wrap.assal-open-down > .assal-inline-panel,
+.assal-inline-field-wrap.assal-open-down > .assal-inline-suggestions{
+  top:calc(100% + 6px);
+  bottom:auto;
+}
+.assal-inline-panel .cat-item,
+.assal-inline-suggestions .sugg-item{
+  position:relative;
+  display:block;
+  cursor:pointer;
+  padding:10px 11px;
+  line-height:1.45;
+  font-size:12px;
+  font-weight:900;
+  color:#e7eef9;
+  border-radius:10px;
+  white-space:normal;
+  word-break:break-word;
+}
+.assal-inline-panel .cat-item:hover,
+.assal-inline-panel .cat-item.active,
+.assal-inline-suggestions .sugg-item:hover,
+.assal-inline-suggestions .sugg-item.is-active{
+  background:linear-gradient(135deg,rgba(18,209,180,.16),rgba(124,58,237,.13));
+}
+.assal-inline-price-view{
+  font-weight:950;
+  color:#e7eef9;
+  text-align:center;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.assal-inline-locked-tip{opacity:.55;}
+</style>
+
 </head>
 
 <body>
@@ -12682,6 +12797,409 @@ function assalStableMasonryPatchChildren(host, frag){
   }
 }
     
+
+
+/* =========================================================
+   ASSAL INLINE CARD ITEM EDIT FINAL
+   - تعديل السطر داخل البطاقة فقط، بدون استخدام الدوك
+   - سطر واحد فقط بوضع التعديل
+   - زر التعديل نفسه يتحول لإلغاء مع تأكيد
+   - الحفظ فقط من Enter داخل الملاحظات
+   - لا يغيّر التسديد/الراجع/الديون/الرفع/السحب
+========================================================= */
+window.__assalInlineLineEdit = window.__assalInlineLineEdit || null;
+
+function assalInlineEditSafeId(v){ return String(v == null ? '' : v); }
+function assalInlineEditDayOf(card){ return assalInlineEditSafeId((card && card.__day) || selectedDay); }
+function assalInlineEditCardId(card){ return assalInlineEditSafeId(card && card.id); }
+function assalInlineEditLineId(line){
+  try{ if(typeof lineKey === 'function') return assalInlineEditSafeId(lineKey(line)); }catch(_){ }
+  if(line && line.lineId) return assalInlineEditSafeId(line.lineId);
+  return '';
+}
+function assalInlineEditKey(card, line){
+  return assalInlineEditDayOf(card) + '::' + assalInlineEditCardId(card) + '::' + assalInlineEditLineId(line);
+}
+function assalInlineEditIsOpen(){ return !!(window.__assalInlineLineEdit && window.__assalInlineLineEdit.key); }
+function assalInlineEditIsCurrent(card, line){
+  const st = window.__assalInlineLineEdit;
+  return !!(st && st.key && st.key === assalInlineEditKey(card, line));
+}
+function assalInlineEditFormatPrice(v){
+  const n = Number(String(v == null ? '' : v).replace(/[^\d.\-]/g,''));
+  if(!isFinite(n) || n <= 0) return '—';
+  try{ return formatIQD(Math.round(n)); }catch(_){ return String(Math.round(n)); }
+}
+function assalInlineEditLineType(card, line){
+  const raw = String((line && line.type) || (card && card.billType) || '').trim();
+  if(raw) return raw;
+  try{ if(typeof isWholesaleCard === 'function' && isWholesaleCard(card)) return 'جملة'; }catch(_){ }
+  return 'اجل';
+}
+function assalInlineEditRowsFor(card, state){
+  const cat = String(state && state.draft && state.draft.cat || '').trim();
+  if(!cat || cat === 'NO-CATEGORY') return [];
+  const type = String(state && state.draft && state.draft.type || '').trim();
+  try{
+    if(type === 'جملة') return getWholesaleList(cat) || [];
+  }catch(_){ }
+  try{ return (database && Array.isArray(database[cat])) ? database[cat] : []; }catch(_){ return []; }
+}
+function assalInlineEditRowName(row){ return String((row && (row['Item Name'] || row['Item'])) || '').trim(); }
+function assalInlineEditFindPrice(card, state, itemName){
+  const q = String(itemName || '').trim();
+  const cat = String(state && state.draft && state.draft.cat || '').trim();
+  if(!cat || cat === 'NO-CATEGORY' || !q) return '';
+  const qn = (typeof norm === 'function') ? norm(q) : q.replace(/\s+/g,'').toLowerCase();
+  const list = assalInlineEditRowsFor(card, state);
+  const row = list.find(function(r){
+    const n = assalInlineEditRowName(r);
+    const nn = (typeof norm === 'function') ? norm(n) : n.replace(/\s+/g,'').toLowerCase();
+    return nn === qn;
+  });
+  if(!row) return '';
+  try{ return getRowPriceValue(row); }catch(_){
+    try{ return parseIQD(row.Price || row.price || ''); }catch(__){ return ''; }
+  }
+}
+function assalInlineEditFillPrice(card, state, itemName, priceView){
+  const p = assalInlineEditFindPrice(card, state, itemName);
+  if(p !== ''){
+    state.draft.price = Number(p) || 0;
+  }else{
+    const same = String(state.draft.cat || '') === String(state.original.cat || '') &&
+                 String(itemName || '').trim() === String(state.original.item || '').trim();
+    state.draft.price = same ? (Number(state.original.price) || 0) : 0;
+  }
+  if(priceView) priceView.textContent = assalInlineEditFormatPrice(state.draft.price);
+  return state.draft.price;
+}
+function assalInlineEditRealCardAndLine(viewCard, viewLine){
+  const realCard = (typeof getMutableCard === 'function' ? getMutableCard(viewCard) : null) || viewCard;
+  if(!realCard || !Array.isArray(realCard.lines)) return { realCard:null, realLine:null };
+  const lineId = assalInlineEditLineId(viewLine);
+  let realLine = realCard.lines.find(function(l){ return l === viewLine || (lineId && assalInlineEditLineId(l) === lineId); });
+  if(!realLine && viewLine && viewLine.lineId){
+    realLine = realCard.lines.find(function(l){ return String(l && l.lineId) === String(viewLine.lineId); });
+  }
+  return { realCard, realLine };
+}
+
+function assalInlineEditViewportSafeBox(){
+  try{
+    const vv = window.visualViewport;
+    const h = vv ? vv.height : window.innerHeight;
+    const offsetTop = vv ? vv.offsetTop : 0;
+    const root = getComputedStyle(document.documentElement);
+    const hdr = parseFloat(root.getPropertyValue('--hdr-h')) || 58;
+    const foot = parseFloat(root.getPropertyValue('--footer-h')) || 62;
+    const top = offsetTop + Math.max(76, hdr + 18);
+    const bottom = offsetTop + h - Math.max(88, foot + 26);
+    return { top, bottom, height: Math.max(0, bottom - top) };
+  }catch(_){
+    return { top:76, bottom:(window.innerHeight || 720) - 88, height:Math.max(0,(window.innerHeight || 720) - 164) };
+  }
+}
+function assalInlineEditWindowScrollBy(delta){
+  try{
+    if(!isFinite(delta) || Math.abs(delta) < 10) return;
+    window.scrollBy({ top: Math.round(delta), left:0, behavior:'auto' });
+  }catch(_){ try{ window.scrollBy(0, Math.round(delta)); }catch(__){} }
+}
+function assalInlineEditSmartNudgeRow(row){
+  try{
+    if(!row) return;
+    const box = assalInlineEditViewportSafeBox();
+    const input = row.querySelector('.assal-inline-cat') || row.querySelector('.assal-inline-input') || row;
+    const r = input.getBoundingClientRect();
+    // مساحة كافية لقائمة الصنف إذا فتحت للأعلى، بدون سكرول إجباري إذا كلشي واضح.
+    const needAbove = 246;
+    const above = r.top - box.top;
+    let delta = 0;
+    if(above < needAbove){
+      // قيمة سالبة تحرّك المحتوى للأسفل فقط عند الحاجة، حتى تظهر القائمة فوق الحقل.
+      delta = above - needAbove;
+    }else if(r.bottom > box.bottom - 34){
+      // إذا السطر واطي جداً، نرفعه مقدار بسيط حتى لا يلامس الدوك.
+      delta = r.bottom - (box.bottom - 34);
+    }
+    if(delta) assalInlineEditWindowScrollBy(delta);
+  }catch(_){ }
+}
+function assalInlineEditPlaceDropdown(wrap, popup){
+  try{
+    if(!wrap || !popup) return;
+    wrap.classList.remove('assal-open-up','assal-open-down');
+    popup.style.maxHeight = '';
+    const box = assalInlineEditViewportSafeBox();
+    const r = wrap.getBoundingClientRect();
+    const full = popup.classList && popup.classList.contains('assal-inline-panel') ? 236 : 240;
+    const above = Math.max(0, r.top - box.top - 8);
+    const below = Math.max(0, box.bottom - r.bottom - 8);
+    const minGood = 150;
+    // الأصل تفتح للأعلى مثل سلوك الدوك، لكن إذا ماكو مجال كافي نفتحها لتحت حتى ما تختفي.
+    const openDown = (above < minGood && below > above) || (below >= full && below > above + 50);
+    const avail = openDown ? below : above;
+    wrap.classList.add(openDown ? 'assal-open-down' : 'assal-open-up');
+    popup.style.maxHeight = Math.max(116, Math.min(full, Math.floor(avail || full))) + 'px';
+  }catch(_){ }
+}
+function assalInlineEditPostRenderFocus(){
+  try{
+    const st = window.__assalInlineLineEdit;
+    if(!st || !st.key || !st.pendingFocus) return;
+    const row = document.querySelector('.item.assal-line-editing');
+    const catInput = row && row.querySelector('.assal-inline-cat');
+    if(!row || !catInput) return;
+    st.pendingFocus = false;
+    assalInlineEditSmartNudgeRow(row);
+    requestAnimationFrame(function(){
+      try{
+        catInput.focus({preventScroll:true});
+        if(catInput.select) catInput.select();
+        if(typeof catInput.__assalInlineShow === 'function') catInput.__assalInlineShow();
+      }catch(_){ }
+    });
+  }catch(_){ }
+}
+function assalInlineEditQueuePostRenderFocus(){
+  try{
+    requestAnimationFrame(function(){ assalInlineEditPostRenderFocus(); });
+  }catch(_){ setTimeout(assalInlineEditPostRenderFocus, 0); }
+}
+function assalInlineEditStart(card, line){
+  try{
+    const key = assalInlineEditKey(card, line);
+    const current = window.__assalInlineLineEdit;
+    if(current && current.key && current.key !== key){
+      try{ showToast('warn','أكمل التعديل الحالي أولاً'); }catch(_){ }
+      return;
+    }
+    window.__assalInlineLineEdit = {
+      key,
+      day: assalInlineEditDayOf(card),
+      cardId: assalInlineEditCardId(card),
+      lineId: assalInlineEditLineId(line),
+      original: {
+        cat: String(line && line.cat || ''),
+        item: String(line && line.item || ''),
+        price: Number(line && line.price) || 0,
+        note: String(line && line.note || ''),
+        type: assalInlineEditLineType(card, line)
+      },
+      draft: {
+        cat: String(line && line.cat || ''),
+        item: String(line && line.item || ''),
+        price: Number(line && line.price) || 0,
+        note: String(line && line.note || ''),
+        type: assalInlineEditLineType(card, line)
+      },
+      pendingFocus: true
+    };
+    try{ renderBoard(); }catch(_){ }
+    try{ assalInlineEditQueuePostRenderFocus(); }catch(_){ }
+  }catch(err){ try{ console.error(err); showToast('error','تعذر فتح تعديل السطر'); }catch(_){ } }
+}
+async function assalInlineEditCancelConfirm(){
+  if(!assalInlineEditIsOpen()) return;
+  const ok = await (typeof showConfirm === 'function'
+    ? showConfirm({ title:'إلغاء التعديل', message:'هل تريد إلغاء التعديل؟', okText:'نعم، إلغاء', cancelText:'تراجع', danger:true })
+    : Promise.resolve(confirm('هل تريد إلغاء التعديل؟')));
+  if(!ok) return;
+  window.__assalInlineLineEdit = null;
+  try{ renderBoard(); }catch(_){ }
+  try{ showToast('info','تم إلغاء التعديل'); }catch(_){ }
+}
+function assalInlineEditSave(card, line){
+  try{
+    const st = window.__assalInlineLineEdit;
+    if(!st || st.key !== assalInlineEditKey(card, line)) return;
+    const item = String(st.draft.item || '').trim();
+    const cat  = String(st.draft.cat || '').trim();
+    const note = String(st.draft.note || '').trim();
+    if(!cat){ try{ showToast('warn','اختر الصنف أولاً'); }catch(_){ } return; }
+    if(!item){ try{ showToast('warn','اكتب اسم المادة أولاً'); }catch(_){ } return; }
+
+    const found = assalInlineEditRealCardAndLine(card, line);
+    const realCard = found.realCard;
+    const realLine = found.realLine;
+    if(!realCard || !realLine){ try{ showToast('error','تعذر العثور على السطر الأصلي'); }catch(_){ } return; }
+
+    const t = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
+    realLine.cat = cat;
+    realLine.item = item;
+    realLine.price = Number(st.draft.price) || 0;
+    realLine.note = note;
+    realLine.updatedAt = t;
+    if(!realLine.lineId && st.lineId) realLine.lineId = st.lineId;
+    realCard.updatedAt = t;
+
+    window.__assalInlineLineEdit = null;
+    try{ save(); }catch(_){ }
+    try{ renderBoard(); }catch(_){ }
+    try{ renderRail(); }catch(_){ }
+    try{ refreshStats(); }catch(_){ }
+    try{ showToast('success','تم حفظ تعديل المادة'); }catch(_){ }
+  }catch(err){ try{ console.error(err); showToast('error','تعذر حفظ التعديل'); }catch(_){ } }
+}
+function assalInlineEditCatOptions(){
+  try{
+    const items = (typeof getCatItems === 'function') ? getCatItems() : [];
+    if(items && items.length){
+      return items.map(function(li){ return { val:String(li.getAttribute('data-val') || '').trim(), html:li.innerHTML || String(li.textContent || '') }; }).filter(function(x){ return x.val; });
+    }
+  }catch(_){ }
+  return [
+    {val:'LCD',html:'شاشات'}, {val:'BATTERY',html:'بطاريات'}, {val:'CAMERA',html:'كاميرات'}, {val:'CHARGING',html:'شحن'},
+    {val:'SPEAKER',html:'سماعة'}, {val:'FLAT SPEAKER',html:'فلات سماعة'}, {val:'HOUSING',html:'شواصي'}, {val:'BACK',html:'أظهر'},
+    {val:'BUZZER',html:'جرس'}, {val:'FINGER',html:'بصمة'}, {val:'FLAT LCD',html:'فلات شاشة'}, {val:'POWER',html:'فلات بور'},
+    {val:'VOLUME',html:'فلات صوت'}, {val:'LENS',html:'عدسة كاميرا'}, {val:'HOLLDER',html:'هولدر سيم'}, {val:'IC',html:'IC'},
+    {val:'CC',html:'قاعدة شحن'}, {val:'VIBRATION',html:'هزاز'}, {val:'TOUCH',html:'بلازمات'}, {val:'SIGNAL CABLE',html:'كيبل إشارة'},
+    {val:'NO-CATEGORY',html:'بدون صنف'}
+  ];
+}
+function assalInlineEditMakeCatField(card, line, state, itemInputRef){
+  const wrap = CE('div','assal-inline-field-wrap');
+  const input = CE('input','assal-inline-input assal-inline-cat');
+  input.type = 'text'; input.readOnly = true; input.value = state.draft.cat || ''; input.title = 'الصنف';
+  const panel = CE('div','assal-inline-panel nice-scroll');
+  let idx = -1;
+  const opts = assalInlineEditCatOptions();
+  opts.forEach(function(opt, i){
+    const row = CE('div','cat-item');
+    row.setAttribute('data-val', opt.val);
+    row.innerHTML = opt.html;
+    row.addEventListener('click', function(){ idx = i; select(i); });
+    row.addEventListener('mousemove', function(){ idx = i; paint(); });
+    panel.appendChild(row);
+  });
+  function paint(){ Array.from(panel.querySelectorAll('.cat-item')).forEach(function(el,i){ el.classList.toggle('active', i === idx); }); if(idx >= 0 && panel.children[idx]) panel.children[idx].scrollIntoView({block:'nearest'}); }
+  function show(){
+    try{ assalInlineEditPlaceDropdown(wrap, panel); }catch(_){ }
+    panel.style.display = 'block';
+    // عند فتح التعديل يبدأ المؤشر دائماً من أول صنف أعلى القائمة (الشاشات) حتى يكون السلوك ثابت وواضح.
+    idx = opts.findIndex(function(x){ return x.val === 'LCD'; });
+    if(idx < 0) idx = 0;
+    try{ panel.scrollTop = 0; }catch(_){ }
+    paint();
+    try{ panel.scrollTop = 0; }catch(_){ }
+  }
+  function hide(){ panel.style.display = 'none'; try{ wrap.classList.remove('assal-open-up','assal-open-down'); }catch(_){ } idx = -1; paint(); }
+  function select(i){
+    if(i < 0 || i >= opts.length) return;
+    const val = opts[i].val;
+    state.draft.cat = val;
+    input.value = val;
+    hide();
+    try{ state.draft.price = assalInlineEditFindPrice(card, state, state.draft.item) || (String(state.draft.item) === String(state.original.item) ? state.original.price : 0); }catch(_){ }
+    setTimeout(function(){ try{ const it = itemInputRef && itemInputRef(); if(it){ it.focus({preventScroll:true}); it.select && it.select(); } }catch(_){ } }, 0);
+  }
+  input.addEventListener('click', function(e){ e.stopPropagation(); show(); });
+  input.addEventListener('focus', function(){ setTimeout(show, 0); });
+  input.addEventListener('keydown', function(e){
+    e.stopPropagation();
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      if(panel.style.display !== 'block'){ show(); return; }
+      if(idx >= 0) select(idx);
+      return;
+    }
+    if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      e.preventDefault();
+      if(panel.style.display !== 'block') show();
+      const step = e.key === 'ArrowDown' ? 1 : -1;
+      idx = idx < 0 ? 0 : Math.max(0, Math.min(opts.length - 1, idx + step));
+      paint();
+    }
+    if(e.key === 'Escape'){ e.preventDefault(); hide(); }
+  });
+  document.addEventListener('click', function closeCat(ev){
+    try{ if(!wrap.isConnected){ document.removeEventListener('click', closeCat, true); return; } }catch(_){ }
+    if(!wrap.contains(ev.target)) hide();
+  }, true);
+  try{ input.__assalInlineShow = show; input.__assalInlinePanel = panel; }catch(_){ }
+  wrap.append(input, panel);
+  return { wrap, input, panel, show, hide };
+}
+function assalInlineEditMakeItemField(card, line, state, priceView, noteInputRef){
+  const wrap = CE('div','assal-inline-field-wrap');
+  const input = CE('input','assal-inline-input assal-inline-item');
+  input.type = 'text'; input.value = state.draft.item || ''; input.title = 'اسم المادة'; input.autocomplete = 'off';
+  const list = CE('ul','assal-inline-suggestions nice-scroll');
+  let idx = -1;
+  function rows(){
+    const q = (typeof norm === 'function') ? norm(input.value || '') : String(input.value||'').replace(/\s+/g,'').toLowerCase();
+    if(!q) return [];
+    return assalInlineEditRowsFor(card, state).filter(function(row){
+      const name = assalInlineEditRowName(row);
+      const nn = (typeof norm === 'function') ? norm(name) : name.replace(/\s+/g,'').toLowerCase();
+      return nn.includes(q);
+    }).slice(0, 40);
+  }
+  function paint(){ Array.from(list.querySelectorAll('.sugg-item')).forEach(function(el,i){ el.classList.toggle('is-active', i === idx); }); if(idx >= 0 && list.children[idx]) list.children[idx].scrollIntoView({block:'nearest'}); }
+  function hide(){ list.style.display = 'none'; try{ wrap.classList.remove('assal-open-up','assal-open-down'); }catch(_){ } idx = -1; paint(); }
+  function render(){
+    list.innerHTML = '';
+    idx = -1;
+    const rs = rows();
+    if(!rs.length){ hide(); return; }
+    rs.forEach(function(row, i){
+      const name = assalInlineEditRowName(row);
+      const li = CE('li','sugg-item');
+      li.textContent = name;
+      li.addEventListener('click', function(){ idx = i; choose(name); });
+      li.addEventListener('mousemove', function(){ idx = i; paint(); });
+      list.appendChild(li);
+    });
+    try{ assalInlineEditPlaceDropdown(wrap, list); }catch(_){ }
+    list.style.display = 'block';
+    idx = 0; paint();
+  }
+  function choose(name){
+    input.value = name || '';
+    state.draft.item = input.value.trim();
+    assalInlineEditFillPrice(card, state, state.draft.item, priceView);
+    hide();
+    setTimeout(function(){ try{ const n = noteInputRef && noteInputRef(); if(n){ n.focus({preventScroll:true}); n.select && n.select(); } }catch(_){ } }, 0);
+  }
+  input.addEventListener('input', function(){ state.draft.item = input.value; render(); });
+  input.addEventListener('focus', function(){ try{ input.select && input.select(); }catch(_){ } if(String(input.value||'').trim()) render(); });
+  input.addEventListener('keydown', function(e){
+    e.stopPropagation();
+    if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      if(list.style.display !== 'block') render();
+      const items = Array.from(list.querySelectorAll('.sugg-item'));
+      if(!items.length) return;
+      e.preventDefault();
+      const step = e.key === 'ArrowDown' ? 1 : -1;
+      idx = idx < 0 ? 0 : Math.max(0, Math.min(items.length - 1, idx + step));
+      paint();
+      return;
+    }
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      const items = Array.from(list.querySelectorAll('.sugg-item'));
+      if(list.style.display === 'block' && idx >= 0 && items[idx]){
+        choose(items[idx].textContent.trim());
+      }else{
+        state.draft.item = input.value.trim();
+        assalInlineEditFillPrice(card, state, state.draft.item, priceView);
+        hide();
+        const n = noteInputRef && noteInputRef();
+        if(n){ n.focus({preventScroll:true}); n.select && n.select(); }
+      }
+      return;
+    }
+    if(e.key === 'Escape'){ e.preventDefault(); hide(); }
+  });
+  document.addEventListener('click', function closeItem(ev){
+    try{ if(!wrap.isConnected){ document.removeEventListener('click', closeItem, true); return; } }catch(_){ }
+    if(!wrap.contains(ev.target)) hide();
+  }, true);
+  wrap.append(input, list);
+  return { wrap, input, render, hide };
+}
+
 function renderBoard() {
   const host = document.getElementById('masonry');
   if (!host) return;
@@ -12895,22 +13413,100 @@ custWrap.appendChild(typeBadge);
         del.innerHTML = '<i class="fa-regular fa-trash-can"></i>';
         del.title = 'حذف';
 
+        const btnEdit = CE('button', 'btn-mini btn-edit');
+        btnEdit.innerHTML = '<i class="fa-regular fa-pen-to-square"></i>';
+        btnEdit.title = 'تعديل المادة';
+
+        const __assalEditOpen = (typeof assalInlineEditIsOpen === 'function') && assalInlineEditIsOpen();
+        const __assalThisEditing = (typeof assalInlineEditIsCurrent === 'function') && assalInlineEditIsCurrent(card, ln);
+
         // بادج حالة (مدفوع / راجع) جنب اسم المادة
         const badge = CE('span', 'badge');
         setBadge(badge, ln);
-        if (badge.textContent) name.appendChild(badge);
+        if (badge.textContent && !__assalThisEditing) name.appendChild(badge);
 
-        it.append(
-          btnReturn,
-          btnPay,
-          cat,
-          name,
-          price,
-          qty,
-          note,
-          time,
-          del
-        );
+        if(__assalThisEditing){
+          it.classList.add('assal-line-editing');
+          btnEdit.classList.add('is-active');
+          btnEdit.title = 'إلغاء التعديل';
+
+          const __editState = window.__assalInlineLineEdit;
+          const editPrice = CE('div','iprice assal-inline-price-view');
+          editPrice.textContent = assalInlineEditFormatPrice(__editState.draft.price);
+
+          let __inlineItemInput = null;
+          let __inlineNoteInput = null;
+
+          const editCat = assalInlineEditMakeCatField(card, ln, __editState, function(){ return __inlineItemInput; });
+          const editItem = assalInlineEditMakeItemField(card, ln, __editState, editPrice, function(){ return __inlineNoteInput; });
+          __inlineItemInput = editItem.input;
+
+          const editNoteWrap = CE('div','assal-inline-field-wrap');
+          const editNote = CE('input','assal-inline-input assal-inline-note');
+          editNote.type = 'text';
+          editNote.value = __editState.draft.note || '';
+          editNote.placeholder = 'ملاحظات';
+          editNote.autocomplete = 'off';
+          __inlineNoteInput = editNote;
+          editNote.addEventListener('input', function(){ __editState.draft.note = editNote.value; });
+          editNote.addEventListener('keydown', function(e){
+            e.stopPropagation();
+            if(e.key === 'Enter'){
+              e.preventDefault();
+              __editState.draft.note = editNote.value;
+              assalInlineEditSave(card, ln);
+            }
+          });
+          editNoteWrap.appendChild(editNote);
+
+          btnReturn.disabled = true;
+          btnPay.disabled = true;
+          del.disabled = true;
+
+          it.append(
+            btnReturn,
+            btnPay,
+            editCat.wrap,
+            editItem.wrap,
+            editPrice,
+            qty,
+            editNoteWrap,
+            time,
+            del,
+            btnEdit
+          );
+        }else{
+          if(__assalEditOpen){
+            btnEdit.disabled = true;
+            btnEdit.classList.add('is-locked');
+            btnEdit.title = 'أكمل التعديل الحالي أولاً';
+          }
+
+          it.append(
+            btnReturn,
+            btnPay,
+            cat,
+            name,
+            price,
+            qty,
+            note,
+            time,
+            del,
+            btnEdit
+          );
+        }
+
+        btnEdit.onclick = async () => {
+          if(btnEdit.disabled){
+            try{ showToast('warn','أكمل التعديل الحالي أولاً'); }catch(_){}
+            return;
+          }
+          if((typeof assalInlineEditIsCurrent === 'function') && assalInlineEditIsCurrent(card, ln)){
+            await assalInlineEditCancelConfirm();
+            return;
+          }
+          assalInlineEditStart(card, ln);
+        };
 
         // ===== تبديل "راجع" للسطر =====
         btnReturn.onclick = () => {
@@ -13310,6 +13906,8 @@ custWrap.appendChild(typeBadge);
   // ✨ مهم لمشكلتك الثانية:
   // كل مرة نرسم البورد، نرجع نربط أزرار "آخر تاريخ نقل الديون"
   wireTransferHeaderButtons();
+  // فتح تعديل المادة بعد الرسم: فوكس سريع + سكرول خفيف فقط إذا القائمة ستنقص.
+  try{ assalInlineEditQueuePostRenderFocus(); }catch(_){ }
 }
 
 
