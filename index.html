@@ -5531,13 +5531,6 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
   border-color:rgba(18,209,180,.55) !important;
   background:linear-gradient(180deg,rgba(18,209,180,.10),rgba(12,21,41,.96)) !important;
   box-shadow:0 0 0 3px rgba(18,209,180,.10), 0 14px 30px rgba(0,0,0,.18);
-  position:relative;
-  z-index:3300;
-  overflow:visible !important;
-}
-.card .item.assal-line-editing .assal-inline-field-wrap{
-  position:relative;
-  z-index:3301;
 }
 .card .item.assal-line-editing .btn-mini:not(.btn-edit){
   opacity:.45;
@@ -5644,19 +5637,6 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
   text-overflow:ellipsis;
 }
 .assal-inline-locked-tip{opacity:.55;}
-.assal-inline-cat,
-.assal-inline-item,
-.assal-inline-price,
-.assal-inline-qty,
-#assalAttendanceGate .att-code-input{
-  direction:ltr !important;
-  unicode-bidi:plaintext;
-}
-.assal-inline-note{
-  direction:rtl !important;
-  unicode-bidi:plaintext;
-  text-align:right !important;
-}
 </style>
 
 </head>
@@ -10967,6 +10947,7 @@ function assalScheduleDebtUiRefresh(delay){
 window.assalScheduleDebtUiRefresh = assalScheduleDebtUiRefresh;
 
 function save(){
+  try{ if(typeof assalSyncAllPartialPaymentNotes === 'function') assalSyncAllPartialPaymentNotes(days); }catch(_){ }
   const res = saveDaysToStorageBalanced(days);
   if(!res || !res.ok){
     showToast?.('error','تعذر الحفظ المحلي. لم يتم حذف أي بيانات. خذ نسخة احتياطية أو استخدم جهاز/متصفح بمساحة أكبر.');
@@ -12461,6 +12442,83 @@ function assalGetCardPartialPayments(card){
   return card.partialPayments;
 }
 
+/* ===== ASSAL SAFE: تحديث ملاحظات التسديد الجزئي حسب مجموع البطاقة الحالي =====
+   عند إضافة/تعديل/راجع/تسديد مواد بعد وجود تسديد جزئي، لا نغيّر مبلغ التسديد نفسه؛
+   نحدّث فقط النص المرتبط به حتى يبقى "الباقي" مطابقاً لحالة البطاقة الحالية. */
+function assalBuildPartialPaymentNoteText(amount, remaining){
+  return `تسديد جزئي: سدد ${formatIQD(Math.round(assalPartialPayNum(amount)))} د.ع — الباقي ${formatIQD(Math.max(0, Math.round(assalPartialPayNum(remaining))))} د.ع`;
+}
+function assalSyncCardPartialPaymentNotes(card, ts){
+  try{
+    if(!card || !Array.isArray(card.partialPayments) || !card.partialPayments.length) return 0;
+    const when = ts || (typeof nowISO === 'function' ? nowISO() : new Date().toISOString());
+    const payments = card.partialPayments
+      .filter(function(p){ return p && !p.deletedAt; })
+      .slice()
+      .sort(function(a,b){
+        const ta = Date.parse(a.at || a.createdAt || a.updatedAt || '') || 0;
+        const tb = Date.parse(b.at || b.createdAt || b.updatedAt || '') || 0;
+        if(ta !== tb) return ta - tb;
+        return String(a.id || '').localeCompare(String(b.id || ''));
+      });
+    if(!payments.length) return 0;
+
+    const base = Math.max(0, Math.round(assalCardPartialBaseUnpaid(card)));
+    let used = 0;
+    let changed = 0;
+
+    payments.forEach(function(p){
+      const rawAmount = Math.max(0, Math.round(assalPartialPayNum(p.amount)));
+      const applied = Math.min(rawAmount, Math.max(0, base - used));
+      used += applied;
+      const remainingAfter = Math.max(0, base - used);
+      const text = assalBuildPartialPaymentNoteText(rawAmount, remainingAfter);
+
+      if(String(p.note || '') !== text){
+        p.note = text;
+        p.updatedAt = when;
+        changed++;
+      }
+
+      const pid = String(p.id || '');
+      if(Array.isArray(card.notes)){
+        card.notes.forEach(function(n){
+          if(!n || n.deletedAt) return;
+          const isLinked = (pid && String(n.partialPaymentId || '') === pid) || (pid && String(n.id || '') === pid + '-note') || String(n.kind || '') === 'partial-payment' && pid && String(n.partialPaymentId || '') === pid;
+          if(!isLinked) return;
+          if(String(n.text || '') !== text){
+            n.text = text;
+            n.updatedAt = when;
+            changed++;
+          }
+        });
+      }
+    });
+
+    if(changed){
+      card.updatedAt = when;
+      try{ window.assalInvalidateDebtBadgeCache?.(); }catch(_){ }
+    }
+    return changed;
+  }catch(_){ return 0; }
+}
+function assalSyncAllPartialPaymentNotes(daysObj){
+  try{
+    let changed = 0;
+    const when = (typeof nowISO === 'function' ? nowISO() : new Date().toISOString());
+    Object.keys(daysObj || {}).forEach(function(dayKey){
+      const cards = daysObj[dayKey];
+      if(!Array.isArray(cards)) return;
+      cards.forEach(function(card){
+        changed += assalSyncCardPartialPaymentNotes(card, when);
+      });
+    });
+    return changed;
+  }catch(_){ return 0; }
+}
+window.assalSyncCardPartialPaymentNotes = assalSyncCardPartialPaymentNotes;
+window.assalSyncAllPartialPaymentNotes = assalSyncAllPartialPaymentNotes;
+
 function assalCancelCardPartialPayments(card, ts){
   try{
     if(!card) return 0;
@@ -12824,7 +12882,7 @@ function assalStableMasonryPatchChildren(host, frag){
 
 
 /* =========================================================
-   ASSAL INLINE CARD ITEM EDIT FINAL
+   ASSAL INLINE CARD ITEM EDIT FINAL / SMOOTH FLOW PATCH
    - تعديل السطر داخل البطاقة فقط، بدون استخدام الدوك
    - سطر واحد فقط بوضع التعديل
    - زر التعديل نفسه يتحول لإلغاء مع تأكيد
@@ -12832,37 +12890,6 @@ function assalStableMasonryPatchChildren(host, frag){
    - لا يغيّر التسديد/الراجع/الديون/الرفع/السحب
 ========================================================= */
 window.__assalInlineLineEdit = window.__assalInlineLineEdit || null;
-
-
-function assalInlineEditApplyInputLang(input, mode){
-  try{
-    if(!input) return input;
-    var m = String(mode || '').toLowerCase();
-    input.setAttribute('autocomplete','off');
-    input.setAttribute('autocorrect','off');
-    input.setAttribute('spellcheck','false');
-    input.setAttribute('data-assal-input-lang', m || 'auto');
-    if(m === 'note' || m === 'arabic'){
-      input.setAttribute('lang','ar');
-      input.setAttribute('dir','rtl');
-      input.style.direction = 'rtl';
-      input.style.unicodeBidi = 'plaintext';
-      input.setAttribute('autocapitalize','off');
-      return input;
-    }
-    input.setAttribute('lang','en');
-    input.setAttribute('dir','ltr');
-    input.style.direction = 'ltr';
-    input.style.unicodeBidi = 'plaintext';
-    input.setAttribute('autocapitalize','none');
-    if(m === 'price' || m === 'qty' || m === 'number'){
-      input.setAttribute('inputmode','numeric');
-    }else{
-      input.setAttribute('inputmode','text');
-    }
-  }catch(_){ }
-  return input;
-}
 
 function assalInlineEditSafeId(v){ return String(v == null ? '' : v); }
 function assalInlineEditDayOf(card){ return assalInlineEditSafeId((card && card.__day) || selectedDay); }
@@ -12982,140 +13009,37 @@ function assalInlineEditViewportSafeBox(){
     const root = getComputedStyle(document.documentElement);
     const hdr = parseFloat(root.getPropertyValue('--hdr-h')) || 58;
     const foot = parseFloat(root.getPropertyValue('--footer-h')) || 62;
-    let top = offsetTop + Math.max(70, hdr + 14);
-    let bottom = offsetTop + h - Math.max(78, foot + 18);
-
-    // قراءة العناصر الثابتة الحقيقية بدل الاعتماد على window فقط.
-    // هذا مهم لأن الدوك والفوتر/التوست يأخذون مساحة مرئية تمنع القائمة من الظهور كاملة.
-    try{
-      const fixedTopSelectors = ['header','.topbar','.appbar','.toolbar','.app-head'];
-      fixedTopSelectors.forEach(function(sel){
-        const el = document.querySelector(sel);
-        if(!el) return;
-        const cs = getComputedStyle(el);
-        if(cs.display === 'none' || cs.visibility === 'hidden') return;
-        const pos = cs.position;
-        if(pos !== 'fixed' && pos !== 'sticky') return;
-        const r = el.getBoundingClientRect();
-        if(r.height > 0 && r.top <= offsetTop + 12 && r.bottom > top - 80){
-          top = Math.max(top, r.bottom + 8);
-        }
-      });
-    }catch(_){ }
-    try{
-      const fixedBottomSelectors = ['.dock','.footer','.toast','.toast-wrap','#toast','.toastbar'];
-      fixedBottomSelectors.forEach(function(sel){
-        document.querySelectorAll(sel).forEach(function(el){
-          const cs = getComputedStyle(el);
-          if(cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) return;
-          const r = el.getBoundingClientRect();
-          if(r.height > 0 && r.bottom >= offsetTop + h - 6 && r.top < bottom + 140){
-            bottom = Math.min(bottom, r.top - 8);
-          }
-        });
-      });
-    }catch(_){ }
-    if(bottom <= top + 120){
-      top = offsetTop + Math.max(62, hdr + 10);
-      bottom = offsetTop + h - Math.max(76, foot + 18);
-    }
-    return { top:Math.round(top), bottom:Math.round(bottom), height: Math.max(0, Math.round(bottom - top)) };
+    const top = offsetTop + Math.max(76, hdr + 18);
+    const bottom = offsetTop + h - Math.max(88, foot + 26);
+    return { top, bottom, height: Math.max(0, bottom - top) };
   }catch(_){
     return { top:76, bottom:(window.innerHeight || 720) - 88, height:Math.max(0,(window.innerHeight || 720) - 164) };
   }
 }
-function assalInlineEditScrollContainer(el){
-  try{
-    let n = el && el.parentElement;
-    while(n && n !== document.body && n !== document.documentElement){
-      const cs = getComputedStyle(n);
-      const oy = String(cs.overflowY || '').toLowerCase();
-      const can = (oy === 'auto' || oy === 'scroll' || oy === 'overlay') && (n.scrollHeight > n.clientHeight + 4);
-      if(can) return n;
-      n = n.parentElement;
-    }
-  }catch(_){ }
-  return null;
-}
-function assalInlineEditContainerSafeBox(el){
-  const view = assalInlineEditViewportSafeBox();
-  const sc = assalInlineEditScrollContainer(el);
-  if(!sc) return { top:view.top, bottom:view.bottom, height:view.height, scroller:null };
-  try{
-    const r = sc.getBoundingClientRect();
-    const top = Math.max(view.top, r.top + 8);
-    const bottom = Math.min(view.bottom, r.bottom - 8);
-    if(bottom > top + 96) return { top, bottom, height:bottom-top, scroller:sc };
-  }catch(_){ }
-  return { top:view.top, bottom:view.bottom, height:view.height, scroller:sc };
-}
-function assalInlineEditDropdownWantedHeight(popup){
-  try{
-    const cap = popup && popup.classList && popup.classList.contains('assal-inline-panel') ? 236 : 240;
-    const kids = popup ? popup.children.length : 0;
-    if(kids > 0){
-      // قياس تقريبي خفيف بدون إجبار DOM layout ثقيل.
-      const byKids = 14 + Math.min(kids, 7) * 42;
-      return Math.max(96, Math.min(cap, byKids));
-    }
-    return cap;
-  }catch(_){ return 236; }
-}
-function assalInlineEditScrollBy(el, delta){
-  try{
-    if(!isFinite(delta) || Math.abs(delta) < 8) return false;
-    const sc = assalInlineEditScrollContainer(el);
-    const d = Math.round(delta);
-    if(sc){
-      const before = sc.scrollTop;
-      sc.scrollTop = Math.max(0, Math.min(sc.scrollHeight - sc.clientHeight, before + d));
-      return Math.abs(sc.scrollTop - before) > 1;
-    }
-    const beforeY = window.scrollY || window.pageYOffset || 0;
-    window.scrollBy({ top:d, left:0, behavior:'auto' });
-    return Math.abs((window.scrollY || window.pageYOffset || 0) - beforeY) > 1;
-  }catch(_){
-    try{ window.scrollBy(0, Math.round(delta)); return true; }catch(__){ return false; }
-  }
-}
 function assalInlineEditWindowScrollBy(delta){
-  try{ assalInlineEditScrollBy(document.body, delta); }catch(_){ }
-}
-function assalInlineEditDropdownMetrics(wrap, popup){
-  const box = assalInlineEditContainerSafeBox(wrap);
-  const r = wrap.getBoundingClientRect();
-  const full = assalInlineEditDropdownWantedHeight(popup);
-  const gap = 8;
-  const above = Math.max(0, r.top - box.top - gap);
-  const below = Math.max(0, box.bottom - r.bottom - gap);
-  return { box, rect:r, full, above, below, gap };
-}
-function assalInlineEditMaybeNudgeForDropdown(wrap, popup){
   try{
-    if(!wrap) return false;
-    const m = assalInlineEditDropdownMetrics(wrap, popup);
-    const need = Math.min(m.full, Math.max(128, Math.min(220, m.box.height - 18)));
-
-    // إذا واحدة من الجهتين كافية، لا نحرك أي شيء.
-    if(m.below >= need || m.above >= need) return false;
-
-    // إذا المسافة من فوق ضيقة جداً، الأفضل نخلق مساحة تحت بتحريك بسيط للأسفل.
-    // وإذا الأسفل ضيق جداً، نخلق مساحة فوق بتحريك عكسي.
-    const preferDown = m.below >= m.above;
-    const available = preferDown ? m.below : m.above;
-    const missing = Math.max(0, need - available + 10);
-    if(missing < 10) return false;
-
-    const maxNudge = Math.min(150, Math.max(72, Math.floor(m.box.height * 0.24)));
-    const delta = preferDown ? Math.min(missing, maxNudge) : -Math.min(missing, maxNudge);
-    return assalInlineEditScrollBy(wrap, delta);
-  }catch(_){ return false; }
+    if(!isFinite(delta) || Math.abs(delta) < 10) return;
+    window.scrollBy({ top: Math.round(delta), left:0, behavior:'auto' });
+  }catch(_){ try{ window.scrollBy(0, Math.round(delta)); }catch(__){} }
 }
 function assalInlineEditSmartNudgeRow(row){
   try{
     if(!row) return;
+    const box = assalInlineEditViewportSafeBox();
     const input = row.querySelector('.assal-inline-cat') || row.querySelector('.assal-inline-input') || row;
-    assalInlineEditMaybeNudgeForDropdown(input.closest ? (input.closest('.assal-inline-field-wrap') || input) : input, null);
+    const r = input.getBoundingClientRect();
+    // مساحة كافية لقائمة الصنف إذا فتحت للأعلى، بدون سكرول إجباري إذا كلشي واضح.
+    const needAbove = 246;
+    const above = r.top - box.top;
+    let delta = 0;
+    if(above < needAbove){
+      // قيمة سالبة تحرّك المحتوى للأسفل فقط عند الحاجة، حتى تظهر القائمة فوق الحقل.
+      delta = above - needAbove;
+    }else if(r.bottom > box.bottom - 34){
+      // إذا السطر واطي جداً، نرفعه مقدار بسيط حتى لا يلامس الدوك.
+      delta = r.bottom - (box.bottom - 34);
+    }
+    if(delta) assalInlineEditWindowScrollBy(delta);
   }catch(_){ }
 }
 function assalInlineEditPlaceDropdown(wrap, popup){
@@ -13123,28 +13047,17 @@ function assalInlineEditPlaceDropdown(wrap, popup){
     if(!wrap || !popup) return;
     wrap.classList.remove('assal-open-up','assal-open-down');
     popup.style.maxHeight = '';
-
-    // قياس أول، ثم سكرول خفيف فقط إذا فعلاً لا توجد مساحة كافية، ثم إعادة قياس.
-    const moved = assalInlineEditMaybeNudgeForDropdown(wrap, popup);
-    let m = assalInlineEditDropdownMetrics(wrap, popup);
-    if(moved){
-      // بعد السكرول نعيد القراءة حتى لا تبقى القائمة بقرار قديم.
-      m = assalInlineEditDropdownMetrics(wrap, popup);
-    }
-
-    // القرار الذكي: إذا الأعلى ضيق افتح تحت، وإذا الأسفل ضيق افتح فوق.
-    // إذا الجهتان لا تكفيان، اختار الأكبر مع max-height داخلي.
-    const minUseful = Math.min(132, Math.max(88, m.full * .55));
-    let openDown;
-    if(m.above < minUseful && m.below > m.above) openDown = true;
-    else if(m.below < minUseful && m.above > m.below) openDown = false;
-    else if(m.below >= m.full && m.above < m.full) openDown = true;
-    else if(m.above >= m.full && m.below < m.full) openDown = false;
-    else openDown = m.below >= m.above;
-
-    const avail = openDown ? m.below : m.above;
+    const box = assalInlineEditViewportSafeBox();
+    const r = wrap.getBoundingClientRect();
+    const full = popup.classList && popup.classList.contains('assal-inline-panel') ? 236 : 240;
+    const above = Math.max(0, r.top - box.top - 8);
+    const below = Math.max(0, box.bottom - r.bottom - 8);
+    const minGood = 150;
+    // الأصل تفتح للأعلى مثل سلوك الدوك، لكن إذا ماكو مجال كافي نفتحها لتحت حتى ما تختفي.
+    const openDown = (above < minGood && below > above) || (below >= full && below > above + 50);
+    const avail = openDown ? below : above;
     wrap.classList.add(openDown ? 'assal-open-down' : 'assal-open-up');
-    popup.style.maxHeight = Math.max(72, Math.min(m.full, Math.floor(avail || m.full))) + 'px';
+    popup.style.maxHeight = Math.max(116, Math.min(full, Math.floor(avail || full))) + 'px';
   }catch(_){ }
 }
 function assalInlineEditPostRenderFocus(){
@@ -13155,12 +13068,13 @@ function assalInlineEditPostRenderFocus(){
     const catInput = row && row.querySelector('.assal-inline-cat');
     if(!row || !catInput) return;
     st.pendingFocus = false;
-    assalInlineEditSmartNudgeRow(row);
     requestAnimationFrame(function(){
       try{
         catInput.focus({preventScroll:true});
         if(catInput.select) catInput.select();
-        if(typeof catInput.__assalInlineShow === 'function') catInput.__assalInlineShow();
+        requestAnimationFrame(function(){
+          try{ if(document.activeElement === catInput && typeof catInput.__assalInlineShow === 'function') catInput.__assalInlineShow(); }catch(__){}
+        });
       }catch(_){ }
     });
   }catch(_){ }
@@ -13270,9 +13184,11 @@ function assalInlineEditMakeCatField(card, line, state, itemInputRef){
   const wrap = CE('div','assal-inline-field-wrap');
   const input = CE('input','assal-inline-input assal-inline-cat');
   input.type = 'text'; input.readOnly = true; input.value = state.draft.cat || ''; input.title = 'الصنف';
-  assalInlineEditApplyInputLang(input, 'cat');
+  input.lang = 'en'; input.dir = 'ltr'; input.inputMode = 'text'; input.autocomplete = 'off';
+  input.setAttribute('autocorrect','off'); input.setAttribute('autocapitalize','none'); input.spellcheck = false;
   const panel = CE('div','assal-inline-panel nice-scroll');
   let idx = -1;
+  let suppressUntil = 0;
   const opts = assalInlineEditCatOptions();
   opts.forEach(function(opt, i){
     const row = CE('div','cat-item');
@@ -13284,6 +13200,8 @@ function assalInlineEditMakeCatField(card, line, state, itemInputRef){
   });
   function paint(){ Array.from(panel.querySelectorAll('.cat-item')).forEach(function(el,i){ el.classList.toggle('active', i === idx); }); if(idx >= 0 && panel.children[idx]) panel.children[idx].scrollIntoView({block:'nearest'}); }
   function show(){
+    if(Date.now() < suppressUntil) return;
+    if(document.activeElement !== input) return;
     try{ assalInlineEditPlaceDropdown(wrap, panel); }catch(_){ }
     panel.style.display = 'block';
     // عند فتح التعديل يبدأ المؤشر دائماً من أول صنف أعلى القائمة (الشاشات) حتى يكون السلوك ثابت وواضح.
@@ -13296,15 +13214,21 @@ function assalInlineEditMakeCatField(card, line, state, itemInputRef){
   function hide(){ panel.style.display = 'none'; try{ wrap.classList.remove('assal-open-up','assal-open-down'); }catch(_){ } idx = -1; paint(); }
   function select(i){
     if(i < 0 || i >= opts.length) return;
+    suppressUntil = Date.now() + 700;
     const val = opts[i].val;
     state.draft.cat = val;
     input.value = val;
     hide();
     try{ state.draft.price = assalInlineEditFindPrice(card, state, state.draft.item) || (String(state.draft.item) === String(state.original.item) ? state.original.price : 0); }catch(_){ }
-    setTimeout(function(){ try{ const it = itemInputRef && itemInputRef(); if(it){ it.focus({preventScroll:true}); it.select && it.select(); } }catch(_){ } }, 0);
+    requestAnimationFrame(function(){
+      try{
+        const it = itemInputRef && itemInputRef();
+        if(it){ it.focus({preventScroll:true}); it.select && it.select(); }
+      }catch(_){ }
+    });
   }
-  input.addEventListener('click', function(e){ e.stopPropagation(); show(); });
-  input.addEventListener('focus', function(){ setTimeout(show, 0); });
+  input.addEventListener('click', function(e){ e.stopPropagation(); input.focus({preventScroll:true}); requestAnimationFrame(show); });
+  input.addEventListener('focus', function(){ requestAnimationFrame(show); });
   input.addEventListener('keydown', function(e){
     e.stopPropagation();
     if(e.key === 'Enter'){
@@ -13334,7 +13258,8 @@ function assalInlineEditMakeItemField(card, line, state, priceInputRef, noteInpu
   const wrap = CE('div','assal-inline-field-wrap');
   const input = CE('input','assal-inline-input assal-inline-item');
   input.type = 'text'; input.value = state.draft.item || ''; input.title = 'اسم المادة'; input.autocomplete = 'off';
-  assalInlineEditApplyInputLang(input, 'item');
+  input.lang = 'en'; input.dir = 'ltr'; input.inputMode = 'text';
+  input.setAttribute('autocorrect','off'); input.setAttribute('autocapitalize','none'); input.spellcheck = false;
   const list = CE('ul','assal-inline-suggestions nice-scroll');
   let idx = -1;
   function rows(){
@@ -13366,14 +13291,14 @@ function assalInlineEditMakeItemField(card, line, state, priceInputRef, noteInpu
     idx = 0; paint();
   }
   function focusPriceOrNote(){
-    setTimeout(function(){
+    requestAnimationFrame(function(){
       try{
         const p = priceInputRef && priceInputRef();
         if(p){ p.focus({preventScroll:true}); p.select && p.select(); return; }
         const n = noteInputRef && noteInputRef();
         if(n){ n.focus({preventScroll:true}); n.select && n.select(); }
       }catch(_){ }
-    }, 0);
+    });
   }
   function choose(name){
     input.value = name || '';
@@ -13383,7 +13308,7 @@ function assalInlineEditMakeItemField(card, line, state, priceInputRef, noteInpu
     focusPriceOrNote();
   }
   input.addEventListener('input', function(){ state.draft.item = input.value; render(); });
-  input.addEventListener('focus', function(){ try{ input.select && input.select(); }catch(_){ } if(String(input.value||'').trim()) render(); });
+  input.addEventListener('focus', function(){ try{ input.select && input.select(); }catch(_){ } hide(); });
   input.addEventListener('keydown', function(e){
     e.stopPropagation();
     if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
@@ -13423,10 +13348,11 @@ function assalInlineEditMakePriceField(state, noteInputRef){
   const input = CE('input','assal-inline-input assal-inline-price');
   input.type = 'text';
   input.inputMode = 'numeric';
+  input.lang = 'en'; input.dir = 'ltr';
   input.autocomplete = 'off';
+  input.setAttribute('autocorrect','off'); input.setAttribute('autocapitalize','none'); input.spellcheck = false;
   input.title = 'السعر';
   input.placeholder = 'السعر';
-  assalInlineEditApplyInputLang(input, 'price');
   assalInlineEditSetPriceField(input, state && state.draft ? state.draft.price : 0);
   function commit(){
     const val = assalInlineEditParsePriceInput(input.value);
@@ -13458,10 +13384,11 @@ function assalInlineEditMakeQtyField(state, noteInputRef){
   const input = CE('input','assal-inline-input assal-inline-qty');
   input.type = 'text';
   input.inputMode = 'numeric';
+  input.lang = 'en'; input.dir = 'ltr';
   input.autocomplete = 'off';
+  input.setAttribute('autocorrect','off'); input.setAttribute('autocapitalize','none'); input.spellcheck = false;
   input.title = 'العدد';
   input.placeholder = 'العدد';
-  assalInlineEditApplyInputLang(input, 'qty');
   input.value = String(assalInlineEditParseQtyInput(state && state.draft ? state.draft.qty : 1));
   function commit(){
     const val = assalInlineEditParseQtyInput(input.value);
@@ -13740,7 +13667,8 @@ custWrap.appendChild(typeBadge);
           editNote.value = __editState.draft.note || '';
           editNote.placeholder = 'ملاحظات';
           editNote.autocomplete = 'off';
-          assalInlineEditApplyInputLang(editNote, 'note');
+          editNote.lang = 'ar'; editNote.dir = 'rtl';
+          editNote.setAttribute('autocorrect','off'); editNote.setAttribute('autocapitalize','off'); editNote.spellcheck = false;
           __inlineNoteInput = editNote;
           editNote.addEventListener('input', function(){ __editState.draft.note = editNote.value; });
           editNote.addEventListener('keydown', function(e){
@@ -20387,8 +20315,7 @@ function dedupeAllDays(daysObj){
 
 (function(){
   // شيل أي وسوم قديمة من العنوان وخلي أساس ثابت
-  const TAG_RE = /\s*\[(cust|item|item-filter|note|filter|c-note)\]\s*/gi;
-  const clean = s => String(s||"").replace(TAG_RE, "").trim();
+  const clean = s => String(s||"").replace(/\s*\[(cust|item|item-filter|note|filter|c-note)\]\s*/gi, "").trim();
   const baseTitle = clean(document.title);
 
   function markTag(tag){
@@ -20396,62 +20323,6 @@ function dedupeAllDays(daysObj){
   }
   function clearTag(){
     document.title = baseTitle;
-  }
-
-  function safeSet(el, name, value){
-    try{ if(el) el.setAttribute(name, value); }catch(_){ }
-  }
-  function setEnglish(el, numeric){
-    try{
-      if(!el) return;
-      safeSet(el,'lang','en');
-      safeSet(el,'dir','ltr');
-      safeSet(el,'autocomplete','off');
-      safeSet(el,'autocorrect','off');
-      safeSet(el,'autocapitalize','none');
-      safeSet(el,'spellcheck','false');
-      safeSet(el,'inputmode', numeric ? 'numeric' : 'text');
-      try{ el.style.direction = 'ltr'; el.style.unicodeBidi = 'plaintext'; }catch(_){ }
-    }catch(_){ }
-  }
-  function setArabic(el){
-    try{
-      if(!el) return;
-      safeSet(el,'lang','ar');
-      safeSet(el,'dir','rtl');
-      safeSet(el,'autocomplete','off');
-      safeSet(el,'autocorrect','off');
-      safeSet(el,'autocapitalize','off');
-      safeSet(el,'spellcheck','false');
-      try{ el.style.direction = 'rtl'; el.style.unicodeBidi = 'plaintext'; }catch(_){ }
-    }catch(_){ }
-  }
-  function hardenCode(el){
-    try{
-      setEnglish(el, false);
-      safeSet(el,'type','password');
-      safeSet(el,'enterkeyhint','done');
-      safeSet(el,'data-lpignore','true');
-      safeSet(el,'data-1p-ignore','true');
-      if(!el.__assalInputLangCodeFilter){
-        el.__assalInputLangCodeFilter = true;
-        el.addEventListener('input', function(){
-          try{
-            var v = String(el.value || '').trim().toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,12);
-            if(el.value !== v) el.value = v;
-          }catch(_){ }
-        }, true);
-      }
-    }catch(_){ }
-  }
-
-  function bindStatic(el, tag, mode){
-    if(!el) return;
-    if(mode === 'en') setEnglish(el, false);
-    else if(mode === 'num') setEnglish(el, true);
-    else if(mode === 'ar') setArabic(el);
-    el.addEventListener('focus', ()=>{ if(mode === 'en') setEnglish(el, false); else if(mode === 'num') setEnglish(el, true); else if(mode === 'ar') setArabic(el); markTag(tag); });
-    el.addEventListener('blur',  ()=> clearTag());
   }
 
   // ===== حقول الـ Dock (ثابتة) =====
@@ -20468,54 +20339,114 @@ function dedupeAllDays(daysObj){
   // ===== نافذة توافقات قطع الغيار =====
   const compatSearchInput = document.getElementById('compatSearchInput'); // بحث التوافقات → إنكليزي
 
-  bindStatic(cust, '[cust]', 'ar');
-  bindStatic(item, '[item]', 'en');
-  bindStatic(note, '[note]', 'ar');
-  bindStatic(cardSearch, '[filter]', 'ar');
-  bindStatic(itemSearch, '[item]', 'en');
-  bindStatic(payCustomer, '[cust]', 'ar');
-  bindStatic(payNotes, '[note]', 'ar');
-  bindStatic(compatSearchInput, '[item]', 'en');
+  cust && cust.addEventListener('focus', ()=> markTag('[cust]'));
+  cust && cust.addEventListener('blur',  ()=> clearTag());
 
-  function classifyDynamic(el){
+  item && item.addEventListener('focus', ()=> markTag('[item]'));
+  item && item.addEventListener('blur',  ()=> clearTag());
+
+  note && note.addEventListener('focus', ()=> markTag('[note]'));
+  note && note.addEventListener('blur',  ()=> clearTag());
+
+  cardSearch && cardSearch.addEventListener('focus', ()=> markTag('[filter]'));
+  cardSearch && cardSearch.addEventListener('blur',  ()=> clearTag());
+  // بحث المادة يأخذ نفس وسم حقل المادة حتى يجبر/يساعد الكتابة تكون إنكليزي
+  itemSearch && itemSearch.addEventListener('focus', ()=> markTag('[item]'));
+  itemSearch && itemSearch.addEventListener('blur',  ()=> clearTag());
+
+  // --- الحسابات المالية (دائماً عربي) ---
+  payCustomer && payCustomer.addEventListener('focus', ()=> markTag('[cust]'));
+  payCustomer && payCustomer.addEventListener('blur',  ()=> clearTag());
+
+  payNotes && payNotes.addEventListener('focus', ()=> markTag('[note]'));
+  payNotes && payNotes.addEventListener('blur',  ()=> clearTag());
+
+  // --- بحث توافقات قطع الغيار (دائماً إنكليزي) ---
+  compatSearchInput && compatSearchInput.addEventListener('focus', ()=> markTag('[item]'));
+  compatSearchInput && compatSearchInput.addEventListener('blur',  ()=> clearTag());
+
+  // ===== حقول ديناميكية: تعديل مادة البطاقة + ملاحظات البطاقة + رمز الحضور =====
+  // ملاحظة مهمة: هذه الكتلة تضبط لغة/اتجاه الإدخال فقط ولا تلمس placeholder أو عنوان الحقل.
+  function setInputModeEnglish(el, numeric){
+    try{
+      if(!el) return;
+      el.setAttribute('lang','en');
+      el.setAttribute('dir','ltr');
+      el.setAttribute('inputmode', numeric ? 'numeric' : 'text');
+      el.setAttribute('autocomplete','off');
+      el.setAttribute('autocorrect','off');
+      el.setAttribute('autocapitalize','none');
+      el.setAttribute('spellcheck','false');
+      try{ el.style.direction = 'ltr'; el.style.unicodeBidi = 'plaintext'; }catch(_){ }
+    }catch(_){ }
+  }
+  function setInputModeArabic(el){
+    try{
+      if(!el) return;
+      el.setAttribute('lang','ar');
+      el.setAttribute('dir','rtl');
+      el.setAttribute('autocomplete','off');
+      el.setAttribute('autocorrect','off');
+      el.setAttribute('autocapitalize','off');
+      el.setAttribute('spellcheck','false');
+      try{ el.style.direction = 'rtl'; el.style.unicodeBidi = 'plaintext'; }catch(_){ }
+    }catch(_){ }
+  }
+  function hardenAttendanceCodeField(el){
+    try{
+      if(!el) return;
+      setInputModeEnglish(el, false);
+      try{ el.type = 'password'; }catch(_){ el.setAttribute('type','password'); }
+      el.setAttribute('enterkeyhint','done');
+      el.setAttribute('data-lpignore','true');
+      el.setAttribute('data-1p-ignore','true');
+      var v = String(el.value || '').trim().toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,12);
+      if(el.value !== v) el.value = v;
+    }catch(_){ }
+  }
+  function classifyInputLanguageTarget(el){
     try{
       if(!el || !el.matches) return null;
-      if(el.matches('#assalAttendanceGate .att-code-input')) return { tag:'[item]', mode:'code' };
-      if(el.matches('.assal-inline-cat, .assal-inline-item')) return { tag:'[item]', mode:'en' };
-      if(el.matches('.assal-inline-price, .assal-inline-qty')) return { tag:'[item]', mode:'num' };
-      if(el.matches('.assal-inline-note')) return { tag:'[c-note]', mode:'ar' };
-      if(el.classList && el.classList.contains('note-input-sm')) return { tag:'[c-note]', mode:'ar' };
+      if(el.matches('#assalAttendanceGate .att-code-input, #attCodeMustafa, #attCodeIsmail')) return {tag:'[item]', mode:'code'};
+      if(el.matches('.assal-inline-cat, .assal-inline-item')) return {tag:'[item]', mode:'en'};
+      if(el.matches('.assal-inline-price, .assal-inline-qty')) return {tag:'[item]', mode:'num'};
+      if(el.matches('.assal-inline-note, .note-input-sm')) return {tag:'[c-note]', mode:'ar'};
     }catch(_){ }
     return null;
   }
-  function applyDynamic(el, spec){
-    if(!spec) return;
-    if(spec.mode === 'code') hardenCode(el);
-    else if(spec.mode === 'en') setEnglish(el, false);
-    else if(spec.mode === 'num') setEnglish(el, true);
-    else if(spec.mode === 'ar') setArabic(el);
-  }
-  function hardenExistingDynamic(){
+  function applyInputLanguageTarget(el, spec){
     try{
-      document.querySelectorAll('#assalAttendanceGate .att-code-input').forEach(function(el){ hardenCode(el); });
-      document.querySelectorAll('.assal-inline-cat, .assal-inline-item').forEach(function(el){ setEnglish(el, false); });
-      document.querySelectorAll('.assal-inline-price, .assal-inline-qty').forEach(function(el){ setEnglish(el, true); });
-      document.querySelectorAll('.assal-inline-note').forEach(function(el){ setArabic(el); });
+      if(!spec) return;
+      if(spec.mode === 'code') hardenAttendanceCodeField(el);
+      else if(spec.mode === 'en') setInputModeEnglish(el, false);
+      else if(spec.mode === 'num') setInputModeEnglish(el, true);
+      else if(spec.mode === 'ar') setInputModeArabic(el);
     }catch(_){ }
   }
 
-  // ===== حقول ديناميكية: تعديل المادة داخل البطاقة + رمز الحضور =====
   document.addEventListener('focusin', (e)=>{
-    const spec = classifyDynamic(e.target);
-    if(spec){ applyDynamic(e.target, spec); markTag(spec.tag); }
+    const spec = classifyInputLanguageTarget(e.target);
+    if(spec){
+      applyInputLanguageTarget(e.target, spec);
+      markTag(spec.tag);
+    }
   }, true);
   document.addEventListener('focusout', (e)=>{
-    const spec = classifyDynamic(e.target);
+    const spec = classifyInputLanguageTarget(e.target);
     if(spec){ clearTag(); }
   }, true);
+  document.addEventListener('input', (e)=>{
+    try{
+      if(e.target && e.target.matches && e.target.matches('#assalAttendanceGate .att-code-input, #attCodeMustafa, #attCodeIsmail')){
+        hardenAttendanceCodeField(e.target);
+      }
+    }catch(_){ }
+  }, true);
 
-  // تهيئة أولية فقط. الخانات الديناميكية الجديدة تُجهّز عند إنشائها وعند الفوكس، بدون مراقبة DOM حتى لا نثقل الواجهة.
-  hardenExistingDynamic();
+  // تهيئة أولية للحقول الموجودة فعلياً فقط، بدون MutationObserver وبدون أي تأثير على العناوين الشفافة.
+  try{
+    document.querySelectorAll('#assalAttendanceGate .att-code-input, #attCodeMustafa, #attCodeIsmail').forEach(hardenAttendanceCodeField);
+  }catch(_){ }
 
   // حماية: لو تغيّر العنوان لسبب آخر، نظّفه كل 3 ثواني
   setInterval(()=>{
