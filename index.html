@@ -22464,6 +22464,61 @@ clearAlertsBtn.addEventListener('click', function(){
     try{ return (n||0).toLocaleString('en-US'); }catch(_){ return String(n||0); }
   }
 
+
+  /* ASSAL FINAL: نافذة ديون الزبائن تعرض أسماء شيت DEBTS فقط، والحساب من التطبيق */
+  function assalDebtsOnlyLooksNumericOrDate(s){
+    s = (s==null?'':String(s)).trim();
+    if(!s) return true;
+    var latin = s
+      .replace(/[\u0660-\u0669]/g, function(ch){ return String(ch.charCodeAt(0) - 0x0660); })
+      .replace(/[\u06F0-\u06F9]/g, function(ch){ return String(ch.charCodeAt(0) - 0x06F0); });
+    if(/^[-+]?\d+(?:[\.,]\d+)?$/.test(latin)) return true;
+    if(/^\d{1,4}[\-\/\.][0-9]{1,2}[\-\/\.][0-9]{1,4}$/.test(latin)) return true;
+    return false;
+  }
+
+  function assalDebtsOnlyPickName(row){
+    if(!row || typeof row !== 'object') return '';
+    var name = pick(row, NAME_KEYS);
+    if(String(name || '').trim()) return name;
+
+    // احتياط للهيدر غير المضبوط: نأخذ أول نص يشبه الاسم، ونستبعد الرصيد/التاريخ/الأرقام.
+    for(var p in row){
+      if(!Object.prototype.hasOwnProperty.call(row,p)) continue;
+      var s = (row[p] == null ? '' : String(row[p])).trim();
+      if(!s) continue;
+      if(assalDebtsOnlyLooksNumericOrDate(s)) continue;
+      return s;
+    }
+    return '';
+  }
+
+  function assalGetDebtsSheetOnlyNamesMap(){
+    var map = new Map();
+    var sheet = [];
+    try{
+      if(typeof database !== 'undefined' && database && Array.isArray(database.DEBTS)) sheet = database.DEBTS;
+      else if(window.database && Array.isArray(window.database.DEBTS)) sheet = window.database.DEBTS;
+    }catch(_){ sheet = []; }
+
+    (sheet || []).forEach(function(row){
+      var name = (assalDebtsOnlyPickName(row) || '').toString().trim();
+      if(!name) return;
+      if(assalDebtsOnlyLooksNumericOrDate(name)) return;
+      var key = nrm(name);
+      if(!key) return;
+      if(!map.has(key)) map.set(key, name);
+    });
+    return map;
+  }
+
+  function assalDebtsSheetOnlyDisplayName(rawName){
+    var key = nrm(rawName || '');
+    if(!key) return '';
+    var map = assalGetDebtsSheetOnlyNamesMap();
+    return map.get(key) || '';
+  }
+
   /* =========================================================
      ASSAL DEBTS LIVE LEDGER
      - شيت DEBTS يبقى رصيد افتتاحي/قديم
@@ -22507,11 +22562,12 @@ clearAlertsBtn.addEventListener('click', function(){
     var name = (rawName==null?'':String(rawName)).trim();
     if(!name) return;
 
-    // حصر نافذة الديون بأسماء الشيتات فقط: CUSTOMER + DEBTS
+    // حصر نافذة ديون الزبائن بأسماء شيت DEBTS فقط؛ الحسابات تبقى من التطبيق.
     try{
-      if(typeof window.assalIsSheetCustomerName === 'function' && !window.assalIsSheetCustomerName(name)) return;
-      if(typeof window.assalSheetCustomerDisplayName === 'function') name = window.assalSheetCustomerDisplayName(name) || name;
-    }catch(_){}
+      var debtsName = assalDebtsSheetOnlyDisplayName(name);
+      if(!debtsName) return;
+      name = debtsName;
+    }catch(_){ return; }
 
     flags = flags || {};
     var key = nrm(name);
@@ -22672,8 +22728,9 @@ clearAlertsBtn.addEventListener('click', function(){
     var map = new Map();
 
     try{
-      // نبني نافذة الديون من نفس دالة دين الزبون لايف: الرصيد الافتتاحي + عمليات بعد D ولغاية اليوم المعروض.
-      var names = (typeof window.assalGetSheetCustomerNamesMap === 'function') ? window.assalGetSheetCustomerNamesMap() : new Map();
+      // نافذة ديون الزبائن تعرض أسماء شيت DEBTS حصراً، حتى إذا الرصيد فارغ/صفر.
+      // المبالغ نفسها تُحسب من التطبيق الحي: الرصيد الافتتاحي + الفواتير + الحسابات المالية.
+      var names = assalGetDebtsSheetOnlyNamesMap();
       names.forEach(function(displayName){
         if(!displayName) return;
         var b = (typeof window.assalGetCustomerDebtBreakdown === 'function') ? window.assalGetCustomerDebtBreakdown(displayName) : null;
@@ -22684,21 +22741,19 @@ clearAlertsBtn.addEventListener('click', function(){
           name: displayName,
           amount: Math.round(amount),
           _n: key,
-          _base: !!(b && (b.opening || b.updatedISO)),
+          _base: true,
           _hasMovement: !!(b && (b.cards || b.financialPay || b.financialWithdraw)),
           _breakdown: b || null
         });
       });
     }catch(_){
-      // احتياط قديم إذا صار خطأ غير متوقع
+      // احتياط إذا صار خطأ غير متوقع: يبقى الحصر بأسماء DEBTS فقط عبر addDebtRow.
       readDebtsOpeningRows(map);
       readCardMovementRows(map);
       readPaymentMovementRows(map);
     }
 
-    var mapped = Array.from(map.values()).filter(function(r){
-      return r._base || r._hasMovement || (r.amount || 0) !== 0;
-    }).map(function(r){
+    var mapped = Array.from(map.values()).map(function(r){
       var amount = Number(r.amount || 0);
       if(!isFinite(amount)) amount = 0;
       amount = Math.round(amount);
@@ -23265,8 +23320,10 @@ async function openDebts(){
       await loadExcelFiles();
     }
   }catch(e){}
+  try{ if(typeof window.assalInvalidateSheetCustomerCache === 'function') window.assalInvalidateSheetCustomerCache(); }catch(_){ }
+  try{ if(typeof window.assalDebtFastInvalidate === 'function') window.assalDebtFastInvalidate(); }catch(_){ }
 
-  // ابنِ الديون المحسوبة لايف: DEBTS + الفواتير + التسديدات/السحوبات
+  // ابنِ الديون المحسوبة لايف: أسماء DEBTS فقط + حساب التطبيق المباشر
   buildFromDB();
 }
 
