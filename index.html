@@ -6006,6 +6006,10 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
           <i class="fa-solid fa-list-check"></i>
           <span>كشف الحضور</span>
         </button>
+        <button id="assalAttendanceAdminExit" class="att-exit-admin" type="button" hidden>
+          <i class="fa-solid fa-door-open"></i>
+          <span>خروج للتطبيق</span>
+        </button>
       </div>
 
       <div id="assalAttendanceMsg" class="att-msg" role="status" aria-live="polite"></div>
@@ -7640,6 +7644,7 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
     clearInterval(clockTimer); clockTimer = setInterval(updateClock, 15000);
     document.documentElement.classList.add('assal-attendance-locked'); if(document.body) document.body.classList.add('assal-attendance-locked');
     gate.classList.add('assal-attendance-active'); gate.setAttribute('aria-hidden','false');
+    assalAttendanceSyncAdminExit();
     nextPromptAt = Date.now() + RETRY_MS;
     var firstOpen = EMPLOYEES.map(function(e){ return $(e.input); }).filter(function(input){ return input && !input.disabled; })[0];
     try{ (firstOpen || $('assalAttendanceReport')).focus({preventScroll:true}); }catch(_){ }
@@ -7647,6 +7652,7 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
   function closeGate(record){
     var gate = $('assalAttendanceGate'); clearInterval(clockTimer); resetCameraPanel();
     if(gate){ gate.classList.remove('assal-attendance-active'); gate.setAttribute('aria-hidden','true'); }
+    assalAttendanceSyncAdminExit();
     switchView('main'); document.documentElement.classList.remove('assal-attendance-locked'); if(document.body) document.body.classList.remove('assal-attendance-locked');
     try{ if(record && window.showToast){ window.showToast('success','تم تسجيل حضور ' + record.employee); } }catch(_){ }
   }
@@ -7680,6 +7686,27 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
     if(document.visibilityState !== 'visible') return false;
     return true;
   }
+  function assalAttendanceCanAdminExit(){
+    try{ if(window.ASSAL_IS_ADMIN_DEBTS === true) return true; }catch(_){ }
+    try{ if(typeof isSubDevice === 'function' && isSubDevice()) return true; }catch(_){ }
+    try{ if(typeof getDeviceRole === 'function' && getDeviceRole() === 'sub') return true; }catch(_){ }
+    try{
+      var email = String(window.ASSAL_LOGIN_EMAIL || '').trim().toLowerCase();
+      if(email === 'admin-debts@assal.com') return true;
+    }catch(_){ }
+    return false;
+  }
+  function assalAttendanceSyncAdminExit(){
+    var btn = $('assalAttendanceAdminExit');
+    var actions = document.querySelector('#assalAttendanceGate .att-actions');
+    var can = assalAttendanceCanAdminExit();
+    if(btn){
+      btn.hidden = !can;
+      btn.style.display = can ? 'inline-flex' : 'none';
+      btn.setAttribute('aria-hidden', can ? 'false' : 'true');
+    }
+    if(actions) actions.classList.toggle('assal-admin-exit-visible', !!can);
+  }
   function shouldAutoOpen(){
     if(window.ASSAL_IS_ADMIN_DEBTS === true) return false;
     if(typeof isSubDevice === 'function' && isSubDevice()) return false;
@@ -7709,10 +7736,11 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
   }
   function bind(){
     ['pointerdown','keydown','input','change','wheel','touchstart','scroll'].forEach(function(ev){ document.addEventListener(ev, noteActivity, true); });
-    var confirmBtn = $('assalAttendanceConfirm'), reportBtn = $('assalAttendanceReport'), headerBtn = $('btnAttendanceOpen'), backBtn = $('attBackToMain'), timeoutSave = $('attTimeoutSave'), printBtn = $('attPrintReport');
+    var confirmBtn = $('assalAttendanceConfirm'), reportBtn = $('assalAttendanceReport'), headerBtn = $('btnAttendanceOpen'), backBtn = $('attBackToMain'), timeoutSave = $('attTimeoutSave'), printBtn = $('attPrintReport'), adminExitBtn = $('assalAttendanceAdminExit');
     if(confirmBtn) confirmBtn.addEventListener('click', openAfterAnyConfirmed, false);
     if(reportBtn) reportBtn.addEventListener('click', function(){ switchView('report'); }, false);
     if(backBtn) backBtn.addEventListener('click', function(){ switchView('main'); }, false);
+    if(adminExitBtn) adminExitBtn.addEventListener('click', function(){ if(assalAttendanceCanAdminExit()){ closeGate(null); }else{ setMsg('الخروج من نافذة الحضور متاح لحساب الأدمن فقط.', false); } }, false);
     var cameraBackBtn = $('attCameraBackBtn');
     if(cameraBackBtn) cameraBackBtn.addEventListener('click', function(){
       if(captureBusy){ setMsg('جاري التقاط صورة الحضور، انتظر لحظات.', false); return; }
@@ -7738,7 +7766,7 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
     }
     ['attTimeoutEmployee','attTimeoutTime','attTimeoutPeriod','attTimeoutNote'].forEach(function(id){ var el=$(id); if(el){ el.addEventListener('keydown', function(ev){ if(ev.key==='Enter'){ ev.preventDefault(); saveTimeout(); } }, false); } });
     var gate = $('assalAttendanceGate');
-    if(gate){ gate.addEventListener('keydown', function(ev){ if(ev.key === 'Escape'){ ev.preventDefault(); ev.stopPropagation(); setMsg('نافذة الحضور إجبارية حتى تسجيل حضور أحد الموظفين، وتعود كل 10 دقائق لحين اكتمال الكادر.', false); } }, true); }
+    if(gate){ gate.addEventListener('keydown', function(ev){ if(ev.key === 'Escape'){ ev.preventDefault(); ev.stopPropagation(); if(assalAttendanceCanAdminExit()){ closeGate(null); }else{ setMsg('نافذة الحضور إجبارية حتى تسجيل حضور أحد الموظفين، وتعود كل 10 دقائق لحين اكتمال الكادر.', false); } } }, true); }
     var cur = splitTime12(new Date()); if($('attTimeoutTime')) $('attTimeoutTime').value = cur.hm; if($('attTimeoutPeriod')) $('attTimeoutPeriod').value = cur.period;
     syncPersonVisuals(); refreshReport(); installServerHooks(); startAutoPromptLoop();
   }
@@ -9803,6 +9831,30 @@ function assalReturnNoteText(daysCount){
   if(daysCount > 7) return 'راجع بعد 7 أيام';
   return 'راجع ضمن المدة';
 }
+function assalReturnAutoNoteTokens(){
+  return [
+    'راجع نفس اليوم',
+    'راجع ضمن المدة',
+    'راجع بعد 7 أيام',
+    'راجع خارج المدة',
+    'راجع بلا شراء',
+    'راجع مكرر',
+    'راجع مسدد'
+  ];
+}
+function assalReturnStripPreviousAutoNote(existing){
+  existing = String(existing || '').trim();
+  if(!existing) return '';
+  const tokens = assalReturnAutoNoteTokens();
+  return existing
+    .split('|')
+    .map(function(part){ return String(part || '').trim(); })
+    .filter(Boolean)
+    .filter(function(part){
+      return !tokens.some(function(tok){ return part === tok; });
+    })
+    .join(' | ');
+}
 function assalReturnMergeNote(existing, autoNote){
   existing = String(existing || '').trim();
   autoNote = String(autoNote || '').trim();
@@ -10106,7 +10158,8 @@ function assalReturnFillPriceFromFound(found){
 function assalReturnApplyNote(noteText){
   const noteEl = document.getElementById('note');
   if(noteEl){
-    noteEl.value = assalReturnMergeNote(noteEl.value, noteText);
+    const userNoteOnly = assalReturnStripPreviousAutoNote(noteEl.value);
+    noteEl.value = assalReturnMergeNote(userNoteOnly, noteText);
   }
 }
 async function assalReturnValidateCurrentItem(opts){
@@ -11572,7 +11625,7 @@ document.getElementById('btnAdd').onclick = async () => {
     const __returnCheck = await assalReturnValidateBeforeAdd(customer, item, selectedDay);
   if (__returnCheck && __returnCheck.ok === false) return;
   if (type === 'راجع' && __returnCheck && __returnCheck.noteText) {
-    note = assalReturnMergeNote(note, __returnCheck.noteText);
+    note = assalReturnMergeNote(assalReturnStripPreviousAutoNote(note), __returnCheck.noteText);
   }
   // أعد قراءة السعر بعد فحص الراجع، لأن الفحص قد يملأ السعر من أحدث شراء أو يفرغه إذا المادة غير مشتراة.
   priceVal = Number(parseIQD(document.getElementById('price').value) || 0);
@@ -28403,5 +28456,1358 @@ html body .dock{
 }
 </style>
 <!-- /ASSAL ROOT FAST ENTER + SELECT GUARD PERFORMANCE FINAL -->
+
+
+<style id="assal-attendance-admin-exit-partial-smooth-inline-hover-final">
+/* ===== ASSAL DEBTS final UI-only patch: admin attendance exit + red back + smooth partial badges + dock-color inline dropdowns ===== */
+#assalAttendanceGate .att-actions.assal-admin-exit-visible{
+  grid-template-columns: minmax(0,1fr) minmax(180px,210px) minmax(165px,190px) !important;
+}
+#assalAttendanceGate .att-exit-admin{
+  height:60px;
+  border-radius:16px;
+  border:1px solid rgba(127,29,29,.62);
+  cursor:pointer;
+  font-weight:950;
+  font-size:16px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  color:#fee2e2;
+  background:linear-gradient(180deg,#7f1d1d,#4c0b0b);
+  box-shadow:0 12px 28px rgba(127,29,29,.30), inset 0 0 0 1px rgba(255,255,255,.04);
+  transition:filter .16s ease, transform .16s ease, box-shadow .16s ease;
+}
+#assalAttendanceGate .att-exit-admin[hidden],
+#assalAttendanceGate .att-exit-admin[aria-hidden="true"]{display:none !important;}
+#assalAttendanceGate .att-exit-admin:hover{
+  filter:brightness(1.06);
+  transform:translateY(-1px);
+  box-shadow:0 16px 32px rgba(127,29,29,.38), inset 0 0 0 1px rgba(255,255,255,.05);
+}
+#assalAttendanceGate .att-back,
+#assalAttendanceGate .att-camera-close{
+  color:#fee2e2 !important;
+  background:linear-gradient(180deg,#7f1d1d,#4c0b0b) !important;
+  border-color:rgba(127,29,29,.64) !important;
+  box-shadow:0 10px 24px rgba(127,29,29,.28), inset 0 0 0 1px rgba(255,255,255,.04) !important;
+}
+#assalAttendanceGate .att-back:hover,
+#assalAttendanceGate .att-camera-close:hover{
+  filter:brightness(1.07) !important;
+  transform:translateY(-1px) !important;
+  border-color:rgba(239,68,68,.62) !important;
+}
+@media (max-width:900px){
+  #assalAttendanceGate .att-actions.assal-admin-exit-visible{grid-template-columns:1fr !important;}
+  #assalAttendanceGate .att-exit-admin{width:100%;}
+}
+
+/* same exact dock gradient for inline edit dropdown hover/active */
+html body .assal-inline-panel .cat-item:hover,
+html body .assal-inline-panel .cat-item.active,
+html body .assal-inline-suggestions .sugg-item:hover,
+html body .assal-inline-suggestions .sugg-item.is-active{
+  background:linear-gradient(135deg,var(--brand,#12d1b4),var(--brand-2,#7c3aed)) !important;
+  color:#fff !important;
+  box-shadow:0 10px 22px rgba(124,58,237,.24), inset 0 0 0 1px rgba(255,255,255,.07) !important;
+}
+html body .assal-inline-panel .cat-item:hover i,
+html body .assal-inline-panel .cat-item.active i{
+  color:#fff !important;
+  opacity:1 !important;
+}
+
+/* stable, unclipped, unified partial/debt badges */
+html body .card .card-foot,
+html body .card .card-foot > .card-sums{
+  overflow:visible !important;
+}
+html body .card .card-foot > .card-sums{
+  display:flex !important;
+  flex-wrap:wrap !important;
+  justify-content:center !important;
+  align-items:center !important;
+  align-content:center !important;
+  gap:7px !important;
+  row-gap:7px !important;
+}
+html body .card .card-foot > .card-sums .sum-badge,
+html body .card .card-foot > .card-sums .sum--customer-debt{
+  height:30px !important;
+  min-height:30px !important;
+  line-height:1 !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:6px !important;
+  padding:0 10px !important;
+  margin:0 !important;
+  overflow:visible !important;
+  box-sizing:border-box !important;
+  vertical-align:middle !important;
+  white-space:nowrap !important;
+  flex:0 0 auto !important;
+}
+html body .card .card-foot > .card-sums .sum-badge > span,
+html body .card .card-foot > .card-sums .sum-badge > i{
+  line-height:1 !important;
+}
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle{
+  display:inline-grid !important;
+  grid-template-areas:"stack" !important;
+  place-items:center !important;
+  width:auto !important;
+  min-width:158px !important;
+  max-width:max-content !important;
+  height:30px !important;
+  min-height:30px !important;
+  padding:0 !important;
+  margin:0 !important;
+  overflow:visible !important;
+  flex:0 0 auto !important;
+  background:transparent !important;
+  border-color:transparent !important;
+  box-shadow:none !important;
+  isolation:isolate !important;
+  transform:translateZ(0);
+}
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face{
+  grid-area:stack !important;
+  height:30px !important;
+  min-height:30px !important;
+  line-height:1 !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:6px !important;
+  padding:0 10px !important;
+  margin:0 !important;
+  box-sizing:border-box !important;
+  white-space:nowrap !important;
+  overflow:visible !important;
+  backface-visibility:hidden !important;
+  transform:translate3d(0,0,0) scale(1);
+  will-change:opacity, transform;
+}
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face > span,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face > i{
+  line-height:1 !important;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt::after,
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face--debt::after{
+  animation:none !important;
+  opacity:0 !important;
+}
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face--partial{
+  animation:assalPartialDebtFaceA 6.6s cubic-bezier(.4,0,.2,1) infinite !important;
+}
+html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face--debt{
+  animation:assalPartialDebtFaceB 6.6s cubic-bezier(.4,0,.2,1) infinite !important;
+}
+@keyframes assalPartialDebtFaceA{
+  0%,42%{opacity:1;transform:translate3d(0,0,0) scale(1);}
+  50%,92%{opacity:0;transform:translate3d(0,-2px,0) scale(.995);}
+  100%{opacity:1;transform:translate3d(0,0,0) scale(1);}
+}
+@keyframes assalPartialDebtFaceB{
+  0%,42%{opacity:0;transform:translate3d(0,2px,0) scale(.995);}
+  50%,92%{opacity:1;transform:translate3d(0,0,0) scale(1);}
+  100%{opacity:0;transform:translate3d(0,2px,0) scale(.995);}
+}
+@media (prefers-reduced-motion: reduce){
+  html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face{animation:none !important;}
+  html body .card .card-foot > .card-sums .assal-partial-debt-toggle .assal-toggle-face--debt{opacity:0 !important;}
+}
+</style>
+
+
+
+<!-- ASSAL PARTIAL BADGES NO CUT + TRUE GAP FINAL - UI ONLY -->
+<style id="assal-partial-badges-no-cut-true-gap-final">
+/*
+  إصلاح بصري فقط لشريط مجاميع البطاقة عند وجود تسديد جزئي:
+  - إلغاء أي قص بسبب contain/height/transform.
+  - جعل gap الحقيقي بين البادجات موحّد مثل باقي الحالات.
+  - التبديل بين "تسديد جزئي" و"الدين/الرصيد" صار crossfade فقط بلا حركة عمودية.
+  - لا يغيّر أي رقم أو حفظ أو منطق تسديد.
+*/
+html body .card .card-foot,
+html body .card .card-foot > .card-sums{
+  overflow:visible !important;
+  contain:none !important;
+}
+html body .card .card-foot > .card-sums{
+  display:flex !important;
+  flex-wrap:wrap !important;
+  align-items:center !important;
+  align-content:center !important;
+  justify-content:center !important;
+  gap:7px !important;
+  column-gap:7px !important;
+  row-gap:7px !important;
+}
+html body .card .card-foot > .card-sums > .sum-badge:not(.assal-partial-debt-toggle),
+html body .card .card-foot > .card-sums > .sum--customer-debt{
+  height:auto !important;
+  min-height:34px !important;
+  max-height:none !important;
+  padding:5px 10px !important;
+  margin:0 !important;
+  line-height:1.35 !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:5px !important;
+  flex:0 0 auto !important;
+  width:auto !important;
+  min-width:0 !important;
+  max-width:100% !important;
+  white-space:nowrap !important;
+  overflow:visible !important;
+  contain:none !important;
+  box-sizing:border-box !important;
+  vertical-align:middle !important;
+}
+html body .card .card-foot > .card-sums > .sum-badge:not(.assal-partial-debt-toggle) > span,
+html body .card .card-foot > .card-sums > .sum-badge:not(.assal-partial-debt-toggle) > i,
+html body .card .card-foot > .card-sums > .sum--customer-debt > span,
+html body .card .card-foot > .card-sums > .sum--customer-debt > i{
+  line-height:1.35 !important;
+  min-height:0 !important;
+  overflow:visible !important;
+  contain:none !important;
+}
+
+/* البادج المتناوب نفسه: لا يوجد min-width جبري ولا مساحة مخفية تسبب تباعد */
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle{
+  display:inline-grid !important;
+  grid-template-areas:"stack" !important;
+  place-items:stretch !important;
+  flex:0 0 auto !important;
+  width:max-content !important;
+  min-width:0 !important;
+  max-width:100% !important;
+  height:auto !important;
+  min-height:34px !important;
+  max-height:none !important;
+  padding:0 !important;
+  margin:0 !important;
+  line-height:1.35 !important;
+  overflow:visible !important;
+  contain:none !important;
+  box-sizing:border-box !important;
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  transform:none !important;
+  isolation:isolate !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face{
+  grid-area:stack !important;
+  width:100% !important;
+  min-width:max-content !important;
+  max-width:100% !important;
+  height:auto !important;
+  min-height:34px !important;
+  max-height:none !important;
+  padding:5px 10px !important;
+  margin:0 !important;
+  border-radius:999px !important;
+  border:1px solid transparent !important;
+  box-sizing:border-box !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:5px !important;
+  white-space:nowrap !important;
+  overflow:visible !important;
+  contain:none !important;
+  line-height:1.35 !important;
+  font-size:12px !important;
+  font-weight:900 !important;
+  text-overflow:clip !important;
+  backface-visibility:hidden !important;
+  -webkit-backface-visibility:hidden !important;
+  transform:none !important;
+  will-change:opacity !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face > span,
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face > i{
+  line-height:1.35 !important;
+  min-height:0 !important;
+  overflow:visible !important;
+  contain:none !important;
+}
+
+/* وجه التسديد الجزئي */
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face--partial{
+  color:#dff7ff !important;
+  background:linear-gradient(135deg,#0f3a4a,#12345f) !important;
+  border-color:rgba(14,165,233,.36) !important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.035) !important;
+}
+/* وجه الدين/الرصيد حسب حالة الزبون */
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle.debt-positive .assal-toggle-face--debt{
+  color:#fff7ed !important;
+  background:linear-gradient(135deg,#b45309,#7f1d1d) !important;
+  border-color:rgba(245,158,11,.55) !important;
+  box-shadow:0 10px 22px rgba(180,83,9,.20), inset 0 0 0 1px rgba(255,255,255,.05) !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle.debt-zero .assal-toggle-face--debt{
+  color:#dcfce7 !important;
+  background:linear-gradient(135deg,#166534,#064e3b) !important;
+  border-color:rgba(34,197,94,.38) !important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.05) !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle.debt-credit .assal-toggle-face--debt{
+  color:#fee2e2 !important;
+  background:linear-gradient(135deg,#7f1d1d 0%,#991b1b 52%,#450a0a 100%) !important;
+  border-color:rgba(248,113,113,.72) !important;
+  box-shadow:0 10px 22px rgba(127,29,29,.22), inset 0 0 0 1px rgba(255,255,255,.06) !important;
+}
+
+/* التبديل النهائي: opacity فقط، بدون translate حتى لا ينقص النص من الأسفل */
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face--partial{
+  animation:assalPartialDebtFaceA 6.4s ease-in-out infinite !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face--debt{
+  animation:assalPartialDebtFaceB 6.4s ease-in-out infinite !important;
+}
+@keyframes assalPartialDebtFaceA{
+  0%,43%{opacity:1;transform:none;}
+  50%,93%{opacity:0;transform:none;}
+  100%{opacity:1;transform:none;}
+}
+@keyframes assalPartialDebtFaceB{
+  0%,43%{opacity:0;transform:none;}
+  50%,93%{opacity:1;transform:none;}
+  100%{opacity:0;transform:none;}
+}
+@media (prefers-reduced-motion: reduce){
+  html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face{animation:none !important;}
+  html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face--debt{opacity:0 !important;}
+}
+@media (max-width:700px){
+  html body .card .card-foot > .card-sums{
+    gap:6px !important;
+    column-gap:6px !important;
+    row-gap:6px !important;
+  }
+  html body .card .card-foot > .card-sums > .assal-partial-debt-toggle,
+  html body .card .card-foot > .card-sums > .sum-badge:not(.assal-partial-debt-toggle),
+  html body .card .card-foot > .card-sums > .sum--customer-debt{
+    flex:0 0 auto !important;
+    width:auto !important;
+    max-width:100% !important;
+  }
+}
+</style>
+<!-- /ASSAL PARTIAL BADGES NO CUT + TRUE GAP FINAL -->
+
+<!-- ASSAL PARTIAL BADGES UNIFIED GAP FINAL - UI ONLY -->
+<style id="assal-partial-badges-unified-gap-final">
+/*
+  إصلاح نهائي للمسافة فقط في حالة التسديد الجزئي:
+  - لا نحجز عرض الوجه المخفي داخل البادج المتناوب.
+  - الوجه الظاهر فقط هو الذي يحدد عرض البادج، لذلك الـ gap يبقى موحداً مثل باقي البادجات.
+  - لا تغيير أرقام، لا حفظ، لا منطق تسديد.
+*/
+html body .card .card-foot,
+html body .card .card-foot > .card-sums{
+  overflow:visible !important;
+  contain:none !important;
+}
+html body .card .card-foot > .card-sums{
+  display:flex !important;
+  flex-wrap:wrap !important;
+  align-items:center !important;
+  align-content:center !important;
+  justify-content:center !important;
+  gap:7px !important;
+  column-gap:7px !important;
+  row-gap:7px !important;
+}
+
+/* كل البادجات العادية: بدون مارجن خاص، المسافة الوحيدة من gap */
+html body .card .card-foot > .card-sums > .sum-badge:not(.assal-partial-debt-toggle),
+html body .card .card-foot > .card-sums > .sum--customer-debt{
+  margin:0 !important;
+  flex:0 0 auto !important;
+  width:auto !important;
+  min-width:0 !important;
+  max-width:100% !important;
+  box-sizing:border-box !important;
+}
+
+/* البادج المتناوب: الحاوية لا تملك أي عرض جبري أو padding؛ الوجه الظاهر فقط يرسم البادج */
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle{
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  flex:0 0 auto !important;
+  width:auto !important;
+  min-width:0 !important;
+  max-width:max-content !important;
+  height:auto !important;
+  min-height:0 !important;
+  max-height:none !important;
+  padding:0 !important;
+  margin:0 !important;
+  border:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  overflow:visible !important;
+  contain:none !important;
+  transform:none !important;
+  line-height:normal !important;
+  vertical-align:middle !important;
+  isolation:isolate !important;
+}
+
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face{
+  position:static !important;
+  width:auto !important;
+  min-width:0 !important;
+  max-width:max-content !important;
+  height:auto !important;
+  min-height:34px !important;
+  max-height:none !important;
+  padding:5px 10px !important;
+  margin:0 !important;
+  border-radius:999px !important;
+  border:1px solid transparent !important;
+  box-sizing:border-box !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:5px !important;
+  white-space:nowrap !important;
+  overflow:visible !important;
+  contain:none !important;
+  line-height:1.35 !important;
+  font-size:12px !important;
+  font-weight:900 !important;
+  text-overflow:clip !important;
+  animation:none !important;
+  transform:none !important;
+  will-change:auto !important;
+  opacity:1 !important;
+  backface-visibility:hidden !important;
+  -webkit-backface-visibility:hidden !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face > span,
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face > i{
+  line-height:1.35 !important;
+  min-width:0 !important;
+  max-width:max-content !important;
+  margin:0 !important;
+  padding:0 !important;
+  white-space:nowrap !important;
+  overflow:visible !important;
+  contain:none !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face > i{
+  font-size:12px !important;
+  opacity:.95 !important;
+}
+
+/* لا نجعل الوجهين موجودين بالعرض بنفس الوقت؛ هذا هو سبب المسافة الوهمية */
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face{
+  display:none !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle.assal-gap-phase-partial .assal-toggle-face--partial,
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle:not(.assal-gap-phase-debt):not(.assal-gap-phase-partial) .assal-toggle-face--partial{
+  display:inline-flex !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle.assal-gap-phase-debt .assal-toggle-face--debt{
+  display:inline-flex !important;
+}
+
+/* لمسة تبديل خفيفة على الحاوية نفسها بدون تغيير عرض الوجه المخفي */
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle.assal-gap-fading{
+  opacity:.35 !important;
+  transition:opacity .12s ease !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle:not(.assal-gap-fading){
+  opacity:1 !important;
+  transition:opacity .16s ease !important;
+}
+
+/* ألوان الوجهين كما هي من آخر نسخة */
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face--partial{
+  color:#dff7ff !important;
+  background:linear-gradient(135deg,#0f3a4a,#12345f) !important;
+  border-color:rgba(14,165,233,.36) !important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.035) !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle.debt-positive .assal-toggle-face--debt{
+  color:#fff7ed !important;
+  background:linear-gradient(135deg,#b45309,#7f1d1d) !important;
+  border-color:rgba(245,158,11,.55) !important;
+  box-shadow:0 10px 22px rgba(180,83,9,.20), inset 0 0 0 1px rgba(255,255,255,.05) !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle.debt-zero .assal-toggle-face--debt{
+  color:#dcfce7 !important;
+  background:linear-gradient(135deg,#166534,#064e3b) !important;
+  border-color:rgba(34,197,94,.38) !important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.05) !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle.debt-credit .assal-toggle-face--debt{
+  color:#fee2e2 !important;
+  background:linear-gradient(135deg,#7f1d1d 0%,#991b1b 52%,#450a0a 100%) !important;
+  border-color:rgba(248,113,113,.72) !important;
+  box-shadow:0 10px 22px rgba(127,29,29,.22), inset 0 0 0 1px rgba(255,255,255,.06) !important;
+}
+
+@media (max-width:700px){
+  html body .card .card-foot > .card-sums{
+    gap:6px !important;
+    column-gap:6px !important;
+    row-gap:6px !important;
+  }
+}
+</style>
+<script id="assal-partial-badges-unified-gap-final-script">
+(function(){
+  'use strict';
+  if(window.__ASSAL_PARTIAL_BADGES_UNIFIED_GAP_FINAL__) return;
+  window.__ASSAL_PARTIAL_BADGES_UNIFIED_GAP_FINAL__ = true;
+
+  var SELECTOR = '.card .card-foot > .card-sums > .assal-partial-debt-toggle';
+  var INTERVAL = 3600;
+  var FADE_MS = 90;
+  var reduced = false;
+  try{ reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }catch(_){ reduced = false; }
+
+  function eachToggle(fn){
+    try{
+      Array.prototype.forEach.call(document.querySelectorAll(SELECTOR), fn);
+    }catch(_){ }
+  }
+  function ensureInitial(){
+    eachToggle(function(el){
+      if(!el.classList.contains('assal-gap-phase-partial') && !el.classList.contains('assal-gap-phase-debt')){
+        el.classList.add('assal-gap-phase-partial');
+      }
+    });
+  }
+  function flipOne(el){
+    if(!el) return;
+    if(!el.classList.contains('assal-gap-phase-partial') && !el.classList.contains('assal-gap-phase-debt')){
+      el.classList.add('assal-gap-phase-partial');
+      return;
+    }
+    if(reduced){
+      el.classList.add('assal-gap-phase-partial');
+      el.classList.remove('assal-gap-phase-debt','assal-gap-fading');
+      return;
+    }
+    el.classList.add('assal-gap-fading');
+    window.setTimeout(function(){
+      var toDebt = el.classList.contains('assal-gap-phase-partial');
+      el.classList.toggle('assal-gap-phase-debt', toDebt);
+      el.classList.toggle('assal-gap-phase-partial', !toDebt);
+      window.requestAnimationFrame(function(){ el.classList.remove('assal-gap-fading'); });
+    }, FADE_MS);
+  }
+  function flipAll(){
+    ensureInitial();
+    if(reduced) return;
+    eachToggle(flipOne);
+  }
+  function boot(){
+    ensureInitial();
+    window.setInterval(flipAll, INTERVAL);
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', boot, {once:true});
+  }else{
+    boot();
+  }
+  window.addEventListener('load', ensureInitial, {once:true});
+})();
+</script>
+<!-- /ASSAL PARTIAL BADGES UNIFIED GAP FINAL -->
+
+
+<!-- ASSAL PARTIAL TOGGLE FIXED SLOT SAFE FINAL - UI ONLY -->
+<style id="assal-partial-toggle-fixed-slot-safe-final">
+/*
+  Safe root visual fix for partial-payment alternating badge.
+  Inserted before the real closing body only, not inside popup/document.write strings.
+  UI only: fixed slot width + unified parent gap, no totals/debt logic changes.
+*/
+html body .card .card-foot,
+html body .card .card-foot > .card-sums{
+  overflow:visible !important;
+  contain:none !important;
+}
+html body .card .card-foot > .card-sums{
+  display:flex !important;
+  flex-wrap:wrap !important;
+  align-items:center !important;
+  align-content:center !important;
+  justify-content:center !important;
+  gap:7px !important;
+  column-gap:7px !important;
+  row-gap:7px !important;
+}
+html body .card .card-foot > .card-sums > .sum-badge,
+html body .card .card-foot > .card-sums > .sum--customer-debt{
+  margin:0 !important;
+  flex:0 0 auto !important;
+  box-sizing:border-box !important;
+}
+
+/* The partial/debt badge is one fixed slot; it never grows/shrinks while alternating. */
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle{
+  display:inline-grid !important;
+  grid-template-areas:"stack" !important;
+  place-items:stretch !important;
+  width:var(--assal-partial-slot-w, max-content) !important;
+  min-width:var(--assal-partial-slot-w, max-content) !important;
+  max-width:var(--assal-partial-slot-w, max-content) !important;
+  height:auto !important;
+  min-height:34px !important;
+  max-height:none !important;
+  padding:0 !important;
+  margin:0 !important;
+  border:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  overflow:visible !important;
+  contain:none !important;
+  flex:0 0 auto !important;
+  line-height:normal !important;
+  vertical-align:middle !important;
+  opacity:1 !important;
+  transform:none !important;
+  transition:none !important;
+  isolation:isolate !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle.assal-gap-fading{
+  opacity:1 !important;
+  transform:none !important;
+}
+
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face{
+  grid-area:stack !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  width:100% !important;
+  min-width:0 !important;
+  max-width:100% !important;
+  height:auto !important;
+  min-height:34px !important;
+  max-height:none !important;
+  padding:5px 10px !important;
+  margin:0 !important;
+  border-radius:999px !important;
+  border:1px solid transparent !important;
+  box-sizing:border-box !important;
+  gap:5px !important;
+  white-space:nowrap !important;
+  overflow:visible !important;
+  contain:none !important;
+  line-height:1.35 !important;
+  font-size:12px !important;
+  font-weight:900 !important;
+  text-overflow:clip !important;
+  transform:none !important;
+  animation:none !important;
+  will-change:opacity !important;
+  transition:opacity .24s ease !important;
+  pointer-events:none !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face > span,
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face > i{
+  line-height:1.35 !important;
+  margin:0 !important;
+  padding:0 !important;
+  white-space:nowrap !important;
+  overflow:visible !important;
+  contain:none !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face > i{
+  font-size:12px !important;
+  opacity:.95 !important;
+}
+
+/* Both faces stay in the same grid slot; only opacity changes, so width/gap never moves. */
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face--partial{
+  opacity:1 !important;
+  visibility:visible !important;
+  z-index:2 !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face--debt{
+  opacity:0 !important;
+  visibility:visible !important;
+  z-index:1 !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle.assal-gap-phase-debt .assal-toggle-face--partial{
+  opacity:0 !important;
+  z-index:1 !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle.assal-gap-phase-debt .assal-toggle-face--debt{
+  opacity:1 !important;
+  z-index:2 !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle.assal-gap-phase-partial .assal-toggle-face--partial,
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle:not(.assal-gap-phase-debt):not(.assal-gap-phase-partial) .assal-toggle-face--partial{
+  opacity:1 !important;
+  z-index:2 !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle.assal-gap-phase-partial .assal-toggle-face--debt,
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle:not(.assal-gap-phase-debt):not(.assal-gap-phase-partial) .assal-toggle-face--debt{
+  opacity:0 !important;
+  z-index:1 !important;
+}
+
+/* Measuring clones are hidden and removed immediately after measuring. */
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-measure-face{
+  position:absolute !important;
+  inset:auto !important;
+  left:-99999px !important;
+  top:-99999px !important;
+  visibility:hidden !important;
+  opacity:0 !important;
+  display:inline-flex !important;
+  width:auto !important;
+  min-width:max-content !important;
+  max-width:none !important;
+  pointer-events:none !important;
+  transform:none !important;
+  animation:none !important;
+  transition:none !important;
+  z-index:-1 !important;
+}
+
+@media (max-width:700px){
+  html body .card .card-foot > .card-sums{
+    gap:6px !important;
+    column-gap:6px !important;
+    row-gap:6px !important;
+  }
+}
+@media (prefers-reduced-motion: reduce){
+  html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face{
+    transition:none !important;
+  }
+}
+</style>
+<script id="assal-partial-toggle-fixed-slot-safe-final-script">
+(function(){
+  'use strict';
+  if(window.__ASSAL_PARTIAL_TOGGLE_FIXED_SLOT_SAFE_FINAL__) return;
+  window.__ASSAL_PARTIAL_TOGGLE_FIXED_SLOT_SAFE_FINAL__ = true;
+
+  var SEL = '.card .card-foot > .card-sums > .assal-partial-debt-toggle';
+  var queued = false;
+
+  function measureFace(host, face){
+    if(!host || !face) return 0;
+    var c = face.cloneNode(true);
+    c.classList.add('assal-measure-face');
+    try{
+      c.style.setProperty('display','inline-flex','important');
+      c.style.setProperty('width','auto','important');
+      c.style.setProperty('min-width','max-content','important');
+      c.style.setProperty('max-width','none','important');
+      c.style.setProperty('opacity','0','important');
+      c.style.setProperty('visibility','hidden','important');
+      c.style.setProperty('position','absolute','important');
+      c.style.setProperty('pointer-events','none','important');
+      c.style.setProperty('animation','none','important');
+      c.style.setProperty('transition','none','important');
+    }catch(_){ }
+    try{ host.appendChild(c); }catch(_){ return 0; }
+    var w = 0;
+    try{ w = Math.ceil(c.getBoundingClientRect().width || c.offsetWidth || 0); }catch(_){ w = 0; }
+    try{ c.remove(); }catch(_){ try{ host.removeChild(c); }catch(__){} }
+    return w || 0;
+  }
+
+  function fixOne(host){
+    if(!host) return;
+    var partial = host.querySelector('.assal-toggle-face--partial');
+    var debt = host.querySelector('.assal-toggle-face--debt');
+    if(!partial || !debt) return;
+    var p = measureFace(host, partial);
+    var d = measureFace(host, debt);
+    var w = Math.max(p, d);
+    if(w > 0){
+      host.style.setProperty('--assal-partial-slot-w', w + 'px');
+      host.classList.add('assal-fixed-slot-ready');
+    }
+    if(!host.classList.contains('assal-gap-phase-partial') && !host.classList.contains('assal-gap-phase-debt')){
+      host.classList.add('assal-gap-phase-partial');
+    }
+  }
+
+  function fixAllNow(){
+    queued = false;
+    try{ Array.prototype.forEach.call(document.querySelectorAll(SEL), fixOne); }catch(_){ }
+  }
+  function scheduleFix(){
+    if(queued) return;
+    queued = true;
+    window.requestAnimationFrame(fixAllNow);
+  }
+
+  var oldRender = window.renderBoard;
+  if(typeof oldRender === 'function' && !oldRender.__assalPartialFixedSlotSafeWrapped){
+    var wrapped = function(){
+      var ret = oldRender.apply(this, arguments);
+      scheduleFix();
+      return ret;
+    };
+    wrapped.__assalPartialFixedSlotSafeWrapped = true;
+    window.renderBoard = wrapped;
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', scheduleFix, {once:true});
+  }else{
+    scheduleFix();
+  }
+  window.addEventListener('load', scheduleFix, {once:true});
+  window.addEventListener('resize', scheduleFix, {passive:true});
+  window.assalFixPartialToggleSlots = scheduleFix;
+})();
+</script>
+<!-- /ASSAL PARTIAL TOGGLE FIXED SLOT SAFE FINAL -->
+
+
+
+<!-- ASSAL PARTIAL NO TOGGLE STATIC DEBT FINAL - UI ONLY -->
+<style id="assal-partial-no-toggle-static-debt-final-style">
+/*
+  إلغاء تناوب/وميض التسديد الجزئي نهائياً.
+  نعرض بادج الدين/الرصيد النهائي ثابت فقط، بدون أي تبديل أو حركة مستمرة.
+  UI only: لا يغير حسابات التسديد الجزئي أو الديون.
+*/
+html body .card .card-foot,
+html body .card .card-foot > .card-sums{
+  overflow:visible !important;
+  contain:none !important;
+}
+html body .card .card-foot > .card-sums{
+  display:flex !important;
+  flex-wrap:wrap !important;
+  align-items:center !important;
+  align-content:center !important;
+  justify-content:center !important;
+  gap:7px !important;
+  column-gap:7px !important;
+  row-gap:7px !important;
+}
+
+/* أي Toggle قديم يظهر قبل إعادة الرسم: نخليه ثابت على وجه الدين فقط وبدون حركة */
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle,
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle *,
+html body .card .card-foot > .card-sums > .assal-partial-static-debt,
+html body .card .card-foot > .card-sums > .assal-partial-static-debt *{
+  animation:none !important;
+  transition:none !important;
+  transform:none !important;
+  will-change:auto !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle{
+  display:inline-flex !important;
+  width:auto !important;
+  min-width:0 !important;
+  max-width:100% !important;
+  height:32px !important;
+  min-height:32px !important;
+  max-height:32px !important;
+  padding:0 10px !important;
+  margin:0 !important;
+  border-radius:999px !important;
+  flex:0 0 auto !important;
+  box-sizing:border-box !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:5px !important;
+  white-space:nowrap !important;
+  overflow:visible !important;
+  opacity:1 !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face--partial{
+  display:none !important;
+  opacity:0 !important;
+  visibility:hidden !important;
+}
+html body .card .card-foot > .card-sums > .assal-partial-debt-toggle .assal-toggle-face--debt{
+  display:inline-flex !important;
+  opacity:1 !important;
+  visibility:visible !important;
+  position:static !important;
+  width:auto !important;
+  min-width:0 !important;
+  max-width:100% !important;
+  height:auto !important;
+  min-height:0 !important;
+  padding:0 !important;
+  margin:0 !important;
+  border:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:5px !important;
+  line-height:1.15 !important;
+}
+
+/* البادج النهائي الثابت الذي يحل محل المتناوب */
+html body .card .card-foot > .card-sums > .sum--customer-debt.assal-partial-static-debt{
+  margin:0 !important;
+  flex:0 0 auto !important;
+  width:auto !important;
+  min-width:0 !important;
+  max-width:100% !important;
+  height:32px !important;
+  min-height:32px !important;
+  max-height:32px !important;
+  padding:0 10px !important;
+  border-radius:999px !important;
+  box-sizing:border-box !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:5px !important;
+  white-space:nowrap !important;
+  overflow:visible !important;
+  text-overflow:clip !important;
+  line-height:1.15 !important;
+  font-size:12px !important;
+  font-weight:900 !important;
+}
+html body .card .card-foot > .card-sums > .sum--customer-debt.assal-partial-static-debt > span{
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:3px !important;
+  white-space:nowrap !important;
+  overflow:visible !important;
+  line-height:1.15 !important;
+}
+html body .card .card-foot > .card-sums > .sum--customer-debt.assal-partial-static-debt i{
+  display:none !important;
+}
+
+@media (max-width:700px){
+  html body .card .card-foot > .card-sums{ gap:6px !important; column-gap:6px !important; row-gap:6px !important; }
+}
+</style>
+<script id="assal-partial-no-toggle-static-debt-final-script">
+(function(){
+  'use strict';
+  if(window.__ASSAL_PARTIAL_NO_TOGGLE_STATIC_DEBT_FINAL__) return;
+  window.__ASSAL_PARTIAL_NO_TOGGLE_STATIC_DEBT_FINAL__ = true;
+
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c] || c;
+    });
+  }
+  function resolveName(raw){
+    var display = raw || '';
+    try{ if(typeof window.assalSheetCustomerDisplayName === 'function') display = window.assalSheetCustomerDisplayName(display) || display; }catch(_){ }
+    return display;
+  }
+  function fmt(n){
+    try{ if(typeof window.formatIQD === 'function') return window.formatIQD(Math.round(Number(n) || 0)); }catch(_){ }
+    return String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+  function partialTitle(card){
+    var paid = 0, remaining = 0;
+    try{ if(typeof window.assalCardPartialPaidTotal === 'function') paid = Math.round(window.assalCardPartialPaidTotal(card) || 0); }catch(_){ paid = 0; }
+    try{ if(typeof window.assalCardPartialRemaining === 'function') remaining = Math.max(0, Math.round(window.assalCardPartialRemaining(card) || 0)); }catch(_){ remaining = 0; }
+    return paid ? ('تم تسديد جزء: ' + fmt(paid) + ' د.ع — الباقي: ' + fmt(remaining) + ' د.ع') : '';
+  }
+  function decorateCustomerDebtHtml(html, display, title){
+    html = String(html || '');
+    if(!html) return '';
+    if(/class="[^"]*assal-partial-static-debt/.test(html) === false){
+      html = html.replace(/class="/, 'class="assal-partial-static-debt ');
+    }
+    if(/data-customer="/.test(html)){
+      html = html.replace(/data-customer="[^"]*"/, 'data-customer="' + esc(display) + '"');
+    }else{
+      html = html.replace(/<span\b/, '<span data-customer="' + esc(display) + '"');
+    }
+    if(title){
+      if(/title="/.test(html)) html = html.replace(/title="[^"]*"/, 'title="' + esc(title) + '"');
+      else html = html.replace(/<span\b/, '<span title="' + esc(title) + '"');
+    }
+    return html;
+  }
+  function fallbackDebtHtml(display, extraTitle){
+    var info = {cls:'debt-zero', icon:'fa-solid fa-circle-check', label:'الدين النهائي', text:'0'};
+    try{ if(typeof window.assalCustomerDebtBadgeInfo === 'function') info = window.assalCustomerDebtBadgeInfo(display) || info; }catch(_){ }
+    var label = info.label || (info.cls === 'debt-credit' ? 'رصيد للزبون' : 'الدين النهائي');
+    var text = (info.text != null) ? info.text : fmt(info.amount || 0);
+    var icon = info.icon || 'fa-solid fa-circle-check';
+    return '<span class="sum-badge sum--customer-debt assal-partial-static-debt ' + esc(info.cls || 'debt-zero') + '" data-customer="' + esc(display) + '" title="' + esc(extraTitle || '') + '"><i class="' + esc(icon) + '"></i><span><span class="assal-money-label">' + esc(label) + ': </span>' + esc(text) + '</span></span>';
+  }
+  function buildStaticDebtHtml(card, customer, carriedTitle){
+    var display = resolveName(customer || (card && card.customer) || '');
+    if(!display) return '';
+    var pTitle = partialTitle(card) || carriedTitle || '';
+    var detail = '';
+    try{ if(typeof window.assalCustomerDebtBreakdownTitle === 'function') detail = window.assalCustomerDebtBreakdownTitle(display) || ''; }catch(_){ }
+    var title = [pTitle, detail].filter(Boolean).join('\n');
+    var base = '';
+    try{ if(typeof window.assalCustomerDebtBadgeHtml === 'function') base = window.assalCustomerDebtBadgeHtml(display) || ''; }catch(_){ base = ''; }
+    return decorateCustomerDebtHtml(base, display, title) || fallbackDebtHtml(display, title);
+  }
+
+  /* بعد هذه النقطة لا ننشئ بادج متناوب أصلاً: الدين/الرصيد النهائي فقط، ثابت. */
+  window.assalPartialDebtToggleBadgeHtml = function(card, customer){
+    try{
+      var paid = 0;
+      try{ if(typeof window.assalCardPartialPaidTotal === 'function') paid = Math.round(window.assalCardPartialPaidTotal(card) || 0); }catch(_){ paid = 0; }
+      if(!paid) return '';
+      return buildStaticDebtHtml(card, customer, '');
+    }catch(_){ return ''; }
+  };
+
+  function replaceOldToggle(el){
+    try{
+      if(!el || !el.parentNode) return;
+      var customer = el.getAttribute('data-customer') || '';
+      var pTitle = el.getAttribute('data-partial-title') || el.getAttribute('title') || '';
+      var html = buildStaticDebtHtml(null, customer, pTitle);
+      if(!html) return;
+      var tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      var next = tmp.firstElementChild;
+      if(next) el.parentNode.replaceChild(next, el);
+    }catch(_){ }
+  }
+  function applyStatic(root){
+    root = root || document;
+    try{ Array.prototype.forEach.call(root.querySelectorAll('.assal-partial-debt-toggle[data-customer]'), replaceOldToggle); }catch(_){ }
+  }
+  function refreshStatic(root){
+    root = root || document;
+    try{
+      Array.prototype.forEach.call(root.querySelectorAll('.assal-partial-static-debt[data-customer]'), function(el){
+        var customer = el.getAttribute('data-customer') || '';
+        var html = buildStaticDebtHtml(null, customer, el.getAttribute('title') || '');
+        if(!html) return;
+        var tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        var next = tmp.firstElementChild;
+        if(next && el.parentNode) el.parentNode.replaceChild(next, el);
+      });
+    }catch(_){ }
+    applyStatic(root);
+  }
+  window.assalRefreshPartialDebtToggleBadges = function(root){ refreshStatic(root || document); };
+
+  function schedule(){ window.requestAnimationFrame(function(){ applyStatic(document); }); }
+  var oldRender = window.renderBoard;
+  if(typeof oldRender === 'function' && !oldRender.__assalPartialNoToggleStaticDebtFinal){
+    var wrappedRender = function(){
+      var r = oldRender.apply(this, arguments);
+      schedule();
+      return r;
+    };
+    wrappedRender.__assalPartialNoToggleStaticDebtFinal = true;
+    window.renderBoard = wrappedRender;
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', schedule, {once:true});
+  else schedule();
+  window.addEventListener('load', schedule, {once:true});
+})();
+</script>
+<!-- /ASSAL PARTIAL NO TOGGLE STATIC DEBT FINAL -->
+
+
+
+<!-- ASSAL STATIC FINAL DEBT NO FLASH FINAL - UI ONLY -->
+<style id="assal-static-final-debt-no-flash-final-style">
+/*
+  إلغاء نهائي لأي وميض/لمعة/تصغير تلقائي على بادج الدين/الرصيد النهائي.
+  واجهة فقط: لا يغيّر الحسابات ولا التسديد الجزئي.
+*/
+html body .card .card-foot > .card-sums .sum--customer-debt,
+html body .card .card-foot > .card-sums .sum--customer-debt.sum--current-debt,
+html body .card .card-foot > .card-sums .sum--customer-debt.assal-partial-static-debt,
+html body .card .card-foot > .card-sums .sum--customer-debt *,
+html body .card .card-foot > .card-sums .sum--customer-debt.sum--current-debt *,
+html body .card .card-foot > .card-sums .sum--customer-debt.assal-partial-static-debt *{
+  animation:none !important;
+  transition:none !important;
+  transform:none !important;
+  will-change:auto !important;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt::before,
+html body .card .card-foot > .card-sums .sum--customer-debt::after,
+html body .card .card-foot > .card-sums .sum--customer-debt.sum--current-debt::before,
+html body .card .card-foot > .card-sums .sum--customer-debt.sum--current-debt::after,
+html body .card .card-foot > .card-sums .sum--customer-debt.assal-partial-static-debt::before,
+html body .card .card-foot > .card-sums .sum--customer-debt.assal-partial-static-debt::after{
+  content:none !important;
+  display:none !important;
+  opacity:0 !important;
+  animation:none !important;
+  transition:none !important;
+  transform:none !important;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt,
+html body .card .card-foot > .card-sums .sum--customer-debt.sum--current-debt,
+html body .card .card-foot > .card-sums .sum--customer-debt.assal-partial-static-debt{
+  flex:0 0 auto !important;
+  width:auto !important;
+  min-width:0 !important;
+  max-width:100% !important;
+  height:32px !important;
+  min-height:32px !important;
+  max-height:32px !important;
+  padding:0 10px !important;
+  margin:0 !important;
+  border-radius:999px !important;
+  box-sizing:border-box !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:5px !important;
+  white-space:nowrap !important;
+  overflow:visible !important;
+  contain:none !important;
+  line-height:1.15 !important;
+  font-size:12px !important;
+  font-weight:900 !important;
+  letter-spacing:0 !important;
+  text-overflow:clip !important;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt i,
+html body .card .card-foot > .card-sums .sum--customer-debt.sum--current-debt i,
+html body .card .card-foot > .card-sums .sum--customer-debt.assal-partial-static-debt i{
+  display:none !important;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt > span,
+html body .card .card-foot > .card-sums .sum--customer-debt.sum--current-debt > span,
+html body .card .card-foot > .card-sums .sum--customer-debt.assal-partial-static-debt > span{
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:3px !important;
+  direction:rtl !important;
+  unicode-bidi:isolate !important;
+  white-space:nowrap !important;
+  overflow:visible !important;
+  line-height:1.15 !important;
+  min-width:0 !important;
+  max-width:100% !important;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt .assal-final-debt-label,
+html body .card .card-foot > .card-sums .sum--customer-debt .assal-money-label,
+html body .card .card-foot > .card-sums .sum--customer-debt.assal-final-debt-number-only .assal-final-debt-label,
+html body .card .card-foot > .card-sums .sum--customer-debt.assal-final-debt-number-only .assal-money-label,
+html body .card .card-foot > .card-sums .sum--customer-debt.assal-final-debt-tight .assal-final-debt-label,
+html body .card .card-foot > .card-sums .sum--customer-debt.assal-final-debt-micro .assal-final-debt-label{
+  display:inline !important;
+  visibility:visible !important;
+  opacity:1 !important;
+  white-space:nowrap !important;
+}
+html body .card .card-foot > .card-sums .sum--customer-debt .assal-final-debt-amount,
+html body .card .card-foot > .card-sums .sum--customer-debt .assal-money-number,
+html body .card .card-foot > .card-sums .sum--customer-debt .assal-safe-money-number{
+  direction:ltr !important;
+  unicode-bidi:isolate !important;
+  display:inline-block !important;
+  white-space:nowrap !important;
+  font-weight:950 !important;
+}
+/* إبطال التصغير القديم الذي كان يخفي التسمية ويغيّر حجم البادج */
+html body .card .card-foot > .card-sums .sum--customer-debt.assal-final-debt-tight,
+html body .card .card-foot > .card-sums .sum--customer-debt.assal-final-debt-micro,
+html body .card .card-foot > .card-sums .sum--customer-debt.assal-final-debt-number-only{
+  font-size:12px !important;
+  padding-inline:10px !important;
+  gap:5px !important;
+}
+</style>
+<script id="assal-static-final-debt-no-flash-final-script">
+(function(){
+  'use strict';
+  if(window.__ASSAL_STATIC_FINAL_DEBT_NO_FLASH_FINAL__) return;
+  window.__ASSAL_STATIC_FINAL_DEBT_NO_FLASH_FINAL__ = true;
+
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c] || c;
+    });
+  }
+  function fmt(n){
+    try{ if(typeof window.formatIQD === 'function') return window.formatIQD(Math.round(Number(n) || 0)); }catch(_){ }
+    return String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+  function digitsOnlyAmount(raw, fallback){
+    var s = String(raw == null ? '' : raw).replace(/\s+/g, ' ').trim();
+    s = s.replace(/^[^:：]*[:：]\s*/, '').trim();
+    s = s.replace(/\s*د\.?ع\.?\s*$/i, '').trim();
+    if(!s && fallback != null) s = fmt(fallback);
+    return s || '0';
+  }
+  function infoFor(customer){
+    var info = null;
+    try{ if(typeof window.assalCustomerDebtBadgeInfo === 'function') info = window.assalCustomerDebtBadgeInfo(customer); }catch(_){ info = null; }
+    info = info || {};
+    if(info.amount == null){
+      var t = String(info.text == null ? '' : info.text).replace(/,/g,'').replace(/[٠-٩]/g,function(ch){return String(ch.charCodeAt(0)-1632);}).replace(/[۰-۹]/g,function(ch){return String(ch.charCodeAt(0)-1776);});
+      var m = t.match(/-?\d+(?:\.\d+)?/);
+      if(m) info.amount = Number(m[0]);
+    }
+    if(!info.cls) info.cls = (Number(info.amount || 0) < 0 ? 'debt-credit' : (Number(info.amount || 0) > 0 ? 'debt-positive' : 'debt-zero'));
+    if(!info.icon) info.icon = info.cls === 'debt-credit' ? 'fa-solid fa-wallet' : (info.cls === 'debt-positive' ? 'fa-solid fa-scale-balanced' : 'fa-solid fa-circle-check');
+    return info;
+  }
+  function stableLabel(info, currentText){
+    var raw = String((info && info.label) || currentText || '');
+    var amount = Number(info && info.amount);
+    if(/رصيد/.test(raw) || (info && info.cls === 'debt-credit') || amount < 0) return 'الرصيد النهائي';
+    return 'الدين النهائي';
+  }
+  function stableInner(info, currentText){
+    var label = stableLabel(info, currentText);
+    var amount = digitsOnlyAmount(info && info.text, info && info.amount);
+    return '<span><span class="assal-final-debt-label">' + esc(label) + ': </span><span class="assal-final-debt-amount" dir="ltr">' + esc(amount) + '</span></span>';
+  }
+  function titleFor(customer){
+    try{ if(typeof window.assalCustomerDebtBreakdownTitle === 'function') return window.assalCustomerDebtBreakdownTitle(customer) || ''; }catch(_){ }
+    return '';
+  }
+  function stableDebtHtml(customer, extraClass){
+    var display = customer || '';
+    try{ if(typeof window.assalSheetCustomerDisplayName === 'function') display = window.assalSheetCustomerDisplayName(display) || display; }catch(_){ }
+    var info = infoFor(display);
+    var cls = [extraClass || '', 'sum-badge','sum--customer-debt','sum--current-debt', info.cls || 'debt-zero'].join(' ').replace(/\s+/g,' ').trim();
+    return '<span class="' + esc(cls) + '" data-customer="' + esc(display) + '" title="' + esc(titleFor(display)) + '"><i class="' + esc(info.icon || 'fa-solid fa-circle-check') + '"></i>' + stableInner(info, info.label || '') + '</span>';
+  }
+  var previousBadgeHtml = window.assalCustomerDebtBadgeHtml;
+  window.assalCustomerDebtBadgeHtml = function(customer){
+    try{
+      if(typeof window.assalIsSheetCustomerName === 'function' && !window.assalIsSheetCustomerName(customer || '')) return '';
+    }catch(_){ }
+    return stableDebtHtml(customer, '');
+  };
+  try{ window.assalCustomerDebtBadgeHtml.__assalStaticNoFlashWrapped = true; }catch(_){ }
+
+  var previousToggleHtml = window.assalPartialDebtToggleBadgeHtml;
+  window.assalPartialDebtToggleBadgeHtml = function(card, customer){
+    try{
+      var paid = 0;
+      try{ if(typeof window.assalCardPartialPaidTotal === 'function') paid = Math.round(window.assalCardPartialPaidTotal(card) || 0); }catch(_){ paid = 0; }
+      if(!paid && previousToggleHtml){
+        var old = String(previousToggleHtml.apply(this, arguments) || '');
+        if(!old) return '';
+      }
+      return stableDebtHtml(customer || (card && card.customer) || '', 'assal-partial-static-debt');
+    }catch(_){ return ''; }
+  };
+
+  function ensureSpan(el, info){
+    if(!el) return;
+    var span = null;
+    try{
+      var kids = el.children || [];
+      for(var i=0;i<kids.length;i++){
+        if(String(kids[i].tagName || '').toLowerCase() === 'span'){ span = kids[i]; break; }
+      }
+      if(!span){ span = document.createElement('span'); el.appendChild(span); }
+      span.outerHTML = stableInner(info, el.textContent || '');
+    }catch(_){ }
+  }
+  function stabilizeBadge(el){
+    try{
+      if(!el || !el.classList) return;
+      var customer = el.getAttribute('data-customer') || '';
+      var info = infoFor(customer);
+      el.classList.remove('assal-final-debt-tight','assal-final-debt-micro','assal-final-debt-number-only','assal-motion-visible','debt-positive','debt-zero','debt-credit');
+      el.classList.add('sum-badge','sum--customer-debt','sum--current-debt', info.cls || 'debt-zero');
+      if(el.classList.contains('assal-partial-static-debt')) el.classList.add('assal-partial-static-debt');
+      var icon = el.querySelector('i');
+      if(!icon){ icon = document.createElement('i'); el.insertBefore(icon, el.firstChild || null); }
+      icon.className = info.icon || 'fa-solid fa-circle-check';
+      ensureSpan(el, info);
+      try{ el.setAttribute('title', titleFor(customer)); }catch(_){ }
+      el.style.animation = 'none';
+      el.style.transition = 'none';
+      el.style.transform = 'none';
+      el.style.willChange = 'auto';
+    }catch(_){ }
+  }
+  function replaceToggle(el){
+    try{
+      if(!el || !el.parentNode) return;
+      var customer = el.getAttribute('data-customer') || '';
+      var tmp = document.createElement('div');
+      tmp.innerHTML = stableDebtHtml(customer, 'assal-partial-static-debt');
+      var next = tmp.firstElementChild;
+      if(next) el.parentNode.replaceChild(next, el);
+    }catch(_){ }
+  }
+  function stabilizeAll(root){
+    root = root || document;
+    try{ Array.prototype.forEach.call(root.querySelectorAll('.assal-partial-debt-toggle[data-customer]'), replaceToggle); }catch(_){ }
+    try{ Array.prototype.forEach.call(root.querySelectorAll('.sum--customer-debt[data-customer]'), stabilizeBadge); }catch(_){ }
+  }
+  var queued = false;
+  function schedule(){
+    if(queued) return;
+    queued = true;
+    (window.requestAnimationFrame || function(fn){ return setTimeout(fn, 16); })(function(){
+      queued = false;
+      stabilizeAll(document);
+    });
+  }
+  function scheduleHard(){
+    schedule();
+    setTimeout(function(){ stabilizeAll(document); }, 0);
+    setTimeout(function(){ stabilizeAll(document); }, 80);
+  }
+  function wrapAfter(name){
+    try{
+      var old = window[name];
+      if(typeof old !== 'function' || old.__assalStaticNoFlashWrapped) return;
+      var wrapped = function(){
+        var r = old.apply(this, arguments);
+        scheduleHard();
+        return r;
+      };
+      wrapped.__assalStaticNoFlashWrapped = true;
+      window[name] = wrapped;
+    }catch(_){ }
+  }
+  wrapAfter('renderBoard');
+  wrapAfter('assalRefreshCustomerDebtBadges');
+  wrapAfter('assalRefreshPartialDebtToggleBadges');
+  wrapAfter('assalApplyTrailingMinusMoneyDisplay');
+  window.assalStaticFinalDebtNoFlash = function(root){ stabilizeAll(root || document); };
+  window.assalRefreshCustomerDebtBadges = (function(old){
+    return function(root){
+      try{ if(typeof old === 'function' && old !== window.assalRefreshCustomerDebtBadges) old.apply(this, arguments); }catch(_){ }
+      stabilizeAll(root || document);
+    };
+  })(window.assalRefreshCustomerDebtBadges);
+  try{ window.assalRefreshCustomerDebtBadges.__assalStaticNoFlashWrapped = true; }catch(_){ }
+  window.assalRefreshPartialDebtToggleBadges = function(root){ stabilizeAll(root || document); };
+  try{ window.assalRefreshPartialDebtToggleBadges.__assalStaticNoFlashWrapped = true; }catch(_){ }
+
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scheduleHard, {once:true});
+  else scheduleHard();
+  window.addEventListener('load', scheduleHard, {once:true});
+  setTimeout(scheduleHard, 250);
+})();
+</script>
+<!-- /ASSAL STATIC FINAL DEBT NO FLASH FINAL -->
+
 </body>
 </html>
