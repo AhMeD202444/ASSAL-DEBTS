@@ -11846,9 +11846,12 @@ async function processToastQueueUnified(){
     const $mbody  = $('#modal-body');
     const $mok    = $('#modal-confirm');
     const $mcancel= $('#modal-cancel');
+    let __assalConfirmExtraClass = '';
 
-    function showConfirm({title='تأكيد', message='هل أنت متأكد؟', okText='تأكيد', cancelText='إلغاء', danger=true}={}){
+    function showConfirm({title='تأكيد', message='هل أنت متأكد؟', okText='تأكيد', cancelText='إلغاء', danger=true, modalClass=''}={}){
       return new Promise((resolve)=>{
+        if(__assalConfirmExtraClass){ try{ $modal.classList.remove(__assalConfirmExtraClass); }catch(_){ } __assalConfirmExtraClass = ''; }
+        if(modalClass){ try{ $modal.classList.add(modalClass); __assalConfirmExtraClass = modalClass; }catch(_){ } }
         $mtitle.textContent = title;
         $mbody.innerHTML    = message;
         $mok.textContent    = okText;
@@ -11878,6 +11881,7 @@ async function processToastQueueUnified(){
         const done = (val)=>{
           $back.classList.remove('active');
           $modal.classList.remove('active');
+          if(__assalConfirmExtraClass){ try{ $modal.classList.remove(__assalConfirmExtraClass); }catch(_){ } __assalConfirmExtraClass = ''; }
           document.body.style.overflow = '';
           $mok.onclick = null;
           $mcancel.onclick = null;
@@ -30203,6 +30207,118 @@ html body .card .card-head .cust.assal-customer-rename-enabled::before{
   html body .note-wrap .note-add{ width:100% !important; }
 }
 </style>
+
+<style id="assal-customer-rename-confirm-style">
+/* ===== ASSAL: elegant customer rename confirm ===== */
+#modal.assal-customer-rename-confirm-modal .modal-card{
+  width:min(560px, calc(100vw - 30px)) !important;
+  padding:18px 18px 16px !important;
+  border-radius:24px !important;
+  overflow:hidden !important;
+  position:relative !important;
+  background:
+    radial-gradient(circle at 16% 0%, rgba(59,130,246,.12), transparent 34%),
+    radial-gradient(circle at 84% 12%, rgba(139,92,246,.14), transparent 34%),
+    linear-gradient(180deg, rgba(15,23,42,.99), rgba(8,15,30,.99)) !important;
+  border:1px solid rgba(255,255,255,.10) !important;
+  box-shadow:0 20px 54px rgba(2,6,23,.52) !important;
+  align-items:stretch !important;
+  text-align:right !important;
+  gap:12px !important;
+}
+#modal.assal-customer-rename-confirm-modal .modal-head{
+  text-align:center !important;
+  font-size:18px !important;
+  font-weight:900 !important;
+  letter-spacing:.1px !important;
+}
+#modal.assal-customer-rename-confirm-modal .modal-body{
+  color:#dbe6f7 !important;
+  font-size:14px !important;
+}
+#modal.assal-customer-rename-confirm-modal .modal-actions{
+  justify-content:center !important;
+  gap:10px !important;
+  margin-top:2px !important;
+}
+#modal.assal-customer-rename-confirm-modal .modal-btn{
+  min-width:148px !important;
+  height:42px !important;
+  border-radius:14px !important;
+  font-weight:900 !important;
+}
+#modal.assal-customer-rename-confirm-modal #modal-cancel{
+  background:#0b1327 !important;
+  border-color:rgba(255,255,255,.08) !important;
+  color:#f2f6ff !important;
+}
+#modal.assal-customer-rename-confirm-modal .assal-rename-confirm{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+#modal.assal-customer-rename-confirm-modal .assal-rename-flow{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:10px;
+}
+#modal.assal-customer-rename-confirm-modal .assal-rename-line{
+  background:rgba(15,23,42,.52);
+  border:1px solid rgba(148,163,184,.18);
+  border-radius:16px;
+  padding:10px 12px;
+}
+#modal.assal-customer-rename-confirm-modal .assal-rename-label{
+  display:block;
+  font-size:12px;
+  color:#95a8c4;
+  margin-bottom:4px;
+}
+#modal.assal-customer-rename-confirm-modal .assal-rename-value{
+  color:#fff;
+  font-size:18px;
+  font-weight:900;
+  line-height:1.4;
+  word-break:break-word;
+}
+#modal.assal-customer-rename-confirm-modal .assal-rename-note{
+  text-align:center;
+  color:#d2dceb;
+  font-size:13px;
+  line-height:1.75;
+}
+#modal.assal-customer-rename-confirm-modal .assal-rename-badges{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  justify-content:center;
+}
+#modal.assal-customer-rename-confirm-modal .assal-rename-badge{
+  min-width:200px;
+  flex:1 1 200px;
+  background:rgba(9,16,32,.88);
+  border:1px solid rgba(148,163,184,.16);
+  border-radius:999px;
+  padding:10px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+#modal.assal-customer-rename-confirm-modal .assal-rename-badge .k{
+  color:#c4d0e4;
+  font-size:12px;
+  font-weight:700;
+}
+#modal.assal-customer-rename-confirm-modal .assal-rename-badge .v{
+  font-size:17px;
+  font-weight:900;
+  line-height:1;
+}
+#modal.assal-customer-rename-confirm-modal .assal-rename-badge.is-cards .v{ color:#fbbf24; }
+#modal.assal-customer-rename-confirm-modal .assal-rename-badge.is-payments .v{ color:#93c5fd; }
+</style>
+
 <script id="assal-organizer-rename-safe-script">
 (function(){
   'use strict';
@@ -30384,15 +30500,25 @@ html body .card .card-head .cust.assal-customer-rename-enabled::before{
         // من هنا نعتبر وضع التحرير معلّق بانتظار التأكيد حتى لا يغلق blur مربع النص أثناء فتح نافذة التأكيد.
         done = true;
         const msg =
-          '<div style="line-height:1.9;text-align:right">' +
-          'سيتم تغيير اسم الزبون من:<br><b>' + escHtml(oldName) + '</b><br>' +
-          'إلى:<br><b>' + escHtml(newName) + '</b><br><br>' +
-          'المطابقة ستكون للاسم المطابق 100% فقط داخل السجلات.<br>' +
-          '<span style="color:#fbbf24;font-weight:900">البطاقات/السجلات المطابقة: ' + escHtml(String(counts.cards)) + '</span><br>' +
-          '<span style="color:#93c5fd;font-weight:900">حركات الحسابات المطابقة: ' + escHtml(String(counts.payments)) + '</span>' +
+          '<div class="assal-rename-confirm">' +
+            '<div class="assal-rename-flow">' +
+              '<div class="assal-rename-line">' +
+                '<span class="assal-rename-label">من</span>' +
+                '<div class="assal-rename-value">' + escHtml(oldName) + '</div>' +
+              '</div>' +
+              '<div class="assal-rename-line">' +
+                '<span class="assal-rename-label">إلى</span>' +
+                '<div class="assal-rename-value">' + escHtml(newName) + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="assal-rename-note">المطابقة ستكون للاسم المطابق 100% فقط داخل السجلات.</div>' +
+            '<div class="assal-rename-badges">' +
+              '<div class="assal-rename-badge is-cards"><span class="k">البطاقات/السجلات</span><span class="v">' + escHtml(String(counts.cards)) + '</span></div>' +
+              '<div class="assal-rename-badge is-payments"><span class="k">حركات الحسابات</span><span class="v">' + escHtml(String(counts.payments)) + '</span></div>' +
+            '</div>' +
           '</div>';
         const ok = (typeof showConfirm === 'function')
-          ? await showConfirm({ title:'تغيير اسم الزبون بكل التطبيق', message:msg, okText:'نعم، غيّر الاسم', cancelText:'إلغاء', danger:true })
+          ? await showConfirm({ title:'تغيير اسم الزبون بكل التطبيق', message:msg, okText:'نعم، غيّر الاسم', cancelText:'إلغاء', danger:true, modalClass:'assal-customer-rename-confirm-modal' })
           : confirm('تغيير اسم الزبون في كل السجلات المطابقة؟');
         if(!ok){ try{ renderBoard(); }catch(_){ } return; }
         const result = applyRenameCustomerEverywhere(oldName, newName);
