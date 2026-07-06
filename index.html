@@ -5639,6 +5639,42 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
 .assal-inline-locked-tip{opacity:.55;}
 </style>
 
+
+<style id="assal-organizer-placeholder-true-fix-style">
+/* ASSAL FINAL SAFE: منظم الفاتورة placeholder حقيقي وهادئ مثل اسم الزبون */
+#organizer{
+  direction: rtl !important;
+  unicode-bidi: plaintext !important;
+}
+#organizer::placeholder{
+  color: rgba(203,213,225,.58) !important;
+  opacity: 1 !important;
+  font-weight: 700 !important;
+}
+#organizer.assal-organizer-empty{
+  color: #e8eef8 !important;
+}
+.organizer-wrap{
+  position:relative !important;
+}
+.assal-organizer-placeholder-label{
+  position:absolute;
+  inset-inline-start:10px;
+  top:50%;
+  transform:translateY(-50%);
+  color:rgba(203,213,225,.58);
+  font-weight:700;
+  font-size:13px;
+  line-height:1;
+  pointer-events:none;
+  z-index:2;
+  white-space:nowrap;
+}
+.organizer-wrap.has-organizer-value .assal-organizer-placeholder-label,
+#organizer:focus + .assal-organizer-placeholder-label.assal-hide-on-focus{
+  display:none !important;
+}
+</style>
 </head>
 
 <body>
@@ -7974,6 +8010,24 @@ html body .card .card-foot .foot-actions .i-btn.partial-pay-card-btn.assal-parti
   <!-- ===== Dock (كامل بعد التعديل) ===== -->
 <div class="dock">
   <div class="dock-inner">
+    <!-- 0) منظم الفاتورة -->
+    <div class="organizer-wrap" style="position:relative; min-width:0;">
+      <input id="organizer" class="field" type="text" value="" placeholder="منظم الفاتورة" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+      <span class="assal-organizer-placeholder-label">منظم الفاتورة</span>
+      <div id="organizerPanel" class="cat-panel nice-scroll" style="
+        display:none; position:absolute; inset-inline:0; bottom:calc(100% + 6px);
+        z-index:1100; background:#0b1327; border:1px solid var(--stroke);
+        border-radius:10px; max-height:160px; overflow:auto; padding:6px 0;
+        box-shadow:0 12px 28px rgba(0,0,0,.35);
+      ">
+        <div id="organizerList" class="cat-list">
+          <div class="cat-item" data-val="أحمد"><i class="fa-solid fa-user-pen"></i> أحمد</div>
+          <div class="cat-item" data-val="إسماعيل"><i class="fa-solid fa-user-pen"></i> إسماعيل</div>
+          <div class="cat-item" data-val="مصطفى"><i class="fa-solid fa-user-pen"></i> مصطفى</div>
+        </div>
+      </div>
+    </div>
+
     <!-- 1) اسم الزبون (اقتراحات فوق + 8 مرئية) -->
     <div class="cust-wrap" style="position:relative; min-width:0;">
       <input id="cust" class="field" type="text" placeholder="اسم الزبون"/>
@@ -11336,10 +11390,223 @@ function assalFocusCustomerNoScroll(selectText){
   }catch(_){ return false; }
 }
 
+
+/* ===== ASSAL SAFE: Organizer field helpers (dock start point) ===== */
+const ASSAL_ORGANIZER_NAMES = ['أحمد','إسماعيل','مصطفى'];
+let __organizerIdx = -1;
+
+function assalNormalizeOrganizerName(v){
+  try{
+    return String(v || '')
+      .trim()
+      .replace(/[\u064B-\u065F\u0670]/g,'')
+      .replace(/[أإآٱ]/g,'ا')
+      .replace(/ى/g,'ي')
+      .replace(/ؤ/g,'و')
+      .replace(/ئ/g,'ي')
+      .replace(/ة/g,'ه')
+      .replace(/\s+/g,' ');
+  }catch(_){ return String(v || '').trim(); }
+}
+function assalIsValidOrganizerName(v){
+  var n = String(v || '').trim();
+  return ASSAL_ORGANIZER_NAMES.indexOf(n) >= 0;
+}
+function assalUpdateOrganizerVisual(){
+  try{
+    var input = document.getElementById('organizer');
+    var wrap = document.querySelector('.organizer-wrap');
+    var has = !!String(input && input.value || '').trim();
+    if(input) input.classList.toggle('assal-organizer-empty', !has);
+    if(wrap) wrap.classList.toggle('has-organizer-value', has);
+  }catch(_){ }
+}
+function assalOrganizerMatches(query){
+  var q = assalNormalizeOrganizerName(query);
+  if(!q) return ASSAL_ORGANIZER_NAMES.slice();
+  return ASSAL_ORGANIZER_NAMES.filter(function(n){
+    var x = assalNormalizeOrganizerName(n);
+    return x.indexOf(q) === 0 || x.indexOf(q) >= 0;
+  });
+}
+function renderOrganizerList(query){
+  var host = document.getElementById('organizerList');
+  if(!host) return [];
+  var list = assalOrganizerMatches(query);
+  host.innerHTML = list.map(function(n){
+    return '<div class="cat-item" data-val="'+n+'"><i class="fa-solid fa-user-pen"></i> '+n+'</div>';
+  }).join('');
+  Array.from(host.querySelectorAll('.cat-item')).forEach(function(li, idx){
+    li.addEventListener('mousedown', function(e){ e.preventDefault(); }, true);
+    li.onclick = function(e){ e.preventDefault(); e.stopPropagation(); selectOrganizerByIndex(idx); };
+  });
+  __organizerIdx = list.length ? 0 : -1;
+  var input = document.getElementById('organizer');
+  var cur = String(input && input.value || '').trim();
+  var exact = list.findIndex(function(n){ return n === cur; });
+  if(exact >= 0) __organizerIdx = exact;
+  highlightOrganizerItem();
+  return list;
+}
+function getOrganizerItems(){
+  try{ return Array.from(document.querySelectorAll('#organizerList .cat-item')); }catch(_){ return []; }
+}
+function highlightOrganizerItem(){
+  const items = getOrganizerItems();
+  items.forEach(li => li.classList.remove('active'));
+  if(__organizerIdx >= 0 && items[__organizerIdx]){
+    items[__organizerIdx].classList.add('active');
+    try{ items[__organizerIdx].scrollIntoView({block:'nearest'}); }catch(_){ }
+  }
+}
+function showOrganizerPanel(){
+  const panel = document.getElementById('organizerPanel');
+  const input = document.getElementById('organizer');
+  if(!panel || !input) return;
+  try{ if(typeof hideCustSuggestions === 'function') hideCustSuggestions(); }catch(_){ }
+  try{ if(typeof hideItemSuggestions === 'function') hideItemSuggestions(); }catch(_){ }
+  try{ if(typeof hideTypePanel === 'function') hideTypePanel(); }catch(_){ }
+  try{ if(typeof hideCatPanel === 'function') hideCatPanel(); }catch(_){ }
+  const list = renderOrganizerList(input.value || '');
+  panel.style.display = list.length ? 'block' : 'none';
+}
+function hideOrganizerPanel(){
+  const panel = document.getElementById('organizerPanel');
+  if(panel) panel.style.display = 'none';
+  __organizerIdx = -1;
+  getOrganizerItems().forEach(li => li.classList.remove('active'));
+}
+function assalMoveAfterOrganizer(){
+  /* ASSAL FINAL: لا يتخطى اسم الزبون أبداً بعد اختيار منظم الفاتورة.
+     يبقى نفس سلوك المنظم/القائمة، لكن الوجهة دائماً cust حتى لو الاسم مكتوب؛
+     Enter من cust وحده ينقل إلى نوع الفاتورة. */
+  const cust = document.getElementById('cust');
+  if(cust){
+    try{ if(typeof hideOrganizerPanel === 'function') hideOrganizerPanel(); }catch(_){ }
+    try{ if(typeof hideTypePanel === 'function') hideTypePanel(); }catch(_){ }
+    try{ if(typeof hideCatPanel === 'function') hideCatPanel(); }catch(_){ }
+    try{ if(typeof hideItemSuggestions === 'function') hideItemSuggestions(); }catch(_){ }
+    try{ cust.focus({preventScroll:true}); }catch(_){ try{ cust.focus(); }catch(__){} }
+    try{ cust.select && cust.select(); }catch(_){ }
+  }
+}
+function selectOrganizerByIndex(idx){
+  const items = getOrganizerItems();
+  const li = items[idx];
+  if(!li) return false;
+  const val = String(li.getAttribute('data-val') || li.textContent || '').replace(/^\s*[^\u0600-\u06FF]*/,'').trim();
+  const input = document.getElementById('organizer');
+  if(input){
+    input.value = val;
+    input.setAttribute('data-assal-selected-organizer', val);
+    assalUpdateOrganizerVisual();
+  }
+  hideOrganizerPanel();
+  assalMoveAfterOrganizer();
+  return true;
+}
+function assalFocusOrganizerNoScroll(selectText){
+  try{
+    var org = document.getElementById('organizer');
+    if(!org || org.disabled) return assalFocusCustomerNoScroll(selectText);
+    try{ if(typeof hideItemSuggestions === 'function') hideItemSuggestions(); }catch(_){ }
+    try{ if(typeof hideCatPanel === 'function') hideCatPanel(); }catch(_){ }
+    try{ if(typeof hideTypePanel === 'function') hideTypePanel(); }catch(_){ }
+    try{ if(typeof hideCustSuggestions === 'function') hideCustSuggestions(); }catch(_){ }
+    try{ org.focus({preventScroll:true}); }catch(_){ try{ org.focus(); }catch(__){ } }
+    if(selectText && document.activeElement === org){ try{ org.select && org.select(); }catch(_){ } }
+    assalUpdateOrganizerVisual();
+    return true;
+  }catch(_){ return assalFocusCustomerNoScroll(selectText); }
+}
+function assalMaybeFocusOrganizerOnReady(){
+  try{
+    var org = document.getElementById('organizer');
+    if(!org || document.activeElement === org) return;
+    var loginGate = document.getElementById('loginGate');
+    var splash = document.getElementById('authSplash');
+    var attendanceGate = document.getElementById('assalAttendanceGate');
+    if(loginGate && loginGate.style.display && loginGate.style.display !== 'none') return;
+    if(splash && splash.style.display && splash.style.display !== 'none') return;
+    if(attendanceGate && attendanceGate.classList.contains('assal-attendance-active')) return;
+    var ae = document.activeElement;
+    if(ae && ae !== document.body && ae !== document.documentElement && ae.id !== 'organizer'){
+      var tag = String(ae.tagName || '').toUpperCase();
+      if(tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      try{ if(ae.closest && ae.closest('.modal.active, #assalAttendanceGate.assal-attendance-active')) return; }catch(_){ }
+    }
+    assalFocusOrganizerNoScroll(true);
+  }catch(_){ }
+}
+function initOrganizerDockField(){
+  const input = document.getElementById('organizer');
+  if(!input || input.__assalOrganizerReady) return;
+  input.__assalOrganizerReady = true;
+  try{ input.removeAttribute('readonly'); input.readOnly = false; }catch(_){ }
+  input.lang = 'ar'; input.dir = 'rtl'; input.autocomplete = 'off'; input.spellcheck = false;
+  input.setAttribute('placeholder','منظم الفاتورة');
+  input.setAttribute('enterkeyhint','next');
+  input.setAttribute('data-assal-role','organizer');
+  try{ input.style.direction = 'rtl'; input.style.unicodeBidi = 'plaintext'; }catch(_){ }
+  assalUpdateOrganizerVisual();
+
+  input.addEventListener('focus', function(){ assalUpdateOrganizerVisual(); showOrganizerPanel(); }, true);
+  input.addEventListener('click', function(e){ e.stopPropagation(); assalUpdateOrganizerVisual(); showOrganizerPanel(); }, true);
+  input.addEventListener('input', function(){
+    try{ input.removeAttribute('data-assal-selected-organizer'); }catch(_){ }
+    assalUpdateOrganizerVisual();
+    showOrganizerPanel();
+  }, true);
+  input.addEventListener('keydown', function(e){
+    if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+      const items = getOrganizerItems();
+      if(!items.length){ showOrganizerPanel(); return; }
+      if(e.key === 'ArrowDown') __organizerIdx = (__organizerIdx < 0) ? 0 : Math.min(items.length - 1, __organizerIdx + 1);
+      else __organizerIdx = (__organizerIdx < 0) ? items.length - 1 : Math.max(0, __organizerIdx - 1);
+      highlightOrganizerItem();
+      return;
+    }
+    if(e.key === 'Enter'){
+      e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+      const raw = String(input.value || '').trim();
+      if(assalIsValidOrganizerName(raw)){
+        input.value = raw;
+        input.setAttribute('data-assal-selected-organizer', raw);
+        assalUpdateOrganizerVisual();
+        hideOrganizerPanel();
+        assalMoveAfterOrganizer();
+        return;
+      }
+      const items = getOrganizerItems();
+      if(items.length){
+        if(__organizerIdx < 0) __organizerIdx = 0;
+        selectOrganizerByIndex(__organizerIdx);
+      }else{
+        try{ showToast?.('warn','اختر منظم الفاتورة'); }catch(_){ }
+        showOrganizerPanel();
+      }
+      return;
+    }
+    if(e.key === 'Escape'){
+      e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); hideOrganizerPanel();
+    }
+  }, true);
+  document.addEventListener('click', function(ev){
+    const wrap = document.querySelector('.organizer-wrap');
+    if(wrap && !wrap.contains(ev.target)) hideOrganizerPanel();
+  }, true);
+  renderOrganizerList('');
+  setTimeout(assalUpdateOrganizerVisual, 0);
+  setTimeout(assalMaybeFocusOrganizerOnReady, 350);
+  try{ window.addEventListener('assal:auth-ready', function(){ setTimeout(assalMaybeFocusOrganizerOnReady, 220); }, false); }catch(_){ }
+}
+initOrganizerDockField();
+
 /* ====== Enter Navigation (جديد) ====== */
 /* ====== Enter Navigation (جديد) ====== */
-/* التسلسل المطلوب: cust -> type -> cat -> item -> qty -> note */
-const order = ['cust','type','cat','item','price','qty','note'];
+/* التسلسل المطلوب: organizer -> cust -> type -> cat -> item -> price -> qty */
+const order = ['organizer','cust','type','cat','item','price','qty'];
 
 
 function openSelect(el){
@@ -11400,6 +11667,7 @@ if(isPrev || isNext){
   // ✅ سد القوائم اللي ما تخص الحقل الهدف
 if(target.id !== 'type') hideTypePanel();
 if(target.id !== 'cat')  hideCatPanel();
+if(target.id !== 'organizer' && typeof hideOrganizerPanel === 'function') hideOrganizerPanel();
 
 
   target.focus();
@@ -11408,6 +11676,9 @@ if(target.id !== 'cat')  hideCatPanel();
   if(target.tagName === 'SELECT') openSelect(target);
   else if(target.id === 'type') {
     showTypePanel();
+  }
+  else if(target.id === 'organizer') {
+    if(typeof showOrganizerPanel === 'function') showOrganizerPanel();
   }
   else if(target.id === 'cat'){
     showCatPanel();
@@ -11435,18 +11706,25 @@ const closeOverlaysForTarget = (target)=>{
 
   if(tid !== 'type') hideTypePanel?.();
   if(tid !== 'cat')  hideCatPanel?.();
+  if(tid !== 'organizer' && typeof hideOrganizerPanel === 'function') hideOrganizerPanel();
 };
 
 if(id === 'cust'){
   const vis = document.getElementById('custSuggestions')?.style.display === 'block';
   if(vis) return;
-  const target = document.getElementById('type');
+  const org = document.getElementById('organizer');
+  const hasOrg = (typeof assalIsValidOrganizerName === 'function') ? assalIsValidOrganizerName(org && org.value) : !!String(org && org.value || '').trim();
+  const target = hasOrg ? document.getElementById('type') : org;
 
   closeOverlaysForTarget(target);
 
-  target?.focus();
+  target?.focus({preventScroll:true});
   target?.select?.();
-  showTypePanel();   // بدل openSelect
+  if(target && target.id === 'organizer'){
+    try{ if(typeof showOrganizerPanel === 'function') showOrganizerPanel(); }catch(_){ }
+  }else if(target && target.id === 'type'){
+    showTypePanel();   // بدل openSelect
+  }
   return;
 }
 
@@ -11464,7 +11742,16 @@ if(id === 'note'){
   if(!window.__assalAddBusy){
     document.getElementById('btnAdd')?.click();
   }
-  assalFocusCustomerNoScroll(true);
+  try{ assalFocusOrganizerNoScroll(true); }catch(_){ assalFocusCustomerNoScroll(true); }
+  return;
+}
+
+if(id === 'qty'){
+  e.stopImmediatePropagation();
+  if(!window.__assalAddBusy){
+    document.getElementById('btnAdd')?.click();
+  }
+  try{ assalFocusOrganizerNoScroll(true); }catch(_){ assalFocusCustomerNoScroll(true); }
   return;
 }
 
@@ -11610,6 +11897,13 @@ document.getElementById('btnAdd').onclick = async () => {
   // ضغط Enter زائد على خانة الملاحظات بعد التفريغ لا يجوز أن يلغي رجوع الفوكس للإضافة السابقة.
   let __assalFocusStartSeq = 0;
   let __assalFocusToken = 0;
+  const organizer = (document.getElementById('organizer')?.value || '').trim();
+  if(!organizer || (typeof assalIsValidOrganizerName === 'function' && !assalIsValidOrganizerName(organizer))){
+    try{ showToast?.('warn','اختر منظم الفاتورة'); }catch(_){ }
+    try{ if(typeof assalFocusOrganizerNoScroll === 'function') assalFocusOrganizerNoScroll(true); else document.getElementById('organizer')?.focus({preventScroll:true}); }catch(_){ }
+    try{ if(typeof showOrganizerPanel === 'function') showOrganizerPanel(); }catch(_){ }
+    return;
+  }
   const customer = (document.getElementById('cust').value || '').trim();
   const item     = (document.getElementById('item').value || '').trim();
   let priceVal = Number(parseIQD(document.getElementById('price').value) || 0);
@@ -11675,7 +11969,7 @@ document.getElementById('btnAdd').onclick = async () => {
 
   if (!card){
     // إنشاء بطاقة جديدة (سلوكك الآمن الحالي)
-    card = { id: Date.now(), customer, lines: [], createdAt: nowISOVal2, updatedAt: nowISOVal2, paidAll:false, billType: type };
+    card = { id: Date.now(), customer, organizer, invoiceOrganizer: organizer, lines: [], createdAt: nowISOVal2, updatedAt: nowISOVal2, paidAll:false, billType: type };
     days[selectedDay].unshift(card);
     cardIndex = 0;
   }else{
@@ -11711,7 +12005,7 @@ document.getElementById('btnAdd').onclick = async () => {
   const __assalNewLineId = makeId();
   card.lines.push({
     lineId   : __assalNewLineId,
-    item, cat, price: priceVal, qty, note, type,
+    item, cat, price: priceVal, qty, note, type, organizer, invoiceOrganizer: organizer, addedBy: organizer,
     paid: (type==='نقدي'), returned: (type==='راجع'),
     createdAt: nowISOVal2,
     updatedAt: nowISOVal2,
@@ -11726,6 +12020,7 @@ document.getElementById('btnAdd').onclick = async () => {
 
   // حدّث آخر نشاط وارفع البطاقة للأعلى (حذرًا)
   card.updatedAt = nowISOVal2;
+  card.lastOrganizer = organizer;
 
   if (typeof cardIndex !== 'number') {
     cardIndex = (days[selectedDay]||[]).findIndex(c => c && c.id === card.id);
@@ -11741,6 +12036,7 @@ document.getElementById('btnAdd').onclick = async () => {
 
   // ASSAL ROOT FIX: تنظيف حقول السطر فقط، والرجوع لاسم الزبون بدون سرقة لاحقة.
   // إذا المستخدم انتقل بنفسه إلى type/cat/item أثناء انتظار الإضافة، لا نلمس الفوكس.
+  const __assalOrganizerInput = document.getElementById('organizer');
   const __assalCustInput  = document.getElementById('cust');
   const __assalItemInput  = document.getElementById('item');
   const __assalPriceInput = document.getElementById('price');
@@ -11751,6 +12047,7 @@ document.getElementById('btnAdd').onclick = async () => {
   const __assalCanConfirmCustomerFocus = (
     !__assalActiveBeforeFinalFocus ||
     __assalActiveBeforeFinalFocus === document.body ||
+    __assalActiveBeforeFinalFocus === __assalOrganizerInput ||
     __assalActiveBeforeFinalFocus === __assalCustInput ||
     __assalActiveBeforeFinalFocus === __assalNoteInput ||
     __assalActiveBeforeFinalFocus === __assalAddBtnEl
@@ -11759,7 +12056,7 @@ document.getElementById('btnAdd').onclick = async () => {
   if(__assalPriceInput) __assalPriceInput.value = '';
   if(__assalQtyInput)   __assalQtyInput.value   = '';
   if(__assalNoteInput)  __assalNoteInput.value  = '';
-  if(__assalCanConfirmCustomerFocus){ try{ assalFocusCustomerNoScroll(true); }catch(_){ } }
+  if(__assalCanConfirmCustomerFocus){ try{ assalFocusOrganizerNoScroll(true); }catch(_){ try{ assalFocusCustomerNoScroll(true); }catch(__){} } }
 
   renderBoard?.();
   renderRail?.();
@@ -13553,10 +13850,19 @@ function renderBoard() {
     /* ===== الهيدر مال البطاقة ===== */
     const head = CE('div', 'card-head');
 
-    const custWrap = CE('div', 'cust');
+    const custWrap = CE('div', 'cust assal-customer-rename-enabled');
+    const custEditBtn = CE('button', 'assal-customer-rename-btn');
+    custEditBtn.type = 'button';
+    custEditBtn.title = 'تعديل اسم الزبون في كل السجلات المطابقة';
+    custEditBtn.innerHTML = '<i class="fa-solid fa-user"></i>';
     const custName = CE('span');
     custName.textContent = card.customer;
-    custWrap.appendChild(custName);
+    custEditBtn.onclick = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if(typeof assalStartCustomerRename === 'function') assalStartCustomerRename(card, custName);
+    };
+    custWrap.append(custEditBtn, custName);
 
     // بادج "زبون جديد" إذا مو ضمن القائمة المعروفة CUSTOMERS
     const isKnownCustomer = (typeof assalIsSheetCustomerName === 'function')
@@ -13640,6 +13946,13 @@ custWrap.appendChild(typeBadge);
       .forEach((ln) => {
         const it = CE('div', 'item');
         try{ if(ln && ln.lineId) it.setAttribute('data-line-id', String(ln.lineId)); }catch(_){ }
+        try{
+          const __lineOrganizer = String(ln && (ln.organizer || ln.invoiceOrganizer || ln.addedBy || ln.createdBy) || '').trim();
+          if(__lineOrganizer){
+            it.setAttribute('title', 'منظم الفاتورة: ' + __lineOrganizer);
+            it.setAttribute('data-organizer', __lineOrganizer);
+          }
+        }catch(_){ }
         if (ln.returned) it.classList.add('returned');
         if (ln.paid) it.classList.add('paid');
 
@@ -16336,6 +16649,7 @@ function exportCardPDF_Vector(card, dayKey){
               const catName  = escHtmlLocal(ln.cat || ln.category || '');
               const itemName = escHtmlLocal(ln.item || ln.name || '');
               const note     = escHtmlLocal(ln.note || ln.notes || '');
+              const organizer = escHtmlLocal(ln.organizer || ln.invoiceOrganizer || ln.addedBy || '');
               const tm       = escHtmlLocal(tinyTime(ln.at || ln.createdAt || card.createdAt || new Date()));
 
               var itemClass = 'item-name';
@@ -16346,7 +16660,7 @@ function exportCardPDF_Vector(card, dayKey){
                 '<tr class="'+rowClass+'">' +
                   '<td class="col-idx">'+ idx +'</td>' +
                   '<td>'+ (catName || '-') +'</td>' +
-                  '<td><span class="'+itemClass+'">'+ (itemName || '-') +'</span></td>' +
+                  '<td><span class="'+itemClass+'" title="'+ (organizer ? ('منظم الفاتورة: ' + organizer) : '') +'">'+ (itemName || '-') +'</span></td>' +
                   '<td class="col-qty">'+ qtyNum +'</td>' +
                   '<td class="money col-price">'+ (priceNum ? formatIQD(priceNum) : '-') +'</td>' +
                   '<td class="money col-total">'+ (sub ? formatIQD(sub) : '-') +'</td>' +
@@ -20380,6 +20694,7 @@ function dedupeAllDays(daysObj){
 
   // ===== حقول الـ Dock (ثابتة) =====
   const cust = document.getElementById('cust');   // اسم الزبون → عربي
+  const organizer = document.getElementById('organizer'); // منظم الفاتورة → عربي
   const item = document.getElementById('item');   // اسم المادة → إنكليزي
   const note = document.getElementById('note');   // الملاحظات (Dock) → عربي
   const cardSearch = document.getElementById('cardSearch'); // فلترة الكروت → عربي
@@ -20394,6 +20709,10 @@ function dedupeAllDays(daysObj){
 
   cust && cust.addEventListener('focus', ()=> markTag('[cust]'));
   cust && cust.addEventListener('blur',  ()=> clearTag());
+
+  organizer && organizer.addEventListener('focus', ()=> markTag('[cust]'));
+  organizer && organizer.addEventListener('blur',  ()=> clearTag());
+  try{ setTimeout(function(){ organizer && setInputModeArabic(organizer); }, 0); }catch(_){}
 
   item && item.addEventListener('focus', ()=> markTag('[item]'));
   item && item.addEventListener('blur',  ()=> clearTag());
@@ -20460,6 +20779,7 @@ function dedupeAllDays(daysObj){
   function classifyInputLanguageTarget(el){
     try{
       if(!el || !el.matches) return null;
+      if(el.matches('#organizer')) return {tag:'[cust]', mode:'ar'};
       if(el.matches('#assalAttendanceGate .att-code-input, #attCodeMustafa, #attCodeIsmail')) return {tag:'[item]', mode:'code'};
       if(el.matches('.assal-inline-cat, .assal-inline-item')) return {tag:'[item]', mode:'en'};
       if(el.matches('.assal-inline-price, .assal-inline-qty')) return {tag:'[item]', mode:'num'};
@@ -27775,7 +28095,10 @@ html body .card .item.assal-smooth-added-item-pulse{
         goQty();
       }else if(target.id === 'qty'){
         ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation();
-        goNote();
+        if(!window.__assalAddBusy){
+          try{ document.getElementById('btnAdd')?.click(); }catch(_){ }
+        }
+        try{ if(typeof assalFocusOrganizerNoScroll === 'function') assalFocusOrganizerNoScroll(true); }catch(_){ }
       }
     }catch(_){ }
   }, true);
@@ -29809,5 +30132,284 @@ html body .card .card-foot > .card-sums .sum--customer-debt.assal-final-debt-num
 </script>
 <!-- /ASSAL STATIC FINAL DEBT NO FLASH FINAL -->
 
+
+
+<style id="assal-organizer-rename-safe-style">
+/* ===== ASSAL FINAL: organizer dock + safe customer rename UI ===== */
+html body .dock-inner{
+  grid-template-columns: 120px 160px 120px 150px 3.4fr 110px 80px 130px !important;
+  gap:8px !important;
+}
+html body .organizer-wrap{ min-width:0 !important; }
+html body #organizer{ cursor:text; }
+html body #note{
+  display:none !important;
+  position:absolute !important;
+  width:0 !important;
+  height:0 !important;
+  opacity:0 !important;
+  pointer-events:none !important;
+}
+html body .note-wrap{
+  display:block !important;
+  min-width:0 !important;
+}
+html body .note-wrap .note-add{
+  width:100% !important;
+  height:36px !important;
+}
+html body .card .card-head .cust.assal-customer-rename-enabled::before{
+  content:none !important;
+  display:none !important;
+}
+.assal-customer-rename-btn{
+  width:26px;
+  height:26px;
+  border:0;
+  border-radius:8px;
+  display:grid;
+  place-items:center;
+  background:linear-gradient(135deg,var(--brand),var(--brand-2));
+  color:#fff;
+  box-shadow:0 6px 16px rgba(124,58,237,.28);
+  cursor:pointer;
+  flex:0 0 auto;
+  padding:0;
+  margin-inline-end:6px;
+}
+.assal-customer-rename-btn:hover{
+  filter:brightness(1.06);
+  transform:translateY(-1px);
+}
+.assal-customer-rename-input{
+  height:30px;
+  min-width:180px;
+  max-width:340px;
+  width:min(340px, 50vw);
+  border:1px solid rgba(18,209,180,.65);
+  border-radius:10px;
+  background:#0b1327;
+  color:#e8eef8;
+  padding:4px 10px;
+  outline:none;
+  font-weight:900;
+  font-size:16px;
+  box-shadow:0 0 0 3px rgba(18,209,180,.14);
+}
+@media (max-width:980px){
+  html body .dock-inner{
+    grid-template-columns: 1fr 1fr 1fr !important;
+  }
+  html body .note-wrap .note-add{ width:100% !important; }
+}
+</style>
+<script id="assal-organizer-rename-safe-script">
+(function(){
+  'use strict';
+  if(window.__ASSAL_ORGANIZER_RENAME_SAFE_FINAL__) return;
+  window.__ASSAL_ORGANIZER_RENAME_SAFE_FINAL__ = true;
+
+  const CUSTOMER_KEYS_CARD = ['customer','cust','customerName','اسم الزبون','الزبون','العميل','اسم العميل'];
+  const CUSTOMER_KEYS_CARD_ALLOW_NAME = ['customer','cust','name','customerName','اسم الزبون','الزبون','العميل','اسم العميل'];
+  const CUSTOMER_KEYS_PAYMENT = ['cust','customer','name','customerName','اسم الزبون','الزبون','العميل','اسم العميل'];
+  const CUSTOMER_KEYS_DB = ['NAME','Name','name','CUSTOMER','Customer','customer','CUST','Cust','cust','الاسم','اسم','اسم الزبون','الزبون','العميل','اسم العميل','الاسم الكامل','زبون','customer name'];
+
+  function normName(v){ return String(v == null ? '' : v).trim(); }
+  function sameName(v, oldName){ return normName(v) === normName(oldName); }
+  function setIfSame(obj, key, oldName, newName){
+    if(!obj || typeof obj !== 'object') return 0;
+    if(Object.prototype.hasOwnProperty.call(obj, key) && sameName(obj[key], oldName)){
+      obj[key] = newName;
+      return 1;
+    }
+    return 0;
+  }
+  function renameInCustomerArrays(oldName, newName){
+    let count = 0;
+    try{
+      if(typeof CUSTOMERS !== 'undefined' && Array.isArray(CUSTOMERS)){
+        for(let i=0;i<CUSTOMERS.length;i++){
+          if(sameName(CUSTOMERS[i], oldName)){ CUSTOMERS[i] = newName; count++; }
+        }
+        try{ CUSTOMERS = Array.from(new Set(CUSTOMERS.map(normName).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'ar')); }catch(_){ }
+      }
+    }catch(_){ }
+    try{
+      if(typeof names !== 'undefined' && Array.isArray(names)){
+        for(let i=0;i<names.length;i++){
+          if(sameName(names[i], oldName)){ names[i] = newName; count++; }
+        }
+        names = Array.from(new Set(names.map(normName).filter(Boolean)));
+        if(typeof saveBigStore === 'function' && typeof NAMES !== 'undefined') saveBigStore(NAMES, names);
+      }
+    }catch(_){ }
+    return count;
+  }
+  function renameInDatabaseCustomers(oldName, newName){
+    let count = 0;
+    try{
+      if(typeof database === 'undefined' || !database || !Array.isArray(database.CUSTOMER)) return 0;
+      database.CUSTOMER.forEach(function(row){
+        if(!row || typeof row !== 'object') return;
+        CUSTOMER_KEYS_DB.forEach(function(k){ count += setIfSame(row, k, oldName, newName); });
+      });
+      try{ if(typeof rebuildCustomersFromDB === 'function') rebuildCustomersFromDB(); }catch(_){ }
+    }catch(_){ }
+    return count;
+  }
+  function renameInDays(oldName, newName, apply){
+    let count = 0;
+    try{
+      if(typeof days === 'undefined' || !days || typeof days !== 'object') return 0;
+      Object.keys(days).forEach(function(dayKey){
+        const arr = days[dayKey];
+        if(!Array.isArray(arr)) return;
+        arr.forEach(function(card){
+          if(!card || typeof card !== 'object') return;
+          CUSTOMER_KEYS_CARD_ALLOW_NAME.forEach(function(k){
+            if(Object.prototype.hasOwnProperty.call(card, k) && sameName(card[k], oldName)){
+              count++;
+              if(apply) card[k] = newName;
+            }
+          });
+          if(Array.isArray(card.lines)){
+            card.lines.forEach(function(line){
+              if(!line || typeof line !== 'object') return;
+              CUSTOMER_KEYS_CARD.forEach(function(k){
+                if(Object.prototype.hasOwnProperty.call(line, k) && sameName(line[k], oldName)){
+                  count++;
+                  if(apply) line[k] = newName;
+                }
+              });
+            });
+          }
+          if(Array.isArray(card.partialPayments)){
+            card.partialPayments.forEach(function(pp){
+              if(!pp || typeof pp !== 'object') return;
+              CUSTOMER_KEYS_CARD.forEach(function(k){
+                if(Object.prototype.hasOwnProperty.call(pp, k) && sameName(pp[k], oldName)){
+                  count++;
+                  if(apply) pp[k] = newName;
+                }
+              });
+            });
+          }
+        });
+      });
+    }catch(_){ }
+    return count;
+  }
+  function forEachPaymentRow(store, cb){
+    if(!store || typeof store !== 'object') return;
+    Object.keys(store).forEach(function(dayKey){
+      const arr = store[dayKey];
+      if(!Array.isArray(arr)) return;
+      arr.forEach(function(row){ if(row && typeof row === 'object') cb(row, dayKey); });
+    });
+  }
+  function renameInPayments(oldName, newName, apply){
+    let count = 0;
+    try{
+      const store = (typeof loadPaymentsStore === 'function') ? (loadPaymentsStore() || {}) : {};
+      forEachPaymentRow(store, function(row){
+        CUSTOMER_KEYS_PAYMENT.forEach(function(k){
+          if(Object.prototype.hasOwnProperty.call(row, k) && sameName(row[k], oldName)){
+            count++;
+            if(apply) row[k] = newName;
+          }
+        });
+      });
+      if(apply && count && typeof saveBigStore === 'function' && typeof PAYMENTS_STORE_KEY !== 'undefined'){
+        try{ saveBigStore(PAYMENTS_STORE_KEY, store); }catch(_){ }
+        try{ window.__assalPaymentsLiveStore = store; }catch(_){ }
+        try{ if(typeof window.refreshPaymentsUI === 'function') window.refreshPaymentsUI(); }catch(_){ }
+      }
+    }catch(_){ }
+    return count;
+  }
+  function countRenameCustomerRefs(oldName){
+    return {
+      cards: renameInDays(oldName, oldName, false),
+      payments: renameInPayments(oldName, oldName, false)
+    };
+  }
+  function applyRenameCustomerEverywhere(oldName, newName){
+    const result = { cards:0, payments:0, names:0, database:0 };
+    result.cards = renameInDays(oldName, newName, true);
+    result.payments = renameInPayments(oldName, newName, true);
+    result.names = renameInCustomerArrays(oldName, newName);
+    result.database = renameInDatabaseCustomers(oldName, newName);
+    try{
+      if(typeof save === 'function') save();
+      else if(typeof saveBigStore === 'function' && typeof STORAGE !== 'undefined' && typeof days !== 'undefined') saveBigStore(STORAGE, days);
+    }catch(_){ }
+    try{ if(typeof assalInvalidateSheetCustomerCache === 'function') assalInvalidateSheetCustomerCache(); }catch(_){ }
+    try{ if(typeof assalInvalidateDebtBadgeCache === 'function') assalInvalidateDebtBadgeCache(); }catch(_){ }
+    try{ if(typeof rebuildNames === 'function') rebuildNames(); }catch(_){ }
+    try{ if(typeof renderBoard === 'function') renderBoard(); }catch(_){ }
+    try{ if(typeof renderRail === 'function') renderRail(); }catch(_){ }
+    try{ if(typeof refreshStats === 'function') refreshStats(); }catch(_){ }
+    try{ if(typeof window.refreshDebtsUI === 'function') window.refreshDebtsUI(); }catch(_){ }
+    try{ if(typeof window.assalRefreshCustomerDebtBadges === 'function') window.assalRefreshCustomerDebtBadges(); }catch(_){ }
+    return result;
+  }
+  function escHtml(s){
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  window.assalStartCustomerRename = function(card, nameEl){
+    try{
+      if(!card || !nameEl || nameEl.__assalRenameOpen) return;
+      const oldName = normName(card.customer || card.cust || card.name || nameEl.textContent || '');
+      if(!oldName) return;
+      nameEl.__assalRenameOpen = true;
+      const input = document.createElement('input');
+      input.className = 'assal-customer-rename-input';
+      input.type = 'text';
+      input.value = oldName;
+      input.dir = 'rtl';
+      input.lang = 'ar';
+      input.autocomplete = 'off';
+      input.spellcheck = false;
+      const parent = nameEl.parentNode;
+      parent.replaceChild(input, nameEl);
+      try{ input.focus({preventScroll:true}); input.select(); }catch(_){ input.focus(); }
+      let done = false;
+      async function finish(apply){
+        if(done) return;
+        if(!apply){ done = true; try{ renderBoard(); }catch(_){ parent.replaceChild(nameEl, input); nameEl.__assalRenameOpen = false; } return; }
+        const newName = normName(input.value);
+        if(!newName){ try{ showToast('warn','اكتب اسم الزبون الجديد'); }catch(_){ } try{ input.focus(); input.select(); }catch(_){ } return; }
+        if(newName === oldName){ done = true; try{ renderBoard(); }catch(_){ parent.replaceChild(nameEl, input); } return; }
+        const counts = countRenameCustomerRefs(oldName);
+        // من هنا نعتبر وضع التحرير معلّق بانتظار التأكيد حتى لا يغلق blur مربع النص أثناء فتح نافذة التأكيد.
+        done = true;
+        const msg =
+          '<div style="line-height:1.9;text-align:right">' +
+          'سيتم تغيير اسم الزبون من:<br><b>' + escHtml(oldName) + '</b><br>' +
+          'إلى:<br><b>' + escHtml(newName) + '</b><br><br>' +
+          'المطابقة ستكون للاسم المطابق 100% فقط داخل السجلات.<br>' +
+          '<span style="color:#fbbf24;font-weight:900">البطاقات/السجلات المطابقة: ' + escHtml(String(counts.cards)) + '</span><br>' +
+          '<span style="color:#93c5fd;font-weight:900">حركات الحسابات المطابقة: ' + escHtml(String(counts.payments)) + '</span>' +
+          '</div>';
+        const ok = (typeof showConfirm === 'function')
+          ? await showConfirm({ title:'تغيير اسم الزبون بكل التطبيق', message:msg, okText:'نعم، غيّر الاسم', cancelText:'إلغاء', danger:true })
+          : confirm('تغيير اسم الزبون في كل السجلات المطابقة؟');
+        if(!ok){ try{ renderBoard(); }catch(_){ } return; }
+        const result = applyRenameCustomerEverywhere(oldName, newName);
+        try{ showToast('success','تم تغيير اسم الزبون بكل السجلات المطابقة'); }catch(_){ }
+        try{ console.info('[ASSAL CUSTOMER RENAME]', {oldName,newName,result}); }catch(_){ }
+      }
+      input.addEventListener('keydown', function(e){
+        if(e.key === 'Enter'){ e.preventDefault(); finish(true); }
+        else if(e.key === 'Escape'){ e.preventDefault(); finish(false); }
+      });
+      input.addEventListener('blur', function(){
+        setTimeout(function(){ if(!done) finish(false); }, 120);
+      });
+    }catch(err){ try{ console.error(err); showToast('error','تعذر فتح تعديل اسم الزبون'); }catch(_){ } }
+  };
+  try{ if(typeof initOrganizerDockField === 'function') initOrganizerDockField(); }catch(_){ }
+})();
+</script>
 </body>
 </html>
