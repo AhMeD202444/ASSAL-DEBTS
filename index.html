@@ -284,7 +284,7 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
     .card{
       background:linear-gradient(180deg, #0f1a33, #0d172d);
       border:1px solid var(--stroke);
-      border-radius:16px;
+      border-radius:18px;
       box-shadow:var(--shadow);
       padding:10px;display:flex;flex-direction:column;gap:10px
     }
@@ -4475,7 +4475,7 @@ body{ padding-top: var(--hdr-h); }
   padding:0 16px;
   direction:ltr;
   text-align:center;
-  font-size:20px;
+  font-size:22px;
   font-weight:900;
   letter-spacing:4px;
   z-index:2;
@@ -26032,6 +26032,14 @@ html body .card .card-foot > .card-sums .assal-partial-debt-toggle.debt-zero .as
   letter-spacing:7px !important;
   padding-inline:20px !important;
   font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+  -webkit-text-security: disc;
+  text-security: disc;
+}
+.assal-rename-pass-input::placeholder{
+  -webkit-text-security: none;
+  text-security: none;
+  letter-spacing:2px;
+  color:rgba(226,232,240,.55);
 }
 #assalAdvPassBackdrop .assal-code-placeholder{
   color:#7dd3fc !important;
@@ -30376,6 +30384,133 @@ html body .card .card-head .cust.assal-customer-rename-enabled::before{
 #modal.assal-customer-rename-confirm-modal .assal-rename-badge.is-payments .v{ color:#93c5fd; }
 </style>
 
+
+<style id="assal-customer-rename-password-style">
+/* ===== ASSAL: locked rename password + inline cancel ===== */
+.assal-rename-pass-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:2147483600;
+  display:grid;
+  place-items:center;
+  background:rgba(2,6,23,.66);
+  padding:18px;
+}
+.assal-rename-pass-card{
+  width:min(470px, calc(100vw - 30px));
+  border-radius:22px;
+  border:1px solid rgba(255,255,255,.10);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(18,209,180,.12), transparent 35%),
+    radial-gradient(circle at 86% 10%, rgba(124,58,237,.14), transparent 36%),
+    linear-gradient(180deg, rgba(15,23,42,.98), rgba(8,15,30,.98));
+  box-shadow:0 18px 48px rgba(2,6,23,.50);
+  padding:20px 20px 18px;
+  color:#e7eef9;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  text-align:center;
+}
+.assal-rename-pass-icon{
+  width:54px;
+  height:54px;
+  margin:0 auto 2px;
+  border-radius:16px;
+  display:grid;
+  place-items:center;
+  background:linear-gradient(135deg,var(--brand),var(--brand-2));
+  color:#fff;
+  box-shadow:0 12px 26px rgba(124,58,237,.25);
+  font-size:20px;
+}
+.assal-rename-pass-title{
+  font-size:19px;
+  font-weight:900;
+  color:#fff;
+}
+.assal-rename-pass-sub{
+  font-size:13px;
+  color:#b8c5d9;
+  line-height:1.75;
+}
+.assal-rename-pass-input{
+  height:46px;
+  width:100%;
+  border:1px solid rgba(148,163,184,.22);
+  border-radius:16px;
+  background:#071124;
+  color:#f8fafc;
+  outline:none;
+  text-align:center;
+  letter-spacing:3px;
+  font-weight:900;
+  font-size:18px;
+  direction:ltr;
+  font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+  -webkit-text-security: disc;
+  text-security: disc;
+}
+.assal-rename-pass-input::placeholder{
+  -webkit-text-security: none;
+  text-security: none;
+  letter-spacing:2px;
+  color:rgba(226,232,240,.55);
+}
+.assal-rename-pass-input:focus{
+  border-color:rgba(18,209,180,.58);
+  box-shadow:0 0 0 3px rgba(18,209,180,.13);
+}
+.assal-rename-pass-msg{
+  min-height:18px;
+  font-size:12.5px;
+  font-weight:800;
+  color:#fca5a5;
+}
+.assal-rename-pass-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.assal-rename-pass-btn{
+  height:42px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.09);
+  cursor:pointer;
+  font-weight:900;
+  color:#e7eef9;
+  background:#0b1327;
+}
+.assal-rename-pass-btn.ok{
+  border-color:transparent;
+  color:#fff;
+  background:linear-gradient(135deg,var(--brand),var(--brand-2));
+  box-shadow:0 10px 24px rgba(124,58,237,.23);
+}
+.assal-customer-rename-edit-wrap{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  min-width:0;
+}
+.assal-customer-rename-cancel-x{
+  width:28px;
+  height:28px;
+  border-radius:10px;
+  border:1px solid rgba(239,68,68,.46);
+  background:linear-gradient(180deg,#7f1d1d,#4c0b0b);
+  color:#fecaca;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+  padding:0;
+  flex:0 0 auto;
+  box-shadow:0 8px 18px rgba(127,29,29,.18);
+}
+.assal-customer-rename-cancel-x:hover{ filter:brightness(1.08); }
+.assal-customer-rename-cancel-x i{ font-size:12px; }
+</style>
+
 <script id="assal-organizer-rename-safe-script">
 (function(){
   'use strict';
@@ -30529,11 +30664,77 @@ html body .card .card-head .cust.assal-customer-rename-enabled::before{
   function escHtml(s){
     return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#39;');
   }
-  window.assalStartCustomerRename = function(card, nameEl){
+
+  function assalAskCustomerRenamePassword(){
+    return new Promise(function(resolve){
+      try{
+        const bd = document.createElement('div');
+        bd.className = 'assal-rename-pass-backdrop';
+        bd.setAttribute('role','presentation');
+        bd.innerHTML =
+          '<div class="assal-rename-pass-card" role="dialog" aria-modal="true" aria-label="تأكيد صلاحية تعديل الاسم">' +
+            '<div class="assal-rename-pass-icon"><i class="fa-solid fa-lock"></i></div>' +
+            '<div class="assal-rename-pass-title">تأكيد صلاحية تعديل الاسم</div>' +
+            '<div class="assal-rename-pass-sub">أدخل رمز السماح حتى يبدأ تعديل اسم الزبون.</div>' +
+            '<input class="assal-rename-pass-input" type="text" inputmode="numeric" enterkeyhint="done" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" name="assal_rename_guard" placeholder="••••••" maxlength="12">' +
+            '<div class="assal-rename-pass-msg"></div>' +
+            '<div class="assal-rename-pass-actions">' +
+              '<button type="button" class="assal-rename-pass-btn cancel">إلغاء</button>' +
+              '<button type="button" class="assal-rename-pass-btn ok">موافق</button>' +
+            '</div>' +
+          '</div>';
+        const card = bd.querySelector('.assal-rename-pass-card');
+        const input = bd.querySelector('.assal-rename-pass-input');
+        const msg = bd.querySelector('.assal-rename-pass-msg');
+        const ok = bd.querySelector('.assal-rename-pass-btn.ok');
+        const cancel = bd.querySelector('.assal-rename-pass-btn.cancel');
+        let settled = false;
+        function close(val){
+          if(settled) return;
+          settled = true;
+          try{ document.body.classList.remove('modal-open'); }catch(_){ }
+          try{ bd.remove(); }catch(_){ }
+          resolve(!!val);
+        }
+        function submit(){
+          const v = String(input.value || '').trim();
+          if(v === '112233') close(true);
+          else{
+            msg.textContent = 'الرمز غير صحيح';
+            input.value = '';
+            try{ input.focus({preventScroll:true}); }catch(_){ input.focus(); }
+          }
+        }
+        bd.addEventListener('click', function(e){
+          if(e.target === bd){ e.preventDefault(); e.stopPropagation(); }
+        }, true);
+        // لا نوقف انتشار الضغط داخل الكارد حتى تعمل أزرار موافق/إلغاء؛
+        // إغلاق النافذة ممنوع أصلاً لأن الخلفية تتجاهل الضغط إلا إذا كان الهدف هو الخلفية نفسها.
+        input.addEventListener('input', function(){
+          const clean = String(input.value || '').replace(/[^0-9]/g,'').slice(0,12);
+          if(input.value !== clean) input.value = clean;
+          if(msg.textContent) msg.textContent = '';
+        });
+        ok.addEventListener('click', function(e){ e.preventDefault(); submit(); });
+        cancel.addEventListener('click', function(e){ e.preventDefault(); close(false); });
+        input.addEventListener('keydown', function(e){
+          if(e.key === 'Enter'){ e.preventDefault(); submit(); }
+          else if(e.key === 'Escape'){ e.preventDefault(); close(false); }
+        });
+        document.body.appendChild(bd);
+        try{ document.body.classList.add('modal-open'); }catch(_){ }
+        setTimeout(function(){ try{ input.focus({preventScroll:true}); }catch(_){ input.focus(); } }, 30);
+      }catch(_){ resolve(false); }
+    });
+  }
+
+  window.assalStartCustomerRename = async function(card, nameEl){
     try{
       if(!card || !nameEl || nameEl.__assalRenameOpen) return;
       const oldName = normName(card.customer || card.cust || card.name || nameEl.textContent || '');
       if(!oldName) return;
+      const passOk = await assalAskCustomerRenamePassword();
+      if(!passOk) return;
       nameEl.__assalRenameOpen = true;
       const input = document.createElement('input');
       input.className = 'assal-customer-rename-input';
@@ -30544,15 +30745,25 @@ html body .card .card-head .cust.assal-customer-rename-enabled::before{
       input.autocomplete = 'off';
       input.spellcheck = false;
       const parent = nameEl.parentNode;
-      parent.replaceChild(input, nameEl);
+      const editWrap = document.createElement('span');
+      editWrap.className = 'assal-customer-rename-edit-wrap';
+      const cancelBtn = document.createElement('button');
+      cancelBtn.type = 'button';
+      cancelBtn.className = 'assal-customer-rename-cancel-x';
+      cancelBtn.title = 'إلغاء تعديل الاسم';
+      cancelBtn.setAttribute('aria-label','إلغاء تعديل الاسم');
+      cancelBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+      editWrap.appendChild(input);
+      editWrap.appendChild(cancelBtn);
+      parent.replaceChild(editWrap, nameEl);
       try{ input.focus({preventScroll:true}); input.select(); }catch(_){ input.focus(); }
       let done = false;
       async function finish(apply){
         if(done) return;
-        if(!apply){ done = true; try{ renderBoard(); }catch(_){ parent.replaceChild(nameEl, input); nameEl.__assalRenameOpen = false; } return; }
+        if(!apply){ done = true; try{ renderBoard(); }catch(_){ parent.replaceChild(nameEl, editWrap); nameEl.__assalRenameOpen = false; } return; }
         const newName = normName(input.value);
         if(!newName){ try{ showToast('warn','اكتب اسم الزبون الجديد'); }catch(_){ } try{ input.focus(); input.select(); }catch(_){ } return; }
-        if(newName === oldName){ done = true; try{ renderBoard(); }catch(_){ parent.replaceChild(nameEl, input); } return; }
+        if(newName === oldName){ done = true; try{ renderBoard(); }catch(_){ parent.replaceChild(nameEl, editWrap); } return; }
         const counts = countRenameCustomerRefs(oldName);
         // من هنا نعتبر وضع التحرير معلّق بانتظار التأكيد حتى لا يغلق blur مربع النص أثناء فتح نافذة التأكيد.
         done = true;
@@ -30582,6 +30793,8 @@ html body .card .card-head .cust.assal-customer-rename-enabled::before{
         try{ showToast('success','تم تغيير اسم الزبون بكل السجلات المطابقة'); }catch(_){ }
         try{ console.info('[ASSAL CUSTOMER RENAME]', {oldName,newName,result}); }catch(_){ }
       }
+      cancelBtn.addEventListener('mousedown', function(e){ e.preventDefault(); });
+      cancelBtn.addEventListener('click', function(e){ e.preventDefault(); finish(false); });
       input.addEventListener('keydown', function(e){
         if(e.key === 'Enter'){ e.preventDefault(); finish(true); }
         else if(e.key === 'Escape'){ e.preventDefault(); finish(false); }
