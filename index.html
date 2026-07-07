@@ -30594,5 +30594,146 @@ html body .card .card-head .cust.assal-customer-rename-enabled::before{
   try{ if(typeof initOrganizerDockField === 'function') initOrganizerDockField(); }catch(_){ }
 })();
 </script>
+
+
+<!-- ASSAL SMART ADD SCROLL SAFE FINAL - UI ONLY -->
+<style id="assal-smart-add-scroll-safe-final-style">
+@keyframes assalSmartAddedCardTinyPulseFinal{
+  0%{ outline:0 solid rgba(34,211,238,0); box-shadow:var(--shadow); }
+  28%{ outline:1.5px solid rgba(34,211,238,.34); box-shadow:0 0 0 2px rgba(34,211,238,.08), var(--shadow); }
+  100%{ outline:0 solid rgba(34,211,238,0); box-shadow:var(--shadow); }
+}
+@keyframes assalSmartAddedItemTinyPulseFinal{
+  0%{ outline:0 solid rgba(18,209,180,0); box-shadow:none; filter:none; }
+  32%{ outline:1px solid rgba(18,209,180,.28); box-shadow:0 0 0 2px rgba(18,209,180,.06); filter:brightness(1.025); }
+  100%{ outline:0 solid rgba(18,209,180,0); box-shadow:none; filter:none; }
+}
+html body .card.assal-smooth-added-card-pulse,
+html body .card.assal-smart-added-card-safe-final{
+  animation:assalSmartAddedCardTinyPulseFinal .48s ease-out 1 !important;
+  will-change:auto !important;
+}
+html body .card .item.assal-smooth-added-item-pulse,
+html body .card .item.assal-smart-added-item-safe-final{
+  animation:assalSmartAddedItemTinyPulseFinal .52s ease-out 1 !important;
+  will-change:auto !important;
+}
+</style>
+<script id="assal-smart-add-scroll-safe-final-script">
+(function(){
+  'use strict';
+  if(window.__ASSAL_SMART_ADD_SCROLL_SAFE_FINAL__) return;
+  window.__ASSAL_SMART_ADD_SCROLL_SAFE_FINAL__ = true;
+
+  function byId(id){ try{ return document.getElementById(id); }catch(_){ return null; } }
+  function esc(v){
+    v = String(v == null ? '' : v);
+    if(window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(v);
+    return v.replace(/\\/g,'\\\\').replace(/"/g,'\\"');
+  }
+  function raf(fn){ return (window.requestAnimationFrame || function(cb){ return setTimeout(cb,16); })(fn); }
+  function pageY(){ try{ return window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0; }catch(_){ return 0; } }
+  function h(sel){
+    try{ var el=document.querySelector(sel); return el ? Math.max(0, el.getBoundingClientRect().height || el.offsetHeight || 0) : 0; }
+    catch(_){ return 0; }
+  }
+  function safeTop(){ return h('.ribbon') + h('.board-head') + 12; }
+  function safeBottom(){
+    var b = window.innerHeight || document.documentElement.clientHeight || 0;
+    b -= h('.footer');
+    try{
+      var dock = document.querySelector('.dock');
+      if(dock){
+        var r = dock.getBoundingClientRect();
+        if(r && r.top > 0 && r.top < b) b = Math.min(b, r.top - 12);
+      }
+    }catch(_){ }
+    return Math.max(safeTop()+90, b);
+  }
+  function visibleEnough(el){
+    try{
+      if(!el) return false;
+      var r = el.getBoundingClientRect();
+      return r.top >= safeTop() && r.bottom <= safeBottom();
+    }catch(_){ return false; }
+  }
+  function findItem(cardEl, lineId){
+    try{
+      if(!cardEl) return null;
+      if(lineId != null && lineId !== ''){
+        var hit = cardEl.querySelector('.item[data-line-id="' + esc(lineId) + '"]');
+        if(hit) return hit;
+      }
+      var items = cardEl.querySelectorAll('.items .item');
+      return items && items.length ? items[items.length - 1] : null;
+    }catch(_){ return null; }
+  }
+  function pulse(el, cls, ms){
+    try{
+      if(!el) return;
+      el.classList.remove(cls);
+      void el.offsetWidth;
+      el.classList.add(cls);
+      setTimeout(function(){ try{ el.classList.remove(cls); }catch(_){ } }, ms || 560);
+    }catch(_){ }
+  }
+  function shouldSkipScroll(){
+    try{
+      if(document.querySelector('.modal.active, .modal-backdrop.active, .assal-adv-backdrop.active')) return true;
+      var a = document.activeElement;
+      if(a && (a.id === 'cardSearch' || a.id === 'itemSearch')) return true;
+    }catch(_){ }
+    return false;
+  }
+  function smoothScrollTo(el){
+    try{
+      if(!el || shouldSkipScroll()) return;
+      if(visibleEnough(el)) return;
+      var abs = el.getBoundingClientRect().top + pageY();
+      var y = Math.max(0, Math.round(abs - safeTop()));
+      if(Math.abs(pageY() - y) < 5) return;
+      window.scrollTo({top:y, behavior:'smooth'});
+    }catch(_){ try{ el && el.scrollIntoView({behavior:'smooth', block:'start', inline:'nearest'}); }catch(__){ } }
+  }
+  function keepOrganizerFocus(){
+    try{
+      if(typeof assalFocusOrganizerNoScroll === 'function') assalFocusOrganizerNoScroll(true);
+      else {
+        var org = byId('organizer');
+        if(org) org.focus({preventScroll:true});
+      }
+    }catch(_){ }
+  }
+
+  var lastRun = 0;
+  window.assalSoftFlashAddedCardAndItem = function(card, lineId){
+    try{
+      var cid = card && card.id;
+      if(!cid) return;
+      var run = ++lastRun;
+      var tries = 0;
+      function go(){
+        try{
+          if(run !== lastRun) return;
+          var cardEl = byId('card-' + cid);
+          if(!cardEl){
+            if(++tries <= 8) raf(go);
+            return;
+          }
+          var itemEl = findItem(cardEl, lineId);
+          var anchor = cardEl;
+          if(visibleEnough(cardEl) && itemEl && !visibleEnough(itemEl)) anchor = itemEl;
+          smoothScrollTo(anchor || cardEl);
+          pulse(cardEl, 'assal-smart-added-card-safe-final', 540);
+          pulse(itemEl, 'assal-smart-added-item-safe-final', 580);
+          setTimeout(keepOrganizerFocus, 90);
+        }catch(_){ }
+      }
+      raf(function(){ raf(go); });
+    }catch(_){ }
+  };
+})();
+</script>
+<!-- /ASSAL SMART ADD SCROLL SAFE FINAL -->
 </body>
 </html>
