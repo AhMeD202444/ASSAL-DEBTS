@@ -30809,7 +30809,7 @@ html body .card .card-head .cust.assal-customer-rename-enabled::before{
 </script>
 
 
-<!-- ASSAL SMART ADD SCROLL SAFE FINAL - UI ONLY -->
+<!-- ASSAL SMART ADD SCROLL FOCUS SAFE FINAL - UI ONLY -->
 <style id="assal-smart-add-scroll-safe-final-style">
 @keyframes assalSmartAddedCardTinyPulseFinal{
   0%{ outline:0 solid rgba(34,211,238,0); box-shadow:var(--shadow); }
@@ -30837,6 +30837,7 @@ html body .card .item.assal-smart-added-item-safe-final{
   'use strict';
   if(window.__ASSAL_SMART_ADD_SCROLL_SAFE_FINAL__) return;
   window.__ASSAL_SMART_ADD_SCROLL_SAFE_FINAL__ = true;
+  window.__ASSAL_SMART_ADD_SCROLL_FOCUS_SAFE_FINAL__ = true;
 
   function byId(id){ try{ return document.getElementById(id); }catch(_){ return null; } }
   function esc(v){
@@ -30908,16 +30909,6 @@ html body .card .item.assal-smart-added-item-safe-final{
       window.scrollTo({top:y, behavior:'smooth'});
     }catch(_){ try{ el && el.scrollIntoView({behavior:'smooth', block:'start', inline:'nearest'}); }catch(__){ } }
   }
-  function keepOrganizerFocus(){
-    try{
-      if(typeof assalFocusOrganizerNoScroll === 'function') assalFocusOrganizerNoScroll(true);
-      else {
-        var org = byId('organizer');
-        if(org) org.focus({preventScroll:true});
-      }
-    }catch(_){ }
-  }
-
   var lastRun = 0;
   window.assalSoftFlashAddedCardAndItem = function(card, lineId){
     try{
@@ -30939,7 +30930,7 @@ html body .card .item.assal-smart-added-item-safe-final{
           smoothScrollTo(anchor || cardEl);
           pulse(cardEl, 'assal-smart-added-card-safe-final', 540);
           pulse(itemEl, 'assal-smart-added-item-safe-final', 580);
-          setTimeout(keepOrganizerFocus, 90);
+          /* ASSAL FOCUS SAFE FINAL: السكرول/الفلاش عرض فقط، لا يرجّع الفوكس أبداً */
         }catch(_){ }
       }
       raf(function(){ raf(go); });
@@ -30947,6 +30938,6 @@ html body .card .item.assal-smart-added-item-safe-final{
   };
 })();
 </script>
-<!-- /ASSAL SMART ADD SCROLL SAFE FINAL -->
+<!-- /ASSAL SMART ADD SCROLL FOCUS SAFE FINAL -->
 </body>
 </html>
