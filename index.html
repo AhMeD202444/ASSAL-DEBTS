@@ -9381,6 +9381,12 @@ function getSelectedType(){
   return String(t).trim() || 'اجل';
 }
 
+// ASSAL RETURN PRICE SAFE: الراجع لا يسحب سعره من شيت الأسعار أبداً.
+// السعر في الراجع يجب أن يأتي فقط من سجل شراء الزبون عبر دوال فحص الراجع.
+function assalIsReturnTypeSelected(){
+  try{ return String(getSelectedType() || '').trim() === 'راجع'; }catch(_){ return false; }
+}
+
 function getRowCAG(row){
   if(!row) return '';
   return String(
@@ -9427,6 +9433,9 @@ function getRowPriceValue(row){
 }
 
 function findPrice(cat, itemName){
+  // مهم جداً: في نوع (راجع) ممنوع جلب سعر المادة من شيت الأسعار،
+  // حتى لا يستبدل السعر الحقيقي الذي انباعت به المادة بعد تعديل السطر.
+  if(typeof assalIsReturnTypeSelected === 'function' && assalIsReturnTypeSelected()) return '';
   if(!cat || cat === 'NO-CATEGORY' || !itemName) return '';
 
   const type = getSelectedType();
@@ -9444,6 +9453,8 @@ function tryFillPrice(){
   const name = (document.getElementById('item')?.value || '').trim();
   const priceEl = document.getElementById('price');
   if(!priceEl) return;
+  // نوع الراجع له مسار سعر خاص من سجل الشراء فقط، وليس من شيت الأسعار.
+  if(typeof assalIsReturnTypeSelected === 'function' && assalIsReturnTypeSelected()) return;
   const p = findPrice(cat, name);
   if(p !== '') priceEl.value = formatIQD(p);  // 12,500
 }
@@ -9767,7 +9778,27 @@ function renderItemSuggestions(){
       qEl.value = name || '';
       host.style.display = 'none';
 
-      // تعبئة السعر تلقائياً مثل قبل
+      const goQty = ()=>{
+        const qtyEl = document.getElementById('qty');
+        if(qtyEl){
+          qtyEl.focus();
+          if(qtyEl.select) qtyEl.select();
+        }
+      };
+
+      // في الراجع: لا نعبّي السعر من الشيت. نفحص سجل شراء الزبون ونأخذ السعر من هناك فقط.
+      if(typeof assalIsReturnTypeSelected === 'function' && assalIsReturnTypeSelected()){
+        try{ window.__assalReturnItemValidation = null; }catch(_){ }
+        try{ if(typeof assalReturnSetPriceValue === 'function') assalReturnSetPriceValue('', 'clear'); }catch(_){ }
+        if(typeof assalReturnGuardEnterAsync === 'function'){
+          assalReturnGuardEnterAsync(null, goQty);
+        }else{
+          goQty();
+        }
+        return;
+      }
+
+      // تعبئة السعر تلقائياً مثل قبل لباقي أنواع الفواتير فقط
       const priceEl = document.getElementById('price');
       if(priceEl){
         const p = findPrice(cat, name || '');
@@ -9775,11 +9806,7 @@ function renderItemSuggestions(){
       }
 
       // روح مباشرة على الكمية
-      const qtyEl = document.getElementById('qty');
-      if(qtyEl){
-        qtyEl.focus();
-        if(qtyEl.select) qtyEl.select();
-      }
+      goQty();
     });
 
     host.appendChild(li);
@@ -10428,11 +10455,13 @@ document.getElementById('item')?.addEventListener('keydown', async (e)=>{
     qEl.value = pickedName;
     hideItemSuggestions();
 
-    // نفس منطق السعر الموجود بالـ click
-    const priceEl = document.getElementById('price');
-    if(priceEl){
-      const p = findPrice(cat, pickedName);
-      if(p !== '') priceEl.value = formatIQD(p);
+    // نفس منطق السعر الموجود بالـ click، لكن الراجع سعره من سجل الشراء فقط.
+    if(!(typeof assalIsReturnTypeSelected === 'function' && assalIsReturnTypeSelected())){
+      const priceEl = document.getElementById('price');
+      if(priceEl){
+        const p = findPrice(cat, pickedName);
+        if(p !== '') priceEl.value = formatIQD(p);
+      }
     }
 
     await assalReturnGuardEnterAsync(e, goQty);
@@ -13509,6 +13538,10 @@ function assalInlineEditSave(card, line){
     realLine.updatedAt = t;
     if(!realLine.lineId && st.lineId) realLine.lineId = st.lineId;
     realCard.updatedAt = t;
+
+    // أي تعديل على سطر بيع سابق يجب أن يبطل فحص الراجع المخزن مؤقتاً،
+    // حتى يقرأ الراجع السعر المحدث فعلياً من السطر ولا يعتمد نتيجة قديمة.
+    try{ window.__assalReturnItemValidation = null; }catch(_){ }
 
     window.__assalInlineLineEdit = null;
     try{ save(); }catch(_){ }
@@ -28116,11 +28149,15 @@ html body .card .item.assal-smooth-added-item-pulse{
       if(item) item.value = name;
       try{ if(typeof window.hideItemSuggestions === 'function') window.hideItemSuggestions(); else host.style.display = 'none'; }catch(_){ host.style.display = 'none'; }
       try{
-        var cat = (typeof window.getSelectedCat === 'function') ? window.getSelectedCat() : ((byId('cat') && byId('cat').value) || '');
-        var priceEl = byId('price');
-        if(priceEl && typeof window.findPrice === 'function'){
-          var p = window.findPrice(cat, name);
-          if(p !== '') priceEl.value = (typeof window.formatIQD === 'function') ? window.formatIQD(p) : String(p);
+        // في الراجع لا نملأ السعر من شيت الأسعار؛ دالة assalReturnGuardEnterAsync ستجلب سعر الشراء الصحيح.
+        var isRet = (typeof window.assalIsReturnTypeSelected === 'function' && window.assalIsReturnTypeSelected());
+        if(!isRet){
+          var cat = (typeof window.getSelectedCat === 'function') ? window.getSelectedCat() : ((byId('cat') && byId('cat').value) || '');
+          var priceEl = byId('price');
+          if(priceEl && typeof window.findPrice === 'function'){
+            var p = window.findPrice(cat, name);
+            if(p !== '') priceEl.value = (typeof window.formatIQD === 'function') ? window.formatIQD(p) : String(p);
+          }
         }
       }catch(_){ }
       return true;
