@@ -13186,10 +13186,22 @@ function assalStableMasonryPatchChildren(host, frag){
   if(!host) return;
   try{
     const fresh = Array.from((frag && frag.children) ? frag.children : []);
-    if(!fresh.length){
-      host.textContent = '';
-      return;
-    }
+
+    // ASSAL DAY SWITCH GAP SAFE:
+    // تثبيت ارتفاع خانة البطاقات مفيد داخل نفس اليوم حتى يمنع الوميض،
+    // لكنه إذا بقي عند الانتقال من يوم ليوم يسبب فراغاً مؤقتاً بحجم اليوم السابق.
+    // لذلك نستخدم مفتاح نطاق بسيط، وإذا تغيّر اليوم/البحث/وضع البحث الشامل لا نثبت minHeight.
+    const __assalStableScopeKey = (function(){
+      try{
+        const day = (typeof selectedDay === 'string' && selectedDay) ? selectedDay : '';
+        const global = !!(document.getElementById('globalSearch') && document.getElementById('globalSearch').checked);
+        const cardQ = String((document.getElementById('cardSearch') && document.getElementById('cardSearch').value) || '').trim();
+        const itemQ = String((document.getElementById('itemSearch') && document.getElementById('itemSearch').value) || '').trim();
+        return (global ? 'global' : 'day') + '|' + day + '|' + cardQ + '|' + itemQ;
+      }catch(_){ return ''; }
+    })();
+    const __assalStablePrevScopeKey = host.__assalStableRenderScopeKey || '';
+    const __assalStableSameScope = !__assalStablePrevScopeKey || !__assalStableScopeKey || (__assalStablePrevScopeKey === __assalStableScopeKey);
 
     // ASSAL FINAL HEIGHT GUARD: لا نترك minHeight قديم يراكم فراغاً شاسعاً إذا صار رندر سريع وراء رندر.
     try{
@@ -13199,10 +13211,21 @@ function assalStableMasonryPatchChildren(host, frag){
         host.style.minHeight = host.__assalStableOldMinHeight || '';
         host.__assalStableOldMinHeight = '';
       }
+      if(!__assalStableSameScope){
+        // عند تغيير اليوم/نطاق العرض: ألغِ أي تثبيت ارتفاع فوراً حتى لا يرث اليوم الجديد ارتفاع اليوم السابق.
+        host.style.minHeight = '';
+        host.__assalStableOldMinHeight = '';
+      }
     }catch(_){ }
 
+    if(!fresh.length){
+      host.textContent = '';
+      host.__assalStableRenderScopeKey = __assalStableScopeKey;
+      return;
+    }
+
     const oldMinHeight = host.style.minHeight || '';
-    const oldHeight = host.offsetHeight || 0;
+    const oldHeight = __assalStableSameScope ? (host.offsetHeight || 0) : 0;
     if(oldHeight > 0){
       host.__assalStableOldMinHeight = oldMinHeight;
       host.style.minHeight = Math.ceil(oldHeight) + 'px';
@@ -13234,6 +13257,8 @@ function assalStableMasonryPatchChildren(host, frag){
     while(host.children.length > fresh.length){
       host.removeChild(host.lastElementChild);
     }
+
+    host.__assalStableRenderScopeKey = __assalStableScopeKey;
 
     if(oldHeight > 0){
       try{ if(host.__assalStableHeightTimer) clearTimeout(host.__assalStableHeightTimer); }catch(_){ }
@@ -21614,8 +21639,256 @@ function showCustSuggestions(prefix){
     suggBox.style.display='none';
   });
 
+
+
+  /* ===== ASSAL SAFE OVERPAY CONFIRM — تحذير خفيف قبل تسديد أكبر من الدين ===== */
+  let __assalOverpayDialogOpen = false;
+  let __assalOverpayLastKey = '';
+
+  function __assalPayNum(v){
+    const n = Number(String(v == null ? '' : v).replace(/[^\d.-]/g,''));
+    return isFinite(n) ? Math.round(n) : 0;
+  }
+  function __assalPayFmt(v){
+    try{ return Math.round(Number(v)||0).toLocaleString('ar-IQ'); }
+    catch(_){ return String(Math.round(Number(v)||0)); }
+  }
+  function __assalPayEsc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function __assalEnsureOverpayStyle(){
+    if(document.getElementById('assalOverpayConfirmStyle')) return;
+    const st = document.createElement('style');
+    st.id = 'assalOverpayConfirmStyle';
+    st.textContent = `
+      .assal-overpay-backdrop{
+        position:fixed; inset:0; z-index:1120;
+        display:flex; align-items:center; justify-content:center;
+        background:rgba(2,6,23,.62);
+        padding:18px;
+      }
+      .assal-overpay-card{
+        width:min(560px, calc(100vw - 28px));
+        direction:rtl;
+        border-radius:24px;
+        border:1px solid rgba(148,163,184,.16);
+        background:
+          radial-gradient(circle at 18% 0%, rgba(124,58,237,.26), transparent 36%),
+          radial-gradient(circle at 82% 16%, rgba(14,165,233,.18), transparent 34%),
+          linear-gradient(180deg, rgba(15,26,51,.98), rgba(13,23,45,.98));
+        color:#e7eef9;
+        box-shadow:0 26px 78px rgba(2,6,23,.64), inset 0 1px 0 rgba(255,255,255,.07);
+        overflow:hidden;
+        font-family:inherit;
+        position:relative;
+      }
+      .assal-overpay-card::before{
+        content:"";
+        position:absolute; inset:0 0 auto 0;
+        height:4px;
+        background:linear-gradient(90deg, var(--brand,#12d1b4), var(--brand-2,#7c3aed), var(--brand-3,#0ea5e9));
+        pointer-events:none;
+      }
+      .assal-overpay-head{
+        display:flex; align-items:center; justify-content:center; gap:12px;
+        padding:20px 20px 13px;
+        border-bottom:1px solid rgba(148,163,184,.12);
+        text-align:center;
+      }
+      .assal-overpay-lock{
+        width:46px; height:46px; border-radius:16px;
+        display:flex; align-items:center; justify-content:center;
+        background:linear-gradient(135deg, var(--brand,#12d1b4), var(--brand-2,#7c3aed));
+        color:#fff;
+        border:1px solid rgba(255,255,255,.14);
+        box-shadow:0 14px 30px rgba(124,58,237,.24), inset 0 1px 0 rgba(255,255,255,.16);
+        flex:0 0 auto;
+      }
+      .assal-overpay-title{font-weight:950; font-size:18px; line-height:1.25; color:#fff; letter-spacing:-.2px;}
+      .assal-overpay-sub{font-weight:850; color:#aab8cf; font-size:12.5px; margin-top:4px;}
+      .assal-overpay-body{padding:15px 20px 14px; text-align:center;}
+      .assal-overpay-msg{
+        margin:0 auto 13px;
+        color:#dbe5f3;
+        font-size:14px;
+        font-weight:850;
+        line-height:1.85;
+        max-width:470px;
+      }
+      .assal-overpay-msg b{color:#fff; font-weight:950;}
+      .assal-overpay-badges{
+        display:grid;
+        grid-template-columns:repeat(3, minmax(0,1fr));
+        gap:9px;
+      }
+      .assal-overpay-badge{
+        min-width:0;
+        border-radius:18px;
+        padding:11px 9px;
+        border:1px solid rgba(148,163,184,.18);
+        background:linear-gradient(180deg, rgba(15,23,42,.78), rgba(15,23,42,.50));
+        text-align:center;
+        box-shadow:inset 0 1px 0 rgba(255,255,255,.055), 0 8px 18px rgba(2,6,23,.18);
+      }
+      .assal-overpay-badge b{
+        display:block;
+        color:#d6e2f3;
+        font-size:11px;
+        font-weight:950;
+        margin-bottom:6px;
+        white-space:nowrap;
+      }
+      .assal-overpay-badge span{
+        display:block;
+        color:#f8fafc;
+        font-size:15.5px;
+        font-weight:950;
+        font-variant-numeric:tabular-nums;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        direction:ltr;
+      }
+      .assal-overpay-badge.is-debt{
+        background:linear-gradient(180deg, rgba(245,158,11,.22), rgba(120,53,15,.17));
+        border-color:rgba(251,191,36,.36);
+      }
+      .assal-overpay-badge.is-debt b{color:#fde68a;}
+      .assal-overpay-badge.is-debt span{color:#fff7ed;}
+      .assal-overpay-badge.is-paid{
+        background:linear-gradient(180deg, rgba(20,184,166,.22), rgba(15,118,110,.15));
+        border-color:rgba(45,212,191,.34);
+      }
+      .assal-overpay-badge.is-paid b{color:#99f6e4;}
+      .assal-overpay-badge.is-paid span{color:#ecfeff;}
+      .assal-overpay-badge.is-extra{
+        background:linear-gradient(180deg, rgba(124,58,237,.24), rgba(14,165,233,.16));
+        border-color:rgba(125,211,252,.40);
+      }
+      .assal-overpay-badge.is-extra b{color:#c4b5fd;}
+      .assal-overpay-badge.is-extra span{color:#7dd3fc;}
+      .assal-overpay-actions{
+        display:flex; justify-content:center; align-items:center; gap:10px;
+        padding:7px 20px 20px;
+        width:100%;
+      }
+      .assal-overpay-btn{
+        border:1px solid rgba(148,163,184,.18);
+        border-radius:15px;
+        padding:0 18px;
+        height:43px;
+        font-family:inherit;
+        font-weight:950;
+        cursor:pointer;
+        min-width:122px;
+        color:#e5e7eb;
+        transition:filter .12s ease, transform .12s ease, box-shadow .12s ease;
+      }
+      .assal-overpay-btn:hover{filter:brightness(1.06); transform:translateY(-1px);}
+      .assal-overpay-btn:active{transform:translateY(0);}
+      .assal-overpay-btn.cancel{
+        background:linear-gradient(180deg, rgba(15,23,42,.90), rgba(15,23,42,.62));
+        color:#cbd5e1;
+        border-color:rgba(148,163,184,.26);
+        box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+      }
+      .assal-overpay-btn.ok{
+        background:linear-gradient(135deg, var(--brand,#12d1b4), var(--brand-2,#7c3aed));
+        color:#fff;
+        border-color:rgba(255,255,255,.13);
+        box-shadow:0 14px 32px rgba(124,58,237,.30), inset 0 1px 0 rgba(255,255,255,.16);
+      }
+      @media(max-width:520px){
+        .assal-overpay-card{border-radius:22px; width:min(520px, calc(100vw - 22px));}
+        .assal-overpay-head{padding-inline:15px;}
+        .assal-overpay-body{padding-inline:15px;}
+        .assal-overpay-badges{grid-template-columns:1fr;}
+        .assal-overpay-actions{justify-content:center; flex-direction:row; padding-inline:15px;}
+        .assal-overpay-btn{flex:1; min-width:0;}
+      }
+    `;
+    document.head.appendChild(st);
+  }
+  function __assalShowOverpayConfirm(info, onOk){
+    if(__assalOverpayDialogOpen) return;
+    __assalOverpayDialogOpen = true;
+    __assalEnsureOverpayStyle();
+
+    const debt = __assalPayNum(info && info.debt);
+    const amount = __assalPayNum(info && info.amount);
+    const extra = __assalPayNum(info && info.extra);
+    const cust = __assalPayEsc(info && info.cust);
+    const debtLabel = debt > 0 ? 'الدين الحالي' : 'الرصيد الحالي';
+    const debtValue = debt > 0 ? __assalPayFmt(debt) : (debt < 0 ? ('له ' + __assalPayFmt(Math.abs(debt))) : '0');
+
+    const wrap = document.createElement('div');
+    wrap.className = 'assal-overpay-backdrop';
+    wrap.setAttribute('role','dialog');
+    wrap.setAttribute('aria-modal','true');
+    wrap.innerHTML = `
+      <div class="assal-overpay-card">
+        <div class="assal-overpay-head">
+          <div class="assal-overpay-lock"><i class="fa-solid fa-circle-exclamation"></i></div>
+          <div>
+            <div class="assal-overpay-title">المبلغ المسدد أكبر من الدين</div>
+            <div class="assal-overpay-sub">${cust || 'الزبون'} — تأكيد قبل تسجيل التسديد</div>
+          </div>
+        </div>
+        <div class="assal-overpay-body">
+          <p class="assal-overpay-msg">هذا التسديد راح يخلّي رصيد الزبون زائد/بالسالب. اضغط <b>فهمت</b> حتى يتم تسجيل التسديد مثل ما هو.</p>
+          <div class="assal-overpay-badges">
+            <div class="assal-overpay-badge is-debt"><b>${debtLabel}</b><span>${debtValue}</span></div>
+            <div class="assal-overpay-badge is-paid"><b>مبلغ التسديد</b><span>${__assalPayFmt(amount)}</span></div>
+            <div class="assal-overpay-badge is-extra"><b>الزيادة</b><span>${__assalPayFmt(extra)}</span></div>
+          </div>
+        </div>
+        <div class="assal-overpay-actions">
+          <button type="button" class="assal-overpay-btn cancel" data-act="cancel">إلغاء</button>
+          <button type="button" class="assal-overpay-btn ok" data-act="ok">فهمت</button>
+        </div>
+      </div>`;
+
+    function close(){
+      try{ document.removeEventListener('keydown', onKey, true); }catch(_){ }
+      try{ wrap.remove(); }catch(_){ }
+      __assalOverpayDialogOpen = false;
+      __assalOverpayLastKey = '';
+    }
+    function onKey(e){
+      if(e.key === 'Escape'){
+        e.preventDefault(); e.stopPropagation(); close();
+      }else if(e.key === 'Enter'){
+        e.preventDefault(); e.stopPropagation();
+        const cb = onOk;
+        close();
+        setTimeout(()=>{ try{ cb && cb(); }catch(err){ console.error(err); } }, 0);
+      }
+    }
+    wrap.addEventListener('click', function(e){
+      const act = e.target && e.target.closest ? e.target.closest('[data-act]') : null;
+      if(!act) return; // الضغط خارج الكارت لا يغلق ولا يسجل
+      e.preventDefault();
+      if(act.getAttribute('data-act') === 'ok'){
+        const cb = onOk;
+        close();
+        setTimeout(()=>{ try{ cb && cb(); }catch(err){ console.error(err); } }, 0);
+      }else{
+        close();
+        try{ inpAmount && inpAmount.focus(); inpAmount && inpAmount.select && inpAmount.select(); }catch(_){ }
+      }
+    });
+    document.body.appendChild(wrap);
+    document.addEventListener('keydown', onKey, true);
+    setTimeout(()=>{
+      const ok = wrap.querySelector('[data-act="ok"]');
+      try{ ok && ok.focus({preventScroll:true}); }catch(_){ ok && ok.focus(); }
+    }, 0);
+  }
+
   // ========== إضافة دفعة ==========
-function addPayment(){
+function addPayment(forceOverpayConfirm){
   const cust   = inpCustomer.value.trim();
   const kind   = inpType.value;
   const amtStr = inpAmount.value.replace(/[^\d.]/g,'');
@@ -21626,6 +21899,29 @@ function addPayment(){
   if(!cust || !amtStr){ return; }
 
   const amountNum = Number(amtStr) || 0;
+
+  // تحذير تأكيدي فقط: إذا التسديد أكبر من الدين الحالي، لا نحفظ مباشرة؛
+  // زر "فهمت" يرجّع ينادي نفس الإضافة مع تخطي التحذير. لا نغيّر منطق الحسابات.
+  try{
+    const normalizedKind = String(kind || '').trim();
+    if(forceOverpayConfirm !== true && normalizedKind === 'تسديد' && amountNum > 0 && typeof window.assalGetCustomerDebtAmount === 'function'){
+      const currentDebt = Math.round(Number(window.assalGetCustomerDebtAmount(cust)) || 0);
+      if(amountNum > currentDebt){
+        const uniqueKey = [cust, normalizedKind, amountNum, currentDebt, day].join('|');
+        if(!__assalOverpayDialogOpen || __assalOverpayLastKey !== uniqueKey){
+          __assalOverpayLastKey = uniqueKey;
+          const extra = amountNum - currentDebt;
+          __assalShowOverpayConfirm({ cust, debt: currentDebt, amount: amountNum, extra }, function(){
+            addPayment(true);
+          });
+        }
+        return;
+      }
+    }
+  }catch(err){
+    console.warn('ASSAL overpay confirm skipped:', err);
+  }
+
   const now  = new Date();
   const time = now.toLocaleTimeString('ar-IQ', { hour:'2-digit', minute:'2-digit' });
 
