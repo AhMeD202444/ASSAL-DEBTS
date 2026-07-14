@@ -6129,7 +6129,7 @@ html body .payment-row{
         <div class="att-icon"><i class="fa-solid fa-fingerprint"></i></div>
         <div class="att-title-wrap">
           <h2 id="attTitle">حضور اليوم</h2>
-          <p>كل موظف يسجل حضوره برمزه الشخصي، ويمكن تحديد الموظف المجاز حتى لا يظهر ضمن نقص الحضور.</p>
+          <p>كل موظف يسجل حضوره برمزه الشخصي، ويمكن تحديد الموظف مجاز أو في واجب عمل حتى لا يظهر ضمن نقص الحضور.</p>
         </div>
         <div class="att-count" id="assalAttendanceSelectedCount">0</div>
       </div>
@@ -6193,7 +6193,8 @@ html body .payment-row{
           <div class="att-code-row">
             <input id="attCodeMustafa" name="assal_att_code_mustafa" class="att-code-input" type="password" inputmode="text" enterkeyhint="done" lang="en" dir="ltr" placeholder="اكتب الرمز" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-emp="مصطفى" data-lpignore="true" data-1p-ignore="true" aria-label="رمز مصطفى">
             <button class="att-person-btn" type="button" data-emp="مصطفى"><i class="fa-solid fa-user-check"></i><span>حضور مصطفى</span></button>
-            <button class="att-leave-btn" type="button" data-emp="مصطفى" title="تحديد مصطفى مجاز" aria-label="تحديد مصطفى مجاز"><i class="fa-solid fa-calendar-xmark"></i><span class="att-leave-text">مجاز</span></button>
+            <button class="att-leave-btn" type="button" data-emp="مصطفى" title="تحديد مصطفى مجاز" aria-label="تحديد مصطفى مجاز"><i class="fa-solid fa-umbrella-beach"></i><span class="att-leave-text">مجاز</span></button>
+            <button class="att-duty-btn" type="button" data-emp="مصطفى" title="تحديد مصطفى في واجب عمل" aria-label="تحديد مصطفى في واجب عمل"><i class="fa-solid fa-briefcase"></i><span class="att-duty-text">واجب</span></button>
           </div>
         </div>
 
@@ -6207,7 +6208,8 @@ html body .payment-row{
           <div class="att-code-row">
             <input id="attCodeIsmail" name="assal_att_code_ismail" class="att-code-input" type="password" inputmode="text" enterkeyhint="done" lang="en" dir="ltr" placeholder="اكتب الرمز" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-emp="إسماعيل" data-lpignore="true" data-1p-ignore="true" aria-label="رمز إسماعيل">
             <button class="att-person-btn" type="button" data-emp="إسماعيل"><i class="fa-solid fa-user-check"></i><span>حضور إسماعيل</span></button>
-            <button class="att-leave-btn" type="button" data-emp="إسماعيل" title="تحديد إسماعيل مجاز" aria-label="تحديد إسماعيل مجاز"><i class="fa-solid fa-calendar-xmark"></i><span class="att-leave-text">مجاز</span></button>
+            <button class="att-leave-btn" type="button" data-emp="إسماعيل" title="تحديد إسماعيل مجاز" aria-label="تحديد إسماعيل مجاز"><i class="fa-solid fa-umbrella-beach"></i><span class="att-leave-text">مجاز</span></button>
+            <button class="att-duty-btn" type="button" data-emp="إسماعيل" title="تحديد إسماعيل في واجب عمل" aria-label="تحديد إسماعيل في واجب عمل"><i class="fa-solid fa-briefcase"></i><span class="att-duty-text">واجب</span></button>
           </div>
         </div>
       </div>
@@ -6357,7 +6359,7 @@ html body .payment-row{
   .att-camera-panel.is-captured .att-camera-box img{display:block;}
   .att-camera-panel.is-live .att-camera-placeholder,.att-camera-panel.is-captured .att-camera-placeholder{display:none;}
   .att-camera-panel.is-error{border-color:rgba(239,68,68,.38);background:linear-gradient(135deg,rgba(127,29,29,.18),rgba(14,165,233,.06));}
-  .att-person-btn.att-busy,.att-leave-btn.att-busy,.att-confirm.att-busy{opacity:.62!important;pointer-events:none!important;}
+  .att-person-btn.att-busy,.att-leave-btn.att-busy,.att-duty-btn.att-busy,.att-confirm.att-busy{opacity:.62!important;pointer-events:none!important;}
   .att-photo-btn{margin-top:0;width:28px;height:24px;border:1px solid rgba(14,165,233,.32);background:#061324;color:#bfdbfe;border-radius:999px;padding:0;font-size:11px;font-weight:950;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:0;line-height:1;white-space:nowrap;vertical-align:middle;flex:0 0 auto;}
   .att-photo-btn span{display:none!important;}
   .att-photo-btn:hover{filter:brightness(1.08);border-color:rgba(18,209,180,.44);}
@@ -6369,31 +6371,44 @@ html body .payment-row{
   .att-text strong{display:block;font-size:28px;line-height:1.2;color:#fff;font-weight:950;}
   .att-text small{display:block;margin-top:7px;font-size:14px;font-weight:900;color:#9fb0c8;}
   .att-check{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#071120;border:1px solid rgba(148,163,184,.18);color:transparent;z-index:1;}
-  .att-code-row{grid-column:1 / -1;display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,172px) 52px;gap:8px;z-index:1;align-items:center;}
+  .att-code-row{grid-column:1 / -1;display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,172px) 52px 52px;gap:8px;z-index:1;align-items:center;}
   .att-code-input,.att-timeout-input{height:48px;border:1px solid rgba(148,163,184,.16);border-radius:14px;background:#050b16;color:#e7eef9;outline:none;padding:0 14px;font-family:var(--ui-font,"Cairo",system-ui);font-weight:900;font-size:15px;}
   .att-code-input{letter-spacing:3px;text-align:center;font-family:Consolas,"Courier New",monospace!important;-webkit-text-security:disc!important;text-security:disc!important;caret-color:#12d1b4!important;}
   .att-code-input::-ms-reveal,.att-code-input::-ms-clear{display:none!important;width:0!important;height:0!important;}
   .att-code-input:focus,.att-timeout-input:focus{border-color:rgba(18,209,180,.55);box-shadow:0 0 0 3px rgba(18,209,180,.12);}
   .att-person-btn{height:48px;border:0;border-radius:14px;cursor:pointer;background:linear-gradient(135deg,#0e7490,#155e75);color:#ecfeff;font-weight:950;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:14px;}
-  .att-leave-btn{width:52px;min-width:52px;height:48px;padding:0;border:1px solid rgba(245,158,11,.36);border-radius:14px;cursor:pointer;background:#2a1d08;color:#fde68a;font-weight:950;display:inline-flex;align-items:center;justify-content:center;font-size:17px;overflow:hidden;}
-  .att-leave-btn .att-leave-text{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
-  .att-leave-btn:hover{filter:brightness(1.03)!important;transform:none!important;}
-  .att-leave-btn:disabled{cursor:not-allowed;}
+  .att-leave-btn,.att-duty-btn{width:52px;min-width:52px;height:48px;padding:0;border-radius:14px;cursor:pointer;font-weight:950;display:inline-flex;align-items:center;justify-content:center;font-size:17px;overflow:hidden;}
+  .att-leave-btn{border:1px solid rgba(245,158,11,.36);background:#2a1d08;color:#fde68a;}
+  .att-duty-btn{border:1px solid rgba(14,165,233,.38);background:#08243a;color:#bae6fd;}
+  .att-leave-btn .att-leave-text,.att-duty-btn .att-duty-text{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+  .att-leave-btn:hover,.att-duty-btn:hover{filter:brightness(1.03)!important;transform:none!important;}
+  .att-leave-btn:disabled,.att-duty-btn:disabled{cursor:not-allowed;}
   .att-leave-btn.att-locked{background:#161b2a;color:#d6b36a;border-color:rgba(245,158,11,.22);opacity:.42;}
-  .att-person-btn:hover,.att-leave-btn:hover,.att-confirm:not(.att-disabled):hover,.att-report:hover,.att-back:hover,.att-timeout-save:hover,.att-print:hover{filter:brightness(1.05);transform:translateY(-1px);}
+  .att-duty-btn.att-locked{background:#161b2a;color:#78a9c5;border-color:rgba(14,165,233,.20);opacity:.42;}
+  .att-person-btn:hover,.att-leave-btn:hover,.att-duty-btn:hover,.att-confirm:not(.att-disabled):hover,.att-report:hover,.att-back:hover,.att-timeout-save:hover,.att-print:hover{filter:brightness(1.05);transform:translateY(-1px);}
   .att-person.is-checked{border-color:rgba(18,209,180,.62);box-shadow:0 16px 34px rgba(18,209,180,.14),inset 0 0 0 1px rgba(255,255,255,.035);}
   .att-person.is-checked::before{opacity:1;}
   .att-person.is-checked .att-check{background:linear-gradient(135deg,#16a34a,#0f766e);color:#fff;border-color:rgba(34,197,94,.42);}
   .att-person.is-checked .assal-attendance-state{color:#bbf7d0;}
   .att-person.is-checked .att-code-input,.att-person.is-checked .att-person-btn{opacity:.48;pointer-events:none;}
-  .att-person.is-checked .att-leave-btn{opacity:.42;pointer-events:none;background:#161b2a;color:#d6b36a;border-color:rgba(245,158,11,.22);}
+  .att-person.is-checked .att-leave-btn,.att-person.is-checked .att-duty-btn{opacity:.42;pointer-events:none;background:#161b2a;border-color:rgba(148,163,184,.18);}
   .att-person.is-leave{border-color:rgba(245,158,11,.60);box-shadow:0 14px 30px rgba(245,158,11,.10),inset 0 0 0 1px rgba(255,255,255,.03);}
   .att-person.is-leave::before{opacity:1;background:linear-gradient(135deg,rgba(245,158,11,.12),rgba(124,58,237,.08));}
   .att-person.is-leave .att-check{background:linear-gradient(135deg,#b45309,#92400e);color:#fff;border-color:rgba(245,158,11,.38);}
   .att-person.is-leave .assal-attendance-state{color:#fde68a;}
   .att-person.is-leave .att-code-input,.att-person.is-leave .att-person-btn{opacity:.48;pointer-events:none;}
   .att-person.is-leave .att-leave-btn{background:#3b2506;color:#fff7ed;border-color:rgba(245,158,11,.50);}
-  .att-leave-badge{display:inline-flex;align-items:center;justify-content:center;min-width:72px;height:26px;border-radius:999px;border:1px solid rgba(245,158,11,.42);background:#2a1d08;color:#fde68a;font-weight:950;font-size:12px;}
+  .att-person.is-leave .att-duty-btn{opacity:.48;}
+  .att-person.is-duty{border-color:rgba(14,165,233,.62);box-shadow:0 14px 30px rgba(14,165,233,.11),inset 0 0 0 1px rgba(255,255,255,.03);}
+  .att-person.is-duty::before{opacity:1;background:linear-gradient(135deg,rgba(14,165,233,.13),rgba(124,58,237,.08));}
+  .att-person.is-duty .att-check{background:linear-gradient(135deg,#0369a1,#0e7490);color:#fff;border-color:rgba(14,165,233,.42);}
+  .att-person.is-duty .assal-attendance-state{color:#bae6fd;}
+  .att-person.is-duty .att-code-input,.att-person.is-duty .att-person-btn{opacity:.48;pointer-events:none;}
+  .att-person.is-duty .att-duty-btn{background:#0b3b5b;color:#e0f2fe;border-color:rgba(14,165,233,.52);}
+  .att-person.is-duty .att-leave-btn{opacity:.48;}
+  .att-leave-badge,.att-duty-badge{display:inline-flex;align-items:center;justify-content:center;min-width:72px;height:26px;border-radius:999px;font-weight:950;font-size:12px;}
+  .att-leave-badge{border:1px solid rgba(245,158,11,.42);background:#2a1d08;color:#fde68a;}
+  .att-duty-badge{border:1px solid rgba(14,165,233,.42);background:#08243a;color:#bae6fd;}
   .att-selected{min-height:52px;border-radius:16px;border:1px solid rgba(148,163,184,.14);background:#081122;display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:14px;font-size:15px;font-weight:900;}
   .att-selected span{color:#aebbd0}.att-selected b{color:#f8fafc;}
   .att-actions{display:grid;grid-template-columns:1fr 210px;gap:12px;}
@@ -6438,7 +6453,7 @@ html body .payment-row{
   .att-table th{position:sticky;top:0;z-index:1;background:#0f1a33;color:#dbeafe;font-weight:950;padding:10px;border-bottom:1px solid rgba(148,163,184,.14);white-space:nowrap;}
   .att-table td{padding:10px;border-bottom:1px solid rgba(148,163,184,.10);text-align:center;font-weight:900;color:#e7eef9;vertical-align:middle;}
   .att-table tr:last-child td{border-bottom:0;}
-  .att-present{color:#bbf7d0!important;}.att-leave{color:#fde68a!important;}.att-absent{color:#94a3b8!important;}.att-timeout-note{max-width:210px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .att-present{color:#bbf7d0!important;}.att-leave{color:#fde68a!important;}.att-duty{color:#bae6fd!important;}.att-absent{color:#94a3b8!important;}.att-timeout-note{max-width:210px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .att-date-cell{white-space:nowrap;color:#bfdbfe!important;}
   .att-time-cell{white-space:nowrap;padding-top:8px!important;padding-bottom:8px!important;}
   .att-log-line{display:inline-flex;align-items:center;justify-content:center;gap:8px;flex-wrap:nowrap;max-width:100%;white-space:nowrap;vertical-align:middle;}
@@ -7372,8 +7387,9 @@ html body .payment-row{
   }
   function todayMap(){ return todayRec(readState()).employees || {}; }
   function isLeaveRecord(rec){ return !!(rec && (rec.leave === true || rec.status === 'leave')); }
-  function isPresentRecord(rec){ return !!(rec && rec.present === true && !isLeaveRecord(rec)); }
-  function isCompletedRecord(rec){ return isPresentRecord(rec) || isLeaveRecord(rec); }
+  function isDutyRecord(rec){ return !!(rec && (rec.duty === true || rec.status === 'duty')); }
+  function isPresentRecord(rec){ return !!(rec && rec.present === true && !isLeaveRecord(rec) && !isDutyRecord(rec)); }
+  function isCompletedRecord(rec){ return isPresentRecord(rec) || isLeaveRecord(rec) || isDutyRecord(rec); }
   function todayNames(map){ map = map || todayMap(); return EMPLOYEES.map(function(e){ return isPresentRecord(map[e.name]) ? e.name : ''; }).filter(Boolean); }
   function todayDisplayNames(map){
     map = map || todayMap();
@@ -7381,6 +7397,7 @@ html body .payment-row{
       var rec = map[e.name];
       if(isPresentRecord(rec)) return e.name + ' (' + normalizeAnyTime(rec.time || '—') + ')';
       if(isLeaveRecord(rec)) return e.name + ' (مجاز)';
+      if(isDutyRecord(rec)) return e.name + ' (واجب)';
       return '';
     }).filter(Boolean);
   }
@@ -7409,7 +7426,7 @@ html body .payment-row{
   function wait(ms){ return new Promise(function(resolve){ setTimeout(resolve, ms); }); }
   function setCaptureLock(on){
     captureBusy = !!on;
-    Array.prototype.slice.call(document.querySelectorAll('#assalAttendanceGate .att-person-btn, #assalAttendanceGate .att-leave-btn')).forEach(function(btn){ btn.classList.toggle('att-busy', !!on); btn.disabled = !!on || btn.disabled; });
+    Array.prototype.slice.call(document.querySelectorAll('#assalAttendanceGate .att-person-btn, #assalAttendanceGate .att-leave-btn, #assalAttendanceGate .att-duty-btn')).forEach(function(btn){ btn.classList.toggle('att-busy', !!on); btn.disabled = !!on || btn.disabled; });
     var confirm = $('assalAttendanceConfirm'); if(confirm) confirm.classList.toggle('att-busy', !!on);
     if(!on) syncPersonVisuals();
   }
@@ -7710,26 +7727,29 @@ html body .payment-row{
     var completedCount = completedCountToday(map);
     if($('assalAttendanceSelectedCount')) $('assalAttendanceSelectedCount').textContent = String(completedCount);
     if($('assalAttendanceQuickNames')){
-      $('assalAttendanceQuickNames').textContent = displayNames.length ? displayNames.join('، ') : 'لا يوجد حضور أو مجاز مسجل';
+      $('assalAttendanceQuickNames').textContent = displayNames.length ? displayNames.join('، ') : 'لا يوجد حضور أو مجاز أو واجب مسجل';
     }
     EMPLOYEES.forEach(function(emp){
       var person = document.querySelector('#assalAttendanceGate .att-person[data-emp="' + emp.name + '"]');
       var rec = map[emp.name];
       var present = isPresentRecord(rec);
       var leave = isLeaveRecord(rec);
-      var done = present || leave;
+      var duty = isDutyRecord(rec);
+      var done = present || leave || duty;
       if(person){
         person.classList.toggle('is-checked', present);
         person.classList.toggle('is-leave', leave);
+        person.classList.toggle('is-duty', duty);
         var state = person.querySelector('.assal-attendance-state');
         if(state){
           if(present) state.textContent = 'حاضر • ' + normalizeAnyTime(rec.time || '—');
           else if(leave) state.textContent = 'مجاز • ' + normalizeAnyTime(rec.time || '—');
+          else if(duty) state.textContent = 'واجب • ' + normalizeAnyTime(rec.time || '—');
           else state.textContent = 'بانتظار الرمز';
         }
         var checkIcon = person.querySelector('.att-check i');
         if(checkIcon){
-          checkIcon.className = leave ? 'fa-solid fa-calendar-check' : 'fa-solid fa-check';
+          checkIcon.className = leave ? 'fa-solid fa-umbrella-beach' : (duty ? 'fa-solid fa-briefcase' : 'fa-solid fa-check');
         }
       }
       var input = $(emp.input);
@@ -7738,7 +7758,7 @@ html body .payment-row{
       if(btn){
         btn.disabled = !!done;
         var sp = btn.querySelector('span');
-        if(sp) sp.textContent = present ? 'تم الحضور' : (leave ? 'الحضور متوقف' : ('حضور ' + emp.name));
+        if(sp) sp.textContent = present ? 'تم الحضور' : ((leave || duty) ? 'الحضور متوقف' : ('حضور ' + emp.name));
       }
       var leaveBtn = person ? person.querySelector('.att-leave-btn') : null;
       if(leaveBtn){
@@ -7747,16 +7767,34 @@ html body .payment-row{
         var leaveIcon = leaveBtn.querySelector('i');
         if(present){
           leaveBtn.title = 'خيار المجاز متوقف لأن ' + emp.name + ' سجّل حضوره اليوم';
-          if(leaveIcon) leaveIcon.className = 'fa-solid fa-calendar-xmark';
+          if(leaveIcon) leaveIcon.className = 'fa-solid fa-umbrella-beach';
         }else if(leave){
           leaveBtn.title = 'إلغاء مجاز ' + emp.name;
           if(leaveIcon) leaveIcon.className = 'fa-solid fa-arrow-rotate-left';
         }else{
           leaveBtn.title = 'تحديد ' + emp.name + ' مجاز';
-          if(leaveIcon) leaveIcon.className = 'fa-solid fa-calendar-xmark';
+          if(leaveIcon) leaveIcon.className = 'fa-solid fa-umbrella-beach';
         }
         leaveBtn.setAttribute('aria-label', leaveBtn.title);
         var lsp = leaveBtn.querySelector('span'); if(lsp) lsp.textContent = present ? 'مجاز متوقف' : (leave ? 'إلغاء مجاز' : 'مجاز');
+      }
+      var dutyBtn = person ? person.querySelector('.att-duty-btn') : null;
+      if(dutyBtn){
+        dutyBtn.disabled = !!present;
+        dutyBtn.classList.toggle('att-locked', !!present);
+        var dutyIcon = dutyBtn.querySelector('i');
+        if(present){
+          dutyBtn.title = 'خيار الواجب متوقف لأن ' + emp.name + ' سجّل حضوره اليوم';
+          if(dutyIcon) dutyIcon.className = 'fa-solid fa-briefcase';
+        }else if(duty){
+          dutyBtn.title = 'إلغاء واجب ' + emp.name;
+          if(dutyIcon) dutyIcon.className = 'fa-solid fa-arrow-rotate-left';
+        }else{
+          dutyBtn.title = 'تحديد ' + emp.name + ' في واجب عمل';
+          if(dutyIcon) dutyIcon.className = 'fa-solid fa-briefcase';
+        }
+        dutyBtn.setAttribute('aria-label', dutyBtn.title);
+        var dsp = dutyBtn.querySelector('span'); if(dsp) dsp.textContent = present ? 'واجب متوقف' : (duty ? 'إلغاء واجب' : 'واجب');
       }
     });
     var confirm = $('assalAttendanceConfirm');
@@ -7766,9 +7804,9 @@ html body .payment-row{
       confirm.classList.toggle('ready', count > 0);
       confirm.classList.toggle('att-disabled', count === 0);
       if(s){
-        if(isCompleteToday()) s.textContent = 'اكتمل الحضور/المجاز • فتح التطبيق';
+        if(isCompleteToday()) s.textContent = 'اكتمل الحضور/المجاز/الواجب • فتح التطبيق';
         else if(count > 0) s.textContent = 'فتح التطبيق ومتابعة انتظار باقي الكادر';
-        else s.textContent = 'سجل حضور أحد الموظفين أو حدده مجاز أولاً';
+        else s.textContent = 'سجل حضور أحد الموظفين أو حدده مجاز أو واجب أولاً';
       }
     }
   }
@@ -7809,6 +7847,43 @@ html body .payment-row{
       setTimeout(function(){ closeGate(null); }, 750);
     }
   }
+  function markEmployeeDuty(name){
+    if(captureBusy){ setMsg('جاري التقاط صورة الحضور، انتظر لحظات.', false); return; }
+    var emp = EMPLOYEES.filter(function(e){ return e.name === name; })[0];
+    if(!emp) return;
+    var d = new Date();
+    var st = readState();
+    var rec = todayRec(st);
+    var cur = rec.employees[emp.name];
+    if(isPresentRecord(cur)){
+      setMsg('لا يمكن تحديد ' + emp.name + ' في واجب لأن حضوره مسجل اليوم.', false);
+      syncPersonVisuals();
+      return;
+    }
+    if(isDutyRecord(cur)){
+      rec.employees[emp.name] = { employee:emp.name, present:false, leave:false, duty:false, status:'pending', cancelledDuty:true, day:todayKey(d), time:time12(d), at:d.toISOString(), source:'local-duty-cancel' };
+      saveState(st);
+      setMsg('تم إلغاء حالة واجب عن ' + emp.name + '.', true);
+      syncPersonVisuals();
+      refreshReport();
+      nextPromptAt = 0;
+      queueServerSync('attendance-duty-cancel');
+      return;
+    }
+    rec.employees[emp.name] = { employee:emp.name, present:false, leave:false, duty:true, status:'duty', day:todayKey(d), time:time12(d), at:d.toISOString(), source:'local-duty' };
+    saveState(st);
+    setMsg('تم تحديد ' + emp.name + ' في واجب عمل لهذا اليوم.', true);
+    syncPersonVisuals();
+    refreshReport();
+    queueServerSync('attendance-duty');
+    if(isCompleteToday()){
+      nextPromptAt = Infinity;
+      setTimeout(function(){ closeGate(null); }, 650);
+    }else{
+      nextPromptAt = Date.now() + RETRY_MS;
+      setTimeout(function(){ closeGate(null); }, 750);
+    }
+  }
   async function confirmEmployee(name){
     if(captureBusy){ setMsg('جاري التقاط صورة الحضور، انتظر لحظات.', false); return; }
     var emp = EMPLOYEES.filter(function(e){ return e.name === name; })[0];
@@ -7816,6 +7891,7 @@ html body .payment-row{
     var st = readState();
     var rec = todayRec(st);
     if(isLeaveRecord(rec.employees[emp.name])){ setMsg(emp.name + ' محدد مجاز اليوم. ألغِ المجاز أولاً إذا تريد تسجيل الحضور.', false); syncPersonVisuals(); return; }
+    if(isDutyRecord(rec.employees[emp.name])){ setMsg(emp.name + ' محدد في واجب اليوم. ألغِ الواجب أولاً إذا تريد تسجيل الحضور.', false); syncPersonVisuals(); return; }
     if(isPresentRecord(rec.employees[emp.name])){ setMsg('حضور ' + emp.name + ' مسجل مسبقاً اليوم.', true); syncPersonVisuals(); return; }
     if(rec.employees[emp.name] && !isCompletedRecord(rec.employees[emp.name])) delete rec.employees[emp.name];
     var input = $(emp.input);
@@ -7839,6 +7915,7 @@ html body .payment-row{
     st = readState();
     rec = todayRec(st);
     if(isLeaveRecord(rec.employees[emp.name])){ setMsg(emp.name + ' محدد مجاز اليوم. ألغِ المجاز أولاً إذا تريد تسجيل الحضور.', false); syncPersonVisuals(); return; }
+    if(isDutyRecord(rec.employees[emp.name])){ setMsg(emp.name + ' محدد في واجب اليوم. ألغِ الواجب أولاً إذا تريد تسجيل الحضور.', false); syncPersonVisuals(); return; }
     if(isPresentRecord(rec.employees[emp.name])){ setMsg('حضور ' + emp.name + ' مسجل مسبقاً اليوم.', true); syncPersonVisuals(); return; }
     if(rec.employees[emp.name] && !isCompletedRecord(rec.employees[emp.name])) delete rec.employees[emp.name];
     rec.employees[emp.name] = { employee:emp.name, present:true, day:todayKey(d), time:time12(d), at:d.toISOString(), source:'local-code-camera', photoKey:photoKey, photoSaved:true, photoLocalOnly:true };
@@ -7896,10 +7973,11 @@ html body .payment-row{
         function cellHtml(rec){
           if(!rec) return '<span class="att-log-empty">—</span>';
           if(isLeaveRecord(rec)) return '<span class="att-leave-badge">مجاز</span>';
+          if(isDutyRecord(rec)) return '<span class="att-duty-badge">واجب</span>';
           var btn = rec.photoKey ? '<button type="button" class="att-photo-btn" data-photo-key="' + esc(rec.photoKey) + '" title="عرض صورة الحضور" aria-label="عرض صورة الحضور"><i class="fa-solid fa-camera"></i><span>الصورة</span></button>' : '';
           return '<span class="att-log-line"><b class="att-log-time">' + esc(normalizeAnyTime(rec.time)) + '</b>' + btn + '</span>';
         }
-        function cellClass(rec){ return isPresentRecord(rec) ? 'att-present' : (isLeaveRecord(rec) ? 'att-leave' : 'att-absent'); }
+        function cellClass(rec){ return isPresentRecord(rec) ? 'att-present' : (isLeaveRecord(rec) ? 'att-leave' : (isDutyRecord(rec) ? 'att-duty' : 'att-absent')); }
         logBody.innerHTML = cmpRows.map(function(r){
           return '<tr><td class="att-date-cell">' + esc(r.day) + '</td>' +
             '<td class="att-time-cell ' + cellClass(r.mustafa) + '">' + cellHtml(r.mustafa) + '</td>' +
@@ -7944,7 +8022,7 @@ html body .payment-row{
       var details = monthAttendanceDetails();
       var timeouts = monthTimeouts();
       var cmpHtml = cmpRows.length ? cmpRows.slice().reverse().map(function(r,idx){
-        function pc(rec){ if(!rec) return '—'; if(isLeaveRecord(rec)) return 'مجاز'; return normalizeAnyTime(rec.time) + (rec.photoSaved ? ' • صورة محفوظة' : ''); }
+        function pc(rec){ if(!rec) return '—'; if(isLeaveRecord(rec)) return 'مجاز'; if(isDutyRecord(rec)) return 'واجب'; return normalizeAnyTime(rec.time) + (rec.photoSaved ? ' • صورة محفوظة' : ''); }
         return '<tr><td>'+esc(idx+1)+'</td><td>'+esc(r.day)+'</td><td>'+esc(pc(r.mustafa))+'</td><td>'+esc(pc(r.ismail))+'</td></tr>';
       }).join('') : '<tr><td colspan="4" class="empty">لا يوجد سجل حضور لهذا الشهر</td></tr>';
       var timeoutHtml = timeouts.length ? timeouts.slice().reverse().map(function(r,idx){
@@ -7983,7 +8061,7 @@ html body .payment-row{
   }
   function openAfterAnyConfirmed(){
     var map = todayMap();
-    if(completedCountToday(map) <= 0){ setMsg('سجل حضور أحد الموظفين أو حدده مجاز حتى يتم فتح التطبيق.', false); return; }
+    if(completedCountToday(map) <= 0){ setMsg('سجل حضور أحد الموظفين أو حدده مجاز أو واجب حتى يتم فتح التطبيق.', false); return; }
     closeGate(null);
   }
   function noteActivity(){ if(!isGateOpen()) lastActivityAt = Date.now(); }
@@ -8042,7 +8120,7 @@ html body .payment-row{
     var missingCount = missingCountToday(map);
     if(missingCount <= 0) return false;
     if(isGateOpen()) return false;
-    // إذا لا يوجد أي حضور/مجاز اليوم، لا ننتظر دورة الـ10 دقائق؛ النافذة واجبة الظهور بعد هدوء قصير فقط.
+    // إذا لا يوجد أي حضور/مجاز/واجب اليوم، لا ننتظر دورة الـ10 دقائق؛ النافذة واجبة الظهور بعد هدوء قصير فقط.
     if(completedCount > 0 && Date.now() < nextPromptAt) return false;
     var neededIdle = completedCount === 0 ? Math.min(3000, IDLE_MS) : IDLE_MS;
     if(Date.now() - lastActivityAt < neededIdle) return false;
@@ -8080,6 +8158,7 @@ html body .payment-row{
     if(headerBtn) headerBtn.addEventListener('click', function(){ openGate('manual'); }, false);
     Array.prototype.slice.call(document.querySelectorAll('#assalAttendanceGate .att-person-btn')).forEach(function(btn){ btn.addEventListener('click', function(){ confirmEmployee(btn.getAttribute('data-emp')); }, false); });
     Array.prototype.slice.call(document.querySelectorAll('#assalAttendanceGate .att-leave-btn')).forEach(function(btn){ btn.addEventListener('click', function(){ markEmployeeLeave(btn.getAttribute('data-emp')); }, false); });
+    Array.prototype.slice.call(document.querySelectorAll('#assalAttendanceGate .att-duty-btn')).forEach(function(btn){ btn.addEventListener('click', function(){ markEmployeeDuty(btn.getAttribute('data-emp')); }, false); });
     Array.prototype.slice.call(document.querySelectorAll('#assalAttendanceGate .att-code-input')).forEach(function(input){
       input.addEventListener('focus', function(){ try{ input.type='password'; }catch(_){} }, false);
       input.addEventListener('input', function(){ try{ input.type='password'; }catch(_){} var v = normalizeCode(input.value).replace(/[^a-z0-9]/g,'').slice(0,12); if(input.value !== v) input.value = v; }, false);
