@@ -593,6 +593,154 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
   background:linear-gradient(180deg,#7f1d1d,#4c0b0b);
   border-color:rgba(239,68,68,.55);
 }
+
+/* تحويل فاتورة الجملة المدخلة خطأ إلى أجل — يظهر فقط لغير فروع عسل الثلاثة */
+.assal-wholesale-to-credit-btn{
+  height:28px;
+  padding:0 11px;
+  border-radius:999px;
+  border:1px solid rgba(56,189,248,.46);
+  background:linear-gradient(135deg,#075985,#0f766e);
+  color:#ecfeff;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  font-size:11px;
+  font-weight:900;
+  line-height:1;
+  white-space:nowrap;
+  cursor:pointer;
+  box-shadow:0 7px 16px rgba(8,145,178,.18), inset 0 1px 0 rgba(255,255,255,.08);
+  transition:transform .16s ease, filter .16s ease, box-shadow .16s ease;
+}
+.assal-wholesale-to-credit-btn:hover{
+  transform:translateY(-1px);
+  filter:brightness(1.07);
+  box-shadow:0 10px 22px rgba(8,145,178,.25), inset 0 1px 0 rgba(255,255,255,.10);
+}
+.assal-wholesale-to-credit-btn:focus-visible{
+  outline:0;
+  box-shadow:0 0 0 3px rgba(56,189,248,.18), 0 10px 22px rgba(8,145,178,.25);
+}
+.assal-wholesale-to-credit-btn i{font-size:10.5px;}
+
+
+/* نافذة تحويل الجملة إلى أجل — ملونة وخفيفة وبلا حركة فتح */
+#modal.assal-wholesale-credit-confirm .modal-card{
+  width:min(560px, calc(100vw - 28px)) !important;
+  padding:0 !important;
+  gap:0 !important;
+  overflow:hidden !important;
+  border-radius:20px !important;
+  text-align:center !important;
+  background:
+    radial-gradient(360px 180px at 100% 0%, rgba(14,165,233,.14), transparent 64%),
+    linear-gradient(180deg,#101b33,#0b1428) !important;
+  border:1px solid rgba(125,211,252,.24) !important;
+  box-shadow:0 22px 56px rgba(0,0,0,.48), inset 0 1px 0 rgba(255,255,255,.05) !important;
+  animation:none !important;
+  transition:none !important;
+}
+#modal.assal-wholesale-credit-confirm .modal-head{
+  width:100%;
+  padding:15px 18px !important;
+  margin:0 !important;
+  font-size:18px !important;
+  font-weight:950 !important;
+  color:#f8fafc !important;
+  background:linear-gradient(90deg,rgba(14,165,233,.18),rgba(124,58,237,.14));
+  border-bottom:1px solid rgba(148,163,184,.13);
+}
+#modal.assal-wholesale-credit-confirm .modal-body{
+  width:100%;
+  padding:18px 20px 15px !important;
+  color:#dbeafe !important;
+  font-size:14px !important;
+  line-height:1.8 !important;
+}
+.assal-wholesale-credit-confirm-content{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  text-align:right;
+  padding:13px 14px;
+  border-radius:16px;
+  background:rgba(2,6,23,.34);
+  border:1px solid rgba(125,211,252,.14);
+}
+.assal-wholesale-credit-confirm-icon{
+  width:48px;
+  height:48px;
+  flex:0 0 auto;
+  display:grid;
+  place-items:center;
+  border-radius:15px;
+  color:#fff;
+  font-size:18px;
+  background:linear-gradient(135deg,#0891b2,#7c3aed);
+  box-shadow:0 10px 24px rgba(14,165,233,.17), inset 0 1px 0 rgba(255,255,255,.18);
+}
+.assal-wholesale-credit-confirm-copy{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.assal-wholesale-credit-confirm-copy b{
+  color:#f8fafc;
+  font-size:15px;
+  font-weight:950;
+}
+.assal-wholesale-credit-confirm-copy span{
+  color:#aebdd2;
+  font-size:12.5px;
+  line-height:1.75;
+}
+#modal.assal-wholesale-credit-confirm .modal-actions{
+  width:100%;
+  margin:0 !important;
+  padding:0 20px 18px !important;
+  display:grid !important;
+  grid-template-columns:1fr 1fr;
+  gap:10px !important;
+}
+#modal.assal-wholesale-credit-confirm .modal-btn{
+  min-width:0 !important;
+  width:100%;
+  height:42px !important;
+  border-radius:13px !important;
+  font-size:14px !important;
+  font-weight:950 !important;
+}
+#modal.assal-wholesale-credit-confirm #modal-confirm{
+  background:linear-gradient(135deg,#0891b2,#2563eb) !important;
+  color:#fff !important;
+  border:1px solid rgba(125,211,252,.34) !important;
+  box-shadow:0 10px 22px rgba(14,165,233,.18), inset 0 1px 0 rgba(255,255,255,.13) !important;
+}
+#modal.assal-wholesale-credit-confirm #modal-cancel{
+  background:linear-gradient(135deg,#4c1d32,#6b2846) !important;
+  color:#ffe4e6 !important;
+  border:1px solid rgba(251,113,133,.25) !important;
+  box-shadow:0 9px 20px rgba(76,29,50,.16), inset 0 1px 0 rgba(255,255,255,.06) !important;
+}
+#modal.assal-wholesale-credit-confirm #modal-confirm:hover,
+#modal.assal-wholesale-credit-confirm #modal-cancel:hover{
+  filter:brightness(1.05);
+  transform:translateY(-1px);
+}
+#modal.assal-wholesale-credit-confirm,
+#modal.assal-wholesale-credit-confirm .modal-card,
+#modal.assal-wholesale-credit-confirm .modal-head,
+#modal.assal-wholesale-credit-confirm .modal-body{
+  animation:none !important;
+}
+@media (max-width:520px){
+  #modal.assal-wholesale-credit-confirm .modal-body{padding:15px 14px 13px !important;}
+  #modal.assal-wholesale-credit-confirm .modal-actions{padding:0 14px 14px !important;grid-template-columns:1fr;}
+  .assal-wholesale-credit-confirm-content{align-items:flex-start;}
+}
 /* خلي المواد الراجعة أوضح بالأحمر */
 .item.returned{
   background:#2a0c12;            /* خلفية أحمر داكن */
@@ -9902,6 +10050,194 @@ function isCashCard(card){
   return (card.lines || []).some(l => !l.deletedAt && String(l.type || '') === 'نقدي');
 }
 
+/* ===== حماية فواتير الجملة: الجملة مسموحة فقط لفروع عسل الثلاثة ===== */
+const ASSAL_WHOLESALE_ALLOWED_BRANCHES = [
+  'مكتب عسل فرع الحي',
+  'مكتب عسل فرع التحرير',
+  'مكتب عسل فرع بلدروز'
+] ;
+
+function assalWholesaleCustomerKey(rawName){
+  let s = String(rawName == null ? '' : rawName).trim().toLowerCase();
+  s = s.replace(/[\u064B-\u065F\u0670]/g,'').replace(/\u0640/g,'');
+  s = s.replace(/[إأآٱ]/g,'ا').replace(/[ىي]/g,'ي').replace(/ة/g,'ه');
+  s = s.replace(/ؤ/g,'و').replace(/ئ/g,'ي');
+  s = s.replace(/[\s\-–—_\/\\|،,.;؛:()\[\]{}]+/g,'');
+  return s;
+}
+
+const ASSAL_WHOLESALE_ALLOWED_BRANCH_KEYS = new Set(
+  ASSAL_WHOLESALE_ALLOWED_BRANCHES.map(assalWholesaleCustomerKey)
+);
+
+function assalIsWholesaleAllowedCustomer(rawName){
+  const key = assalWholesaleCustomerKey(rawName);
+  return !!key && ASSAL_WHOLESALE_ALLOWED_BRANCH_KEYS.has(key);
+}
+
+function assalShouldBlockWholesaleAdd(customer, type){
+  let normalized = String(type == null ? '' : type).trim();
+  try{ if(typeof normalizeBillType === 'function') normalized = normalizeBillType(normalized); }catch(_){ }
+  return normalized === 'جملة' && !assalIsWholesaleAllowedCustomer(customer);
+}
+
+function assalWholesaleAddBlockedNow(){
+  const customer = (document.getElementById('cust')?.value || '').trim();
+  const type = (document.getElementById('type')?.value || '').trim();
+  return !!customer && assalShouldBlockWholesaleAdd(customer, type);
+}
+
+let __assalWholesaleBlockedDialogPromise = null;
+
+function assalOpenWholesaleBlockedDialog(){
+  if(__assalWholesaleBlockedDialogPromise) return __assalWholesaleBlockedDialogPromise;
+
+  const exactMessage = 'يرجى تحويل نوع الفاتورة من جملة إلى أجل لطفاً';
+  let dialogPromise;
+
+  try{
+    if(typeof showConfirm === 'function'){
+      dialogPromise = showConfirm({
+        title: 'تنبيه نوع الفاتورة',
+        message: '<div class="assal-wholesale-credit-confirm-content"><div class="assal-wholesale-credit-confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><div class="assal-wholesale-credit-confirm-copy"><b>لا يمكن إضافة فاتورة جملة لهذا الزبون</b><span>' + exactMessage + '</span></div></div>',
+        okText: 'الذهاب إلى نوع الفاتورة',
+        cancelText: 'إغلاق',
+        danger: false,
+        modalClass: 'assal-wholesale-credit-confirm'
+      });
+    }else{
+      try{ window.alert(exactMessage); }catch(_){ }
+      dialogPromise = Promise.resolve(false);
+    }
+  }catch(_){
+    try{ window.alert(exactMessage); }catch(__){ }
+    dialogPromise = Promise.resolve(false);
+  }
+
+  __assalWholesaleBlockedDialogPromise = Promise.resolve(dialogPromise)
+    .then(function(goToType){
+      if(goToType){
+        setTimeout(function(){
+          try{
+            const typeEl = document.getElementById('type');
+            if(typeEl){
+              typeEl.focus({preventScroll:true});
+              typeEl.select?.();
+            }
+            if(typeof showTypePanel === 'function') showTypePanel();
+          }catch(_){ }
+        }, 0);
+      }
+      return true;
+    })
+    .finally(function(){
+      __assalWholesaleBlockedDialogPromise = null;
+    });
+
+  return __assalWholesaleBlockedDialogPromise;
+}
+
+function assalGuardWholesaleAddAttempt(){
+  if(!assalWholesaleAddBlockedNow()) return false;
+  try{ assalOpenWholesaleBlockedDialog(); }
+  catch(_){
+    try{ window.alert('يرجى تحويل نوع الفاتورة من جملة إلى أجل لطفاً'); }catch(__){ }
+  }
+  return true;
+}
+
+/* حارس نهائي بمرحلة الالتقاط: يمنع كل مسارات الإضافة قبل وصولها لأي معالج آخر. */
+(function assalInstallWholesaleAddCaptureGuard(){
+  if(window.__ASSAL_WHOLESALE_ADD_CAPTURE_GUARD_V2__) return;
+  window.__ASSAL_WHOLESALE_ADD_CAPTURE_GUARD_V2__ = true;
+
+  document.addEventListener('click', function(ev){
+    try{
+      const addBtn = ev && ev.target && ev.target.closest ? ev.target.closest('#btnAdd') : null;
+      if(!addBtn) return;
+      if(typeof assalGuardWholesaleAddAttempt === 'function' && assalGuardWholesaleAddAttempt()){
+        ev.preventDefault();
+        ev.stopPropagation();
+        ev.stopImmediatePropagation();
+      }
+    }catch(_){ }
+  }, true);
+
+  document.addEventListener('keydown', function(ev){
+    try{
+      if(!ev || ev.key !== 'Enter' || ev.isComposing || ev.ctrlKey || ev.altKey || ev.metaKey) return;
+      const id = ev.target && ev.target.id ? String(ev.target.id) : '';
+      if(id !== 'qty' && id !== 'note' && id !== 'btnAdd') return;
+      if(typeof assalGuardWholesaleAddAttempt === 'function' && assalGuardWholesaleAddAttempt()){
+        ev.preventDefault();
+        ev.stopPropagation();
+        ev.stopImmediatePropagation();
+      }
+    }catch(_){ }
+  }, true);
+})();
+
+async function assalConvertWholesaleCardToCredit(viewCard){
+  if(!viewCard || !isWholesaleCard(viewCard)) return false;
+  if(assalIsWholesaleAllowedCustomer(viewCard.customer || '')) return false;
+
+  const ok = await (typeof showConfirm === 'function'
+    ? showConfirm({
+        title: 'تحويل الفاتورة إلى أجل',
+        message: '<div class="assal-wholesale-credit-confirm-content"><div class="assal-wholesale-credit-confirm-icon"><i class="fa-solid fa-arrow-right-arrow-left"></i></div><div class="assal-wholesale-credit-confirm-copy"><b>هل تريد تحويل هذه الفاتورة من جملة إلى أجل؟</b><span>ستبقى جميع المواد والأسعار والأعداد والملاحظات كما هي، ويتغيّر نوع البطاقة فقط.</span></div></div>',
+        okText: 'تحويل إلى أجل',
+        cancelText: 'إبقاءها جملة',
+        danger: false,
+        modalClass: 'assal-wholesale-credit-confirm'
+      })
+    : Promise.resolve(confirm('هل تريد تحويل هذه الفاتورة من جملة إلى أجل؟')));
+  if(!ok) return false;
+
+  const realCard = (typeof getMutableCard === 'function' ? getMutableCard(viewCard) : null) || viewCard;
+  if(!realCard || assalIsWholesaleAllowedCustomer(realCard.customer || '')) return false;
+
+  const ts = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
+  const activeTypes = new Set();
+  (realCard.lines || []).forEach(line => {
+    if(!line || line.deletedAt) return;
+    let lineType = String(line.type == null ? '' : line.type).trim();
+    try{ if(typeof normalizeBillType === 'function') lineType = normalizeBillType(lineType); }catch(_){ }
+    if(line.returned){
+      lineType = 'راجع';
+    }else if(lineType === 'جملة' || !lineType){
+      line.type = 'اجل';
+      line.updatedAt = ts;
+      lineType = 'اجل';
+    }
+    activeTypes.add(lineType);
+  });
+
+  realCard.billType = activeTypes.size === 1
+    ? Array.from(activeTypes)[0]
+    : (activeTypes.size > 1 ? 'مختلط' : 'اجل');
+  if(realCard.billType === 'جملة') realCard.billType = 'اجل';
+  realCard.wholesalePrepared = false;
+  realCard.wholesalePreparedAt = ts;
+  realCard.updatedAt = ts;
+
+  if(viewCard !== realCard){
+    viewCard.billType = realCard.billType;
+    viewCard.lines = realCard.lines;
+    viewCard.wholesalePrepared = false;
+    viewCard.wholesalePreparedAt = ts;
+    viewCard.updatedAt = ts;
+  }
+
+  save();
+  try{ if(typeof assalInvalidateDebtBadgeCache === 'function') assalInvalidateDebtBadgeCache(); }catch(_){ }
+  renderBoard?.();
+  renderRail?.();
+  refreshStats?.();
+  try{ window.refreshDebtsUI && window.refreshDebtsUI(); }catch(_){ }
+  showToast?.('success','تم تحويل الفاتورة من جملة إلى أجل');
+  return true;
+}
+
 
 /* ===== فواتير الجملة: زر تم التجهيز داخل نفس مكان زر تسديد الكل =====
    الفكرة: لا نضيف زر جديد ولا نغير ترتيب الأزرار؛ زر تسديد الكل نفسه
@@ -12149,6 +12485,7 @@ if(id === 'note'){
   // ROOT FIX: إضافة واحدة فقط، ثم رجوع فوري لاسم الزبون بدون setTimeout.
   // ضغطة Enter السريعة التالية تشتغل على cust وتفتح type طبيعياً.
   e.stopImmediatePropagation();
+  if(typeof assalGuardWholesaleAddAttempt === 'function' && assalGuardWholesaleAddAttempt()) return;
   if(!window.__assalAddBusy){
     document.getElementById('btnAdd')?.click();
   }
@@ -12158,6 +12495,7 @@ if(id === 'note'){
 
 if(id === 'qty'){
   e.stopImmediatePropagation();
+  if(typeof assalGuardWholesaleAddAttempt === 'function' && assalGuardWholesaleAddAttempt()) return;
   if(!window.__assalAddBusy){
     document.getElementById('btnAdd')?.click();
   }
@@ -12307,6 +12645,7 @@ async function processToastQueueUnified(){
 /* ====== إضافة سطر (ذكي لليوم السابق) ====== */
 // ==== إضافة سطر مع تحذير عند الإضافة ليوم سابق (نسخة مُحدَّثة جاهزة للاستبدال) ====
 document.getElementById('btnAdd').onclick = async () => {
+  if(typeof assalGuardWholesaleAddAttempt === 'function' && assalGuardWholesaleAddAttempt()) return;
   // مهم: لا نحجز توكن الفوكس قبل التأكد أن الإضافة حقيقية؛
   // ضغط Enter زائد على خانة الملاحظات بعد التفريغ لا يجوز أن يلغي رجوع الفوكس للإضافة السابقة.
   let __assalFocusStartSeq = 0;
@@ -14474,6 +14813,20 @@ const typeLabel =
 
 typeBadge.textContent = typeLabel;
 custWrap.appendChild(typeBadge);
+
+// زر تصحيح الفاتورة القديمة المدخلة جملة بالخطأ — لا يظهر لفروع عسل الثلاثة.
+if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer || '')) {
+  const convertToCreditBtn = CE('button', 'assal-wholesale-to-credit-btn');
+  convertToCreditBtn.type = 'button';
+  convertToCreditBtn.title = 'تحويل هذه الفاتورة من جملة إلى أجل';
+  convertToCreditBtn.innerHTML = '<i class="fa-solid fa-arrow-right-arrow-left"></i><span>تحويل إلى أجل</span>';
+  convertToCreditBtn.onclick = (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    assalConvertWholesaleCardToCredit(card);
+  };
+  custWrap.appendChild(convertToCreditBtn);
+}
 
 
     // بادج "تم تسديد مواد اليوم" إذا كله مدفوع
@@ -29343,6 +29696,7 @@ html body .card .item.assal-smooth-added-item-pulse{
         goQty();
       }else if(target.id === 'qty'){
         ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation();
+        if(typeof assalGuardWholesaleAddAttempt === 'function' && assalGuardWholesaleAddAttempt()) return;
         if(!window.__assalAddBusy){
           try{ document.getElementById('btnAdd')?.click(); }catch(_){ }
         }
