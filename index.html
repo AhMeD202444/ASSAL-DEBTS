@@ -741,6 +741,321 @@ i.fa, i.fa-solid, i.fa-regular, i.fa-brands,
   #modal.assal-wholesale-credit-confirm .modal-actions{padding:0 14px 14px !important;grid-template-columns:1fr;}
   .assal-wholesale-credit-confirm-content{align-items:flex-start;}
 }
+
+
+/* ===== فحص شامل لفواتير الجملة القديمة في جميع الأيام ===== */
+#btnWholesaleAudit{
+  position:relative;
+}
+.assal-wholesale-audit-count{
+  position:absolute;
+  top:-6px;
+  inset-inline-end:-6px;
+  min-width:18px;
+  height:18px;
+  padding:0 5px;
+  border-radius:999px;
+  display:grid;
+  place-items:center;
+  font-size:10px;
+  font-weight:950;
+  line-height:1;
+  color:#fff7ed;
+  background:linear-gradient(135deg,#ea580c,#b91c1c);
+  border:1px solid rgba(254,215,170,.55);
+  box-shadow:0 5px 13px rgba(185,28,28,.28);
+  pointer-events:none;
+}
+.assal-wholesale-audit-count[hidden]{display:none !important;}
+
+.assal-wholesale-audit-modal{
+  position:fixed;
+  inset:0;
+  z-index:2147483000;
+  display:grid;
+  place-items:center;
+  padding:18px;
+  background:rgba(2,6,23,.74);
+  backdrop-filter:blur(5px);
+}
+.assal-wholesale-audit-modal[hidden]{display:none !important;}
+.assal-wholesale-audit-shell{
+  width:min(1060px,96vw);
+  max-height:min(90vh,860px);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  color:#e7eef9;
+  border-radius:20px;
+  border:1px solid rgba(56,189,248,.26);
+  background:
+    radial-gradient(520px 230px at 100% 0%,rgba(14,165,233,.14),transparent 65%),
+    radial-gradient(420px 220px at 0% 100%,rgba(124,58,237,.12),transparent 66%),
+    linear-gradient(180deg,#101b33,#0a1327);
+  box-shadow:0 28px 80px rgba(0,0,0,.58),inset 0 1px 0 rgba(255,255,255,.04);
+  animation:none !important;
+  transition:none !important;
+}
+.assal-wholesale-audit-head{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:14px 16px;
+  border-bottom:1px solid rgba(148,163,184,.14);
+  background:linear-gradient(90deg,rgba(14,165,233,.17),rgba(124,58,237,.12));
+}
+.assal-wholesale-audit-mark{
+  width:42px;
+  height:42px;
+  flex:0 0 auto;
+  display:grid;
+  place-items:center;
+  border-radius:13px;
+  color:#fff;
+  font-size:17px;
+  background:linear-gradient(135deg,#0891b2,#7c3aed);
+  box-shadow:0 10px 22px rgba(14,165,233,.19),inset 0 1px 0 rgba(255,255,255,.16);
+}
+.assal-wholesale-audit-titles{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  text-align:right;
+}
+.assal-wholesale-audit-titles b{font-size:17px;font-weight:950;color:#f8fafc;}
+.assal-wholesale-audit-titles span{font-size:11.5px;color:#aebdd2;}
+.assal-wholesale-audit-close{
+  margin-inline-start:auto;
+  width:36px;
+  height:36px;
+  border-radius:11px;
+  border:1px solid rgba(251,113,133,.28);
+  background:linear-gradient(135deg,#4c1d32,#6b2846);
+  color:#ffe4e6;
+  cursor:pointer;
+  display:grid;
+  place-items:center;
+}
+.assal-wholesale-audit-summary{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:9px;
+  padding:12px 14px 0;
+}
+.assal-wholesale-audit-stat{
+  min-width:0;
+  padding:9px 11px;
+  border:1px solid rgba(125,211,252,.14);
+  border-radius:13px;
+  background:rgba(2,6,23,.32);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+}
+.assal-wholesale-audit-stat span{font-size:11px;color:#9fb0c7;}
+.assal-wholesale-audit-stat b{font-size:14px;color:#f8fafc;font-weight:950;white-space:nowrap;}
+.assal-wholesale-audit-toolbar{
+  display:grid;
+  grid-template-columns:minmax(220px,1fr) auto auto;
+  gap:8px;
+  align-items:center;
+  padding:10px 14px;
+}
+.assal-wholesale-audit-search{
+  height:37px;
+  width:100%;
+  min-width:0;
+  padding:0 12px;
+  border-radius:11px;
+  border:1px solid rgba(125,211,252,.18);
+  background:#071124;
+  color:#e7eef9;
+  outline:none;
+}
+.assal-wholesale-audit-search:focus{
+  border-color:rgba(56,189,248,.55);
+  box-shadow:0 0 0 3px rgba(56,189,248,.11);
+}
+.assal-wholesale-audit-select-all{
+  height:37px;
+  padding:0 12px;
+  border-radius:11px;
+  border:1px solid rgba(148,163,184,.22);
+  background:#0b1730;
+  color:#dbeafe;
+  font-weight:850;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  white-space:nowrap;
+}
+.assal-wholesale-audit-refresh{
+  width:37px;
+  height:37px;
+  border-radius:11px;
+  border:1px solid rgba(56,189,248,.26);
+  background:linear-gradient(135deg,#075985,#0f766e);
+  color:#ecfeff;
+  cursor:pointer;
+  display:grid;
+  place-items:center;
+}
+.assal-wholesale-audit-list{
+  margin:0 14px;
+  min-height:180px;
+  max-height:55vh;
+  overflow:auto;
+  border:1px solid rgba(148,163,184,.15);
+  border-radius:14px;
+  background:rgba(2,6,23,.31);
+  scrollbar-width:thin;
+}
+.assal-wholesale-audit-list::-webkit-scrollbar{width:9px;}
+.assal-wholesale-audit-list::-webkit-scrollbar-track{background:#071124;}
+.assal-wholesale-audit-list::-webkit-scrollbar-thumb{background:#234674;border-radius:999px;}
+.assal-wholesale-audit-grid{
+  display:grid;
+  grid-template-columns:38px 112px minmax(190px,1fr) 78px 125px 188px;
+  align-items:center;
+  gap:0;
+}
+.assal-wholesale-audit-header{
+  position:sticky;
+  top:0;
+  z-index:2;
+  min-height:38px;
+  background:linear-gradient(135deg,#0e7490,#155e75);
+  color:#ecfeff;
+  font-size:11px;
+  font-weight:950;
+  border-bottom:1px solid rgba(255,255,255,.12);
+}
+.assal-wholesale-audit-header > div,
+.assal-wholesale-audit-row > div{
+  min-width:0;
+  padding:7px 9px;
+  text-align:center;
+  border-inline-start:1px solid rgba(148,163,184,.12);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.assal-wholesale-audit-header > div:first-child,
+.assal-wholesale-audit-row > div:first-child{border-inline-start:0;}
+.assal-wholesale-audit-row{
+  min-height:49px;
+  color:#dbeafe;
+  font-size:12px;
+  border-bottom:1px solid rgba(148,163,184,.10);
+  background:#0a152b;
+}
+.assal-wholesale-audit-row:nth-child(odd){background:#0c1932;}
+.assal-wholesale-audit-row:last-child{border-bottom:0;}
+.assal-wholesale-audit-customer{
+  font-weight:900;
+  color:#f8fafc;
+  text-align:right !important;
+}
+.assal-wholesale-audit-money{
+  font-weight:950;
+  color:#fde68a;
+  font-variant-numeric:tabular-nums;
+}
+.assal-wholesale-audit-actions{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  padding-inline:6px !important;
+}
+.assal-wholesale-audit-open,
+.assal-wholesale-audit-convert{
+  height:30px;
+  padding:0 9px;
+  border-radius:9px;
+  border:1px solid transparent;
+  cursor:pointer;
+  font-size:10.5px;
+  font-weight:900;
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  white-space:nowrap;
+}
+.assal-wholesale-audit-open{
+  color:#dbeafe;
+  background:#102348;
+  border-color:rgba(96,165,250,.24);
+}
+.assal-wholesale-audit-convert{
+  color:#ecfeff;
+  background:linear-gradient(135deg,#0891b2,#2563eb);
+  border-color:rgba(125,211,252,.25);
+}
+.assal-wholesale-audit-empty{
+  min-height:230px;
+  display:grid;
+  place-items:center;
+  text-align:center;
+  padding:25px;
+  color:#aebdd2;
+  line-height:1.9;
+}
+.assal-wholesale-audit-empty i{
+  display:block;
+  margin:0 auto 10px;
+  font-size:30px;
+  color:#34d399;
+}
+.assal-wholesale-audit-foot{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:12px 14px 14px;
+}
+.assal-wholesale-audit-selected{font-size:11.5px;color:#9fb0c7;}
+.assal-wholesale-audit-foot-actions{display:flex;gap:8px;}
+.assal-wholesale-audit-cancel,
+.assal-wholesale-audit-bulk{
+  height:39px;
+  padding:0 14px;
+  border-radius:11px;
+  font-weight:950;
+  cursor:pointer;
+  border:1px solid transparent;
+}
+.assal-wholesale-audit-cancel{
+  color:#ffe4e6;
+  background:linear-gradient(135deg,#4c1d32,#6b2846);
+  border-color:rgba(251,113,133,.22);
+}
+.assal-wholesale-audit-bulk{
+  color:#fff;
+  background:linear-gradient(135deg,#0891b2,#2563eb);
+  border-color:rgba(125,211,252,.25);
+  box-shadow:0 9px 20px rgba(14,165,233,.14);
+}
+.assal-wholesale-audit-bulk:disabled{opacity:.42;cursor:not-allowed;box-shadow:none;}
+.assal-wholesale-audit-check{
+  width:17px;
+  height:17px;
+  accent-color:#0891b2;
+  cursor:pointer;
+}
+@media(max-width:780px){
+  .assal-wholesale-audit-modal{padding:8px;}
+  .assal-wholesale-audit-shell{width:100%;max-height:96vh;border-radius:16px;}
+  .assal-wholesale-audit-summary{grid-template-columns:1fr;}
+  .assal-wholesale-audit-toolbar{grid-template-columns:1fr auto auto;}
+  .assal-wholesale-audit-list{overflow:auto;}
+  .assal-wholesale-audit-grid{min-width:780px;}
+  .assal-wholesale-audit-foot{align-items:stretch;flex-direction:column;}
+  .assal-wholesale-audit-foot-actions{display:grid;grid-template-columns:1fr 1fr;}
+}
 /* خلي المواد الراجعة أوضح بالأحمر */
 .item.returned{
   background:#2a0c12;            /* خلفية أحمر داكن */
@@ -8451,6 +8766,14 @@ html body .payment-row{
                 title="حجم تخزين المتصفح"
                 aria-label="حجم تخزين المتصفح">
           <i class="fa-solid fa-database"></i>
+        </button>
+
+        <!-- فحص شامل لفواتير الجملة القديمة في كل الأيام -->
+        <button class="icon assal-tool-action" id="btnWholesaleAudit"
+                title="فحص فواتير الجملة"
+                aria-label="فحص فواتير الجملة">
+          <i class="fa-solid fa-magnifying-glass-dollar"></i>
+          <span class="assal-wholesale-audit-count" id="wholesaleAuditCount" hidden>0</span>
         </button>
 
 <button class="icon assal-tools-close" id="btnHeaderToolsClose" title="إخفاء الأدوات" aria-label="إخفاء الأدوات">
@@ -32739,11 +33062,408 @@ html body .card .item.assal-smart-added-item-safe-final{
 <!-- ASSAL DAILY REVIEW MODAL FINAL - END -->
 
 
+
+<script id="assal-wholesale-audit-all-days-final-script">
+(function(){
+  'use strict';
+
+  var BUTTON_ID = 'btnWholesaleAudit';
+  var COUNT_ID = 'wholesaleAuditCount';
+  var MODAL_ID = 'assalWholesaleAuditModal';
+  var selectedKeys = new Set();
+  var currentResults = [];
+  var previousBodyOverflow = '';
+
+  function byId(id){ return document.getElementById(id); }
+  function esc(v){
+    return String(v == null ? '' : v)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  function getDaysStore(){
+    try{ if(typeof days !== 'undefined' && days && typeof days === 'object') return days; }catch(_){ }
+    try{ if(window.days && typeof window.days === 'object') return window.days; }catch(_){ }
+    try{ if(typeof load === 'function' && typeof STORAGE !== 'undefined') return load(STORAGE,{}) || {}; }catch(_){ }
+    return {};
+  }
+  function getCards(dayVal){
+    if(Array.isArray(dayVal)) return dayVal;
+    if(dayVal && Array.isArray(dayVal.cards)) return dayVal.cards;
+    if(dayVal && Array.isArray(dayVal.bills)) return dayVal.bills;
+    return [];
+  }
+  function customerOf(card){
+    return String(card && (card.customer || card.cust || card.name) || '').trim();
+  }
+  function activeLines(card){
+    return Array.isArray(card && card.lines) ? card.lines.filter(function(line){ return line && !line.deletedAt; }) : [];
+  }
+  function isSuspect(card){
+    if(!card || card.deletedAt || activeLines(card).length === 0) return false;
+    try{
+      return typeof isWholesaleCard === 'function' && isWholesaleCard(card) &&
+             typeof assalIsWholesaleAllowedCustomer === 'function' && !assalIsWholesaleAllowedCustomer(customerOf(card));
+    }catch(_){ return false; }
+  }
+  function money(v){
+    var n = Math.round(Number(v || 0));
+    var abs = Math.abs(n);
+    var txt = '';
+    try{ if(typeof formatIQD === 'function') txt = formatIQD(abs); }catch(_){ }
+    if(!txt){ try{ txt = abs.toLocaleString('en-US'); }catch(_){ txt = String(abs); } }
+    return n < 0 ? (txt + '-') : txt;
+  }
+  function dateText(dayKey){
+    try{ if(typeof fmtDMY === 'function') return fmtDMY(dayKey); }catch(_){ }
+    var s = String(dayKey || '');
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s.slice(8,10)+'-'+s.slice(5,7)+'-'+s.slice(0,4);
+    return s;
+  }
+  function resultKey(dayKey, card){
+    return String(dayKey || '') + '::' + String(card && card.id || '');
+  }
+  function collect(){
+    var store = getDaysStore();
+    var out = [];
+    Object.keys(store || {}).forEach(function(dayKey){
+      getCards(store[dayKey]).forEach(function(card, index){
+        if(!isSuspect(card)) return;
+        var sums = {total:0,final:0,itemsCount:activeLines(card).length};
+        try{ if(typeof sumCardAmounts === 'function') sums = sumCardAmounts(card) || sums; }catch(_){ }
+        out.push({
+          key: resultKey(dayKey, card),
+          dayKey: dayKey,
+          card: card,
+          cardIndex: index,
+          customer: customerOf(card),
+          itemsCount: Number(sums.itemsCount || activeLines(card).length || 0),
+          total: Math.round(Number(sums.total || 0)),
+          final: Math.round(Number(sums.final || sums.finalAmount || sums.unpaid || 0)),
+          sortTime: String(card.updatedAt || card.createdAt || dayKey || '')
+        });
+      });
+    });
+    out.sort(function(a,b){
+      return String(b.dayKey).localeCompare(String(a.dayKey)) ||
+             String(b.sortTime).localeCompare(String(a.sortTime)) ||
+             String(a.customer).localeCompare(String(b.customer),'ar');
+    });
+    return out;
+  }
+  function countSuspects(){
+    var store = getDaysStore();
+    var count = 0;
+    Object.keys(store || {}).forEach(function(dayKey){
+      getCards(store[dayKey]).forEach(function(card){ if(isSuspect(card)) count++; });
+    });
+    return count;
+  }
+  function updateCountBadge(){
+    var count = countSuspects();
+    var badge = byId(COUNT_ID);
+    var btn = byId(BUTTON_ID);
+    if(badge){
+      badge.textContent = String(count > 99 ? '99+' : count);
+      badge.hidden = count === 0;
+    }
+    if(btn){
+      btn.title = count ? ('فحص فواتير الجملة • ' + count + ' فاتورة تحتاج مراجعة') : 'فحص فواتير الجملة • لا توجد نتائج';
+      btn.setAttribute('aria-label', btn.title);
+    }
+    return count;
+  }
+  function ensureModal(){
+    var root = byId(MODAL_ID);
+    if(root) return root;
+    root = document.createElement('div');
+    root.id = MODAL_ID;
+    root.className = 'assal-wholesale-audit-modal';
+    root.hidden = true;
+    root.innerHTML = ''+
+      '<section class="assal-wholesale-audit-shell" role="dialog" aria-modal="true" aria-labelledby="assalWholesaleAuditTitle">'+
+        '<header class="assal-wholesale-audit-head">'+
+          '<div class="assal-wholesale-audit-mark"><i class="fa-solid fa-magnifying-glass-dollar"></i></div>'+
+          '<div class="assal-wholesale-audit-titles"><b id="assalWholesaleAuditTitle">فحص فواتير الجملة</b><span>فحص جميع الأيام والأشهر دفعة واحدة من دون تعديل تلقائي</span></div>'+
+          '<button class="assal-wholesale-audit-close" type="button" data-audit-action="close" title="إغلاق"><i class="fa-solid fa-xmark"></i></button>'+
+        '</header>'+
+        '<div class="assal-wholesale-audit-summary">'+
+          '<div class="assal-wholesale-audit-stat"><span>فواتير تحتاج مراجعة</span><b id="assalWholesaleAuditTotalCount">0</b></div>'+
+          '<div class="assal-wholesale-audit-stat"><span>مجموع قيم الفواتير</span><b id="assalWholesaleAuditGross">0</b></div>'+
+          '<div class="assal-wholesale-audit-stat"><span>المبلغ المفتوح بعد التحويل</span><b id="assalWholesaleAuditFinal">0</b></div>'+
+        '</div>'+
+        '<div class="assal-wholesale-audit-toolbar">'+
+          '<input id="assalWholesaleAuditSearch" class="assal-wholesale-audit-search" type="text" autocomplete="off" placeholder="بحث باسم الزبون أو التاريخ…">'+
+          '<button class="assal-wholesale-audit-select-all" type="button" data-audit-action="toggle-all"><i class="fa-regular fa-square-check"></i><span>تحديد الظاهر</span></button>'+
+          '<button class="assal-wholesale-audit-refresh" type="button" data-audit-action="refresh" title="إعادة الفحص"><i class="fa-solid fa-rotate-right"></i></button>'+
+        '</div>'+
+        '<div class="assal-wholesale-audit-list" id="assalWholesaleAuditList"></div>'+
+        '<footer class="assal-wholesale-audit-foot">'+
+          '<div class="assal-wholesale-audit-selected" id="assalWholesaleAuditSelected">لم يتم تحديد فواتير</div>'+
+          '<div class="assal-wholesale-audit-foot-actions">'+
+            '<button class="assal-wholesale-audit-cancel" type="button" data-audit-action="close">إغلاق</button>'+
+            '<button class="assal-wholesale-audit-bulk" id="assalWholesaleAuditBulk" type="button" data-audit-action="bulk" disabled>تحويل المحدد إلى أجل</button>'+
+          '</div>'+
+        '</footer>'+
+      '</section>';
+    document.body.appendChild(root);
+
+    root.addEventListener('click', function(ev){
+      var actionEl = ev.target && ev.target.closest ? ev.target.closest('[data-audit-action]') : null;
+      if(actionEl){
+        var action = actionEl.getAttribute('data-audit-action');
+        if(action === 'close'){ ev.preventDefault(); close(); return; }
+        if(action === 'refresh'){ ev.preventDefault(); refresh(); return; }
+        if(action === 'toggle-all'){ ev.preventDefault(); toggleAllVisible(); return; }
+        if(action === 'bulk'){ ev.preventDefault(); convertSelected(); return; }
+        if(action === 'open'){
+          ev.preventDefault();
+          var item = currentResults.find(function(x){ return x.key === actionEl.getAttribute('data-key'); });
+          if(item) openCard(item);
+          return;
+        }
+        if(action === 'convert'){
+          ev.preventDefault();
+          var one = currentResults.find(function(x){ return x.key === actionEl.getAttribute('data-key'); });
+          if(one) convertItems([one]);
+          return;
+        }
+      }
+      if(ev.target === root) close();
+    }, false);
+
+    root.addEventListener('change', function(ev){
+      var check = ev.target && ev.target.matches ? ev.target.matches('.assal-wholesale-audit-check[data-key]') : false;
+      if(!check) return;
+      var key = ev.target.getAttribute('data-key');
+      if(ev.target.checked) selectedKeys.add(key); else selectedKeys.delete(key);
+      updateSelectedState();
+    }, false);
+
+    var search = root.querySelector('#assalWholesaleAuditSearch');
+    if(search) search.addEventListener('input', render, false);
+    return root;
+  }
+  function filteredResults(){
+    var root = byId(MODAL_ID);
+    var q = String(root && root.querySelector('#assalWholesaleAuditSearch') && root.querySelector('#assalWholesaleAuditSearch').value || '').trim().toLowerCase();
+    if(!q) return currentResults.slice();
+    return currentResults.filter(function(item){
+      var hay = (item.customer + ' ' + item.dayKey + ' ' + dateText(item.dayKey)).toLowerCase();
+      return hay.indexOf(q) >= 0;
+    });
+  }
+  function render(){
+    var root = ensureModal();
+    var list = root.querySelector('#assalWholesaleAuditList');
+    var shown = filteredResults();
+    var gross = currentResults.reduce(function(n,x){ return n + Number(x.total || 0); },0);
+    var finalSum = currentResults.reduce(function(n,x){ return n + Number(x.final || 0); },0);
+    var countEl = root.querySelector('#assalWholesaleAuditTotalCount');
+    var grossEl = root.querySelector('#assalWholesaleAuditGross');
+    var finalEl = root.querySelector('#assalWholesaleAuditFinal');
+    if(countEl) countEl.textContent = String(currentResults.length);
+    if(grossEl) grossEl.textContent = money(gross) + ' د.ع';
+    if(finalEl) finalEl.textContent = money(finalSum) + ' د.ع';
+
+    if(!shown.length){
+      list.innerHTML = '<div class="assal-wholesale-audit-empty"><div><i class="fa-solid fa-circle-check"></i><b>' +
+        (currentResults.length ? 'لا توجد نتائج مطابقة للبحث' : 'لا توجد فواتير جملة مشتبه بها') +
+        '</b><br><span>' + (currentResults.length ? 'امسح البحث لعرض جميع النتائج.' : 'تم فحص جميع الأيام، وكل الفواتير الحالية سليمة حسب الاستثناءات المحددة.') + '</span></div></div>';
+      updateSelectedState();
+      return;
+    }
+
+    var html = '<div class="assal-wholesale-audit-grid assal-wholesale-audit-header">'+
+      '<div><i class="fa-regular fa-square-check"></i></div><div>التاريخ</div><div>اسم الزبون</div><div>المواد</div><div>المبلغ المفتوح</div><div>الإجراء</div></div>';
+    shown.forEach(function(item){
+      html += '<div class="assal-wholesale-audit-grid assal-wholesale-audit-row">'+
+        '<div><input class="assal-wholesale-audit-check" type="checkbox" data-key="'+esc(item.key)+'" '+(selectedKeys.has(item.key)?'checked':'')+'></div>'+
+        '<div title="'+esc(item.dayKey)+'">'+esc(dateText(item.dayKey))+'</div>'+
+        '<div class="assal-wholesale-audit-customer" title="'+esc(item.customer)+'">'+esc(item.customer)+'</div>'+
+        '<div>'+esc(item.itemsCount)+'</div>'+
+        '<div class="assal-wholesale-audit-money">'+esc(money(item.final))+'</div>'+
+        '<div class="assal-wholesale-audit-actions">'+
+          '<button class="assal-wholesale-audit-open" type="button" data-audit-action="open" data-key="'+esc(item.key)+'"><i class="fa-solid fa-arrow-up-right-from-square"></i>فتح</button>'+
+          '<button class="assal-wholesale-audit-convert" type="button" data-audit-action="convert" data-key="'+esc(item.key)+'"><i class="fa-solid fa-arrow-right-arrow-left"></i>تحويل إلى أجل</button>'+
+        '</div>'+
+      '</div>';
+    });
+    list.innerHTML = html;
+    updateSelectedState();
+  }
+  function updateSelectedState(){
+    var root = byId(MODAL_ID);
+    if(!root) return;
+    currentResults = currentResults.filter(function(x){ return isSuspect(x.card); });
+    var validKeys = new Set(currentResults.map(function(x){ return x.key; }));
+    Array.from(selectedKeys).forEach(function(k){ if(!validKeys.has(k)) selectedKeys.delete(k); });
+    var n = selectedKeys.size;
+    var text = root.querySelector('#assalWholesaleAuditSelected');
+    var bulk = root.querySelector('#assalWholesaleAuditBulk');
+    if(text) text.textContent = n ? ('تم تحديد ' + n + ' فاتورة') : 'لم يتم تحديد فواتير';
+    if(bulk){ bulk.disabled = n === 0; bulk.textContent = n ? ('تحويل المحدد إلى أجل ('+n+')') : 'تحويل المحدد إلى أجل'; }
+  }
+  function toggleAllVisible(){
+    var shown = filteredResults();
+    var allSelected = shown.length > 0 && shown.every(function(x){ return selectedKeys.has(x.key); });
+    shown.forEach(function(x){ if(allSelected) selectedKeys.delete(x.key); else selectedKeys.add(x.key); });
+    render();
+  }
+  function refresh(){
+    currentResults = collect();
+    var valid = new Set(currentResults.map(function(x){ return x.key; }));
+    Array.from(selectedKeys).forEach(function(k){ if(!valid.has(k)) selectedKeys.delete(k); });
+    updateCountBadge();
+    render();
+  }
+  function open(){
+    var root = ensureModal();
+    selectedKeys.clear();
+    currentResults = collect();
+    var search = root.querySelector('#assalWholesaleAuditSearch');
+    if(search) search.value = '';
+    render();
+    previousBodyOverflow = document.body.style.overflow || '';
+    root.hidden = false;
+    document.body.style.overflow = 'hidden';
+    setTimeout(function(){ try{ search && search.focus({preventScroll:true}); }catch(_){ } },0);
+  }
+  function close(){
+    var root = byId(MODAL_ID);
+    if(root) root.hidden = true;
+    document.body.style.overflow = previousBodyOverflow;
+    selectedKeys.clear();
+  }
+  function relockIfOpen(){
+    var root = byId(MODAL_ID);
+    if(root && !root.hidden) document.body.style.overflow = 'hidden';
+  }
+  function applyConversion(card, ts){
+    if(!isSuspect(card)) return false;
+    var activeTypes = new Set();
+    activeLines(card).forEach(function(line){
+      var lineType = String(line.type == null ? '' : line.type).trim();
+      try{ if(typeof normalizeBillType === 'function') lineType = normalizeBillType(lineType); }catch(_){ }
+      if(line.returned){
+        lineType = 'راجع';
+      }else if(lineType === 'جملة' || !lineType){
+        line.type = 'اجل';
+        line.updatedAt = ts;
+        lineType = 'اجل';
+      }
+      activeTypes.add(lineType);
+    });
+    card.billType = activeTypes.size === 1 ? Array.from(activeTypes)[0] : (activeTypes.size > 1 ? 'مختلط' : 'اجل');
+    if(card.billType === 'جملة') card.billType = 'اجل';
+    card.wholesalePrepared = false;
+    card.wholesalePreparedAt = ts;
+    card.updatedAt = ts;
+    return true;
+  }
+  async function convertItems(items){
+    items = (items || []).filter(function(item){ return item && isSuspect(item.card); });
+    if(!items.length){
+      try{ showToast && showToast('info','لا توجد فواتير صالحة للتحويل'); }catch(_){ }
+      refresh();
+      return;
+    }
+    var count = items.length;
+    var ok = true;
+    if(typeof showConfirm === 'function'){
+      ok = await showConfirm({
+        title: count === 1 ? 'تحويل الفاتورة إلى أجل' : 'تحويل الفواتير المحددة إلى أجل',
+        message: '<div class="assal-wholesale-credit-confirm-content"><div class="assal-wholesale-credit-confirm-icon"><i class="fa-solid fa-arrow-right-arrow-left"></i></div><div class="assal-wholesale-credit-confirm-copy"><b>' +
+          (count === 1 ? 'هل تريد تحويل هذه الفاتورة من جملة إلى أجل؟' : 'هل تريد تحويل '+count+' فواتير من جملة إلى أجل؟') +
+          '</b><span>سيتم تغيير النوع فقط مع بقاء البطاقات والمعرّفات والمواد والأسعار والملاحظات كما هي.</span></div></div>',
+        okText: count === 1 ? 'تحويل إلى أجل' : 'تحويل المحدد',
+        cancelText: 'إلغاء',
+        danger: false,
+        modalClass: 'assal-wholesale-credit-confirm'
+      });
+    }else{
+      ok = window.confirm(count === 1 ? 'هل تريد تحويل هذه الفاتورة من جملة إلى أجل؟' : 'هل تريد تحويل الفواتير المحددة إلى أجل؟');
+    }
+    relockIfOpen();
+    if(!ok) return;
+
+    var ts = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
+    var changed = 0;
+    items.forEach(function(item){ if(applyConversion(item.card, ts)) changed++; });
+    if(!changed){ refresh(); return; }
+
+    try{ if(typeof save === 'function') save(); }catch(_){ }
+    try{ if(typeof assalInvalidateDebtBadgeCache === 'function') assalInvalidateDebtBadgeCache(); }catch(_){ }
+    try{ if(typeof renderBoard === 'function') renderBoard(); }catch(_){ }
+    try{ if(typeof renderRail === 'function') renderRail(); }catch(_){ }
+    try{ if(typeof refreshStats === 'function') refreshStats(); }catch(_){ }
+    try{ window.refreshDebtsUI && window.refreshDebtsUI(); }catch(_){ }
+    try{ showToast && showToast('success', changed === 1 ? 'تم تحويل الفاتورة من جملة إلى أجل' : ('تم تحويل '+changed+' فواتير إلى أجل')); }catch(_){ }
+
+    items.forEach(function(item){ selectedKeys.delete(item.key); });
+    refresh();
+    relockIfOpen();
+  }
+  function convertSelected(){
+    var items = currentResults.filter(function(x){ return selectedKeys.has(x.key); });
+    convertItems(items);
+  }
+  function openCard(item){
+    if(!item || !item.card) return;
+    close();
+    try{ if(typeof selectedDay !== 'undefined') selectedDay = item.dayKey; else window.selectedDay = item.dayKey; }catch(_){ window.selectedDay = item.dayKey; }
+    try{
+      if(typeof showWholesaleLedger !== 'undefined') showWholesaleLedger = true;
+      localStorage.setItem(typeof LEDGER_SHOW_WHOLESALE_KEY !== 'undefined' ? LEDGER_SHOW_WHOLESALE_KEY : 'assal.ledger.showWholesale.v1','1');
+      var showToggle = byId('showWholesaleLedger'); if(showToggle) showToggle.checked = true;
+    }catch(_){ }
+    try{ var global = byId('globalSearch'); if(global) global.checked = false; }catch(_){ }
+    try{ var cSearch = byId('cardSearch'); if(cSearch) cSearch.value = ''; }catch(_){ }
+    try{ var iSearch = byId('itemSearch'); if(iSearch) iSearch.value = ''; }catch(_){ }
+    try{ var dFilter = byId('dayFilter'); if(dFilter) dFilter.value = ''; }catch(_){ }
+    try{ if(typeof renderBoard === 'function') renderBoard(); }catch(_){ }
+    try{ if(typeof renderRail === 'function') renderRail(); }catch(_){ }
+    try{ if(typeof refreshStats === 'function') refreshStats(); }catch(_){ }
+    setTimeout(function(){
+      var cardEl = byId('card-' + item.card.id);
+      if(!cardEl) return;
+      try{ cardEl.scrollIntoView({behavior:'smooth',block:'center'}); }catch(_){ cardEl.scrollIntoView(); }
+      cardEl.classList.add('flash-card');
+      setTimeout(function(){ try{ cardEl.classList.remove('flash-card'); }catch(_){ } },1800);
+    },120);
+  }
+  function bind(){
+    var btn = byId(BUTTON_ID);
+    if(!btn || btn.__assalWholesaleAuditBound) return;
+    btn.__assalWholesaleAuditBound = true;
+    btn.addEventListener('click', function(ev){ ev.preventDefault(); ev.stopPropagation(); open(); }, false);
+    updateCountBadge();
+    document.addEventListener('keydown', function(ev){
+      if(ev.key !== 'Escape') return;
+      var root = byId(MODAL_ID);
+      if(root && !root.hidden){ ev.preventDefault(); ev.stopPropagation(); close(); }
+    }, true);
+    document.addEventListener('click', function(ev){
+      try{
+        if(ev.target && ev.target.closest && ev.target.closest('.assal-wholesale-to-credit-btn')){
+          setTimeout(updateCountBadge,2500);
+        }
+      }catch(_){ }
+    }, false);
+    document.addEventListener('visibilitychange', function(){ if(!document.hidden) updateCountBadge(); }, false);
+    window.addEventListener('storage', updateCountBadge, false);
+    setInterval(function(){ if(!document.hidden) updateCountBadge(); },60000);
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind, false); else bind();
+  window.assalOpenWholesaleAudit = open;
+  window.assalRefreshWholesaleAuditCount = updateCountBadge;
+})();
+</script>
+
 <script id="assal-header-tools-mode-switch-final-script">
 (function(){
   'use strict';
   var mainIds = ['btnLogout','btnRefresh','openPaymentsBtn','openDebtsBtn','btnCompatSearch','btnImportAll'];
-  var toolIds = ['btnAttendanceOpen','btnDeviceRole','openDailyReviewBtn','btnExportLocal','btnAdvancedBackups','btnSecureImportBackup','btnNextDay','btnStorageInfo'];
+  var toolIds = ['btnAttendanceOpen','btnDeviceRole','openDailyReviewBtn','btnExportLocal','btnAdvancedBackups','btnSecureImportBackup','btnNextDay','btnStorageInfo','btnWholesaleAudit'];
   function $(id){ return document.getElementById(id); }
   function addClass(el, cls){ if(el && !el.classList.contains(cls)) el.classList.add(cls); }
   function bind(){
