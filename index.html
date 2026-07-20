@@ -5270,6 +5270,84 @@ body{ padding-top: var(--hdr-h); }
   background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);
   color:#fff;font-weight:900;font-family:ui-monospace,Menlo,Consolas,monospace;
 }
+
+/* تأكيد تعليم/إلغاء الراجع من زر السطر — واجهة فقط */
+#modal.assal-return-confirm-normal #modal-confirm{
+  background:linear-gradient(135deg,#f59e0b,#ea580c) !important;
+  color:#fff !important;border:1px solid rgba(251,191,36,.48) !important;
+  box-shadow:0 14px 34px rgba(234,88,12,.28),inset 0 1px 0 rgba(255,255,255,.16) !important;
+}
+#modal.assal-return-confirm-line-paid #modal-confirm{
+  background:linear-gradient(135deg,#ef4444,#f97316) !important;
+  color:#fff !important;border:1px solid rgba(251,113,133,.48) !important;
+  box-shadow:0 14px 34px rgba(239,68,68,.30),inset 0 1px 0 rgba(255,255,255,.16) !important;
+}
+#modal.assal-return-confirm-unreturn #modal-confirm{
+  background:linear-gradient(135deg,#2563eb,#0e7490) !important;
+  color:#fff !important;border:1px solid rgba(96,165,250,.44) !important;
+  box-shadow:0 14px 34px rgba(37,99,235,.25),inset 0 1px 0 rgba(255,255,255,.16) !important;
+}
+.assal-return-pop--normal .assal-return-pop__icon{background:linear-gradient(135deg,#f59e0b,#ea580c);}
+.assal-return-pop--line-paid .assal-return-pop__icon{background:linear-gradient(135deg,#ef4444,#f97316);}
+.assal-return-pop--unreturn .assal-return-pop__icon{background:linear-gradient(135deg,#2563eb,#0e7490);}
+.assal-return-pop--normal .assal-return-pop__box{border-color:rgba(251,191,36,.27);background:linear-gradient(135deg,rgba(245,158,11,.10),rgba(15,23,42,.62));}
+.assal-return-pop--line-paid .assal-return-pop__box{border-color:rgba(251,113,133,.29);background:linear-gradient(135deg,rgba(239,68,68,.11),rgba(15,23,42,.62));}
+.assal-return-pop--unreturn .assal-return-pop__box{border-color:rgba(96,165,250,.26);background:linear-gradient(135deg,rgba(37,99,235,.10),rgba(15,23,42,.62));}
+.assal-return-line-age{
+  display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:14px;
+  font-size:11.5px;font-weight:850;color:#cbd5e1;background:rgba(2,6,23,.30);
+  border:1px solid rgba(148,163,184,.16);
+}
+.assal-return-line-age.is-old{color:#fde68a;border-color:rgba(251,191,36,.30);background:rgba(120,53,15,.16);}
+.assal-return-line-age.is-missing{color:#bae6fd;border-color:rgba(125,211,252,.24);background:rgba(7,89,133,.14);}
+
+/* تأكيد إلغاء تعديل السطر — نفس المسار للزر و Escape */
+#modal.assal-inline-edit-cancel-confirm .modal-card{
+  width:min(560px,calc(100vw - 28px)) !important;padding:18px !important;border-radius:23px !important;
+  background:radial-gradient(circle at 15% 0%,rgba(244,63,94,.17),transparent 34%),linear-gradient(180deg,#111a30,#081122) !important;
+  border:1px solid rgba(251,113,133,.20) !important;box-shadow:0 26px 78px rgba(0,0,0,.62),inset 0 1px 0 rgba(255,255,255,.06) !important;
+}
+#modal.assal-inline-edit-cancel-confirm #modal-confirm{
+  background:linear-gradient(135deg,#be123c,#7f1d1d) !important;color:#fff !important;
+  border:1px solid rgba(251,113,133,.40) !important;box-shadow:0 13px 30px rgba(190,18,60,.26) !important;
+}
+#modal.assal-inline-edit-cancel-confirm #modal-cancel{
+  background:linear-gradient(135deg,#1d4ed8,#0f766e) !important;color:#fff !important;
+  border:1px solid rgba(96,165,250,.32) !important;box-shadow:0 12px 28px rgba(29,78,216,.18) !important;
+}
+.assal-inline-cancel-pop{width:100%;display:grid;gap:12px;text-align:right;}
+.assal-inline-cancel-pop__hero{display:flex;align-items:center;gap:12px;padding:12px;border-radius:18px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);}
+.assal-inline-cancel-pop__icon{width:46px;height:46px;flex:0 0 auto;display:grid;place-items:center;border-radius:16px;color:#fff;font-size:19px;background:linear-gradient(135deg,#f43f5e,#7c3aed);box-shadow:0 14px 30px rgba(124,58,237,.18);}
+.assal-inline-cancel-pop__title{font-size:16px;font-weight:950;color:#fff;}
+.assal-inline-cancel-pop__sub{margin-top:2px;font-size:12px;color:#aebdd2;}
+.assal-inline-cancel-pop__box{padding:13px 14px;border-radius:16px;color:#e5e7eb;background:rgba(2,6,23,.32);border:1px solid rgba(251,113,133,.17);line-height:1.85;}
+.assal-inline-cancel-pop__item{display:inline-flex;align-items:center;gap:6px;margin-inline:3px;padding:3px 9px;border-radius:999px;color:#fecdd3;background:rgba(190,24,93,.13);border:1px solid rgba(251,113,133,.24);font-weight:950;}
+.assal-inline-cancel-pop__hint{padding:9px 11px;border-radius:14px;color:#bfdbfe;background:rgba(30,64,175,.10);border:1px dashed rgba(96,165,250,.24);font-size:11.5px;}
+
+/* تأكيد فتح تعديل السطر — قبل الدخول إلى حقول التعديل فقط */
+#modal.assal-inline-edit-start-confirm .modal-card{
+  width:min(560px,calc(100vw - 28px)) !important;padding:18px !important;border-radius:23px !important;
+  background:radial-gradient(circle at 15% 0%,rgba(14,165,233,.18),transparent 34%),linear-gradient(180deg,#111a30,#081122) !important;
+  border:1px solid rgba(125,211,252,.20) !important;box-shadow:0 26px 78px rgba(0,0,0,.62),inset 0 1px 0 rgba(255,255,255,.06) !important;
+}
+#modal.assal-inline-edit-start-confirm #modal-confirm{
+  background:linear-gradient(135deg,#2563eb,#0f766e) !important;color:#fff !important;
+  border:1px solid rgba(96,165,250,.36) !important;box-shadow:0 13px 30px rgba(37,99,235,.24) !important;
+}
+#modal.assal-inline-edit-start-confirm #modal-cancel{
+  background:linear-gradient(135deg,#334155,#1e293b) !important;color:#e2e8f0 !important;
+  border:1px solid rgba(148,163,184,.24) !important;box-shadow:0 12px 28px rgba(15,23,42,.22) !important;
+}
+.assal-inline-start-pop{width:100%;display:grid;gap:12px;text-align:right;}
+.assal-inline-start-pop__hero{display:flex;align-items:center;gap:12px;padding:12px;border-radius:18px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);}
+.assal-inline-start-pop__icon{width:46px;height:46px;flex:0 0 auto;display:grid;place-items:center;border-radius:16px;color:#fff;font-size:19px;background:linear-gradient(135deg,#06b6d4,#7c3aed);box-shadow:0 14px 30px rgba(14,165,233,.18);}
+.assal-inline-start-pop__title{font-size:16px;font-weight:950;color:#fff;}
+.assal-inline-start-pop__sub{margin-top:2px;font-size:12px;color:#aebdd2;}
+.assal-inline-start-pop__box{padding:13px 14px;border-radius:16px;color:#e5e7eb;background:rgba(2,6,23,.32);border:1px solid rgba(125,211,252,.17);line-height:1.85;}
+.assal-inline-start-pop__item,.assal-inline-start-pop__customer{display:inline-flex;align-items:center;gap:6px;margin-inline:3px;padding:3px 9px;border-radius:999px;font-weight:950;}
+.assal-inline-start-pop__item{color:#bae6fd;background:rgba(14,165,233,.13);border:1px solid rgba(125,211,252,.24);}
+.assal-inline-start-pop__customer{color:#ddd6fe;background:rgba(124,58,237,.13);border:1px solid rgba(167,139,250,.24);}
+.assal-inline-start-pop__hint{padding:9px 11px;border-radius:14px;color:#bbf7d0;background:rgba(22,101,52,.10);border:1px dashed rgba(74,222,128,.24);font-size:11.5px;}
 </style>
 
 <style id="assal-card-audit-light-final-style">
@@ -11719,6 +11797,86 @@ function assalReturnBuildPaidReturnMessage(itemName, customer){
       '<div class="assal-return-pop__hint"><span>قبول الراجع يكمل الإدخال ويستخدم سعر الشراء الأصلي مع إضافة ملاحظة التسديد.</span><span class="assal-return-pop__kbd">Enter</span></div>' +
     '</div>';
 }
+function assalReturnLineToggleAgeInfo(card, line){
+  try{
+    const probe = Object.assign({}, line || {}, { returned:true });
+    const days = (typeof assalReturnAgeDays === 'function') ? assalReturnAgeDays(card, probe) : null;
+    if(days == null) return { days:null, text:'تاريخ أخذ المادة غير متوفر', cls:'is-missing' };
+    let text = '';
+    if(days <= 0) text = 'المادة مأخوذة اليوم';
+    else if(days === 1) text = 'المادة مأخوذة قبل يوم واحد';
+    else if(days === 2) text = 'المادة مأخوذة قبل يومين';
+    else text = 'المادة مأخوذة قبل ' + days + ' يوم';
+    return { days:days, text:text, cls:(days > 7 ? 'is-old' : '') };
+  }catch(_){
+    return { days:null, text:'تاريخ أخذ المادة غير متوفر', cls:'is-missing' };
+  }
+}
+function assalReturnBuildLineToggleMessage(card, line, makeReturned){
+  const itemName = String(line && (line.item || line.name) || '—');
+  const customer = String(card && (card.customer || card.name) || '—');
+  const safeItem = assalReturnEscapeHTML(itemName);
+  const safeCustomer = assalReturnEscapeHTML(customer);
+
+  if(!makeReturned){
+    return '' +
+      '<div class="assal-return-pop assal-return-pop--unreturn">' +
+        '<div class="assal-return-pop__hero">' +
+          '<span class="assal-return-pop__icon"><i class="fa-solid fa-arrow-rotate-left"></i></span>' +
+          '<div><div class="assal-return-pop__title">إلغاء حالة الراجع</div><div class="assal-return-pop__sub">تأكيد إزالة علامة الراجع عن هذا السطر</div></div>' +
+        '</div>' +
+        '<div class="assal-return-pop__box">سيتم إلغاء تعليم المادة <b>' + safeItem + '</b> للزبون <b>' + safeCustomer + '</b> كراجع. سيتم إزالة علامة الراجع فقط دون تغيير بقية بيانات السطر.</div>' +
+        '<div class="assal-return-pop__hint"><span>اضغط متابعة لإلغاء الراجع، أو إلغاء للعودة من دون أي تغيير.</span><span class="assal-return-pop__kbd">Enter</span></div>' +
+      '</div>';
+  }
+
+  const paid = !!(line && line.paid);
+  const age = assalReturnLineToggleAgeInfo(card, line);
+  const ageHtml = '<div class="assal-return-line-age ' + assalReturnEscapeHTML(age.cls || '') + '"><i class="fa-regular fa-clock"></i><span>' + assalReturnEscapeHTML(age.text) + (age.days > 7 ? ' — خارج مدة 7 أيام' : '') + '</span></div>';
+
+  if(paid){
+    return '' +
+      '<div class="assal-return-pop assal-return-pop--line-paid">' +
+        '<div class="assal-return-pop__hero">' +
+          '<span class="assal-return-pop__icon"><i class="fa-solid fa-circle-exclamation"></i></span>' +
+          '<div><div class="assal-return-pop__title">المادة مسددة حالياً</div><div class="assal-return-pop__sub">الاستمرار سيحوّل حالة السطر من مسدد إلى راجع</div></div>' +
+        '</div>' +
+        '<div class="assal-return-pop__box">المادة <b>' + safeItem + '</b> للزبون <b>' + safeCustomer + '</b> مسددة حالياً. عند المتابعة سيتم إلغاء حالة التسديد عنها وتعليمها راجع. هل تريد المتابعة؟</div>' +
+        ageHtml +
+        '<div class="assal-return-pop__hint"><span>لن يتم تنفيذ أي تغيير قبل تأكيدك.</span><span class="assal-return-pop__kbd">Enter</span></div>' +
+      '</div>';
+  }
+
+  return '' +
+    '<div class="assal-return-pop assal-return-pop--normal">' +
+      '<div class="assal-return-pop__hero">' +
+        '<span class="assal-return-pop__icon"><i class="fa-solid fa-rotate-left"></i></span>' +
+        '<div><div class="assal-return-pop__title">تعليم المادة راجع</div><div class="assal-return-pop__sub">تأكيد تحويل حالة هذا السطر إلى راجع</div></div>' +
+      '</div>' +
+      '<div class="assal-return-pop__box">سيتم تعليم المادة <b>' + safeItem + '</b> للزبون <b>' + safeCustomer + '</b> كراجع. هل تريد المتابعة؟</div>' +
+      ageHtml +
+      '<div class="assal-return-pop__hint"><span>لن يتم تنفيذ أي تغيير قبل تأكيدك.</span><span class="assal-return-pop__kbd">Enter</span></div>' +
+    '</div>';
+}
+async function assalReturnConfirmLineToggle(card, line){
+  const makeReturned = !(line && line.returned);
+  const paid = !!(line && line.paid);
+  const kind = makeReturned ? (paid ? 'line-paid' : 'normal') : 'unreturn';
+  const title = makeReturned ? (paid ? 'المادة مسددة حالياً' : 'تأكيد تعليم المادة راجع') : 'تأكيد إلغاء الراجع';
+  const okText = makeReturned ? (paid ? 'متابعة وتعليم راجع' : 'نعم، تعليم راجع') : 'نعم، إلغاء الراجع';
+  if(typeof showConfirm !== 'function'){
+    return window.confirm(makeReturned ? (paid ? 'هذه المادة مسددة حالياً. هل تريد المتابعة وتعليمها راجع؟' : 'هل تريد تعليم هذه المادة راجع؟') : 'هل تريد إلغاء حالة الراجع عن هذه المادة؟');
+  }
+  const p = showConfirm({
+    title:title,
+    message:assalReturnBuildLineToggleMessage(card, line, makeReturned),
+    okText:okText,
+    cancelText:'إلغاء',
+    danger:false
+  });
+  assalReturnDecorateConfirm(kind);
+  return await assalReturnConfirmWithEnter(p);
+}
 function assalReturnDecorateConfirm(kind){
   try{
     const modal = document.getElementById('modal');
@@ -11730,9 +11888,15 @@ function assalReturnDecorateConfirm(kind){
     modal.classList.toggle('assal-return-confirm-missing', kind === 'missing');
     modal.classList.toggle('assal-return-confirm-returned', kind === 'returned');
     modal.classList.toggle('assal-return-confirm-paid', kind === 'paid');
+    modal.classList.toggle('assal-return-confirm-normal', kind === 'normal');
+    modal.classList.toggle('assal-return-confirm-line-paid', kind === 'line-paid');
+    modal.classList.toggle('assal-return-confirm-unreturn', kind === 'unreturn');
     if(ok){
       ok.classList.remove('danger');
-      ok.innerHTML = '<i class="fa-solid fa-check"></i> قبول الراجع';
+      if(kind === 'normal') ok.innerHTML = '<i class="fa-solid fa-rotate-left"></i> نعم، تعليم راجع';
+      else if(kind === 'line-paid') ok.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> متابعة وتعليم راجع';
+      else if(kind === 'unreturn') ok.innerHTML = '<i class="fa-solid fa-arrow-rotate-left"></i> نعم، إلغاء الراجع';
+      else ok.innerHTML = '<i class="fa-solid fa-check"></i> قبول الراجع';
     }
     if(cancel){
       cancel.innerHTML = '<i class="fa-solid fa-xmark"></i> إلغاء';
@@ -11745,7 +11909,7 @@ function assalReturnClearConfirmDecor(){
     const ok = document.getElementById('modal-confirm');
     const cancel = document.getElementById('modal-cancel');
     if(modal){
-      modal.classList.remove('assal-return-confirm-modal','assal-return-confirm-old','assal-return-confirm-missing','assal-return-confirm-returned','assal-return-confirm-paid');
+      modal.classList.remove('assal-return-confirm-modal','assal-return-confirm-old','assal-return-confirm-missing','assal-return-confirm-returned','assal-return-confirm-paid','assal-return-confirm-normal','assal-return-confirm-line-paid','assal-return-confirm-unreturn');
     }
     if(ok){
       ok.style.removeProperty('background');
@@ -15133,6 +15297,38 @@ function assalInlineEditQueuePostRenderFocus(){
     requestAnimationFrame(function(){ assalInlineEditPostRenderFocus(); });
   }catch(_){ setTimeout(assalInlineEditPostRenderFocus, 0); }
 }
+function assalInlineEditStartMessage(card, line){
+  const item = assalReturnEscapeHTML(line && line.item ? line.item : 'السطر الحالي');
+  const customer = assalReturnEscapeHTML(card && card.customer ? card.customer : 'الزبون الحالي');
+  return '' +
+    '<div class="assal-inline-start-pop">' +
+      '<div class="assal-inline-start-pop__hero">' +
+        '<span class="assal-inline-start-pop__icon"><i class="fa-solid fa-pen-to-square"></i></span>' +
+        '<div><div class="assal-inline-start-pop__title">تعديل هذا السطر؟</div><div class="assal-inline-start-pop__sub">سيتم فتح حقول السطر حتى تتمكن من تعديل بياناته</div></div>' +
+      '</div>' +
+      '<div class="assal-inline-start-pop__box">أنت على وشك تعديل المادة <span class="assal-inline-start-pop__item"><i class="fa-solid fa-box"></i>' + item + '</span> للزبون <span class="assal-inline-start-pop__customer"><i class="fa-solid fa-user"></i>' + customer + '</span>. هل تريد المتابعة؟</div>' +
+      '<div class="assal-inline-start-pop__hint">لن يتغير أو يُحفظ أي شيء بمجرد فتح التعديل؛ الحفظ يبقى بالطريقة الحالية بعد إكمال الحقول.</div>' +
+    '</div>';
+}
+async function assalInlineEditStartConfirm(card, line){
+  if(assalInlineEditIsOpen()) return false;
+  if(window.__assalInlineEditStartConfirmBusy) return false;
+  window.__assalInlineEditStartConfirmBusy = true;
+  try{
+    return await (typeof showConfirm === 'function'
+      ? showConfirm({
+          title:'تأكيد تعديل السطر',
+          message:assalInlineEditStartMessage(card, line),
+          okText:'نعم، فتح التعديل',
+          cancelText:'تراجع',
+          danger:false,
+          modalClass:'assal-inline-edit-start-confirm'
+        })
+      : Promise.resolve(confirm('سيتم فتح هذا السطر للتعديل. هل تريد المتابعة؟')));
+  }finally{
+    window.__assalInlineEditStartConfirmBusy = false;
+  }
+}
 function assalInlineEditStart(card, line){
   try{
     const key = assalInlineEditKey(card, line);
@@ -15168,15 +15364,56 @@ function assalInlineEditStart(card, line){
     try{ assalInlineEditQueuePostRenderFocus(); }catch(_){ }
   }catch(err){ try{ console.error(err); showToast('error','تعذر فتح تعديل السطر'); }catch(_){ } }
 }
+function assalInlineEditCancelMessage(){
+  const st = window.__assalInlineLineEdit || {};
+  const item = assalReturnEscapeHTML(st.draft && st.draft.item ? st.draft.item : (st.original && st.original.item ? st.original.item : 'السطر الحالي'));
+  return '' +
+    '<div class="assal-inline-cancel-pop">' +
+      '<div class="assal-inline-cancel-pop__hero">' +
+        '<span class="assal-inline-cancel-pop__icon"><i class="fa-solid fa-pen-to-square"></i></span>' +
+        '<div><div class="assal-inline-cancel-pop__title">إلغاء تعديل السطر؟</div><div class="assal-inline-cancel-pop__sub">لن يتم حفظ التغييرات التي كتبتها داخل حقول التعديل</div></div>' +
+      '</div>' +
+      '<div class="assal-inline-cancel-pop__box">سيتم تجاهل التغييرات غير المحفوظة للمادة <span class="assal-inline-cancel-pop__item"><i class="fa-solid fa-box"></i>' + item + '</span> وإرجاع السطر إلى حالته قبل فتح التعديل.</div>' +
+      '<div class="assal-inline-cancel-pop__hint">اختر «الاستمرار بالتعديل» للرجوع إلى الحقول من دون فقدان أي كتابة.</div>' +
+    '</div>';
+}
 async function assalInlineEditCancelConfirm(){
-  if(!assalInlineEditIsOpen()) return;
-  const ok = await (typeof showConfirm === 'function'
-    ? showConfirm({ title:'إلغاء التعديل', message:'هل تريد إلغاء التعديل؟', okText:'نعم، إلغاء', cancelText:'تراجع', danger:true })
-    : Promise.resolve(confirm('هل تريد إلغاء التعديل؟')));
-  if(!ok) return;
-  window.__assalInlineLineEdit = null;
-  try{ renderBoard(); }catch(_){ }
-  try{ showToast('info','تم إلغاء التعديل'); }catch(_){ }
+  if(!assalInlineEditIsOpen()) return false;
+  if(window.__assalInlineEditCancelConfirmBusy) return false;
+  window.__assalInlineEditCancelConfirmBusy = true;
+  try{
+    const ok = await (typeof showConfirm === 'function'
+      ? showConfirm({
+          title:'إلغاء تعديل السطر',
+          message:assalInlineEditCancelMessage(),
+          okText:'إلغاء التعديل',
+          cancelText:'الاستمرار بالتعديل',
+          danger:false,
+          modalClass:'assal-inline-edit-cancel-confirm'
+        })
+      : Promise.resolve(confirm('هل تريد إلغاء التعديل وتجاهل التغييرات غير المحفوظة؟')));
+    if(!ok) return false;
+    window.__assalInlineLineEdit = null;
+    try{ renderBoard(); }catch(_){ }
+    try{ showToast('info','تم إلغاء التعديل'); }catch(_){ }
+    return true;
+  }finally{
+    window.__assalInlineEditCancelConfirmBusy = false;
+  }
+}
+if(!window.__assalInlineEditEscapeConfirmBound){
+  window.__assalInlineEditEscapeConfirmBound = true;
+  document.addEventListener('keydown', function(ev){
+    try{
+      if(!ev || ev.key !== 'Escape' || !assalInlineEditIsOpen()) return;
+      const modal = document.getElementById('modal');
+      if(modal && modal.classList.contains('active')) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      ev.stopImmediatePropagation();
+      assalInlineEditCancelConfirm();
+    }catch(_){ }
+  }, true);
 }
 function assalInlineEditSave(card, line){
   try{
@@ -16092,13 +16329,28 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
             await assalInlineEditCancelConfirm();
             return;
           }
+          const __assalInlineStartOk = await assalInlineEditStartConfirm(card, ln);
+          if(!__assalInlineStartOk) return;
+
+          // إعادة تحقق بعد إغلاق نافذة التأكيد حتى لا يُفتح تعديل ثانٍ بحالة متغيرة.
+          if((typeof assalInlineEditIsOpen === 'function') && assalInlineEditIsOpen()){
+            try{ showToast('warn','أكمل التعديل الحالي أولاً'); }catch(_){ }
+            return;
+          }
           assalInlineEditStart(card, ln);
         };
 
-        // ===== تبديل "راجع" للسطر =====
-        btnReturn.onclick = () => {
+        // ===== تبديل "راجع" للسطر — تأكيد واحد حسب حالة السطر قبل أي تغيير =====
+        btnReturn.onclick = async () => {
+          const __assalReturnMakeReturned = !ln.returned;
+          const __assalReturnConfirmed = await assalReturnConfirmLineToggle(card, ln);
+          if(!__assalReturnConfirmed) return;
+
+          // حماية خفيفة: إذا تغيرت حالة السطر أثناء بقاء نافذة التأكيد مفتوحة لا نكرر العملية.
+          if(__assalReturnMakeReturned !== !ln.returned) return;
+
           const __assalReturnChangedAt = nowISO();
-          ln.returned = !ln.returned;
+          ln.returned = __assalReturnMakeReturned;
           if (ln.returned) {
             ln.paid = false;
             ln.returnedAt = __assalReturnChangedAt;
