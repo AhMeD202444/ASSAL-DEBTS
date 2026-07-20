@@ -22556,6 +22556,17 @@ async function smartImportFromServer(){
           saveBigStore(STORAGE, days);
         }
       }catch{}
+
+      // [ASSAL AUDIT] بعد اكتمال السحب فقط: جلب أرشيف اليوم الظاهر قراءةً وإظهاره فوراً.
+      try{
+        const __assalAuditDay = (typeof selectedDay === 'string' && selectedDay) ? selectedDay : '';
+        if(__assalAuditDay && typeof window.assalCardAuditFetchServerCardDay === 'function'){
+          await window.assalCardAuditFetchServerCardDay(__assalAuditDay, true);
+        }
+      }catch(__assalAuditPullErr){
+        console.warn('[ASSAL card audit] pull refresh skipped', __assalAuditPullErr);
+      }
+
       renderBoard();
       renderRail();
       refreshStats();
@@ -22626,6 +22637,17 @@ async function smartImportFromServer(){
           saveBigStore(STORAGE, days);
         }
       }catch{}
+
+    // [ASSAL AUDIT] بعد اكتمال السحب فقط: جلب أرشيف اليوم الظاهر قراءةً وإظهاره فوراً.
+    try{
+      const __assalAuditDay = (typeof selectedDay === 'string' && selectedDay) ? selectedDay : '';
+      if(__assalAuditDay && typeof window.assalCardAuditFetchServerCardDay === 'function'){
+        await window.assalCardAuditFetchServerCardDay(__assalAuditDay, true);
+      }
+    }catch(__assalAuditPullErr){
+      console.warn('[ASSAL card audit] pull refresh skipped', __assalAuditPullErr);
+    }
+
     renderBoard();
     renderRail();
     refreshStats();
