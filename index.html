@@ -5324,10 +5324,13 @@ body{ padding-top: var(--hdr-h); }
   pointer-events:none;
 }
 .assal-card-audit-backdrop{
-  position:fixed;inset:0;z-index:2147483200;
+  position:fixed !important;inset:0 !important;z-index:2147483645 !important;
   display:grid;place-items:center;padding:16px;
+  visibility:visible;opacity:1;pointer-events:auto;isolation:isolate;
   background:rgba(2,6,23,.76);
   backdrop-filter:blur(5px);
+  -webkit-backdrop-filter:blur(5px);
+  transform:translateZ(0);
   animation:none !important;
   transition:none !important;
 }
@@ -5516,7 +5519,8 @@ body{ padding-top: var(--hdr-h); }
   padding:24px;color:#aebdd2;line-height:1.9;
 }
 .assal-card-audit-empty i{display:block;margin:0 auto 10px;font-size:30px;color:#64748b;}
-body.assal-card-audit-open{overflow:hidden !important;}
+/* اسم مستقل لحالة فتح النافذة حتى لا يرث body تنسيق زر فتح البطاقة */
+body.assal-card-audit-modal-open{overflow:hidden !important;}
 
 /* نافذة تأكيد إعادة الحركة: ألوان واضحة حسب نوع الحركة */
 #modal.assal-card-audit-confirm-delete #modal-confirm{
@@ -5552,6 +5556,165 @@ body.assal-card-audit-open{overflow:hidden !important;}
 }
 @media(prefers-reduced-motion:reduce){
   .assal-card-audit-backdrop *, .assal-card-audit-btn{animation:none !important;transition:none !important;}
+}
+
+/* ASSAL CARD AUDIT WINDOW - polished final layout */
+.assal-card-audit-backdrop.is-card-mode .assal-card-audit-shell{max-width:1040px;}
+.assal-card-audit-backdrop.is-card-mode .assal-card-audit-list{
+  padding:12px;background:linear-gradient(180deg,rgba(6,15,34,.82),rgba(4,11,26,.72));
+}
+.assal-card-audit-event{
+  border-color:rgba(125,159,211,.20);
+  background:linear-gradient(155deg,#0c1933 0%,#09152c 58%,#0a1730 100%);
+  box-shadow:0 14px 34px rgba(0,0,0,.20),inset 0 1px 0 rgba(255,255,255,.025);
+}
+.assal-card-audit-event-head{
+  min-height:48px;padding:10px 13px;
+  background:linear-gradient(90deg,rgba(88,28,135,.17),rgba(30,64,175,.10),rgba(15,23,42,.24));
+  border-bottom-color:rgba(148,163,184,.12);
+}
+.assal-card-audit-time{
+  padding:5px 9px;border-radius:999px;
+  color:#b8c8df;background:rgba(2,6,23,.30);border:1px solid rgba(148,163,184,.12);
+}
+.assal-card-audit-event-body{display:block;padding:13px;}
+.assal-card-audit-identity-grid{
+  display:grid;grid-template-columns:minmax(220px,.82fr) minmax(260px,1.18fr);gap:9px;
+}
+.assal-card-audit-identity{
+  min-width:0;padding:10px 11px;border-radius:12px;text-align:right;
+  background:rgba(8,20,43,.72);border:1px solid rgba(148,163,184,.12);
+}
+.assal-card-audit-identity.item{
+  background:linear-gradient(135deg,rgba(10,27,57,.88),rgba(13,34,67,.72));
+  border-color:rgba(96,165,250,.16);
+}
+.assal-card-audit-identity-label{
+  display:flex;align-items:center;gap:6px;margin-bottom:6px;
+  color:#8296b4;font-size:9.5px;font-weight:900;
+}
+.assal-card-audit-identity-label i{color:#7dd3fc;font-size:10px;}
+.assal-card-audit-customer-line{min-height:27px;}
+.assal-card-audit-customer{font-size:14px;line-height:1.5;}
+.assal-card-audit-item{
+  margin:0;color:#f1f5f9;font-size:13px;font-weight:950;line-height:1.55;
+}
+.assal-card-audit-meta-row{display:flex;align-items:center;justify-content:flex-start;margin-top:8px;}
+.assal-card-audit-cardday{margin:0;padding:4px 9px;}
+.assal-card-audit-details{
+  margin-top:10px;padding:10px;border-radius:13px;
+  background:rgba(2,6,23,.24);border:1px solid rgba(148,163,184,.10);
+}
+.assal-card-audit-details-title{
+  display:flex;align-items:center;gap:7px;margin-bottom:8px;
+  color:#aabbd2;font-size:10px;font-weight:950;
+}
+.assal-card-audit-details-title i{color:#a78bfa;}
+.assal-card-audit-changes{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:7px;}
+.assal-card-audit-change{
+  max-width:none;min-width:0;padding:8px 9px;border-radius:11px;
+  background:linear-gradient(145deg,#101f3d,#0c1931);
+  border-color:rgba(96,165,250,.16);
+}
+.assal-card-audit-change.is-edit{display:flex;align-items:center;justify-content:space-between;gap:9px;}
+.assal-card-audit-change.is-info{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.assal-card-audit-change-label{
+  flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;
+  color:#aebdd2;font-size:9.5px;font-weight:950;
+}
+.assal-card-audit-info-value{min-width:0;color:#f8fafc;font-size:11px;overflow:hidden;text-overflow:ellipsis;}
+.assal-card-audit-value-flow{
+  min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr);
+  align-items:center;gap:3px;text-align:center;
+}
+.assal-card-audit-value{
+  min-width:0;display:flex;flex-direction:column;align-items:center;gap:1px;
+}
+.assal-card-audit-value small{font-size:8px;color:#71839d;font-weight:900;}
+.assal-card-audit-value b{
+  display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:#b9c7da;font-size:10.5px;font-weight:950;
+}
+.assal-card-audit-value.new b{color:#e9d5ff;}
+.assal-card-audit-flow-arrow{
+  color:#60a5fa;font-size:15px;font-weight:950;line-height:1;direction:ltr;
+}
+.assal-card-audit-actions{
+  padding:9px 13px 11px;justify-content:flex-start;
+  background:linear-gradient(180deg,rgba(2,6,23,.06),rgba(2,6,23,.26));
+}
+.assal-card-audit-open,.assal-card-audit-undo{min-width:126px;height:35px;}
+.assal-card-audit-open:hover,.assal-card-audit-undo:hover{filter:brightness(1.08);transform:translateY(-1px);}
+.assal-card-audit-row.is-undone .assal-card-audit-event{opacity:.78;}
+
+@media(max-width:790px){
+  .assal-card-audit-event-head{flex-direction:row;align-items:center;}
+  .assal-card-audit-time{font-size:9.5px;padding:4px 7px;}
+  .assal-card-audit-identity-grid{grid-template-columns:1fr;}
+  .assal-card-audit-changes{grid-template-columns:1fr;}
+  .assal-card-audit-change.is-edit{align-items:flex-start;flex-direction:column;}
+  .assal-card-audit-value-flow{width:100%;}
+  .assal-card-audit-actions{justify-content:stretch;}
+}
+@media(max-width:480px){
+  .assal-card-audit-event-head{align-items:flex-start;flex-direction:column;}
+  .assal-card-audit-time{white-space:normal;}
+  .assal-card-audit-open,.assal-card-audit-undo{min-width:0;}
+}
+
+/* ASSAL CARD AUDIT — COMPACT ALTERNATING ROWS FINAL */
+.assal-card-audit-row{gap:7px;margin-bottom:7px;}
+.assal-card-audit-backdrop.is-card-mode .assal-card-audit-list{padding:8px;}
+.assal-card-audit-event{
+  border-radius:12px;
+  box-shadow:0 7px 18px rgba(0,0,0,.14),inset 0 1px 0 rgba(255,255,255,.018);
+}
+.assal-card-audit-list > .assal-card-audit-row:nth-child(odd) .assal-card-audit-event{
+  background:linear-gradient(155deg,#0d1a34 0%,#09162d 62%,#0a1730 100%);
+  border-color:rgba(96,165,250,.20);
+  box-shadow:inset -3px 0 0 rgba(96,165,250,.18),0 7px 18px rgba(0,0,0,.14);
+}
+.assal-card-audit-list > .assal-card-audit-row:nth-child(even) .assal-card-audit-event{
+  background:linear-gradient(155deg,#15182f 0%,#10152b 62%,#11162d 100%);
+  border-color:rgba(167,139,250,.18);
+  box-shadow:inset -3px 0 0 rgba(167,139,250,.15),0 7px 18px rgba(0,0,0,.14);
+}
+.assal-card-audit-row.is-undone .assal-card-audit-event{opacity:.76;}
+.assal-card-audit-event-head{
+  min-height:38px;padding:7px 10px;gap:7px;
+}
+.assal-card-audit-kind-badge,
+.assal-card-audit-status-badge{padding:3px 7px;font-size:10px;gap:5px;}
+.assal-card-audit-time{padding:3px 7px;font-size:9.5px;gap:5px;}
+.assal-card-audit-event-body{padding:8px 10px;}
+.assal-card-audit-identity-grid{gap:6px;}
+.assal-card-audit-identity{padding:6px 8px;border-radius:9px;}
+.assal-card-audit-identity-label{margin-bottom:3px;font-size:8.8px;gap:5px;}
+.assal-card-audit-customer-line{min-height:22px;gap:5px;}
+.assal-card-audit-customer{font-size:12.8px;line-height:1.35;}
+.assal-card-audit-billtype{padding:2px 6px;font-size:9px;}
+.assal-card-audit-item{font-size:12px;line-height:1.4;}
+.assal-card-audit-details{margin-top:6px;padding:6px 7px;border-radius:10px;}
+.assal-card-audit-details-title{margin-bottom:5px;font-size:9.5px;gap:5px;}
+.assal-card-audit-changes{gap:5px;}
+.assal-card-audit-change{padding:5px 7px;border-radius:9px;line-height:1.35;}
+.assal-card-audit-change-label{font-size:9px;}
+.assal-card-audit-info-value{font-size:10.5px;}
+.assal-card-audit-value small{font-size:7.5px;}
+.assal-card-audit-value b{font-size:10px;}
+.assal-card-audit-flow-arrow{font-size:13px;}
+.assal-card-audit-actions{padding:6px 10px 7px;gap:6px;}
+.assal-card-audit-open,.assal-card-audit-undo{min-width:112px;height:31px;padding:0 9px;font-size:10px;border-radius:9px;}
+.assal-card-audit-timeline{padding-top:10px;font-size:10px;}
+.assal-card-audit-timeline::after{top:31px;bottom:-17px;}
+.assal-card-audit-timeline-dot{width:9px;height:9px;margin-top:6px;}
+@media(max-width:790px){
+  .assal-card-audit-backdrop.is-card-mode .assal-card-audit-list{padding:7px;}
+  .assal-card-audit-event-head{padding:7px 9px;}
+  .assal-card-audit-event-body{padding:7px 8px;}
+  .assal-card-audit-identity{padding:6px 7px;}
+  .assal-card-audit-details{margin-top:5px;padding:6px;}
+  .assal-card-audit-actions{padding:6px 8px;}
 }
 </style>
 
@@ -34715,19 +34878,35 @@ html body .card .item.assal-smart-added-item-safe-final{
     if(k==='price'){ try{return typeof formatIQD==='function'?formatIQD(Number(v)||0):safe(v);}catch(_){return safe(v);} }
     return safe(v||'—');
   }
+  function auditEditChip(k,beforeValue,afterValue){
+    return '<span class="assal-card-audit-change is-edit">'+
+      '<span class="assal-card-audit-change-label">'+esc(fieldLabel(k))+'</span>'+
+      '<span class="assal-card-audit-value-flow" dir="ltr">'+
+        '<span class="assal-card-audit-value old"><small>قبل</small><b>'+esc(val(k,beforeValue))+'</b></span>'+
+        '<span class="assal-card-audit-flow-arrow" aria-hidden="true">→</span>'+
+        '<span class="assal-card-audit-value new"><small>بعد</small><b>'+esc(val(k,afterValue))+'</b></span>'+
+      '</span>'+
+    '</span>';
+  }
+  function auditInfoChip(label,value,icon){
+    return '<span class="assal-card-audit-change is-info">'+
+      '<span class="assal-card-audit-change-label">'+(icon?'<i class="fa-solid '+icon+'"></i>':'')+esc(label)+'</span>'+
+      '<b class="assal-card-audit-info-value">'+esc(value||'—')+'</b>'+
+    '</span>';
+  }
   function changeChips(a){
     if(a.kind==='edit'){
       var out=[]; ['cat','item','price','qty','note'].forEach(function(k){
-        if(safe(a.before&&a.before[k])!==safe(a.after&&a.after[k])) out.push('<span class="assal-card-audit-change"><strong>'+esc(fieldLabel(k))+':</strong> '+esc(val(k,a.before&&a.before[k]))+' ← '+esc(val(k,a.after&&a.after[k]))+'</span>');
+        if(safe(a.before&&a.before[k])!==safe(a.after&&a.after[k])) out.push(auditEditChip(k,a.before&&a.before[k],a.after&&a.after[k]));
       });
-      return out.join('')||'<span class="assal-card-audit-change">تعديل محفوظ</span>';
+      return out.join('')||auditInfoChip('الحالة','تعديل محفوظ','fa-circle-check');
     }
     if(a.kind==='delete'){
-      return '<span class="assal-card-audit-change"><strong>الصنف:</strong> '+esc(a.before&&a.before.cat||'—')+'</span>'+
-        '<span class="assal-card-audit-change"><strong>العدد:</strong> '+esc(a.before&&a.before.qty||'—')+'</span>'+
-        '<span class="assal-card-audit-change"><strong>السعر:</strong> '+esc(val('price',a.before&&a.before.price))+'</span>';
+      return auditInfoChip('الصنف',a.before&&a.before.cat||'—','fa-layer-group')+
+        auditInfoChip('العدد',a.before&&a.before.qty||'—','fa-hashtag')+
+        auditInfoChip('السعر',val('price',a.before&&a.before.price),'fa-coins');
     }
-    return '<span class="assal-card-audit-change">تم إلغاء حركة '+(a.targetKind==='delete'?'حذف':'تعديل')+'</span>';
+    return auditInfoChip('الإجراء','تم إلغاء حركة '+(a.targetKind==='delete'?'حذف':'تعديل'),'fa-rotate-left');
   }
   function formatTimeOnly(at){
     try{ return new Date(at).toLocaleTimeString('ar-IQ',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
@@ -34737,24 +34916,42 @@ html body .card .item.assal-smart-added-item-safe-final{
     var kind=a.kind==='delete'?'delete':(a.kind==='undo'?'undo':'edit');
     var label=kind==='delete'?'حذف مادة':(kind==='undo'?'إعادة حركة':'تعديل مادة');
     var icon=kind==='delete'?'fa-trash-can':(kind==='undo'?'fa-rotate-left':'fa-pen-to-square');
+    var detailsTitle=kind==='delete'?'بيانات السطر المحذوف':(kind==='undo'?'تفاصيل الإعادة':'التغييرات المسجلة');
     var undone=a.status==='undone';
     var canUndo=(a.kind==='edit'||a.kind==='delete')&&!undone&&!isAuditReadOnlyDevice();
     return '<div class="assal-card-audit-row'+(undone?' is-undone':'')+'" data-action-id="'+esc(a.id)+'">'+
       '<div class="assal-card-audit-timeline"><span>'+esc(formatTimeOnly(a.at))+'</span><div class="assal-card-audit-timeline-dot"></div></div>'+
       '<article class="assal-card-audit-event">'+
-        '<div class="assal-card-audit-event-head"><div class="assal-card-audit-badges">'+
-          '<span class="assal-card-audit-kind-badge '+kind+'"><i class="fa-solid '+icon+'"></i>'+label+'</span>'+
-          '<span class="assal-card-audit-status-badge">'+(undone?'تمت الإعادة':(kind==='undo'?'منفذة':'محفوظة'))+'</span></div>'+
-          '<span class="assal-card-audit-time"><i class="fa-regular fa-clock"></i>'+esc(formatDateTime(a.at))+'</span></div>'+
+        '<div class="assal-card-audit-event-head">'+
+          '<div class="assal-card-audit-badges">'+
+            '<span class="assal-card-audit-kind-badge '+kind+'"><i class="fa-solid '+icon+'"></i>'+label+'</span>'+
+            '<span class="assal-card-audit-status-badge">'+(undone?'تمت الإعادة':(kind==='undo'?'منفذة':'محفوظة'))+'</span>'+
+          '</div>'+
+          '<span class="assal-card-audit-time"><i class="fa-regular fa-clock"></i>'+esc(formatDateTime(a.at))+'</span>'+
+        '</div>'+
         '<div class="assal-card-audit-event-body">'+
-          '<div class="assal-card-audit-main"><div class="assal-card-audit-customer-line"><div class="assal-card-audit-customer">'+esc(a.customer||'زبون غير محدد')+'</div>'+
-          (a.billType?'<span class="assal-card-audit-billtype">'+esc(a.billType)+'</span>':'')+'</div>'+
-          '<div class="assal-card-audit-item"><i class="fa-solid fa-box-open"></i> '+esc(a.item||(a.before&&a.before.item)||'مادة غير محددة')+'</div>'+
-          '<span class="assal-card-audit-cardday"><i class="fa-regular fa-calendar"></i>يوم البطاقة: '+esc(a.cardDay)+'</span></div>'+
-          '<div class="assal-card-audit-changes">'+changeChips(a)+'</div></div>'+
-        '<div class="assal-card-audit-actions"><button type="button" class="assal-card-audit-open" data-open-card="1"><i class="fa-solid fa-arrow-up-right-from-square"></i>فتح البطاقة</button>'+
-        (canUndo?'<button type="button" class="assal-card-audit-undo" data-undo-action="1"><i class="fa-solid fa-rotate-left"></i>إعادة الحركة</button>':'')+'</div>'+
-      '</article></div>';
+          '<div class="assal-card-audit-identity-grid">'+
+            '<section class="assal-card-audit-identity customer">'+
+              '<span class="assal-card-audit-identity-label"><i class="fa-regular fa-user"></i>الزبون</span>'+
+              '<div class="assal-card-audit-customer-line"><div class="assal-card-audit-customer">'+esc(a.customer||'زبون غير محدد')+'</div>'+
+              (a.billType?'<span class="assal-card-audit-billtype">'+esc(a.billType)+'</span>':'')+'</div>'+
+            '</section>'+
+            '<section class="assal-card-audit-identity item">'+
+              '<span class="assal-card-audit-identity-label"><i class="fa-solid fa-box-open"></i>المادة</span>'+
+              '<div class="assal-card-audit-item">'+esc(a.item||(a.before&&a.before.item)||'مادة غير محددة')+'</div>'+
+            '</section>'+
+          '</div>'+
+          '<section class="assal-card-audit-details">'+
+            '<div class="assal-card-audit-details-title"><i class="fa-solid fa-arrow-right-arrow-left"></i>'+detailsTitle+'</div>'+
+            '<div class="assal-card-audit-changes">'+changeChips(a)+'</div>'+
+          '</section>'+
+        '</div>'+
+        '<div class="assal-card-audit-actions">'+
+          '<button type="button" class="assal-card-audit-open" data-open-card="1"><i class="fa-solid fa-arrow-up-right-from-square"></i>فتح البطاقة</button>'+
+          (canUndo?'<button type="button" class="assal-card-audit-undo" data-undo-action="1"><i class="fa-solid fa-rotate-left"></i>إعادة الحركة</button>':'')+
+        '</div>'+
+      '</article>'+
+    '</div>';
   }
   function ensureModal(){
     var root=document.getElementById('assalCardAuditBackdrop'); if(root)return root;
@@ -34775,7 +34972,28 @@ html body .card .item.assal-smart-added-item-safe-final{
     return root;
   }
   function moveDay(n){ var d=new Date((modalState.day||localDay())+'T12:00:00');d.setDate(d.getDate()+n);modalState.day=localDay(d);loadModalServer(true);renderModal(); }
-  function closeModal(){ var r=document.getElementById('assalCardAuditBackdrop');if(r)r.hidden=true;document.body.classList.remove('assal-card-audit-open'); }
+  function showModalRoot(r){
+    if(!r)return;
+    try{document.body.appendChild(r);}catch(_){ }
+    r.hidden=false;
+    try{r.removeAttribute('hidden');}catch(_){ }
+    r.style.display='grid';
+    r.style.visibility='visible';
+    r.style.opacity='1';
+    r.style.pointerEvents='auto';
+    try{void r.offsetHeight;}catch(_){ }
+  }
+  function closeModal(){
+    var r=document.getElementById('assalCardAuditBackdrop');
+    if(r){
+      r.hidden=true;
+      r.style.removeProperty('display');
+      r.style.removeProperty('visibility');
+      r.style.removeProperty('opacity');
+      r.style.removeProperty('pointer-events');
+    }
+    document.body.classList.remove('assal-card-audit-modal-open','assal-card-audit-open');
+  }
   function selectedActions(){
     if(modalState.mode==='card')return (getCardRecord(modalState.cardDay,modalState.cardId,true).actions||[]).slice();
     return (getDayRecord(modalState.day||localDay(),true).actions||[]).slice();
@@ -34806,8 +35024,22 @@ html body .card .item.assal-smart-added-item-safe-final{
     modalState.loading=false;renderModal();
     if(modalState.mode==='card')refreshVisibleBoardForDay(modalState.cardDay);
   }
-  function openDayAudit(day){ modalState={mode:'day',day:safe(day||localDay()),cardDay:'',cardId:'',customer:'',loading:false,serverError:''};var r=ensureModal();r.hidden=false;document.body.classList.add('assal-card-audit-open');renderModal();loadModalServer(true); }
-  function openCardAudit(card){ modalState={mode:'card',day:'',cardDay:cardDayOf(card),cardId:cardIdOf(card),customer:safe(card&&card.customer),loading:false,serverError:''};var r=ensureModal();r.hidden=false;document.body.classList.add('assal-card-audit-open');renderModal();loadModalServer(true); }
+  function openDayAudit(day){
+    modalState={mode:'day',day:safe(day||localDay()),cardDay:'',cardId:'',customer:'',loading:false,serverError:''};
+    var r=ensureModal();
+    renderModal();
+    showModalRoot(r);
+    document.body.classList.add('assal-card-audit-modal-open');
+    requestAnimationFrame(function(){setTimeout(function(){loadModalServer(true);},0);});
+  }
+  function openCardAudit(card){
+    modalState={mode:'card',day:'',cardDay:cardDayOf(card),cardId:cardIdOf(card),customer:safe(card&&card.customer),loading:false,serverError:''};
+    var r=ensureModal();
+    renderModal();
+    showModalRoot(r);
+    document.body.classList.add('assal-card-audit-modal-open');
+    requestAnimationFrame(function(){setTimeout(function(){loadModalServer(true);},0);});
+  }
   function findActionForOpen(actionId){
     var arr=selectedActions();return arr.find(function(a){return a&&a.id===actionId;})||null;
   }
