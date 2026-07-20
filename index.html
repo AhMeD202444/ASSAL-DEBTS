@@ -5272,6 +5272,211 @@ body{ padding-top: var(--hdr-h); }
 }
 </style>
 
+<style id="assal-card-audit-light-final-style">
+/* =========================================================
+   ASSAL CARD ACTION AUDIT — LIGHT / LOCAL / ISOLATED
+   سجل منفصل عن بيانات الفواتير، بلا حركة وبلا فحص خلفي لكل الأيام.
+========================================================= */
+.item.assal-audit-edited-line{
+  border-inline-start:4px solid rgba(167,139,250,.86) !important;
+  box-shadow:inset 5px 0 0 rgba(124,58,237,.055) !important;
+}
+.item.paid.assal-audit-edited-line{
+  border-inline-start-color:rgba(96,165,250,.90) !important;
+  box-shadow:inset 5px 0 0 rgba(96,165,250,.055) !important;
+}
+.item.returned.assal-audit-edited-line{
+  border-inline-start-color:rgba(251,191,36,.90) !important;
+  box-shadow:inset 5px 0 0 rgba(251,191,36,.05) !important;
+}
+.assal-card-audit-btn{
+  width:28px;height:28px;flex:0 0 28px;
+  display:grid;place-items:center;
+  position:relative;
+  border-radius:9px;
+  border:1px solid rgba(167,139,250,.34);
+  background:linear-gradient(180deg,#1b2140,#121a32);
+  color:#ddd6fe;
+  cursor:pointer;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+  padding:0;
+  animation:none !important;
+  transition:none !important;
+}
+.assal-card-audit-btn:hover{filter:brightness(1.07);transform:none !important;}
+.assal-card-audit-btn i{font-size:12px;}
+.assal-card-audit-badge{
+  position:absolute;top:-6px;inset-inline-end:-6px;
+  min-width:17px;height:17px;padding:0 4px;
+  display:grid;place-items:center;
+  border-radius:999px;
+  font-size:9px;font-weight:950;line-height:1;
+  color:#fff;background:#7c3aed;
+  border:1px solid rgba(221,214,254,.58);
+  box-shadow:0 4px 10px rgba(0,0,0,.28);
+  pointer-events:none;
+}
+#btnDayCardAudit{position:relative;}
+#btnDayCardAudit .assal-day-audit-dot{
+  position:absolute;top:5px;inset-inline-end:5px;
+  width:7px;height:7px;border-radius:999px;
+  background:#a78bfa;border:1px solid rgba(255,255,255,.36);
+  pointer-events:none;
+}
+.assal-card-audit-backdrop{
+  position:fixed;inset:0;z-index:2147483200;
+  display:grid;place-items:center;padding:16px;
+  background:rgba(2,6,23,.76);
+  backdrop-filter:blur(5px);
+  animation:none !important;
+  transition:none !important;
+}
+.assal-card-audit-backdrop[hidden]{display:none !important;}
+.assal-card-audit-shell{
+  width:min(1020px,96vw);max-height:min(90vh,850px);
+  display:flex;flex-direction:column;overflow:hidden;
+  border-radius:22px;
+  border:1px solid rgba(167,139,250,.28);
+  color:#e7eef9;
+  background:
+    radial-gradient(480px 220px at 100% 0%,rgba(124,58,237,.15),transparent 65%),
+    radial-gradient(420px 220px at 0% 100%,rgba(14,165,233,.09),transparent 68%),
+    linear-gradient(180deg,#10182e,#091225);
+  box-shadow:0 28px 82px rgba(0,0,0,.60),inset 0 1px 0 rgba(255,255,255,.045);
+  animation:none !important;
+  transition:none !important;
+}
+.assal-card-audit-head{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 16px;
+  border-bottom:1px solid rgba(148,163,184,.13);
+  background:linear-gradient(90deg,rgba(124,58,237,.18),rgba(14,165,233,.09));
+}
+.assal-card-audit-mark{
+  width:42px;height:42px;flex:0 0 auto;
+  display:grid;place-items:center;border-radius:13px;
+  color:#fff;font-size:17px;
+  background:linear-gradient(135deg,#7c3aed,#0e7490);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 10px 24px rgba(0,0,0,.22);
+}
+.assal-card-audit-titles{min-width:0;display:flex;flex-direction:column;gap:2px;text-align:right;}
+.assal-card-audit-titles b{font-size:17px;font-weight:950;color:#f8fafc;}
+.assal-card-audit-titles span{font-size:11.5px;color:#aebdd2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.assal-card-audit-close{
+  margin-inline-start:auto;width:36px;height:36px;
+  display:grid;place-items:center;border-radius:11px;
+  border:1px solid rgba(248,113,113,.30);
+  background:#4c1521;color:#fecdd3;cursor:pointer;
+}
+.assal-card-audit-toolbar{
+  display:grid;grid-template-columns:auto minmax(160px,220px) auto 1fr;
+  align-items:center;gap:8px;padding:11px 14px 0;
+}
+.assal-card-audit-nav,
+.assal-card-audit-refresh{
+  height:37px;padding:0 11px;border-radius:11px;
+  border:1px solid rgba(148,163,184,.20);
+  background:#0b1730;color:#dbeafe;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;font-weight:850;
+}
+.assal-card-audit-refresh{width:37px;padding:0;background:#11314a;border-color:rgba(56,189,248,.24);}
+.assal-card-audit-date{
+  width:100%;height:37px;padding:0 11px;border-radius:11px;
+  border:1px solid rgba(167,139,250,.24);
+  background:#071124;color:#eef2ff;outline:0;color-scheme:dark;
+}
+.assal-card-audit-date:focus{border-color:rgba(167,139,250,.60);box-shadow:0 0 0 3px rgba(124,58,237,.10);}
+.assal-card-audit-mode-note{
+  justify-self:end;min-width:0;font-size:11.5px;color:#9fb0c7;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.assal-card-audit-summary{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;
+  padding:10px 14px;
+}
+.assal-card-audit-stat{
+  min-width:0;padding:8px 10px;border-radius:12px;
+  border:1px solid rgba(148,163,184,.13);
+  background:rgba(2,6,23,.30);
+  display:flex;align-items:center;justify-content:space-between;gap:7px;
+}
+.assal-card-audit-stat span{font-size:10.5px;color:#9fb0c7;}
+.assal-card-audit-stat b{font-size:14px;color:#f8fafc;font-weight:950;}
+.assal-card-audit-list{
+  margin:0 14px 14px;min-height:220px;max-height:58vh;
+  overflow:auto;padding:8px;
+  border-radius:15px;border:1px solid rgba(148,163,184,.13);
+  background:rgba(2,6,23,.28);
+  scrollbar-width:thin;
+}
+.assal-card-audit-list::-webkit-scrollbar{width:9px;}
+.assal-card-audit-list::-webkit-scrollbar-track{background:#071124;}
+.assal-card-audit-list::-webkit-scrollbar-thumb{background:#2a4270;border-radius:999px;}
+.assal-card-audit-row{
+  display:grid;grid-template-columns:132px minmax(220px,1fr) minmax(260px,1.25fr) auto;
+  align-items:center;gap:10px;
+  min-height:76px;padding:10px 11px;margin-bottom:7px;
+  border-radius:14px;border:1px solid rgba(148,163,184,.13);
+  background:#0b1730;
+}
+.assal-card-audit-row:last-child{margin-bottom:0;}
+.assal-card-audit-row.is-undone{opacity:.70;background:#0a1327;}
+.assal-card-audit-kind{display:flex;flex-direction:column;align-items:flex-start;gap:6px;}
+.assal-card-audit-kind-badge,
+.assal-card-audit-status-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 9px;border-radius:999px;
+  font-size:10.5px;font-weight:950;white-space:nowrap;
+}
+.assal-card-audit-kind-badge.edit{color:#ede9fe;background:rgba(124,58,237,.18);border:1px solid rgba(167,139,250,.30);}
+.assal-card-audit-kind-badge.delete{color:#fecdd3;background:rgba(190,24,93,.16);border:1px solid rgba(251,113,133,.27);}
+.assal-card-audit-kind-badge.undo{color:#bbf7d0;background:rgba(22,163,74,.15);border:1px solid rgba(74,222,128,.25);}
+.assal-card-audit-status-badge{color:#cbd5e1;background:#111c34;border:1px solid rgba(148,163,184,.16);}
+.assal-card-audit-time{font-size:10.5px;color:#94a3b8;direction:rtl;}
+.assal-card-audit-main{min-width:0;text-align:right;}
+.assal-card-audit-customer{font-size:13.5px;font-weight:950;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.assal-card-audit-item{margin-top:4px;font-size:11.5px;color:#aebdd2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.assal-card-audit-cardday{display:inline-block;margin-top:5px;padding:2px 7px;border-radius:999px;font-size:9.5px;color:#bae6fd;background:rgba(14,165,233,.11);border:1px solid rgba(125,211,252,.16);}
+.assal-card-audit-changes{min-width:0;display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-start;}
+.assal-card-audit-change{
+  max-width:100%;padding:4px 8px;border-radius:9px;
+  font-size:10.5px;color:#dbeafe;background:#101d37;border:1px solid rgba(96,165,250,.14);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.assal-card-audit-change strong{color:#fef3c7;font-weight:950;}
+.assal-card-audit-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;}
+.assal-card-audit-open,
+.assal-card-audit-undo{
+  height:33px;padding:0 10px;border-radius:10px;
+  border:1px solid transparent;cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:10.5px;font-weight:950;white-space:nowrap;
+}
+.assal-card-audit-open{color:#dbeafe;background:#102348;border-color:rgba(96,165,250,.22);}
+.assal-card-audit-undo{color:#ecfeff;background:#0e7490;border-color:rgba(103,232,249,.22);}
+.assal-card-audit-undo:disabled{opacity:.42;cursor:not-allowed;}
+.assal-card-audit-empty{
+  min-height:230px;display:grid;place-items:center;text-align:center;
+  padding:24px;color:#aebdd2;line-height:1.9;
+}
+.assal-card-audit-empty i{display:block;margin:0 auto 10px;font-size:30px;color:#64748b;}
+body.assal-card-audit-open{overflow:hidden !important;}
+@media(max-width:790px){
+  .assal-card-audit-backdrop{padding:7px;}
+  .assal-card-audit-shell{width:100%;max-height:96vh;border-radius:17px;}
+  .assal-card-audit-toolbar{grid-template-columns:auto 1fr auto;}
+  .assal-card-audit-mode-note{grid-column:1/-1;justify-self:stretch;text-align:center;}
+  .assal-card-audit-summary{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .assal-card-audit-row{grid-template-columns:1fr;gap:8px;}
+  .assal-card-audit-kind{flex-direction:row;align-items:center;flex-wrap:wrap;}
+  .assal-card-audit-actions{justify-content:stretch;}
+  .assal-card-audit-open,.assal-card-audit-undo{flex:1;justify-content:center;}
+}
+@media(prefers-reduced-motion:reduce){
+  .assal-card-audit-backdrop *, .assal-card-audit-btn{animation:none !important;transition:none !important;}
+}
+</style>
+
 <style id="debts-only-styles">
   /* ===== ديون الزبائن (Scoped) — إضافة فقط بدون لمس تصميمك العام ===== */
   
@@ -8910,6 +9115,14 @@ html body .payment-row{
                 title="حجم تخزين المتصفح"
                 aria-label="حجم تخزين المتصفح">
           <i class="fa-solid fa-database"></i>
+        </button>
+
+        <!-- أرشيف تعديلات وحذف أسطر المواد حسب يوم تنفيذ الحركة -->
+        <button class="icon assal-tool-action" id="btnDayCardAudit"
+                title="أرشيف اليوم"
+                aria-label="أرشيف اليوم">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+          <span class="assal-day-audit-dot" aria-hidden="true"></span>
         </button>
 
         <!-- فحص شامل لفواتير الجملة القديمة في كل الأيام -->
@@ -14741,6 +14954,9 @@ function assalInlineEditSave(card, line){
     const realLine = found.realLine;
     if(!realCard || !realLine){ try{ showToast('error','تعذر العثور على السطر الأصلي'); }catch(_){ } return; }
 
+    const __assalAuditBeforeEdit = (window.assalCardAuditLineSnapshot)
+      ? window.assalCardAuditLineSnapshot(realLine)
+      : { cat:String(realLine.cat||''), item:String(realLine.item||''), price:Number(realLine.price)||0, qty:String(realLine.qty||''), note:String(realLine.note||'') };
     const t = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
     realLine.cat = cat;
     realLine.item = item;
@@ -14756,7 +14972,23 @@ function assalInlineEditSave(card, line){
     try{ window.__assalReturnItemValidation = null; }catch(_){ }
 
     window.__assalInlineLineEdit = null;
-    try{ save(); }catch(_){ }
+    let __assalAuditEditSaved = true;
+    try{
+      const __assalSaveResult = save();
+      if(__assalSaveResult && __assalSaveResult.ok === false) __assalAuditEditSaved = false;
+    }catch(_){ __assalAuditEditSaved = false; }
+    if(__assalAuditEditSaved && window.assalCardAuditRecordEdit){
+      try{
+        window.assalCardAuditRecordEdit(
+          realCard,
+          realLine,
+          __assalAuditBeforeEdit,
+          window.assalCardAuditLineSnapshot(realLine),
+          t,
+          st.day || assalInlineEditDayOf(card)
+        );
+      }catch(_){ }
+    }
     try{ renderBoard(); }catch(_){ }
     try{ renderRail(); }catch(_){ }
     try{ refreshStats(); }catch(_){ }
@@ -15396,6 +15628,23 @@ const typeLabel =
 typeBadge.textContent = typeLabel;
 custWrap.appendChild(typeBadge);
 
+const __assalCardAuditInfo = window.assalCardAuditGetCardInfo
+  ? window.assalCardAuditGetCardInfo(card)
+  : null;
+if(__assalCardAuditInfo && __assalCardAuditInfo.count > 0){
+  const __assalCardAuditBtn = CE('button','assal-card-audit-btn');
+  __assalCardAuditBtn.type = 'button';
+  __assalCardAuditBtn.title = 'أرشيف البطاقة';
+  __assalCardAuditBtn.setAttribute('aria-label','أرشيف البطاقة');
+  __assalCardAuditBtn.innerHTML = '<i class="fa-solid fa-clock-rotate-left"></i><span class="assal-card-audit-badge">' + Math.min(99, __assalCardAuditInfo.count) + '</span>';
+  __assalCardAuditBtn.onclick = function(ev){
+    ev.preventDefault();
+    ev.stopPropagation();
+    try{ window.assalOpenCardAudit && window.assalOpenCardAudit(card); }catch(_){ }
+  };
+  custWrap.appendChild(__assalCardAuditBtn);
+}
+
 // زر تصحيح الفاتورة القديمة المدخلة جملة بالخطأ — لا يظهر لفروع عسل الثلاثة.
 if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer || '')) {
   const convertToCreditBtn = CE('button', 'assal-wholesale-to-credit-btn');
@@ -15452,6 +15701,11 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
         if (ln.returned) it.classList.add('returned');
         if (ln.paid) it.classList.add('paid');
 
+        const __assalAuditEditMeta = window.assalCardAuditGetLineEditMeta
+          ? window.assalCardAuditGetLineEditMeta(card, ln)
+          : null;
+        if(__assalAuditEditMeta) it.classList.add('assal-audit-edited-line');
+
         // وميض نتيجة بحث المادة: مستقل عن حالة السطر (مدفوع/راجع/آجل)
         if (itemQ && String(ln.item || '').toLowerCase().includes(itemQ)) {
           it.classList.add('item-search-hit');
@@ -15496,7 +15750,9 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
 
         const btnEdit = CE('button', 'btn-mini btn-edit');
         btnEdit.innerHTML = '<i class="fa-regular fa-pen-to-square"></i>';
-        btnEdit.title = 'تعديل المادة';
+        btnEdit.title = __assalAuditEditMeta
+          ? ('آخر تعديل: ' + (window.assalCardAuditFormatDateTime ? window.assalCardAuditFormatDateTime(__assalAuditEditMeta.at) : __assalAuditEditMeta.at))
+          : 'تعديل المادة';
 
         const __assalEditOpen = (typeof assalInlineEditIsOpen === 'function') && assalInlineEditIsOpen();
         const __assalThisEditing = (typeof assalInlineEditIsCurrent === 'function') && assalInlineEditIsCurrent(card, ln);
@@ -15685,6 +15941,10 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
             realLine = ln;
           }
 
+          const __assalAuditDeleteBefore = window.assalCardAuditFullLineSnapshot
+            ? window.assalCardAuditFullLineSnapshot(realLine)
+            : JSON.parse(JSON.stringify(realLine));
+          const __assalAuditDeleteIndex = Math.max(0, (realCard.lines || []).indexOf(realLine));
           const delTs = nowISO();
           realLine.deletedAt = delTs;
           realLine.updatedAt = delTs;
@@ -15692,7 +15952,24 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
           // حدّث وقت البطاقة الحقيقية حتى الدمج/الفرز يحترم آخر تعديل
           realCard.updatedAt = delTs;
 
-          save();
+          let __assalAuditDeleteSaved = true;
+          try{
+            const __assalSaveResult = save();
+            if(__assalSaveResult && __assalSaveResult.ok === false) __assalAuditDeleteSaved = false;
+          }catch(_){ __assalAuditDeleteSaved = false; }
+          if(__assalAuditDeleteSaved && window.assalCardAuditRecordDelete){
+            try{
+              window.assalCardAuditRecordDelete(
+                realCard,
+                realLine,
+                __assalAuditDeleteBefore,
+                window.assalCardAuditFullLineSnapshot(realLine),
+                __assalAuditDeleteIndex,
+                delTs,
+                (card && card.__day) || selectedDay
+              );
+            }catch(_){ }
+          }
           renderBoard();
           renderRail();
           refreshStats();
@@ -15846,6 +16123,9 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
       stylePayAll(btnPayAll, card);
     }
     bindWholesalePreparedSwitch(btnPayAll, card);
+    if(btnPayAll.dataset.wholesaleMode !== 'prepared' && window.assalCardAuditApplyPayAllTitle){
+      try{ window.assalCardAuditApplyPayAllTitle(btnPayAll, card); }catch(_){ }
+    }
 
     btnPayAll.onclick = async () => {
       if (btnPayAll.dataset.wholesaleMode === 'prepared') {
@@ -15907,7 +16187,21 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
 
       realCard.updatedAt = payAllTs;
 
-      save();
+      let __assalAuditPayAllSaved = true;
+      try{
+        const __assalSaveResult = save();
+        if(__assalSaveResult && __assalSaveResult.ok === false) __assalAuditPayAllSaved = false;
+      }catch(_){ __assalAuditPayAllSaved = false; }
+      if(__assalAuditPayAllSaved && window.assalCardAuditSetPayAllMeta){
+        try{
+          window.assalCardAuditSetPayAllMeta(
+            realCard,
+            makePaid ? 'pay' : 'undo',
+            payAllTs,
+            (card && card.__day) || selectedDay
+          );
+        }catch(_){ }
+      }
       try{ assalInvalidateDebtBadgeCache && assalInvalidateDebtBadgeCache(); }catch{}
       renderBoard();
       renderRail();
@@ -33789,11 +34083,631 @@ html body .card .item.assal-smart-added-item-safe-final{
 })();
 </script>
 
+<script id="assal-card-audit-server-sync-final-script">
+(function(){
+  'use strict';
+
+  var DAY_PREFIX = 'ASSAL_CARD_ACTION_DAY_V1::';
+  var CARD_PREFIX = 'ASSAL_CARD_ACTION_CARD_V1::';
+  var DAYS_INDEX_KEY = 'ASSAL_CARD_ACTION_DAYS_V1';
+  var SERVER_QUEUE_KEY = 'ASSAL_CARD_AUDIT_SERVER_QUEUE_V1';
+  var DAY_LIMIT = 1000;
+  var CARD_LIMIT = 260;
+  var SERVER_BATCH_LIMIT = 40;
+  var SERVER_FETCH_TTL = 45000;
+  var dayCache = new Map();
+  var cardCache = new Map();
+  var serverDayFetchedAt = new Map();
+  var serverCardDayFetchedAt = new Map();
+  var serverDayBusy = new Map();
+  var serverCardDayBusy = new Map();
+  var serverFlushBusy = false;
+  var serverFlushTimer = 0;
+  var modalState = { mode:'day', day:'', cardDay:'', cardId:'', customer:'', loading:false, serverError:'' };
+
+  function safe(v){ return String(v == null ? '' : v); }
+  function clone(v){ try{ return JSON.parse(JSON.stringify(v)); }catch(_){ return null; } }
+  function esc(v){ return safe(v).replace(/[&<>"']/g,function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]; }); }
+  function id(){
+    try{ if(typeof genId === 'function') return 'aud_' + genId(); }catch(_){ }
+    return 'aud_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,9);
+  }
+  function localDay(input){
+    var d = input ? new Date(input) : new Date();
+    if(isNaN(d.getTime())) d = new Date();
+    var y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+    return y+'-'+m+'-'+day;
+  }
+  function cardDayOf(card, explicit){
+    return safe(explicit || (card && card.__day) || (typeof selectedDay === 'string' ? selectedDay : '') || localDay());
+  }
+  function cardIdOf(card){ return safe(card && card.id); }
+  function lineIdOf(line){
+    try{ if(typeof assalInlineEditLineId === 'function') return safe(assalInlineEditLineId(line)); }catch(_){ }
+    try{ if(typeof lineKey === 'function') return safe(lineKey(line)); }catch(_){ }
+    return safe(line && (line.lineId || line.id));
+  }
+  function cardKey(day, cardId){ return safe(day)+'::'+safe(cardId); }
+  function cardStorageKey(day, cardId){ return CARD_PREFIX + encodeURIComponent(safe(day)) + '::' + encodeURIComponent(safe(cardId)); }
+  function dayStorageKey(day){ return DAY_PREFIX + safe(day); }
+  function readJSON(key, fallback){
+    try{ var raw=localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; }catch(_){ return fallback; }
+  }
+  function writeJSON(key, value, quiet){
+    try{ localStorage.setItem(key, JSON.stringify(value)); return true; }catch(err){
+      try{ console.warn('[ASSAL card audit] local save failed',err); }catch(_){ }
+      if(!quiet){ try{ if(typeof showToast==='function') showToast('error','تعذر حفظ أرشيف الحركة محلياً'); }catch(_){ } }
+      return false;
+    }
+  }
+  function mergeOneAction(oldAction,newAction){
+    var merged=Object.assign({},oldAction||{},newAction||{});
+    if(safe(oldAction&&oldAction.status)==='undone'||safe(newAction&&newAction.status)==='undone'){
+      merged.status='undone';
+      merged.undoneAt=safe((newAction&&newAction.undoneAt)||(oldAction&&oldAction.undoneAt)||merged.undoneAt);
+      merged.undoId=safe((newAction&&newAction.undoId)||(oldAction&&oldAction.undoId)||merged.undoId);
+    }
+    return merged;
+  }
+  function mergeActionLists(a,b){
+    var map=new Map();
+    (Array.isArray(a)?a:[]).concat(Array.isArray(b)?b:[]).forEach(function(x){
+      if(!x||!x.id)return;
+      var key=safe(x.id);
+      map.set(key,map.has(key)?mergeOneAction(map.get(key),x):clone(x));
+    });
+    return Array.from(map.values()).sort(function(x,y){return safe(x&&x.at).localeCompare(safe(y&&y.at));});
+  }
+  function normalizeDayRecord(rec, day){
+    rec = rec && typeof rec==='object' ? rec : {};
+    if(!Array.isArray(rec.actions)) rec.actions=[];
+    rec.actions=mergeActionLists(rec.actions,[]);
+    rec.version=1; rec.day=safe(day); return rec;
+  }
+  function normalizeCardRecord(rec, day, cardId){
+    rec = rec && typeof rec==='object' ? rec : {};
+    if(!Array.isArray(rec.actions)) rec.actions=[];
+    rec.actions=mergeActionLists(rec.actions,[]);
+    if(!rec.meta || typeof rec.meta!=='object') rec.meta={};
+    rec.version=1; rec.cardDay=safe(day); rec.cardId=safe(cardId); return rec;
+  }
+  function getDayRecord(day, fresh){
+    day=safe(day||localDay());
+    if(!fresh && dayCache.has(day)) return dayCache.get(day);
+    var rec=normalizeDayRecord(readJSON(dayStorageKey(day),null),day);
+    dayCache.set(day,rec); return rec;
+  }
+  function putDayRecord(rec, quiet){
+    rec=normalizeDayRecord(rec,rec.day||localDay());
+    if(rec.actions.length>DAY_LIMIT) rec.actions=rec.actions.slice(-DAY_LIMIT);
+    rec.updatedAt=new Date().toISOString();
+    dayCache.set(rec.day,rec);
+    if(!writeJSON(dayStorageKey(rec.day),rec,quiet)) return false;
+    var idx=readJSON(DAYS_INDEX_KEY,[]);
+    if(!Array.isArray(idx)) idx=[];
+    if(idx.indexOf(rec.day)===-1){ idx.push(rec.day); idx.sort().reverse(); writeJSON(DAYS_INDEX_KEY,idx,true); }
+    return true;
+  }
+  function getCardRecord(day, cardId, fresh){
+    day=safe(day); cardId=safe(cardId);
+    var k=cardKey(day,cardId);
+    if(!fresh && cardCache.has(k)) return cardCache.get(k);
+    var rec=normalizeCardRecord(readJSON(cardStorageKey(day,cardId),null),day,cardId);
+    cardCache.set(k,rec); return rec;
+  }
+  function putCardRecord(rec, quiet){
+    rec=normalizeCardRecord(rec,rec.cardDay,rec.cardId);
+    if(rec.actions.length>CARD_LIMIT) rec.actions=rec.actions.slice(-CARD_LIMIT);
+    rec.updatedAt=new Date().toISOString();
+    cardCache.set(cardKey(rec.cardDay,rec.cardId),rec);
+    return writeJSON(cardStorageKey(rec.cardDay,rec.cardId),rec,quiet);
+  }
+  function lineSnapshot(line){
+    return {
+      cat:safe(line&&line.cat), item:safe(line&&line.item),
+      price:Number(line&&line.price)||0, qty:safe(line&&line.qty), note:safe(line&&line.note)
+    };
+  }
+  function fullLineSnapshot(line){ return clone(line) || {}; }
+  function snapshotsEqual(a,b){
+    a=a||{}; b=b||{};
+    return safe(a.cat)===safe(b.cat) && safe(a.item)===safe(b.item) &&
+      Number(a.price||0)===Number(b.price||0) && safe(a.qty)===safe(b.qty) && safe(a.note)===safe(b.note);
+  }
+  function actionBase(kind, card, line, at, cardDay){
+    var cday=cardDayOf(card,cardDay), cid=cardIdOf(card), lid=lineIdOf(line), stamp=at||new Date().toISOString();
+    return {
+      id:id(), kind:kind, status:'active', at:stamp, opDay:localDay(stamp),
+      cardDay:cday, cardId:cid, lineId:lid,
+      customer:safe(card&&card.customer), billType:safe(card&&card.billType),
+      item:safe(line&&line.item), cat:safe(line&&line.cat)
+    };
+  }
+
+  // ===== Server bridge: مستقل تماماً عن serverGetBackup/serverPostBackup =====
+  function serverReady(){
+    try{return !!(navigator.onLine && typeof fetch==='function' && typeof SYNC==='object' && SYNC.BASE_URL && SYNC.TOKEN);}catch(_){return false;}
+  }
+  function serverUrl(mode,params){
+    var base=SYNC.BASE_URL, q={mode:mode,token:SYNC.TOKEN,_:Date.now()};
+    Object.keys(params||{}).forEach(function(k){q[k]=params[k];});
+    var sep=base.indexOf('?')>=0?'&':'?';
+    return base+sep+Object.keys(q).map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(q[k]);}).join('&');
+  }
+  async function serverGet(mode,params){
+    if(!serverReady())throw new Error('offline');
+    var resp=await fetch(serverUrl(mode,params),{method:'GET',cache:'no-store'});
+    if(!resp.ok)throw new Error('audit GET failed');
+    var json=await resp.json();
+    if(!json||json.status==='error')throw new Error((json&&json.message)||'audit server error');
+    return json;
+  }
+  async function serverPostBatch(payload){
+    if(!serverReady())throw new Error('offline');
+    var resp=await fetch(serverUrl('audit-submit',{}),{
+      method:'POST',cache:'no-store',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SYNC.TOKEN},
+      body:JSON.stringify(payload)
+    });
+    if(!resp.ok)throw new Error('audit POST failed');
+    var json=await resp.json();
+    if(!json||json.status==='error')throw new Error((json&&json.message)||'audit server error');
+    return json;
+  }
+  function queueRead(){var q=readJSON(SERVER_QUEUE_KEY,[]);return Array.isArray(q)?q:[];}
+  function queueWrite(q){return writeJSON(SERVER_QUEUE_KEY,Array.isArray(q)?q:[],true);}
+  function queueKey(item){
+    if(item&&item.type==='action')return 'a:'+safe(item.payload&&item.payload.id);
+    return 'm:'+safe(item&&item.payload&&item.payload.cardDay)+':'+safe(item&&item.payload&&item.payload.cardId);
+  }
+  function queuePut(item){
+    if(!item||!item.payload)return;
+    var q=queueRead(), key=queueKey(item), replaced=false;
+    for(var i=0;i<q.length;i++){
+      if(queueKey(q[i])===key){
+        if(item.type==='meta')q[i]=item;
+        replaced=true;break;
+      }
+    }
+    if(!replaced)q.push(item);
+    if(q.length>900)q=q.slice(-900);
+    queueWrite(q); scheduleFlush(250);
+  }
+  function enqueueAction(action){queuePut({type:'action',payload:clone(action),queuedAt:new Date().toISOString()});}
+  function enqueueMeta(meta){queuePut({type:'meta',payload:clone(meta),queuedAt:new Date().toISOString()});}
+  function scheduleFlush(delay){
+    clearTimeout(serverFlushTimer);
+    serverFlushTimer=setTimeout(function(){flushQueue();},Math.max(150,Number(delay)||0));
+  }
+  async function flushQueue(){
+    if(serverFlushBusy||!serverReady())return;
+    var q=queueRead();if(!q.length)return;
+    serverFlushBusy=true;
+    var batch=q.slice(0,SERVER_BATCH_LIMIT), actions=[], metas=[];
+    batch.forEach(function(x){if(x&&x.type==='action')actions.push(x.payload);else if(x&&x.type==='meta')metas.push(x.payload);});
+    try{
+      await serverPostBatch({version:1,actions:actions,metas:metas});
+      var sent=new Set(batch.map(queueKey));
+      queueWrite(queueRead().filter(function(x){return !sent.has(queueKey(x));}));
+      serverFlushBusy=false;
+      if(queueRead().length)scheduleFlush(500);
+    }catch(err){
+      serverFlushBusy=false;
+      try{console.warn('[ASSAL card audit] server sync deferred',err);}catch(_){ }
+      scheduleFlush(15000);
+    }
+  }
+  function mergeRemoteAction(action){
+    if(!action||!action.id||!action.opDay||!action.cardDay||!action.cardId)return;
+    var drec=getDayRecord(action.opDay);
+    drec.actions=mergeActionLists(drec.actions,[action]);
+    putDayRecord(drec,true);
+    var crec=getCardRecord(action.cardDay,action.cardId);
+    crec.actions=mergeActionLists(crec.actions,[action]);
+    putCardRecord(crec,true);
+  }
+  function mergeRemoteDayPayload(payload){
+    (Array.isArray(payload&&payload.actions)?payload.actions:[]).forEach(mergeRemoteAction);
+  }
+  function mergeRemoteCardDayPayload(payload){
+    var cards=payload&&payload.cards&&typeof payload.cards==='object'?payload.cards:{};
+    var dayWrites={};
+    Object.keys(cards).forEach(function(cid){
+      var src=cards[cid]&&typeof cards[cid]==='object'?cards[cid]:{};
+      var rec=getCardRecord(payload.cardDay||'',cid);
+      rec.actions=mergeActionLists(rec.actions,src.actions||[]);
+      rec.meta=Object.assign({},rec.meta||{},src.meta||{});
+      if(src.customer)rec.customer=src.customer;
+      if(src.billType)rec.billType=src.billType;
+      putCardRecord(rec,true);
+      (src.actions||[]).forEach(function(a){
+        if(!a||!a.opDay)return;
+        if(!dayWrites[a.opDay])dayWrites[a.opDay]=getDayRecord(a.opDay);
+        dayWrites[a.opDay].actions=mergeActionLists(dayWrites[a.opDay].actions,[a]);
+      });
+    });
+    Object.keys(dayWrites).forEach(function(d){putDayRecord(dayWrites[d],true);});
+  }
+  async function fetchServerDay(day,force){
+    day=safe(day||localDay());
+    if(!serverReady())return false;
+    var last=Number(serverDayFetchedAt.get(day)||0);
+    if(!force&&Date.now()-last<SERVER_FETCH_TTL)return true;
+    if(serverDayBusy.has(day))return serverDayBusy.get(day);
+    var p=(async function(){
+      try{
+        var json=await serverGet('audit-day',{day:day});
+        mergeRemoteDayPayload(json);
+        serverDayFetchedAt.set(day,Date.now());
+        modalState.serverError='';
+        return true;
+      }catch(err){modalState.serverError='تعذر جلب أرشيف السيرفر حالياً';return false;}
+      finally{serverDayBusy.delete(day);}
+    })();
+    serverDayBusy.set(day,p);return p;
+  }
+  async function fetchServerCardDay(day,force){
+    day=safe(day||localDay());
+    if(!serverReady())return false;
+    var last=Number(serverCardDayFetchedAt.get(day)||0);
+    if(!force&&Date.now()-last<SERVER_FETCH_TTL)return true;
+    if(serverCardDayBusy.has(day))return serverCardDayBusy.get(day);
+    var p=(async function(){
+      try{
+        var json=await serverGet('audit-cardday',{day:day});
+        mergeRemoteCardDayPayload(json);
+        serverCardDayFetchedAt.set(day,Date.now());
+        modalState.serverError='';
+        return true;
+      }catch(err){modalState.serverError='تعذر جلب أرشيف السيرفر حالياً';return false;}
+      finally{serverCardDayBusy.delete(day);}
+    })();
+    serverCardDayBusy.set(day,p);return p;
+  }
+  function refreshVisibleBoardForDay(day){
+    var cur='';try{cur=safe(typeof selectedDay!=='undefined'?selectedDay:window.selectedDay);}catch(_){ }
+    if(cur&&cur===safe(day)){try{if(typeof renderBoard==='function')renderBoard();}catch(_){ }}
+  }
+
+  function storeAction(action){
+    if(!action || !action.id || !action.cardDay || !action.cardId) return false;
+    var drec=getDayRecord(action.opDay);
+    drec.actions=mergeActionLists(drec.actions,[action]);
+    var crec=getCardRecord(action.cardDay,action.cardId);
+    crec.actions=mergeActionLists(crec.actions,[action]);
+    var ok1=putDayRecord(drec), ok2=putCardRecord(crec);
+    if(ok1&&ok2)enqueueAction(action);
+    return !!(ok1&&ok2);
+  }
+  function recordEdit(card,line,before,after,at,cardDay){
+    before=before||lineSnapshot(line); after=after||lineSnapshot(line);
+    if(snapshotsEqual(before,after)) return null;
+    var a=actionBase('edit',card,line,at,cardDay);
+    a.before=clone(before); a.after=clone(after);
+    return storeAction(a) ? a : null;
+  }
+  function recordDelete(card,line,before,after,index,at,cardDay){
+    var a=actionBase('delete',card,line,at,cardDay);
+    a.before=clone(before)||{}; a.after=clone(after)||{}; a.index=Math.max(0,Number(index)||0);
+    return storeAction(a) ? a : null;
+  }
+  function cardActions(card){
+    var d=cardDayOf(card), cid=cardIdOf(card);
+    if(!d||!cid) return [];
+    return getCardRecord(d,cid).actions || [];
+  }
+  function getCardInfo(card){
+    var arr=cardActions(card);
+    return { count:arr.length, lastAt:arr.length ? safe(arr[arr.length-1].at) : '' };
+  }
+  function latestActiveForLine(rec,lineId){
+    return (rec.actions||[]).filter(function(a){
+      return a && a.lineId===lineId && (a.kind==='edit'||a.kind==='delete') && a.status!=='undone';
+    }).sort(function(a,b){ return safe(b.at).localeCompare(safe(a.at)); })[0] || null;
+  }
+  function getLineEditMeta(card,line){
+    var d=cardDayOf(card), cid=cardIdOf(card), lid=lineIdOf(line);
+    if(!d||!cid||!lid) return null;
+    var rec=getCardRecord(d,cid);
+    var a=(rec.actions||[]).filter(function(x){ return x&&x.kind==='edit'&&x.status!=='undone'&&x.lineId===lid; })
+      .sort(function(x,y){ return safe(y.at).localeCompare(safe(x.at)); })[0];
+    return a ? {at:a.at,id:a.id} : null;
+  }
+  function formatDateTime(at){
+    try{ return new Date(at).toLocaleString('ar-IQ',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+    catch(_){ return safe(at); }
+  }
+  function setPayAllMeta(card,mode,at,cardDay){
+    var d=cardDayOf(card,cardDay), cid=cardIdOf(card); if(!d||!cid) return;
+    var rec=getCardRecord(d,cid);
+    rec.meta.payAll={mode:mode==='undo'?'undo':'pay',at:at||new Date().toISOString()};
+    if(putCardRecord(rec)){
+      enqueueMeta({cardDay:d,cardId:cid,customer:safe(card&&card.customer),billType:safe(card&&card.billType),payAll:clone(rec.meta.payAll),updatedAt:rec.meta.payAll.at});
+    }
+  }
+  function applyPayAllTitle(btn,card){
+    if(!btn||!card) return;
+    var d=cardDayOf(card),cid=cardIdOf(card); if(!d||!cid) return;
+    var meta=getCardRecord(d,cid).meta.payAll;
+    if(!meta||!meta.at) return;
+    btn.title=(meta.mode==='undo'?'تم إلغاء تسديد الكل: ':'تم تسديد الكل: ')+formatDateTime(meta.at);
+  }
+  function findCard(action){
+    try{
+      var arr=(typeof days==='object'&&days&&Array.isArray(days[action.cardDay]))?days[action.cardDay]:[];
+      return arr.find(function(c){ return c&&safe(c.id)===safe(action.cardId); })||null;
+    }catch(_){ return null; }
+  }
+  function findLine(card,lineId){
+    if(!card||!Array.isArray(card.lines)) return null;
+    return card.lines.find(function(l){ return lineIdOf(l)===safe(lineId); })||null;
+  }
+  function replaceObject(target,source){
+    Object.keys(target||{}).forEach(function(k){ try{ delete target[k]; }catch(_){ } });
+    Object.assign(target,clone(source)||{});
+  }
+  function markOriginalUndone(action,undoAt,undoId){
+    var drec=getDayRecord(action.opDay);
+    var da=(drec.actions||[]).find(function(x){return x&&x.id===action.id;});
+    if(da){ da.status='undone'; da.undoneAt=undoAt; da.undoId=undoId; }
+    putDayRecord(drec);
+    var crec=getCardRecord(action.cardDay,action.cardId);
+    var ca=(crec.actions||[]).find(function(x){return x&&x.id===action.id;});
+    if(ca){ ca.status='undone'; ca.undoneAt=undoAt; ca.undoId=undoId; }
+    putCardRecord(crec);
+  }
+  function recordUndo(action,at){
+    var u={
+      id:id(),kind:'undo',status:'done',at:at,opDay:localDay(at),
+      cardDay:action.cardDay,cardId:action.cardId,lineId:action.lineId,
+      customer:action.customer,billType:action.billType,item:action.item,cat:action.cat,
+      targetId:action.id,targetKind:action.kind,targetOpDay:action.opDay
+    };
+    markOriginalUndone(action,at,u.id);
+    storeAction(u);
+    return u;
+  }
+  async function undoAction(actionId){
+    var sourceAction=null, sourceCardRec=null;
+    try{
+      sourceAction=selectedActions().find(function(x){return x&&x.id===actionId;})||null;
+      if(sourceAction) sourceCardRec=getCardRecord(sourceAction.cardDay,sourceAction.cardId,true);
+    }catch(_){ }
+    if(!sourceAction){
+      cardCache.forEach(function(rec){ if(sourceAction)return; var a=(rec.actions||[]).find(function(x){return x&&x.id===actionId;}); if(a){sourceAction=a;sourceCardRec=rec;} });
+    }
+    if(!sourceAction){
+      var root=document.getElementById('assalCardAuditBackdrop');
+      var day=root&&root.getAttribute('data-card-day'), cid=root&&root.getAttribute('data-card-id');
+      if(day&&cid){ sourceCardRec=getCardRecord(day,cid,true); sourceAction=(sourceCardRec.actions||[]).find(function(x){return x&&x.id===actionId;})||null; }
+    }
+    var a=sourceAction;
+    if(!a){ try{showToast('error','تعذر العثور على حركة الأرشيف');}catch(_){} return; }
+    if(a.status==='undone'||(a.kind!=='edit'&&a.kind!=='delete')){ try{showToast('info','هذه الحركة ليست متاحة للإعادة');}catch(_){} return; }
+    var rec=sourceCardRec||getCardRecord(a.cardDay,a.cardId,true);
+    var latest=latestActiveForLine(rec,a.lineId);
+    if(!latest||latest.id!==a.id){
+      await confirmInfo('لا يمكن إلغاء هذه الحركة الآن','توجد حركة أحدث على نفس السطر. ألغِ الحركة الأحدث أولاً حتى لا تضيع التعديلات اللاحقة.');
+      return;
+    }
+    var card=findCard(a);
+    if(!card){ await confirmInfo('البطاقة غير متوفرة','لم يعد ممكناً العثور على البطاقة الأصلية بعد السحب أو الدمج. لم يتم تغيير أي بيانات.'); return; }
+    var line=findLine(card,a.lineId);
+    if(!line && a.kind==='edit'){ await confirmInfo('السطر غير متوفر','السطر الأصلي غير موجود، لذلك لم يتم تنفيذ الإعادة.'); return; }
+    if(a.kind==='edit' && !snapshotsEqual(lineSnapshot(line),a.after||{})){
+      await confirmInfo('حماية من التعارض','حالة السطر الحالية تختلف عن الحالة المسجلة بعد التعديل. لم يتم تنفيذ الإعادة حتى لا تُستبدل بيانات أحدث.');
+      return;
+    }
+    if(a.kind==='delete' && line){
+      var expectedDeleted=safe(a.after&&a.after.deletedAt);
+      if(!line.deletedAt || (expectedDeleted && safe(line.deletedAt)!==expectedDeleted)){
+        await confirmInfo('حماية من التعارض','حالة السطر المحذوف تغيّرت بعد تسجيل الحركة. لم يتم تنفيذ الإعادة.');
+        return;
+      }
+    }
+    var ok=await (typeof showConfirm==='function' ? showConfirm({
+      title:a.kind==='delete'?'استعادة السطر المحذوف':'إلغاء تعديل السطر',
+      message:a.kind==='delete'
+        ? 'سيتم استعادة السطر كما كان قبل الحذف. هل تريد المتابعة؟'
+        : 'سيتم إلغاء هذا التعديل وإرجاع بيانات السطر إلى الحالة السابقة. هل تريد المتابعة؟',
+      okText:a.kind==='delete'?'نعم، استعادة السطر':'نعم، إعادة الحالة',
+      cancelText:'تراجع',danger:false
+    }):Promise.resolve(confirm('هل تريد إلغاء هذه الحركة؟')));
+    if(!ok)return;
+
+    var undoAt=new Date().toISOString();
+    var backupLine=line?clone(line):null, backupCardUpdated=card.updatedAt, inserted=false;
+    try{
+      if(a.kind==='edit'){
+        line.cat=safe(a.before&&a.before.cat); line.item=safe(a.before&&a.before.item);
+        line.price=Number(a.before&&a.before.price)||0; line.qty=safe(a.before&&a.before.qty);
+        line.note=safe(a.before&&a.before.note); line.updatedAt=undoAt;
+      }else{
+        var restored=clone(a.before)||{};
+        restored.deletedAt=null; restored.updatedAt=undoAt;
+        if(line){ replaceObject(line,restored); }
+        else{
+          if(!Array.isArray(card.lines))card.lines=[];
+          card.lines.splice(Math.max(0,Math.min(card.lines.length,Number(a.index)||0)),0,restored);
+          line=restored; inserted=true;
+        }
+      }
+      card.updatedAt=undoAt;
+      var res=(typeof save==='function')?save():{ok:true};
+      if(res&&res.ok===false) throw new Error('main save failed');
+    }catch(err){
+      try{
+        if(inserted&&line&&Array.isArray(card.lines)){ var ix=card.lines.indexOf(line); if(ix>=0)card.lines.splice(ix,1); }
+        else if(line&&backupLine)replaceObject(line,backupLine);
+        card.updatedAt=backupCardUpdated;
+      }catch(_){ }
+      try{showToast('error','لم يتم تنفيذ الإعادة لأن الحفظ المحلي لم ينجح');}catch(_){}
+      return;
+    }
+    recordUndo(a,undoAt);
+    try{ if(typeof renderBoard==='function')renderBoard(); }catch(_){}
+    try{ if(typeof renderRail==='function')renderRail(); }catch(_){}
+    try{ if(typeof refreshStats==='function')refreshStats(); }catch(_){}
+    try{ if(window.assalInvalidateDebtBadgeCache)window.assalInvalidateDebtBadgeCache(); }catch(_){}
+    try{ if(window.refreshDebtsUI)window.refreshDebtsUI(); }catch(_){}
+    renderModal();
+    try{showToast('success',a.kind==='delete'?'تمت استعادة السطر':'تمت إعادة السطر إلى حالته السابقة');}catch(_){}
+  }
+  async function confirmInfo(title,message){
+    if(typeof showConfirm==='function') await showConfirm({title:title,message:message,okText:'حسناً',cancelText:'إغلاق',danger:false});
+    else alert(message);
+  }
+  function fieldLabel(k){ return {cat:'الصنف',item:'المادة',price:'السعر',qty:'العدد',note:'الملاحظة'}[k]||k; }
+  function val(k,v){
+    if(k==='price'){ try{return typeof formatIQD==='function'?formatIQD(Number(v)||0):safe(v);}catch(_){return safe(v);} }
+    return safe(v||'—');
+  }
+  function changeChips(a){
+    if(a.kind==='edit'){
+      var out=[]; ['cat','item','price','qty','note'].forEach(function(k){
+        if(safe(a.before&&a.before[k])!==safe(a.after&&a.after[k])) out.push('<span class="assal-card-audit-change"><strong>'+esc(fieldLabel(k))+':</strong> '+esc(val(k,a.before&&a.before[k]))+' ← '+esc(val(k,a.after&&a.after[k]))+'</span>');
+      });
+      return out.join('')||'<span class="assal-card-audit-change">تعديل محفوظ</span>';
+    }
+    if(a.kind==='delete'){
+      return '<span class="assal-card-audit-change"><strong>الصنف:</strong> '+esc(a.before&&a.before.cat||'—')+'</span>'+
+        '<span class="assal-card-audit-change"><strong>العدد:</strong> '+esc(a.before&&a.before.qty||'—')+'</span>'+
+        '<span class="assal-card-audit-change"><strong>السعر:</strong> '+esc(val('price',a.before&&a.before.price))+'</span>';
+    }
+    return '<span class="assal-card-audit-change">تم إلغاء حركة '+(a.targetKind==='delete'?'حذف':'تعديل')+'</span>';
+  }
+  function rowHtml(a){
+    var kind=a.kind==='delete'?'delete':(a.kind==='undo'?'undo':'edit');
+    var label=kind==='delete'?'حذف مادة':(kind==='undo'?'إعادة حركة':'تعديل مادة');
+    var icon=kind==='delete'?'fa-trash-can':(kind==='undo'?'fa-rotate-left':'fa-pen-to-square');
+    var undone=a.status==='undone';
+    var canUndo=(a.kind==='edit'||a.kind==='delete')&&!undone;
+    return '<div class="assal-card-audit-row'+(undone?' is-undone':'')+'" data-action-id="'+esc(a.id)+'">'+
+      '<div class="assal-card-audit-kind"><span class="assal-card-audit-kind-badge '+kind+'"><i class="fa-solid '+icon+'"></i>'+label+'</span>'+
+      '<span class="assal-card-audit-status-badge">'+(undone?'تمت الإعادة':(kind==='undo'?'منفذة':'محفوظة'))+'</span><span class="assal-card-audit-time">'+esc(formatDateTime(a.at))+'</span></div>'+
+      '<div class="assal-card-audit-main"><div class="assal-card-audit-customer">'+esc(a.customer||'زبون غير محدد')+'</div><div class="assal-card-audit-item">'+esc(a.item||(a.before&&a.before.item)||'مادة غير محددة')+'</div><span class="assal-card-audit-cardday">يوم البطاقة: '+esc(a.cardDay)+'</span></div>'+
+      '<div class="assal-card-audit-changes">'+changeChips(a)+'</div>'+
+      '<div class="assal-card-audit-actions"><button type="button" class="assal-card-audit-open" data-open-card="1"><i class="fa-solid fa-arrow-up-right-from-square"></i>فتح البطاقة</button>'+
+      (canUndo?'<button type="button" class="assal-card-audit-undo" data-undo-action="1"><i class="fa-solid fa-rotate-left"></i>إعادة</button>':'')+'</div></div>';
+  }
+  function ensureModal(){
+    var root=document.getElementById('assalCardAuditBackdrop'); if(root)return root;
+    root=document.createElement('div'); root.id='assalCardAuditBackdrop'; root.className='assal-card-audit-backdrop'; root.hidden=true;
+    root.innerHTML='<section class="assal-card-audit-shell" role="dialog" aria-modal="true"><header class="assal-card-audit-head"><div class="assal-card-audit-mark"><i class="fa-solid fa-clock-rotate-left"></i></div><div class="assal-card-audit-titles"><b id="assalCardAuditTitle">أرشيف اليوم</b><span id="assalCardAuditSubtitle">سجل إعلامي محلي ومتزامن عبر ملف سيرفر مستقل</span></div><button type="button" class="assal-card-audit-close" id="assalCardAuditClose" title="إغلاق"><i class="fa-solid fa-xmark"></i></button></header><div class="assal-card-audit-toolbar" id="assalCardAuditToolbar"><button type="button" class="assal-card-audit-nav" id="assalCardAuditPrev"><i class="fa-solid fa-chevron-right"></i></button><input type="date" class="assal-card-audit-date" id="assalCardAuditDate"><button type="button" class="assal-card-audit-nav" id="assalCardAuditNext"><i class="fa-solid fa-chevron-left"></i></button><div class="assal-card-audit-mode-note" id="assalCardAuditModeNote"></div></div><div class="assal-card-audit-summary" id="assalCardAuditSummary"></div><div class="assal-card-audit-list" id="assalCardAuditList"></div></section>';
+    document.body.appendChild(root);
+    root.addEventListener('click',function(ev){
+      if(ev.target===root){closeModal();return;}
+      var row=ev.target&&ev.target.closest&&ev.target.closest('.assal-card-audit-row'); if(!row)return;
+      var actionId=row.getAttribute('data-action-id');
+      if(ev.target.closest('[data-undo-action]')){ev.preventDefault();undoAction(actionId);return;}
+      if(ev.target.closest('[data-open-card]')){ev.preventDefault();openCardFromAction(actionId);return;}
+    });
+    root.querySelector('#assalCardAuditClose').addEventListener('click',closeModal);
+    root.querySelector('#assalCardAuditDate').addEventListener('change',function(){modalState.day=this.value||localDay();loadModalServer(true);renderModal();});
+    root.querySelector('#assalCardAuditPrev').addEventListener('click',function(){moveDay(-1);});
+    root.querySelector('#assalCardAuditNext').addEventListener('click',function(){moveDay(1);});
+    return root;
+  }
+  function moveDay(n){ var d=new Date((modalState.day||localDay())+'T12:00:00');d.setDate(d.getDate()+n);modalState.day=localDay(d);loadModalServer(true);renderModal(); }
+  function closeModal(){ var r=document.getElementById('assalCardAuditBackdrop');if(r)r.hidden=true;document.body.classList.remove('assal-card-audit-open'); }
+  function selectedActions(){
+    if(modalState.mode==='card')return (getCardRecord(modalState.cardDay,modalState.cardId,true).actions||[]).slice();
+    return (getDayRecord(modalState.day||localDay(),true).actions||[]).slice();
+  }
+  function summaryHtml(arr){
+    var edit=arr.filter(function(a){return a.kind==='edit';}).length, del=arr.filter(function(a){return a.kind==='delete';}).length, undo=arr.filter(function(a){return a.kind==='undo';}).length;
+    return '<div class="assal-card-audit-stat"><span>كل الحركات</span><b>'+arr.length+'</b></div><div class="assal-card-audit-stat"><span>تعديل</span><b>'+edit+'</b></div><div class="assal-card-audit-stat"><span>حذف</span><b>'+del+'</b></div><div class="assal-card-audit-stat"><span>إعادة</span><b>'+undo+'</b></div>';
+  }
+  function renderModal(){
+    var root=ensureModal(), title=root.querySelector('#assalCardAuditTitle'), sub=root.querySelector('#assalCardAuditSubtitle'), toolbar=root.querySelector('#assalCardAuditToolbar'), date=root.querySelector('#assalCardAuditDate'), note=root.querySelector('#assalCardAuditModeNote'), list=root.querySelector('#assalCardAuditList'), sum=root.querySelector('#assalCardAuditSummary');
+    var arr=selectedActions().sort(function(a,b){return safe(b.at).localeCompare(safe(a.at));});
+    if(modalState.mode==='card'){
+      title.textContent='أرشيف البطاقة'; sub.textContent=(modalState.customer||'سجل البطاقة')+' • محلي ومتزامن من السيرفر'; toolbar.style.display='none'; root.setAttribute('data-card-day',modalState.cardDay);root.setAttribute('data-card-id',modalState.cardId);
+    }else{
+      title.textContent='أرشيف اليوم';sub.textContent='كل تعديلات وحذف واستعادة أسطر المواد حسب وقت تنفيذ الحركة';toolbar.style.display='grid';date.value=modalState.day||localDay();
+      note.textContent=modalState.loading?'جارٍ جلب أرشيف السيرفر…':(modalState.serverError|| (arr.length?'يعرض '+arr.length+' حركة في اليوم المختار':'لا توجد حركات في اليوم المختار'));
+      root.removeAttribute('data-card-day');root.removeAttribute('data-card-id');
+    }
+    sum.innerHTML=summaryHtml(arr);
+    list.innerHTML=arr.length?arr.map(rowHtml).join(''):'<div class="assal-card-audit-empty"><div><i class="fa-regular fa-folder-open"></i>لا توجد حركات محفوظة ضمن هذا العرض.</div></div>';
+  }
+  async function loadModalServer(force){
+    modalState.loading=true;renderModal();
+    if(modalState.mode==='card')await fetchServerCardDay(modalState.cardDay,force);
+    else await fetchServerDay(modalState.day||localDay(),force);
+    modalState.loading=false;renderModal();
+    if(modalState.mode==='card')refreshVisibleBoardForDay(modalState.cardDay);
+  }
+  function openDayAudit(day){ modalState={mode:'day',day:safe(day||localDay()),cardDay:'',cardId:'',customer:'',loading:false,serverError:''};var r=ensureModal();r.hidden=false;document.body.classList.add('assal-card-audit-open');renderModal();loadModalServer(true); }
+  function openCardAudit(card){ modalState={mode:'card',day:'',cardDay:cardDayOf(card),cardId:cardIdOf(card),customer:safe(card&&card.customer),loading:false,serverError:''};var r=ensureModal();r.hidden=false;document.body.classList.add('assal-card-audit-open');renderModal();loadModalServer(true); }
+  function findActionForOpen(actionId){
+    var arr=selectedActions();return arr.find(function(a){return a&&a.id===actionId;})||null;
+  }
+  function openCardFromAction(actionId){
+    var a=findActionForOpen(actionId);if(!a)return;
+    closeModal();
+    try{ if(typeof selectedDay!=='undefined')selectedDay=a.cardDay;else window.selectedDay=a.cardDay; }catch(_){window.selectedDay=a.cardDay;}
+    try{var c=document.getElementById('cardSearch');if(c)c.value='';var i=document.getElementById('itemSearch');if(i)i.value='';var d=document.getElementById('dayFilter');if(d)d.value='';}catch(_){}
+    try{if(typeof renderBoard==='function')renderBoard();if(typeof renderRail==='function')renderRail();if(typeof refreshStats==='function')refreshStats();}catch(_){}
+    fetchServerCardDay(a.cardDay,false).then(function(){refreshVisibleBoardForDay(a.cardDay);});
+    setTimeout(function(){var el=document.getElementById('card-'+a.cardId);if(!el)return;try{el.scrollIntoView({behavior:'smooth',block:'center'});}catch(_){el.scrollIntoView();}el.classList.add('flash-card');setTimeout(function(){try{el.classList.remove('flash-card');}catch(_){}},1600);},100);
+  }
+  function currentSelectedDay(){try{return safe(typeof selectedDay!=='undefined'?selectedDay:window.selectedDay)||localDay();}catch(_){return localDay();}}
+  function bind(){
+    var btn=document.getElementById('btnDayCardAudit');
+    if(btn&&!btn.__assalCardAuditBound){btn.__assalCardAuditBound=true;btn.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();openDayAudit(localDay());});}
+    document.addEventListener('keydown',function(ev){var root=document.getElementById('assalCardAuditBackdrop');if(ev.key==='Escape'&&root&&!root.hidden){ev.preventDefault();closeModal();}},true);
+    window.addEventListener('storage',function(ev){
+      if(!ev.key)return;
+      if(ev.key.indexOf(DAY_PREFIX)===0)dayCache.delete(ev.key.slice(DAY_PREFIX.length));
+      if(ev.key.indexOf(CARD_PREFIX)===0)cardCache.clear();
+      if(ev.key===SERVER_QUEUE_KEY)scheduleFlush(300);
+    });
+    window.addEventListener('online',function(){scheduleFlush(100);fetchServerCardDay(currentSelectedDay(),true).then(function(){refreshVisibleBoardForDay(currentSelectedDay());});});
+    document.addEventListener('click',function(ev){
+      try{
+        var dayEl=ev.target&&ev.target.closest&&ev.target.closest('.day');
+        if(!dayEl)return;
+        setTimeout(function(){var d=currentSelectedDay();fetchServerCardDay(d,false).then(function(){refreshVisibleBoardForDay(d);});},90);
+      }catch(_){ }
+    },false);
+    document.addEventListener('visibilitychange',function(){
+      if(document.hidden)return;
+      scheduleFlush(300);
+      var d=currentSelectedDay();fetchServerCardDay(d,false).then(function(){refreshVisibleBoardForDay(d);});
+    },false);
+    window.addEventListener('assal:auth-ready',function(){var d=currentSelectedDay();scheduleFlush(200);fetchServerCardDay(d,true).then(function(){refreshVisibleBoardForDay(d);});},{once:false});
+    setTimeout(function(){
+      try{if(typeof renderBoard==='function')renderBoard();}catch(_){}
+      scheduleFlush(400);
+      var d=currentSelectedDay();fetchServerCardDay(d,false).then(function(){refreshVisibleBoardForDay(d);});
+    },0);
+  }
+
+  window.assalCardAuditLineSnapshot=lineSnapshot;
+  window.assalCardAuditFullLineSnapshot=fullLineSnapshot;
+  window.assalCardAuditRecordEdit=recordEdit;
+  window.assalCardAuditRecordDelete=recordDelete;
+  window.assalCardAuditGetCardInfo=getCardInfo;
+  window.assalCardAuditGetLineEditMeta=getLineEditMeta;
+  window.assalCardAuditFormatDateTime=formatDateTime;
+  window.assalCardAuditSetPayAllMeta=setPayAllMeta;
+  window.assalCardAuditApplyPayAllTitle=applyPayAllTitle;
+  window.assalOpenCardAudit=openCardAudit;
+  window.assalOpenDayCardAudit=openDayAudit;
+  window.assalCardAuditFlushServer=flushQueue;
+  window.assalCardAuditFetchServerDay=fetchServerDay;
+  window.assalCardAuditFetchServerCardDay=fetchServerCardDay;
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
+})();
+</script>
+
 <script id="assal-header-tools-mode-switch-final-script">
 (function(){
   'use strict';
   var mainIds = ['btnLogout','btnRefresh','openPaymentsBtn','openDebtsBtn','btnCompatSearch','btnImportAll'];
-  var toolIds = ['btnAttendanceOpen','btnDeviceRole','openDailyReviewBtn','btnExportLocal','btnAdvancedBackups','btnSecureImportBackup','btnNextDay','btnStorageInfo','btnWholesaleAudit'];
+  var toolIds = ['btnAttendanceOpen','btnDeviceRole','openDailyReviewBtn','btnExportLocal','btnAdvancedBackups','btnSecureImportBackup','btnNextDay','btnStorageInfo','btnDayCardAudit','btnWholesaleAudit'];
   function $(id){ return document.getElementById(id); }
   function addClass(el, cls){ if(el && !el.classList.contains(cls)) el.classList.add(cls); }
   function bind(){
