@@ -13610,7 +13610,10 @@ let __toastBusy = false;
 function showToast(type='info', message='تم التنفيذ', timeout=2200){
   // ندفع دائمًا للصف — ما نعتمد على حالة السلاش
   __toastQueue.push({ type:type.toLowerCase(), message, timeout });
-  if(!__toastBusy) processToastQueueUnified();
+  if(!__toastBusy) processToastQueueUnified().catch(function(err){
+    __toastBusy = false;
+    try{ console.error('[ASSAL toast queue]', err); }catch(_){ }
+  });
 }
 
 async function processToastQueueUnified(){
@@ -33675,6 +33678,9 @@ html body .card .card-head .cust.assal-customer-rename-enabled::before{
     return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#39;');
   }
 
+  /* واجهة داخلية آمنة لنظام طلبات التعديل؛ لا تغيّر سلوك زر تعديل الاسم نفسه. */
+  window.assalApplyRenameCustomerEverywhere = applyRenameCustomerEverywhere;
+
   function assalAskCustomerRenamePassword(){
     return new Promise(function(resolve){
       try{
@@ -33799,7 +33805,14 @@ html body .card .card-head .cust.assal-customer-rename-enabled::before{
           ? await showConfirm({ title:'تغيير اسم الزبون بكل التطبيق', message:msg, okText:'نعم، غيّر الاسم', cancelText:'إلغاء', danger:true, modalClass:'assal-customer-rename-confirm-modal' })
           : confirm('تغيير اسم الزبون في كل السجلات المطابقة؟');
         if(!ok){ try{ renderBoard(); }catch(_){ } return; }
-        const result = applyRenameCustomerEverywhere(oldName, newName);
+        const result = (typeof window.assalCardRequestsRunCustomerRename === 'function')
+          ? window.assalCardRequestsRunCustomerRename(
+              oldName,
+              newName,
+              function(){ return applyRenameCustomerEverywhere(oldName, newName); },
+              counts
+            )
+          : applyRenameCustomerEverywhere(oldName, newName);
         try{ showToast('success','تم تغيير اسم الزبون بكل السجلات المطابقة'); }catch(_){ }
         try{ console.info('[ASSAL CUSTOMER RENAME]', {oldName,newName,result}); }catch(_){ }
       }
@@ -35440,5 +35453,679 @@ html body .card .item.assal-smart-added-item-safe-final{
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind, false); else bind();
 })();
 </script>
+
+<!-- ASSAL ADMIN CARD CHANGE REQUESTS / MAIN APPROVAL FINAL - START -->
+<style id="assal-card-change-requests-final-style">
+#btnCardChangeRequests{position:relative;display:none}
+#btnCardChangeRequests.assal-cr-visible{display:grid}
+.assal-cr-count{
+  position:absolute;top:-7px;inset-inline-end:-7px;min-width:19px;height:19px;padding:0 5px;
+  border-radius:999px;display:grid;place-items:center;font-size:10px;font-weight:950;line-height:1;
+  color:#fff;background:linear-gradient(135deg,#ef4444,#b91c1c);border:1px solid rgba(254,202,202,.6);
+  box-shadow:0 6px 16px rgba(185,28,28,.32);pointer-events:none
+}
+.assal-cr-count[hidden]{display:none!important}
+.assal-cr-backdrop{
+  position:fixed;inset:0;z-index:2147483100;display:none;place-items:center;padding:14px;
+  background:rgba(2,6,23,.76);backdrop-filter:blur(6px)
+}
+.assal-cr-backdrop.active{display:grid}
+.assal-cr-shell{
+  width:min(1120px,97vw);max-height:min(92vh,900px);overflow:hidden;display:flex;flex-direction:column;
+  color:#e7eef9;border-radius:22px;border:1px solid rgba(56,189,248,.26);
+  background:radial-gradient(560px 260px at 100% 0%,rgba(14,165,233,.15),transparent 65%),
+             radial-gradient(460px 240px at 0% 100%,rgba(124,58,237,.13),transparent 66%),
+             linear-gradient(180deg,#101b33,#091226);
+  box-shadow:0 30px 90px rgba(0,0,0,.62),inset 0 1px 0 rgba(255,255,255,.05)
+}
+.assal-cr-head{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(148,163,184,.14);background:linear-gradient(90deg,rgba(14,165,233,.18),rgba(124,58,237,.13))}
+.assal-cr-mark{width:45px;height:45px;flex:0 0 auto;display:grid;place-items:center;border-radius:14px;color:#fff;font-size:18px;background:linear-gradient(135deg,#0891b2,#7c3aed);box-shadow:0 10px 24px rgba(14,165,233,.19),inset 0 1px 0 rgba(255,255,255,.16)}
+.assal-cr-titles{min-width:0;display:flex;flex-direction:column;gap:2px;text-align:right}
+.assal-cr-titles b{font-size:17px;font-weight:950;color:#f8fafc}
+.assal-cr-titles span{font-size:11.5px;color:#aebdd2}
+.assal-cr-head-actions{margin-inline-start:auto;display:flex;align-items:center;gap:7px}
+.assal-cr-refresh,.assal-cr-close{height:36px;border-radius:11px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;font-weight:900}
+.assal-cr-refresh{padding:0 11px;border:1px solid rgba(56,189,248,.28);background:linear-gradient(135deg,#075985,#0f766e);color:#ecfeff}
+.assal-cr-close{width:36px;border:1px solid rgba(251,113,133,.28);background:linear-gradient(135deg,#4c1d32,#6b2846);color:#ffe4e6}
+.assal-cr-tabs{display:flex;align-items:center;gap:7px;padding:11px 14px 0}
+.assal-cr-tab{height:37px;padding:0 14px;border-radius:11px 11px 0 0;border:1px solid rgba(148,163,184,.17);border-bottom:0;background:#0a152b;color:#aebdd2;font-weight:900;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+.assal-cr-tab.active{color:#fff;background:linear-gradient(135deg,#0e7490,#5b21b6);border-color:rgba(125,211,252,.25)}
+.assal-cr-toolbar{display:flex;align-items:center;justify-content:space-between;gap:9px;padding:10px 14px;border-top:1px solid rgba(148,163,184,.10);border-bottom:1px solid rgba(148,163,184,.10);background:rgba(2,6,23,.20)}
+.assal-cr-summary{font-size:12px;color:#aebdd2;font-weight:850}
+.assal-cr-send-all{height:36px;padding:0 13px;border-radius:11px;border:1px solid rgba(125,211,252,.26);background:linear-gradient(135deg,#0891b2,#2563eb);color:#fff;font-weight:950;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+.assal-cr-send-all:disabled{opacity:.4;cursor:not-allowed}
+.assal-cr-list{min-height:220px;max-height:66vh;overflow:auto;padding:12px 14px 16px;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin}
+.assal-cr-card{border:1px solid rgba(148,163,184,.16);border-radius:16px;background:linear-gradient(180deg,#0c1932,#091329);overflow:hidden;box-shadow:0 12px 28px rgba(0,0,0,.24)}
+.assal-cr-card.pending{border-color:rgba(56,189,248,.28)}
+.assal-cr-card.applied{border-color:rgba(34,197,94,.30)}
+.assal-cr-card.rejected,.assal-cr-card.conflict{border-color:rgba(251,113,133,.34)}
+.assal-cr-card-head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding:11px 12px;background:rgba(2,6,23,.24);border-bottom:1px solid rgba(148,163,184,.11)}
+.assal-cr-card-title{min-width:0;text-align:right}
+.assal-cr-card-title b{display:block;color:#f8fafc;font-size:14px;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.assal-cr-card-title span{display:block;margin-top:3px;color:#9fb0c7;font-size:11px}
+.assal-cr-status{padding:4px 9px;border-radius:999px;font-size:10.5px;font-weight:950;white-space:nowrap;border:1px solid rgba(148,163,184,.18);background:#0b1730;color:#dbeafe}
+.assal-cr-status.pending_review{color:#bae6fd;background:#082f49;border-color:rgba(56,189,248,.3)}
+.assal-cr-status.approved_pending_upload{color:#fde68a;background:#3b2f0a;border-color:rgba(245,158,11,.35)}
+.assal-cr-status.applied{color:#bbf7d0;background:#052e2a;border-color:rgba(34,197,94,.34)}
+.assal-cr-status.rejected,.assal-cr-status.conflict,.assal-cr-status.cancelled{color:#fecaca;background:#4c0b0b;border-color:rgba(239,68,68,.36)}
+.assal-cr-changes{padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.assal-cr-change{display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1fr);gap:7px;align-items:center;padding:7px 9px;border-radius:11px;border:1px solid rgba(148,163,184,.11);background:rgba(2,6,23,.27);font-size:11.5px}
+.assal-cr-change .lbl{color:#aebdd2;font-weight:900}
+.assal-cr-change .before,.assal-cr-change .after{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;padding:3px 7px;border-radius:8px;border:1px solid rgba(148,163,184,.12)}
+.assal-cr-change .before{color:#fecaca;background:rgba(127,29,29,.12)}
+.assal-cr-change .after{color:#bbf7d0;background:rgba(22,101,52,.12)}
+.assal-cr-more{padding:2px 12px 10px;color:#9fb0c7;font-size:10.5px;text-align:center}
+.assal-cr-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;padding:0 12px 12px}
+.assal-cr-btn{height:35px;padding:0 12px;border-radius:10px;border:1px solid transparent;font-weight:950;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.assal-cr-btn.send,.assal-cr-btn.approve{color:#fff;background:linear-gradient(135deg,#0891b2,#2563eb);border-color:rgba(125,211,252,.25)}
+.assal-cr-btn.reject,.assal-cr-btn.delete{color:#ffe4e6;background:linear-gradient(135deg,#4c1d32,#6b2846);border-color:rgba(251,113,133,.24)}
+.assal-cr-btn.retry{color:#1f1300;background:linear-gradient(135deg,#f59e0b,#d97706);border-color:rgba(245,158,11,.45)}
+.assal-cr-empty{min-height:250px;display:grid;place-items:center;text-align:center;padding:28px;color:#aebdd2;line-height:1.9;border:1px dashed rgba(148,163,184,.19);border-radius:15px;background:rgba(2,6,23,.20)}
+.assal-cr-empty i{display:block;margin:0 auto 9px;font-size:32px;color:#34d399}
+.assal-cr-conflict{margin:0 12px 10px;padding:9px 11px;border-radius:11px;color:#fecaca;background:rgba(127,29,29,.15);border:1px solid rgba(248,113,113,.24);font-size:11.5px;line-height:1.7}
+@media(max-width:700px){
+  .assal-cr-backdrop{padding:6px}.assal-cr-shell{width:100%;max-height:97vh;border-radius:17px}
+  .assal-cr-head{padding:11px}.assal-cr-mark{width:40px;height:40px}.assal-cr-titles b{font-size:15px}
+  .assal-cr-refresh span{display:none}.assal-cr-toolbar{align-items:stretch;flex-direction:column}.assal-cr-send-all{width:100%;justify-content:center}
+  .assal-cr-change{grid-template-columns:1fr}.assal-cr-change .lbl{text-align:center}.assal-cr-actions{display:grid;grid-template-columns:1fr 1fr}.assal-cr-btn{width:100%}
+}
+</style>
+<script id="assal-card-change-requests-final-script">
+(function(){
+  'use strict';
+  if(window.__ASSAL_CARD_CHANGE_REQUESTS_FINAL__) return;
+  window.__ASSAL_CARD_CHANGE_REQUESTS_FINAL__ = true;
+
+  var STORE_KEY = 'ASSAL_CARD_CHANGE_REQUESTS_LOCAL_V1';
+  var LOCAL_APPLIED_KEY = 'ASSAL_CARD_CHANGE_REQUESTS_APPLIED_MAIN_V1';
+  var VERSION = 2;
+  var ADMIN_EMAIL = 'admin-debts@assal.com';
+  var MAIN_EMAIL = 'assal-debts@assal.com';
+  var MAX_DRAFTS = 260;
+  var MAX_ARCHIVE = 1000;
+  var state = {version:VERSION,startedAt:'',drafts:[],archive:[]};
+  var snapshotMap = new Map();
+  var ready = false;
+  var suppressCapture = 0;
+  var persistTimer = 0;
+  var refreshTimer = 0;
+  var activeTab = 'drafts';
+  var busyIds = new Set();
+  var requestCache = [];
+  var originalSave = null;
+  var legacyDraftsCleared = 0;
+
+  function safe(v){ return String(v == null ? '' : v); }
+  function clone(v){ try{ return JSON.parse(JSON.stringify(v)); }catch(_){ return null; } }
+  function esc(v){ return safe(v).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];}); }
+  function now(){ return new Date().toISOString(); }
+  function id(){ try{ if(typeof genId==='function') return 'cr_'+genId(); }catch(_){ } return 'cr_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10); }
+  function email(){ return safe(window.ASSAL_LOGIN_EMAIL || '').trim().toLowerCase(); }
+  function isAdmin(){ try{ return window.ASSAL_IS_ADMIN_DEBTS===true || email()===ADMIN_EMAIL; }catch(_){ return false; } }
+  function isMain(){ try{ return window.ASSAL_IS_MAIN_DEBTS===true || email()===MAIN_EMAIL; }catch(_){ return false; } }
+  function online(){ try{ return !!(navigator.onLine && typeof fetch==='function' && typeof SYNC==='object' && SYNC.BASE_URL && SYNC.TOKEN); }catch(_){ return false; } }
+  function deepEqual(a,b){ try{ return JSON.stringify(a)===JSON.stringify(b); }catch(_){ return a===b; } }
+  function isMissingValue(v){ return !!(v && typeof v==='object' && v.__assalMissing===true); }
+  function toDisplay(v){
+    if(isMissingValue(v)) return 'غير موجود';
+    if(v == null || v === '') return '—';
+    if(typeof v === 'boolean') return v ? 'نعم' : 'لا';
+    if(typeof v === 'number') { try{return v.toLocaleString('ar-IQ');}catch(_){return String(v);} }
+    if(typeof v === 'object'){
+      if(Array.isArray(v)) return 'عدد: '+v.length;
+      try{ var t=JSON.stringify(v); return t.length>90?t.slice(0,87)+'…':t; }catch(_){ return '[بيانات]'; }
+    }
+    var s=safe(v); return s.length>110?s.slice(0,107)+'…':s;
+  }
+  function fmtDateTime(v){ try{ return new Date(v).toLocaleString('ar-IQ',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(_){ return safe(v||'—'); } }
+  function statusText(s){
+    return ({
+      draft:'غير مرسل',pending_review:'مرسل — بانتظار المراجعة',approved_pending_upload:'مقبول — بانتظار الرفع',
+      applied:'تم التطبيق والرفع',rejected:'مرفوض',conflict:'تعارض',cancelled:'ملغى'
+    })[safe(s)] || safe(s||'—');
+  }
+  function fieldLabel(scope, field){
+    var map={customer:'اسم الزبون',billType:'نوع الفاتورة',paidAll:'تسديد الكل',deletedAt:'حذف',cat:'الصنف',item:'اسم المادة',price:'السعر',qty:'العدد',note:'الملاحظات',paid:'التسديد',returned:'الراجع',partialPayments:'التسديد الجزئي',notes:'ملاحظات البطاقة',__global_customer_rename__:'تغيير اسم الزبون بكل السجلات'};
+    if(scope==='line' && field==='__add__') return 'إضافة مادة';
+    if(scope==='line' && field==='__remove__') return 'حذف مادة';
+    if(scope==='note' && field==='__add__') return 'إضافة ملاحظة';
+    if(scope==='note' && field==='__remove__') return 'حذف ملاحظة';
+    if(scope==='card' && field==='__add__') return 'إضافة بطاقة';
+    if(scope==='card' && field==='__remove__') return 'حذف بطاقة';
+    if(scope==='card' && field==='__move__') return 'نقل البطاقة';
+    return map[field] || field || 'تعديل';
+  }
+
+  function readLocalFallback(){ try{ var r=localStorage.getItem(STORE_KEY); return r?JSON.parse(r):null; }catch(_){ return null; } }
+  async function loadState(){
+    var data=null;
+    try{ if(typeof assalIDBGet==='function') data=await assalIDBGet(STORE_KEY,null); }catch(_){ }
+    if(!data) data=readLocalFallback();
+    if(data && typeof data==='object') state=data;
+    var loadedVersion=Number(state.version||0);
+    state.startedAt=state.startedAt||now();
+    state.drafts=Array.isArray(state.drafts)?state.drafts:[];
+    state.archive=Array.isArray(state.archive)?state.archive:[];
+    /* النسخة الأولى كانت تحوّل تغيير الاسم الشامل إلى طلب لكل بطاقة، وقد تضاعفها عند الإلغاء.
+       عند أول تشغيل للنسخة المصححة ننظف المسودات غير المرسلة القديمة فقط، ونبقي الأرشيف كما هو. */
+    if(loadedVersion>0 && loadedVersion<VERSION && state.drafts.length){
+      legacyDraftsCleared=state.drafts.length;
+      state.drafts=[];
+    }
+    state.version=VERSION;
+    return state;
+  }
+  async function persistState(){
+    /* لا نحذف أي مسودة غير مرسلة تلقائياً مهما زاد العدد؛ المسودات تمثل تغييرات مالية بانتظار قرار المستخدم. */
+    state.archive=state.archive.slice(-MAX_ARCHIVE);
+    try{ if(typeof assalIDBSet==='function'){ await assalIDBSet(STORE_KEY,state); try{localStorage.removeItem(STORE_KEY);}catch(_){} return true; } }catch(_){ }
+    try{ localStorage.setItem(STORE_KEY,JSON.stringify(state)); return true; }catch(_){ try{showToast('error','تعذر حفظ طلبات التعديل محلياً');}catch(__){} return false; }
+  }
+  function schedulePersist(){ clearTimeout(persistTimer); persistTimer=setTimeout(function(){persistState();},80); }
+  function appliedIds(){ try{ var x=JSON.parse(localStorage.getItem(LOCAL_APPLIED_KEY)||'[]'); return Array.isArray(x)?x:[]; }catch(_){ return []; } }
+  function markAppliedLocal(reqId){ var a=appliedIds(); if(a.indexOf(reqId)<0)a.push(reqId); if(a.length>500)a=a.slice(-500); try{localStorage.setItem(LOCAL_APPLIED_KEY,JSON.stringify(a));}catch(_){} }
+  function isAppliedLocal(reqId){ return appliedIds().indexOf(reqId)>=0; }
+
+  var VOLATILE = new Set(['updatedAt','createdAt','at','__day','__sourceDay','__displayOnly','_displayOnly']);
+  function cleanValue(value, keepCreated){
+    if(value == null || typeof value!=='object') return value;
+    if(Array.isArray(value)) return value.map(function(x){return cleanValue(x,keepCreated);});
+    var out={};
+    Object.keys(value).sort().forEach(function(k){
+      if(k==='__day'||k==='__sourceDay'||k==='__displayOnly'||k==='_displayOnly') return;
+      if(k==='updatedAt') return;
+      if(!keepCreated && (k==='createdAt'||k==='at')) return;
+      out[k]=cleanValue(value[k],keepCreated);
+    });
+    return out;
+  }
+  function compareCard(card){
+    if(!card) return null;
+    var c=cleanValue(card,false)||{};
+    if(Array.isArray(c.lines)) c.lines=c.lines.slice().sort(function(a,b){return safe((a&&a.lineId)||(a&&a.id)).localeCompare(safe((b&&b.lineId)||(b&&b.id)));});
+    if(Array.isArray(c.notes)) c.notes=c.notes.slice().sort(function(a,b){return safe(a&&a.id).localeCompare(safe(b&&b.id));});
+    return c;
+  }
+  function fullCard(card){ return cleanValue(card,true); }
+  function cardMapFromDays(){
+    var map=new Map();
+    var dObj=(typeof days==='object'&&days)?days:{};
+    Object.keys(dObj).forEach(function(day){
+      var cards=Array.isArray(dObj[day])?dObj[day]:[];
+      cards.forEach(function(card,index){
+        if(!card||!card.id)return;
+        var key=safe(card.id);
+        var comp=compareCard(card);
+        map.set(key,{cardId:key,day:safe(day),index:index,card:fullCard(card),compare:comp,text:JSON.stringify(comp)});
+      });
+    });
+    return map;
+  }
+  function seedSnapshots(){ snapshotMap=cardMapFromDays(); }
+
+  function isGlobalCustomerRenameOp(op){
+    return !!(op && op.scope==='card' && op.action==='field' && op.field==='__global_customer_rename__');
+  }
+  function currentLocalDay(){
+    try{ if(typeof localDay==='function') return localDay(); }catch(_){ }
+    var d=new Date(),y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');
+    return y+'-'+m+'-'+dd;
+  }
+  function countCustomerRefsInDays(name){
+    var target=safe(name).trim(),count=0;
+    if(!target)return 0;
+    var cardKeys=['customer','cust','name','customerName','اسم الزبون','الزبون','العميل','اسم العميل'];
+    var nestedKeys=['customer','cust','customerName','اسم الزبون','الزبون','العميل','اسم العميل'];
+    Object.keys((typeof days==='object'&&days)||{}).forEach(function(day){
+      (Array.isArray(days[day])?days[day]:[]).forEach(function(card){
+        if(!card||typeof card!=='object')return;
+        cardKeys.forEach(function(k){if(Object.prototype.hasOwnProperty.call(card,k)&&safe(card[k]).trim()===target)count++;});
+        (Array.isArray(card.lines)?card.lines:[]).forEach(function(line){nestedKeys.forEach(function(k){if(line&&Object.prototype.hasOwnProperty.call(line,k)&&safe(line[k]).trim()===target)count++;});});
+        (Array.isArray(card.partialPayments)?card.partialPayments:[]).forEach(function(pp){nestedKeys.forEach(function(k){if(pp&&Object.prototype.hasOwnProperty.call(pp,k)&&safe(pp[k]).trim()===target)count++;});});
+      });
+    });
+    return count;
+  }
+  function addGlobalCustomerRenameDraft(oldName,newName,counts){
+    var stamp=now(),refCount=Math.max(0,Number(counts&&counts.cards||0));
+    var op={scope:'card',action:'field',field:'__global_customer_rename__',before:safe(oldName),after:safe(newName),itemBefore:String(refCount),itemAfter:String(refCount)};
+    var draft={
+      id:id(),version:VERSION,status:'draft',specialType:'global-customer-rename',createdAt:stamp,updatedAt:stamp,adminEmail:ADMIN_EMAIL,
+      cardId:'GLOBAL_CUSTOMER_RENAME',cardDay:currentLocalDay(),beforeDay:currentLocalDay(),afterDay:currentLocalDay(),beforeIndex:-1,afterIndex:-1,
+      customer:safe(newName),billType:'تغيير اسم شامل',beforeCard:null,afterCard:null,ops:[op],
+      changes:[{scope:'card',field:'__global_customer_rename__',before:safe(oldName),after:safe(newName),lineId:'',noteId:'',item:''}]
+    };
+    state.drafts.push(draft);
+    schedulePersist();updateButton();if(isModalOpen())renderModal();
+    try{showToast('info','تمت إضافة تغيير اسم الزبون كطلب واحد');}catch(_){ }
+    return draft;
+  }
+  window.assalCardRequestsRunCustomerRename=function(oldName,newName,runner,counts){
+    if(typeof runner!=='function')return null;
+    if(!ready||!isAdmin())return runner();
+    suppressCapture++;
+    var result,ok=false;
+    try{result=runner();ok=true;return result;}
+    finally{
+      suppressCapture=Math.max(0,suppressCapture-1);
+      seedSnapshots();
+      if(ok)addGlobalCustomerRenameDraft(oldName,newName,counts||{});
+    }
+  };
+
+  function entityId(obj, kind, index){
+    if(kind==='line') return safe(obj&&((obj.lineId)||(obj.id))) || ('index:'+index);
+    return safe(obj&&obj.id) || ('index:'+index);
+  }
+  function mapEntities(arr,kind){ var m=new Map(); (Array.isArray(arr)?arr:[]).forEach(function(x,i){m.set(entityId(x,kind,i),x);}); return m; }
+  function diffFields(before,after,skip){
+    before=before&&typeof before==='object'?before:{}; after=after&&typeof after==='object'?after:{};
+    var keys=new Set(Object.keys(before).concat(Object.keys(after))); var out=[];
+    keys.forEach(function(k){
+      if(skip&&skip.has(k))return;
+      if(VOLATILE.has(k))return;
+      var hasB=Object.prototype.hasOwnProperty.call(before,k), hasA=Object.prototype.hasOwnProperty.call(after,k);
+      var b=hasB?cleanValue(before[k],true):{__assalMissing:true};
+      var a=hasA?cleanValue(after[k],true):{__assalMissing:true};
+      if(!deepEqual(b,a))out.push({field:k,before:b,after:a});
+    });
+    return out;
+  }
+  function buildOps(beforeRec,afterRec){
+    var ops=[];
+    if(!beforeRec&&afterRec){ ops.push({scope:'card',action:'add',field:'__add__',after:afterRec.card,afterDay:afterRec.day}); return ops; }
+    if(beforeRec&&!afterRec){ ops.push({scope:'card',action:'remove',field:'__remove__',before:beforeRec.card,beforeDay:beforeRec.day}); return ops; }
+    if(!beforeRec||!afterRec)return ops;
+    if(beforeRec.day!==afterRec.day) ops.push({scope:'card',action:'move',field:'__move__',before:beforeRec.day,after:afterRec.day});
+    var skip=new Set(['lines','notes']);
+    diffFields(beforeRec.card,afterRec.card,skip).forEach(function(ch){ops.push({scope:'card',action:'field',field:ch.field,before:ch.before,after:ch.after});});
+    var bLines=mapEntities(beforeRec.card&&beforeRec.card.lines,'line'), aLines=mapEntities(afterRec.card&&afterRec.card.lines,'line');
+    new Set(Array.from(bLines.keys()).concat(Array.from(aLines.keys()))).forEach(function(lineId){
+      var b=bLines.get(lineId), a=aLines.get(lineId);
+      if(!b&&a){ops.push({scope:'line',action:'add',field:'__add__',lineId:lineId,after:a});return;}
+      if(b&&!a){ops.push({scope:'line',action:'remove',field:'__remove__',lineId:lineId,before:b});return;}
+      var fields=diffFields(b,a,null); if(fields.length)ops.push({scope:'line',action:'patch',lineId:lineId,fields:fields,itemBefore:safe(b&&b.item),itemAfter:safe(a&&a.item)});
+    });
+    var bNotes=mapEntities(beforeRec.card&&beforeRec.card.notes,'note'), aNotes=mapEntities(afterRec.card&&afterRec.card.notes,'note');
+    new Set(Array.from(bNotes.keys()).concat(Array.from(aNotes.keys()))).forEach(function(noteId){
+      var b=bNotes.get(noteId), a=aNotes.get(noteId);
+      if(!b&&a){ops.push({scope:'note',action:'add',field:'__add__',noteId:noteId,after:a});return;}
+      if(b&&!a){ops.push({scope:'note',action:'remove',field:'__remove__',noteId:noteId,before:b});return;}
+      var fields=diffFields(b,a,null); if(fields.length)ops.push({scope:'note',action:'patch',noteId:noteId,fields:fields});
+    });
+    return ops;
+  }
+  function summarizeOps(ops){
+    var out=[];
+    (ops||[]).forEach(function(op){
+      if(op.action==='patch'){
+        (op.fields||[]).forEach(function(f){ out.push({scope:op.scope,field:f.field,before:f.before,after:f.after,lineId:op.lineId||'',noteId:op.noteId||'',item:op.itemAfter||op.itemBefore||''}); });
+      }else out.push({scope:op.scope,field:op.field||('__'+op.action+'__'),before:op.before,after:op.after,lineId:op.lineId||'',noteId:op.noteId||'',item:safe(op.after&&op.after.item)||safe(op.before&&op.before.item)});
+    });
+    return out;
+  }
+  function customerOf(rec){return safe(rec&&rec.card&&rec.card.customer);}
+  function captureChanges(){
+    if(!ready){seedSnapshots();return;}
+    var current=cardMapFromDays();
+    if(suppressCapture>0||!isAdmin()){snapshotMap=current;return;}
+    var keys=new Set(Array.from(snapshotMap.keys()).concat(Array.from(current.keys())));
+    var created=[];
+    keys.forEach(function(cardId){
+      var before=snapshotMap.get(cardId)||null, after=current.get(cardId)||null;
+      if(before&&after&&before.text===after.text&&before.day===after.day)return;
+      var ops=buildOps(before,after); if(!ops.length)return;
+      var stamp=now();
+      var draft={
+        id:id(),version:VERSION,status:'draft',createdAt:stamp,updatedAt:stamp,adminEmail:ADMIN_EMAIL,
+        cardId:cardId,cardDay:safe((after&&after.day)||(before&&before.day)),beforeDay:safe(before&&before.day),afterDay:safe(after&&after.day),
+        beforeIndex:before?before.index:-1,afterIndex:after?after.index:-1,
+        customer:safe(customerOf(after)||customerOf(before)),billType:safe((after&&after.card&&after.card.billType)||(before&&before.card&&before.card.billType)),
+        beforeCard:before?before.card:null,afterCard:after?after.card:null,ops:ops,changes:summarizeOps(ops)
+      };
+      state.drafts.push(draft); created.push(draft);
+    });
+    snapshotMap=current;
+    if(created.length){
+      schedulePersist(); updateButton(); if(isModalOpen())renderModal();
+      try{showToast('info',created.length===1?'تمت إضافة التعديل إلى طلبات الإرسال':'تمت إضافة '+created.length+' تعديلات إلى طلبات الإرسال');}catch(_){ }
+    }
+  }
+
+  function wrapSave(){
+    if(window.__ASSAL_CARD_REQUEST_SAVE_WRAPPED__)return;
+    var fn=null; try{fn=window.save||save;}catch(_){fn=null;}
+    if(typeof fn!=='function')return;
+    originalSave=fn;
+    var wrapped=function(){
+      var res=originalSave.apply(this,arguments);
+      try{ if(!res||res.ok!==false)captureChanges(); }catch(err){try{console.warn('[ASSAL card requests capture]',err);}catch(_){ }}
+      return res;
+    };
+    wrapped.__assalCardRequestsWrapped=true;
+    try{window.save=wrapped; save=wrapped;}catch(_){window.save=wrapped;}
+    window.__ASSAL_CARD_REQUEST_SAVE_WRAPPED__=true;
+  }
+  function withSuppressedCapture(fn){
+    suppressCapture++;
+    try{ return fn(); }finally{ suppressCapture=Math.max(0,suppressCapture-1); seedSnapshots(); }
+  }
+  function wrapImportFunction(name){
+    try{
+      var fn=window[name]; if(typeof fn!=='function'||fn.__assalCrWrapped)return;
+      var wrapped=async function(){ suppressCapture++; try{return await fn.apply(this,arguments);}finally{suppressCapture=Math.max(0,suppressCapture-1);seedSnapshots();} };
+      wrapped.__assalCrWrapped=true; window[name]=wrapped;
+    }catch(_){ }
+  }
+
+  function serverUrl(mode,params){
+    var base=SYNC.BASE_URL,q={mode:mode,token:SYNC.TOKEN,_:Date.now()};Object.keys(params||{}).forEach(function(k){q[k]=params[k];});
+    var sep=base.indexOf('?')>=0?'&':'?';return base+sep+Object.keys(q).map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(q[k]);}).join('&');
+  }
+  async function serverGetList(){
+    if(!online())throw new Error('لا يوجد اتصال');
+    var role=isAdmin()?'admin':(isMain()?'main':''); if(!role)throw new Error('الحساب غير مخول');
+    var resp=await fetch(serverUrl('card-request-list',{actor:role,email:email()}),{method:'GET',cache:'no-store'});
+    if(!resp.ok)throw new Error('فشل قراءة الطلبات'); var j=await resp.json(); if(!j||j.status==='error')throw new Error((j&&j.message)||'فشل قراءة الطلبات'); return Array.isArray(j.requests)?j.requests:[];
+  }
+  async function serverPost(mode,body){
+    if(!online())throw new Error('لا يوجد اتصال');
+    var resp=await fetch(serverUrl(mode,{}),{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SYNC.TOKEN},body:JSON.stringify(body||{})});
+    if(!resp.ok)throw new Error('فشل إرسال الطلب'); var j=await resp.json(); if(!j||j.status==='error')throw new Error((j&&j.message)||'فشل إرسال الطلب'); return j;
+  }
+
+  function ensureButton(){
+    var host=document.getElementById('assalHeaderActions')||document.querySelector('.r-right'); if(!host)return null;
+    var btn=document.getElementById('btnCardChangeRequests');
+    if(!btn){
+      btn=document.createElement('button');btn.type='button';btn.id='btnCardChangeRequests';btn.className='icon assal-main-action';
+      btn.innerHTML='<i class="fa-solid fa-file-pen"></i><span id="assalCardChangeRequestCount" class="assal-cr-count" hidden>0</span>';
+      var before=document.getElementById('btnRefresh')||document.getElementById('btnLogout')||document.getElementById('btnHeaderToolsToggle');
+      host.insertBefore(btn,before||null);btn.addEventListener('click',function(e){e.preventDefault();openModal();});
+    }
+    return btn;
+  }
+  function relevantCount(){
+    if(isAdmin())return state.drafts.length+state.archive.filter(function(x){return safe(x.status)==='pending_review'||safe(x.status)==='approved_pending_upload';}).length;
+    if(isMain())return requestCache.filter(function(x){return safe(x.status)==='pending_review'||safe(x.status)==='approved_pending_upload';}).length;
+    return 0;
+  }
+  function updateButton(){
+    var btn=ensureButton();if(!btn)return;var allowed=isAdmin()||isMain();btn.classList.toggle('assal-cr-visible',allowed);btn.style.display=allowed?'grid':'none';
+    var count=relevantCount(),badge=document.getElementById('assalCardChangeRequestCount');if(badge){badge.textContent=String(Math.min(99,count));badge.hidden=!count;}
+    if(isAdmin()){btn.title='طلبات تعديل البطاقات';btn.setAttribute('aria-label','طلبات تعديل البطاقات');btn.querySelector('i').className='fa-solid fa-file-pen';}
+    else if(isMain()){btn.title='طلبات التعديل الواردة';btn.setAttribute('aria-label','طلبات التعديل الواردة');btn.querySelector('i').className='fa-solid fa-inbox';}
+  }
+
+  function ensureModal(){
+    var root=document.getElementById('assalCardChangeRequestsModal');if(root)return root;
+    root=document.createElement('div');root.id='assalCardChangeRequestsModal';root.className='assal-cr-backdrop';
+    root.innerHTML='<section class="assal-cr-shell" role="dialog" aria-modal="true"><div class="assal-cr-head"><div class="assal-cr-mark"><i class="fa-solid fa-file-pen"></i></div><div class="assal-cr-titles"><b id="assalCrTitle">طلبات تعديل البطاقات</b><span id="assalCrSub">إدارة التعديلات ومتابعة حالتها</span></div><div class="assal-cr-head-actions"><button type="button" class="assal-cr-refresh" id="assalCrRefresh"><i class="fa-solid fa-rotate"></i><span>تحديث</span></button><button type="button" class="assal-cr-close" id="assalCrClose"><i class="fa-solid fa-xmark"></i></button></div></div><div class="assal-cr-tabs" id="assalCrTabs"></div><div class="assal-cr-toolbar"><div class="assal-cr-summary" id="assalCrSummary"></div><button type="button" class="assal-cr-send-all" id="assalCrSendAll"><i class="fa-solid fa-paper-plane"></i> إرسال الكل</button></div><div class="assal-cr-list nice-scroll" id="assalCrList"></div></section>';
+    document.body.appendChild(root);
+    root.querySelector('#assalCrClose').onclick=closeModal;root.addEventListener('click',function(e){if(e.target===root)closeModal();});
+    root.querySelector('#assalCrRefresh').onclick=function(){refreshFromServer(true);};
+    root.querySelector('#assalCrSendAll').onclick=function(){sendAllDrafts();};
+    root.querySelector('#assalCrTabs').addEventListener('click',function(e){var b=e.target.closest('[data-cr-tab]');if(!b)return;activeTab=b.getAttribute('data-cr-tab');renderModal();});
+    root.querySelector('#assalCrList').addEventListener('click',handleListClick);
+    return root;
+  }
+  function isModalOpen(){var r=document.getElementById('assalCardChangeRequestsModal');return !!(r&&r.classList.contains('active'));}
+  function openModal(){
+    ensureModal();activeTab=isAdmin()?'drafts':'incoming';var r=document.getElementById('assalCardChangeRequestsModal');r.classList.add('active');document.body.classList.add('modal-open');renderModal();refreshFromServer(false);
+  }
+  function closeModal(){var r=document.getElementById('assalCardChangeRequestsModal');if(r)r.classList.remove('active');document.body.classList.remove('modal-open');}
+
+  function changeHtml(ch){
+    var lbl=fieldLabel(ch.scope,ch.field);if(ch.item)lbl+=' — '+safe(ch.item);
+    return '<div class="assal-cr-change"><div class="lbl">'+esc(lbl)+'</div><div class="before" title="'+esc(toDisplay(ch.before))+'">'+esc(toDisplay(ch.before))+'</div><div class="after" title="'+esc(toDisplay(ch.after))+'">'+esc(toDisplay(ch.after))+'</div></div>';
+  }
+  function cardHtml(rec,mode){
+    var changes=Array.isArray(rec.changes)?rec.changes:summarizeOps(rec.ops||[]),shown=changes.slice(0,8),more=Math.max(0,changes.length-shown.length),status=safe(rec.status||'draft');
+    var cls=status==='applied'?'applied':(status==='rejected'?'rejected':(status==='conflict'?'conflict':'pending'));
+    var time=rec.sentAt||rec.createdAt||rec.updatedAt||'';
+    var actions='';
+    if(mode==='draft')actions='<button class="assal-cr-btn send" data-cr-send="'+esc(rec.id)+'"><i class="fa-solid fa-paper-plane"></i> إرسال</button><button class="assal-cr-btn delete" data-cr-delete-draft="'+esc(rec.id)+'"><i class="fa-solid fa-rotate-left"></i> حذف وإرجاع الأصل</button>';
+    else if(mode==='admin-archive')actions='<button class="assal-cr-btn delete" data-cr-hide-archive="'+esc(rec.id)+'"><i class="fa-regular fa-trash-can"></i> حذف</button>';
+    else if(mode==='main-incoming'){
+      if(status==='approved_pending_upload')actions='<button class="assal-cr-btn retry" data-cr-retry="'+esc(rec.id)+'"><i class="fa-solid fa-cloud-arrow-up"></i> إكمال الرفع</button>';
+      else actions='<button class="assal-cr-btn approve" data-cr-approve="'+esc(rec.id)+'"><i class="fa-solid fa-check"></i> موافقة</button><button class="assal-cr-btn reject" data-cr-reject="'+esc(rec.id)+'"><i class="fa-solid fa-xmark"></i> رفض</button>';
+    }
+    var conflict=rec.conflictNote?'<div class="assal-cr-conflict"><i class="fa-solid fa-triangle-exclamation"></i> '+esc(rec.conflictNote)+'</div>':'';
+    return '<article class="assal-cr-card '+cls+'"><div class="assal-cr-card-head"><div class="assal-cr-card-title"><b>'+esc(rec.customer||'بطاقة بدون اسم')+'</b><span>'+esc(rec.cardDay||rec.afterDay||rec.beforeDay||'—')+' • '+esc(fmtDateTime(time))+' • '+changes.length+' تغيير</span></div><span class="assal-cr-status '+esc(status)+'">'+esc(statusText(status))+'</span></div><div class="assal-cr-changes">'+shown.map(changeHtml).join('')+'</div>'+(more?'<div class="assal-cr-more">ويوجد '+more+' تغييرات أخرى ضمن نفس الطلب</div>':'')+conflict+(actions?'<div class="assal-cr-actions">'+actions+'</div>':'')+'</article>';
+  }
+  function renderModal(){
+    var root=ensureModal(),tabs=root.querySelector('#assalCrTabs'),list=root.querySelector('#assalCrList'),sum=root.querySelector('#assalCrSummary'),sendAll=root.querySelector('#assalCrSendAll');
+    if(isAdmin()){
+      root.querySelector('#assalCrTitle').textContent='طلبات تعديل البطاقات — الأدمن';root.querySelector('#assalCrSub').textContent='التعديلات الجديدة فقط؛ لا يتم جمع التعديلات القديمة';
+      tabs.innerHTML='<button class="assal-cr-tab '+(activeTab==='drafts'?'active':'')+'" data-cr-tab="drafts"><i class="fa-solid fa-pen-ruler"></i> التعديلات ('+state.drafts.length+')</button><button class="assal-cr-tab '+(activeTab==='archive'?'active':'')+'" data-cr-tab="archive"><i class="fa-solid fa-box-archive"></i> الأرشيف ('+state.archive.length+')</button>';
+      var arr=activeTab==='archive'?state.archive.slice().reverse():state.drafts.slice().reverse();
+      sum.textContent=activeTab==='archive'?'الطلبات المرسلة وحالتها الحالية':'كل تعديل محفوظ جديد يظهر هنا تلقائياً';
+      sendAll.style.display=activeTab==='drafts'?'inline-flex':'none';sendAll.disabled=!state.drafts.length;
+      list.innerHTML=arr.length?arr.map(function(x){return cardHtml(x,activeTab==='archive'?'admin-archive':'draft');}).join(''):'<div class="assal-cr-empty"><div><i class="fa-regular fa-folder-open"></i>'+(activeTab==='archive'?'لا توجد طلبات في الأرشيف حالياً':'لا توجد تعديلات جديدة بانتظار الإرسال')+'</div></div>';
+    }else{
+      root.querySelector('#assalCrTitle').textContent='طلبات التعديل الواردة — الحاسبة الرئيسية';root.querySelector('#assalCrSub').textContent='الموافقة تطبق التعديل محلياً ثم ترفع نسخة الرئيسية المحمية';
+      var incoming=requestCache.filter(function(x){return safe(x.status)==='pending_review'||safe(x.status)==='approved_pending_upload';});
+      var history=requestCache.filter(function(x){return safe(x.status)!=='pending_review'&&safe(x.status)!=='approved_pending_upload';});
+      tabs.innerHTML='<button class="assal-cr-tab '+(activeTab==='incoming'?'active':'')+'" data-cr-tab="incoming"><i class="fa-solid fa-inbox"></i> الواردة ('+incoming.length+')</button><button class="assal-cr-tab '+(activeTab==='main-history'?'active':'')+'" data-cr-tab="main-history"><i class="fa-solid fa-clock-rotate-left"></i> السجل ('+history.length+')</button>';
+      var arr2=activeTab==='main-history'?history:incoming;sum.textContent=activeTab==='main-history'?'سجل القرارات السابقة':'راجع التغييرات قبل الموافقة';sendAll.style.display='none';
+      list.innerHTML=arr2.length?arr2.map(function(x){return cardHtml(x,activeTab==='main-history'?'main-history':'main-incoming');}).join(''):'<div class="assal-cr-empty"><div><i class="fa-solid fa-circle-check"></i>'+(activeTab==='main-history'?'لا يوجد سجل طلبات حالياً':'لا توجد طلبات تعديل بانتظار المراجعة')+'</div></div>';
+    }
+    updateButton();
+  }
+
+  function findDraft(reqId){return state.drafts.find(function(x){return safe(x.id)===safe(reqId);});}
+  function findRequest(reqId){return requestCache.find(function(x){return safe(x.id)===safe(reqId);});}
+  function removeCardEverywhere(cardId){
+    Object.keys(days||{}).forEach(function(day){if(!Array.isArray(days[day]))return;days[day]=days[day].filter(function(c){return safe(c&&c.id)!==safe(cardId);});if(!days[day].length)delete days[day];});
+  }
+  function currentCardRecord(cardId){var m=cardMapFromDays();return m.get(safe(cardId))||null;}
+  async function deleteDraft(reqId){
+    var d=findDraft(reqId);if(!d)return;
+    var newer=state.drafts.some(function(x){return safe(x.cardId)===safe(d.cardId)&&new Date(x.createdAt||0)>new Date(d.createdAt||0);});
+    if(newer){try{showToast('warn',d.specialType==='global-customer-rename'?'احذف أحدث تغيير اسم شامل أولاً':'احذف أحدث تعديل لهذه البطاقة أولاً');}catch(_){}return;}
+    if(d.specialType==='global-customer-rename'||(d.ops||[]).some(isGlobalCustomerRenameOp)){
+      var gop=(d.ops||[]).find(isGlobalCustomerRenameOp);if(!gop)return;
+      var gok=typeof showConfirm==='function'?await showConfirm({title:'حذف تغيير الاسم وإرجاع الأصل',message:'سيُحذف هذا الطلب غير المرسل ويُعاد اسم الزبون من «'+esc(gop.after)+'» إلى «'+esc(gop.before)+'» في السجلات المحلية. هل تريد المتابعة؟',okText:'حذف وإرجاع الاسم',cancelText:'تراجع',danger:true}):confirm('حذف تغيير الاسم وإرجاع الأصل؟');
+      if(!gok)return;
+      withSuppressedCapture(function(){
+        if(typeof window.assalApplyRenameCustomerEverywhere!=='function')throw new Error('دالة تغيير الاسم غير متاحة');
+        window.assalApplyRenameCustomerEverywhere(gop.after,gop.before);
+      });
+      state.drafts=state.drafts.filter(function(x){return safe(x.id)!==safe(reqId);});schedulePersist();
+      try{renderBoard();renderRail();refreshStats();showToast('info','تم حذف الطلب وإرجاع اسم الزبون الأصلي');}catch(_){ }
+      renderModal();updateButton();return;
+    }
+    var cur=currentCardRecord(d.cardId),curComp=cur?JSON.stringify(compareCard(cur.card)):'';var expected=d.afterCard?JSON.stringify(compareCard(d.afterCard)):'';
+    if((!!cur)!=(!!d.afterCard)||(cur&&curComp!==expected)){try{showToast('warn','البطاقة تغيرت بعد هذا الطلب؛ لا يمكن إرجاعه بأمان');}catch(_){}return;}
+    var ok=typeof showConfirm==='function'?await showConfirm({title:'حذف التعديل وإرجاع الأصل',message:'سيُحذف هذا التعديل غير المرسل وتعود البطاقة إلى حالتها قبل التعديل. هل تريد المتابعة؟',okText:'حذف وإرجاع الأصل',cancelText:'تراجع',danger:true}):confirm('حذف التعديل وإرجاع الأصل؟');
+    if(!ok)return;
+    withSuppressedCapture(function(){
+      removeCardEverywhere(d.cardId);
+      if(d.beforeCard){var day=d.beforeDay||d.cardDay;if(!Array.isArray(days[day]))days[day]=[];var idx=Math.max(0,Math.min(days[day].length,Number(d.beforeIndex)>=0?Number(d.beforeIndex):days[day].length));days[day].splice(idx,0,clone(d.beforeCard));}
+      try{window.save();}catch(_){try{save();}catch(__){}}
+    });
+    state.drafts=state.drafts.filter(function(x){return safe(x.id)!==safe(reqId);});schedulePersist();
+    try{renderBoard();renderRail();refreshStats();showToast('info','تم حذف التعديل وإرجاع القيمة الأصلية');}catch(_){ }
+    renderModal();updateButton();
+  }
+  async function sendDraft(reqId,quiet){
+    var d=findDraft(reqId);if(!d||busyIds.has(reqId))return false;
+    var older=state.drafts.some(function(x){return safe(x.cardId)===safe(d.cardId)&&new Date(x.createdAt||0)<new Date(d.createdAt||0);});
+    if(older){if(!quiet)try{showToast('warn','أرسل أقدم تعديل لهذه البطاقة أولاً');}catch(_){}return false;}
+    busyIds.add(reqId);
+    try{
+      var payload=clone(d);payload.status='pending_review';payload.sentAt=now();payload.adminEmail=ADMIN_EMAIL;
+      /* النسخ الكاملة مطلوبة للإرجاع المحلي قبل الإرسال فقط؛ السيرفر يستلم العمليات الدقيقة دون تكرار البطاقة كاملة. */
+      delete payload.beforeCard; delete payload.afterCard;
+      var res=await serverPost('card-request-submit',{version:VERSION,actorEmail:email(),request:payload});
+      var record=(res&&res.request)||payload;record.status=record.status||'pending_review';record.sentAt=record.sentAt||payload.sentAt;
+      state.drafts=state.drafts.filter(function(x){return safe(x.id)!==safe(reqId);});state.archive.push(record);schedulePersist();
+      if(!quiet)try{showToast('success','تم إرسال طلب التعديل إلى الحاسبة الرئيسية');}catch(_){}
+      renderModal();updateButton();return true;
+    }catch(err){if(!quiet)try{showToast('error','تعذر إرسال الطلب: '+safe(err&&err.message||err));}catch(_){}return false;}
+    finally{busyIds.delete(reqId);}
+  }
+  async function sendAllDrafts(){
+    var ids=state.drafts.map(function(x){return x.id;});if(!ids.length)return;var ok=typeof showConfirm==='function'?await showConfirm({title:'إرسال كل التعديلات',message:'سيتم إرسال '+ids.length+' طلب تعديل واحداً بعد الآخر إلى الحاسبة الرئيسية.',okText:'إرسال الكل',cancelText:'تراجع',danger:false}):true;if(!ok)return;
+    var sent=0;for(var i=0;i<ids.length;i++){if(await sendDraft(ids[i],true))sent++;else break;}try{showToast(sent===ids.length?'success':'warn','تم إرسال '+sent+' من '+ids.length+' طلب');}catch(_){}renderModal();
+  }
+  async function hideArchive(reqId){
+    var rec=state.archive.find(function(x){return safe(x.id)===safe(reqId);});if(!rec)return;
+    var status=safe(rec.status);var action=status==='pending_review'?'cancel':'hide-admin';
+    var msg=status==='pending_review'?'سيتم سحب الطلب من الحاسبة الرئيسية وحذفه من أرشيفك. لن تتغير البطاقة المحلية.':'سيُحذف سجل الطلب من أرشيف هذا الأدمن فقط، ولن تنعكس البيانات المطبقة.';
+    var ok=typeof showConfirm==='function'?await showConfirm({title:status==='pending_review'?'سحب وحذف الطلب':'حذف سجل الأرشيف',message:msg,okText:status==='pending_review'?'سحب الطلب':'حذف السجل',cancelText:'تراجع',danger:true}):confirm(msg);if(!ok)return;
+    try{await serverPost('card-request-action',{version:VERSION,action:action,requestId:reqId,actorEmail:email()});state.archive=state.archive.filter(function(x){return safe(x.id)!==safe(reqId);});schedulePersist();renderModal();updateButton();try{showToast('info',status==='pending_review'?'تم سحب الطلب':'تم حذف سجل الأرشيف');}catch(_){} }catch(err){try{showToast('error','تعذر حذف الطلب: '+safe(err&&err.message||err));}catch(_){} }
+  }
+
+  function findCard(day,cardId){var arr=Array.isArray(days&&days[day])?days[day]:[];return arr.find(function(c){return safe(c&&c.id)===safe(cardId);})||null;}
+  function findCardAny(cardId){var out=null,day='';Object.keys(days||{}).some(function(d){var c=findCard(d,cardId);if(c){out=c;day=d;return true;}return false;});return {card:out,day:day};}
+  function findEntity(arr,id,kind){var list=Array.isArray(arr)?arr:[];for(var i=0;i<list.length;i++){if(entityId(list[i],kind,i)===safe(id))return {value:list[i],index:i};}return null;}
+  function preflight(req){
+    var conflicts=[],found=findCardAny(req.cardId),card=found.card,currentDay=found.day;
+    (req.ops||[]).forEach(function(op){
+      if(isGlobalCustomerRenameOp(op)){
+        var currentRefs=countCustomerRefsInDays(op.before),expectedRefs=Math.max(0,Number(op.itemBefore||0));
+        if(currentRefs===0){conflicts.push('سجلات الاسم الأصلي غير موجودة على الحاسبة الرئيسية');return;}
+        if(expectedRefs&&currentRefs!==expectedRefs)conflicts.push('عدد سجلات الاسم الأصلي تغير على الرئيسية: '+currentRefs+' بدلاً من '+expectedRefs);
+        return;
+      }
+      if(op.scope==='card'&&op.action==='add'){if(card&&!deepEqual(compareCard(card),compareCard(op.after)))conflicts.push('البطاقة موجودة مسبقاً');return;}
+      if(op.scope==='card'&&op.action==='remove'){if(!card)return;if(!deepEqual(compareCard(card),compareCard(op.before)))conflicts.push('محتوى البطاقة الحالية يختلف قبل الحذف');return;}
+      if(op.scope==='card'&&op.action==='move'){if(card&&currentDay!==safe(op.before)&&currentDay!==safe(op.after))conflicts.push('مكان البطاقة الحالي مختلف');return;}
+      if(!card){conflicts.push('البطاقة غير موجودة على الحاسبة الرئيسية');return;}
+      if(op.scope==='card'&&op.action==='field'){var hasCardField=Object.prototype.hasOwnProperty.call(card,op.field);var curCardField=hasCardField?cleanValue(card[op.field],true):{__assalMissing:true};if(!deepEqual(curCardField,op.before))conflicts.push('حقل '+fieldLabel('card',op.field)+' تغير على الرئيسية');return;}
+      if(op.scope==='line'){
+        var hit=findEntity(card.lines,op.lineId,'line');
+        if(op.action==='add'){if(hit&&!deepEqual(cleanValue(hit.value,true),cleanValue(op.after,true)))conflicts.push('المادة المضافة موجودة بشكل مختلف');return;}
+        if(op.action==='remove'){if(!hit)return;if(!deepEqual(cleanValue(hit.value,true),cleanValue(op.before,true)))conflicts.push('المادة المراد حذفها تغيرت');return;}
+        if(!hit){conflicts.push('المادة المطلوبة غير موجودة');return;}
+        (op.fields||[]).forEach(function(f){var hasLineField=Object.prototype.hasOwnProperty.call(hit.value,f.field);var curLineField=hasLineField?cleanValue(hit.value[f.field],true):{__assalMissing:true};if(!deepEqual(curLineField,f.before))conflicts.push('حقل '+fieldLabel('line',f.field)+' للمادة '+safe(hit.value.item)+' تغير');});
+      }
+      if(op.scope==='note'){
+        var nh=findEntity(card.notes,op.noteId,'note');
+        if(op.action==='add'){if(nh&&!deepEqual(cleanValue(nh.value,true),cleanValue(op.after,true)))conflicts.push('الملاحظة موجودة بشكل مختلف');return;}
+        if(op.action==='remove'){if(!nh)return;if(!deepEqual(cleanValue(nh.value,true),cleanValue(op.before,true)))conflicts.push('الملاحظة المراد حذفها تغيرت');return;}
+        if(!nh){conflicts.push('الملاحظة المطلوبة غير موجودة');return;}
+        (op.fields||[]).forEach(function(f){var hasNoteField=Object.prototype.hasOwnProperty.call(nh.value,f.field);var curNoteField=hasNoteField?cleanValue(nh.value[f.field],true):{__assalMissing:true};if(!deepEqual(curNoteField,f.before))conflicts.push('حقل ملاحظة تغير على الرئيسية');});
+      }
+    });
+    return Array.from(new Set(conflicts));
+  }
+  function applyRequestOps(req,force){
+    var stamp=now(),found=findCardAny(req.cardId),card=found.card,currentDay=found.day;
+    (req.ops||[]).forEach(function(op){
+      if(isGlobalCustomerRenameOp(op)){
+        if(typeof window.assalApplyRenameCustomerEverywhere!=='function')throw new Error('دالة تغيير الاسم غير متاحة');
+        window.assalApplyRenameCustomerEverywhere(op.before,op.after);
+        return;
+      }
+      if(op.scope==='card'&&op.action==='add'){
+        if(!card){var d=op.afterDay||req.afterDay||req.cardDay;if(!Array.isArray(days[d]))days[d]=[];card=clone(op.after);card.updatedAt=stamp;days[d].push(card);currentDay=d;}return;
+      }
+      if(op.scope==='card'&&op.action==='remove'){if(card){removeCardEverywhere(req.cardId);card=null;currentDay='';}return;}
+      if(op.scope==='card'&&op.action==='move'){
+        if(card&&currentDay!==safe(op.after)){removeCardEverywhere(req.cardId);var nd=safe(op.after);if(!Array.isArray(days[nd]))days[nd]=[];days[nd].push(card);currentDay=nd;}return;
+      }
+      if(!card)return;
+      if(op.scope==='card'&&op.action==='field'){if(isMissingValue(op.after))delete card[op.field];else card[op.field]=clone(op.after);card.updatedAt=stamp;return;}
+      if(op.scope==='line'){
+        if(!Array.isArray(card.lines))card.lines=[];var hit=findEntity(card.lines,op.lineId,'line');
+        if(op.action==='add'){if(!hit){var nl=clone(op.after)||{};nl.updatedAt=stamp;card.lines.push(nl);}return;}
+        if(op.action==='remove'){if(hit)card.lines.splice(hit.index,1);return;}
+        if(hit){(op.fields||[]).forEach(function(f){if(isMissingValue(f.after))delete hit.value[f.field];else hit.value[f.field]=clone(f.after);});hit.value.updatedAt=stamp;}return;
+      }
+      if(op.scope==='note'){
+        if(!Array.isArray(card.notes))card.notes=[];var nh=findEntity(card.notes,op.noteId,'note');
+        if(op.action==='add'){if(!nh){var nn=clone(op.after)||{};nn.updatedAt=stamp;card.notes.push(nn);}return;}
+        if(op.action==='remove'){if(nh)card.notes.splice(nh.index,1);return;}
+        if(nh){(op.fields||[]).forEach(function(f){if(isMissingValue(f.after))delete nh.value[f.field];else nh.value[f.field]=clone(f.after);});nh.value.updatedAt=stamp;}
+      }
+    });
+    if(card){card.updatedAt=stamp;if(card.customer){try{if(Array.isArray(names)&&names.indexOf(card.customer)<0)names.push(card.customer);}catch(_){}}}
+  }
+  async function uploadAndComplete(req){
+    try{await serverPostBackup(buildBackupPayload());await serverPost('card-request-action',{version:VERSION,action:'applied',requestId:req.id,actorEmail:email(),appliedAt:now()});markAppliedLocal(req.id);try{showToast('success','تم تطبيق الطلب ورفع نسخة الحاسبة الرئيسية');}catch(_){}await refreshFromServer(false);return true;}
+    catch(err){try{showToast('error','تم حفظ التعديل محلياً لكن تعذر إكمال الرفع: '+safe(err&&err.message||err));}catch(_){}await refreshFromServer(false);return false;}
+  }
+  async function approveRequest(reqId){
+    var req=findRequest(reqId);if(!req||busyIds.has(reqId))return;busyIds.add(reqId);
+    try{
+      var conflicts=preflight(req),force=false;
+      if(conflicts.length){
+        var hardConflict=conflicts.some(function(x){return /غير موجودة|موجودة مسبقاً|مكان البطاقة الحالي مختلف/.test(safe(x));});
+        var html='<div style="text-align:right;line-height:1.9"><b style="color:#fecaca">اكتُشف تعارض مع البطاقة الحالية:</b><br>'+conflicts.slice(0,8).map(function(x){return '• '+esc(x);}).join('<br>')+(hardConflict?'<br><br>هذا تعارض بنيوي، لذلك لن يُطبق الطلب حتى لا تتضرر البطاقة.':'<br><br>التطبيق بالقوة سيغيّر الحقول المطلوبة فقط بعد موافقة إضافية.')+'</div>';
+        if(hardConflict){
+          if(typeof showConfirm==='function')await showConfirm({title:'تعذر تطبيق الطلب بأمان',message:html,okText:'إغلاق',cancelText:'إغلاق',danger:true});
+          try{await serverPost('card-request-action',{version:VERSION,action:'conflict',requestId:req.id,actorEmail:email(),note:conflicts.join(' | ')});}catch(_){ }
+          await refreshFromServer(false);return;
+        }
+        var forceOk=typeof showConfirm==='function'?await showConfirm({title:'تعارض في طلب التعديل',message:html,okText:'تطبيق الحقول رغم التعارض',cancelText:'تراجع',danger:true}):false;
+        if(!forceOk)return;force=true;
+      }else{
+        var ok=typeof showConfirm==='function'?await showConfirm({title:'اعتماد طلب التعديل',message:'سيُطبق هذا الطلب على بيانات الحاسبة الرئيسية، ثم تُرفع النسخة الحالية إلى السيرفر عبر الحماية الموجودة.',okText:'موافقة وتطبيق',cancelText:'تراجع',danger:false}):confirm('موافقة وتطبيق الطلب؟');if(!ok)return;
+      }
+      await serverPost('card-request-action',{version:VERSION,action:'approve-pending',requestId:req.id,actorEmail:email(),force:force,conflicts:conflicts});
+      if(!isAppliedLocal(req.id)){
+        withSuppressedCapture(function(){applyRequestOps(req,force);var r=window.save();if(r&&r.ok===false)throw new Error('فشل الحفظ المحلي');});
+        markAppliedLocal(req.id);
+        try{renderBoard();renderRail();refreshStats();}catch(_){ }
+      }
+      await uploadAndComplete(req);
+    }catch(err){try{showToast('error','تعذر تطبيق الطلب: '+safe(err&&err.message||err));}catch(_){} }
+    finally{busyIds.delete(reqId);renderModal();}
+  }
+  async function retryUpload(reqId){var req=findRequest(reqId);if(!req)return;if(!isAppliedLocal(req.id)){await approveRequest(reqId);return;}await uploadAndComplete(req);}
+  async function rejectRequest(reqId){
+    var req=findRequest(reqId);if(!req)return;var ok=typeof showConfirm==='function'?await showConfirm({title:'رفض طلب التعديل',message:'لن تتغير بيانات الحاسبة الرئيسية، وسيظهر الطلب مرفوضاً في أرشيف الأدمن.',okText:'رفض الطلب',cancelText:'تراجع',danger:true}):confirm('رفض الطلب؟');if(!ok)return;
+    try{await serverPost('card-request-action',{version:VERSION,action:'reject',requestId:reqId,actorEmail:email(),rejectedAt:now()});try{showToast('info','تم رفض الطلب');}catch(_){}await refreshFromServer(false);}catch(err){try{showToast('error','تعذر رفض الطلب: '+safe(err&&err.message||err));}catch(_){} }
+  }
+  function handleListClick(e){var b=e.target.closest('button');if(!b)return;var idv=b.getAttribute('data-cr-send')||b.getAttribute('data-cr-delete-draft')||b.getAttribute('data-cr-hide-archive')||b.getAttribute('data-cr-approve')||b.getAttribute('data-cr-reject')||b.getAttribute('data-cr-retry');if(!idv)return;e.preventDefault();
+    if(b.hasAttribute('data-cr-send'))sendDraft(idv,false);else if(b.hasAttribute('data-cr-delete-draft'))deleteDraft(idv);else if(b.hasAttribute('data-cr-hide-archive'))hideArchive(idv);else if(b.hasAttribute('data-cr-approve'))approveRequest(idv);else if(b.hasAttribute('data-cr-reject'))rejectRequest(idv);else if(b.hasAttribute('data-cr-retry'))retryUpload(idv);
+  }
+
+  async function refreshFromServer(showMsg){
+    if(!(isAdmin()||isMain()))return;
+    try{
+      var list=await serverGetList();requestCache=list;
+      if(isAdmin()){
+        var localById=new Map(state.archive.map(function(x){return [safe(x.id),x];}));
+        list.forEach(function(r){localById.set(safe(r.id),r);});state.archive=Array.from(localById.values()).filter(function(x){return !x.adminHidden;}).sort(function(a,b){return safe(a.sentAt||a.createdAt).localeCompare(safe(b.sentAt||b.createdAt));});schedulePersist();
+      }
+      updateButton();if(isModalOpen())renderModal();if(showMsg)try{showToast('success','تم تحديث طلبات التعديل');}catch(_){}
+    }catch(err){if(showMsg)try{showToast('error','تعذر تحديث الطلبات: '+safe(err&&err.message||err));}catch(_){} }
+  }
+
+  async function init(){
+    try{await loadState();}catch(_){ }
+    if(legacyDraftsCleared){try{await persistState();}catch(_){ }}
+    seedSnapshots();ready=true;wrapSave();wrapImportFunction('smartImportFromServer');wrapImportFunction('importInvoicesFromFile');
+    ensureButton();updateButton();
+    if(legacyDraftsCleared){try{showToast('info','تم تنظيف '+legacyDraftsCleared+' مسودة خاطئة من النسخة السابقة');}catch(_){ }}
+    try{window.addEventListener('online',function(){refreshFromServer(false);},false);window.addEventListener('focus',function(){refreshFromServer(false);},false);document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')refreshFromServer(false);},false);}catch(_){ }
+    clearInterval(refreshTimer);refreshTimer=setInterval(function(){if(document.visibilityState==='visible')refreshFromServer(false);},30000);
+    setTimeout(function(){refreshFromServer(false);},1200);
+  }
+  function boot(){
+    var tries=0;
+    function go(){
+      tries++;
+      var storageReady=window.__ASSAL_IDB_INIT_DONE===true;
+      var authReady=isAdmin()||isMain()||!!email();
+      if(storageReady&&typeof days==='object'&&typeof assalIDBGet==='function'&&authReady){init();return;}
+      /* الأمان أهم من تشغيل الميزة مبكراً: لا نزرع خط أساس قبل اكتمال تحميل بيانات IndexedDB حتى لا تتحول البيانات القديمة إلى طلبات. */
+      if(tries<480){setTimeout(go,250);return;}
+      try{console.warn('[ASSAL card requests] initialization skipped because local data was not ready');}catch(_){ }
+    }
+    go();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,false);else boot();
+  try{window.addEventListener('assal:auth-ready',function(){setTimeout(function(){updateButton();refreshFromServer(false);},300);},false);}catch(_){ }
+
+  window.assalCardChangeRequestsRefresh=refreshFromServer;
+  window.assalCardChangeRequestsOpen=openModal;
+})();
+</script>
+<!-- ASSAL ADMIN CARD CHANGE REQUESTS / MAIN APPROVAL FINAL - END -->
+
 </body>
 </html>
