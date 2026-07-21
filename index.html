@@ -23672,7 +23672,19 @@ function savePayments(day, arr){
     try{ window.refreshDebtsUI?.(); }catch(_){}
     try{ window.assalRefreshCustomerDebtBadges?.(); }catch(_){}
   }, 80);
+
+  // جسر إشعار معزول لنظام طلبات التعديل.
+  // لا يغيّر طريقة حفظ الحسابات ولا يعيد تنفيذ الحفظ؛ فقط يبلغ أن الحفظ الأصلي اكتمل بدءه.
+  try{
+    window.dispatchEvent(new CustomEvent('assal:payments-saved',{detail:{day:k}}));
+  }catch(_){}
 }
+
+// جسر حفظ صريح وآمن تستخدمه طبقة طلبات التعديل عند تطبيق حركة على الحاسبة الرئيسية.
+// يبقى منطق الحفظ الحقيقي داخل هذه النافذة كما هو بلا نسخ أو التفاف.
+window.assalSavePaymentsDay = function(day, arr){
+  return savePayments(day, arr);
+};
 
 // اليوم الحالي المعروض داخل النافذة
 let currentDay = null;
@@ -35564,6 +35576,8 @@ html body .card .item.assal-smart-added-item-safe-final{
 .assal-cr-btn{height:35px;padding:0 12px;border-radius:10px;border:1px solid transparent;font-weight:950;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px}
 .assal-cr-btn.send,.assal-cr-btn.approve{color:#fff;background:linear-gradient(135deg,#0891b2,#2563eb);border-color:rgba(125,211,252,.25)}
 .assal-cr-btn.reject,.assal-cr-btn.delete{color:#ffe4e6;background:linear-gradient(135deg,#4c1d32,#6b2846);border-color:rgba(251,113,133,.24)}
+.assal-cr-btn.delete-only{color:#e2e8f0;background:linear-gradient(135deg,#334155,#1e293b);border-color:rgba(148,163,184,.24)}
+.assal-cr-btn:disabled i.fa-spinner{animation:assal-cr-spin .8s linear infinite}
 .assal-cr-btn.retry{color:#1f1300;background:linear-gradient(135deg,#f59e0b,#d97706);border-color:rgba(245,158,11,.45)}
 .assal-cr-empty{min-height:250px;display:grid;place-items:center;text-align:center;padding:28px;color:#aebdd2;line-height:1.9;border:1px dashed rgba(148,163,184,.19);border-radius:15px;background:rgba(2,6,23,.20)}
 .assal-cr-empty i{display:block;margin:0 auto 9px;font-size:32px;color:#34d399}
@@ -35620,6 +35634,29 @@ html body .card .item.assal-smart-added-item-safe-final{
 }
 
 /* سكرول داخلي ثابت لقائمة طلبات التعديل — واجهة فقط */
+
+/* فصل بصري أنيق بين تفاصيل الطلب وصف الأزرار */
+.assal-cr-card .assal-cr-actions{
+  margin-top:12px;
+  padding:11px 12px 12px;
+  border-top:1px solid rgba(148,163,184,.11);
+  background:linear-gradient(180deg,rgba(15,23,42,.10),rgba(2,6,23,.24));
+}
+.assal-cr-card .assal-cr-newcard + .assal-cr-actions,
+.assal-cr-card .assal-cr-payment + .assal-cr-actions{margin-top:13px}
+.assal-cr-card .assal-cr-conflict + .assal-cr-actions{margin-top:10px}
+
+/* عرض حركات الحسابات المالية داخل طلبات التعديل */
+.assal-cr-payment{margin:10px 12px 0;border:1px solid rgba(45,212,191,.20);border-radius:14px;overflow:hidden;background:rgba(2,6,23,.25)}
+.assal-cr-payment-top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 11px;border-bottom:1px solid rgba(148,163,184,.10);background:linear-gradient(90deg,rgba(13,148,136,.13),rgba(37,99,235,.08))}
+.assal-cr-payment-title{display:flex;align-items:center;gap:8px;color:#ccfbf1;font-size:12px;font-weight:950}.assal-cr-payment-title i{color:#2dd4bf}
+.assal-cr-payment-kind{padding:3px 9px;border-radius:999px;color:#dbeafe;background:rgba(30,64,175,.20);border:1px solid rgba(96,165,250,.24);font-size:10.5px;font-weight:950}
+.assal-cr-payment-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:10px}
+.assal-cr-payment-cell{min-width:0;padding:8px 9px;border-radius:11px;border:1px solid rgba(148,163,184,.10);background:rgba(15,23,42,.34);text-align:right}
+.assal-cr-payment-cell span{display:block;color:#91a4bd;font-size:9.5px;font-weight:850}.assal-cr-payment-cell b{display:block;margin-top:3px;color:#f8fafc;font-size:11.5px;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.assal-cr-payment-cell.amount b{color:#bbf7d0}.assal-cr-payment-note{grid-column:1/-1}
+@media(max-width:700px){.assal-cr-payment-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.assal-cr-payment-note{grid-column:1/-1}}
+
 .assal-cr-list::-webkit-scrollbar{width:9px}
 .assal-cr-list::-webkit-scrollbar-track{background:rgba(2,6,23,.22);border-radius:999px}
 .assal-cr-list::-webkit-scrollbar-thumb{background:linear-gradient(180deg,rgba(56,189,248,.58),rgba(124,58,237,.50));border:2px solid rgba(9,18,38,.92);border-radius:999px}
@@ -35640,6 +35677,8 @@ html body .card .item.assal-smart-added-item-safe-final{
   var MAX_ARCHIVE = 1000;
   var state = {version:VERSION,startedAt:'',drafts:[],archive:[]};
   var snapshotMap = new Map();
+  var paymentSnapshotMap = new Map();
+  var originalSavePayments = null;
   var ready = false;
   var suppressCapture = 0;
   var persistTimer = 0;
@@ -35693,6 +35732,13 @@ html body .card .item.assal-smart-added-item-safe-final{
     if(scope==='card' && field==='__add__') return 'إضافة بطاقة';
     if(scope==='card' && field==='__remove__') return 'حذف بطاقة';
     if(scope==='card' && field==='__move__') return 'نقل البطاقة';
+    if(scope==='payment' && field==='__add__') return 'إضافة حركة مالية';
+    if(scope==='payment' && field==='__remove__') return 'حذف حركة مالية';
+    if(scope==='payment' && field==='__patch__') return 'تعديل حركة مالية';
+    if(scope==='payment' && field==='amount') return 'مبلغ الحركة';
+    if(scope==='payment' && field==='kind') return 'نوع الحركة';
+    if(scope==='payment' && field==='cust') return 'اسم الزبون';
+    if(scope==='payment' && field==='notes') return 'ملاحظات الحركة';
     return map[field] || field || 'تعديل';
   }
 
@@ -35762,6 +35808,89 @@ html body .card .item.assal-smart-added-item-safe-final{
     return map;
   }
   function seedSnapshots(){ snapshotMap=cardMapFromDays(); }
+
+  function paymentStoreRef(){
+    try{ if(typeof paymentsStore==='object'&&paymentsStore&&!Array.isArray(paymentsStore)) return paymentsStore; }catch(_){ }
+    try{ if(window.__assalPaymentsLiveStore&&typeof window.__assalPaymentsLiveStore==='object') return window.__assalPaymentsLiveStore; }catch(_){ }
+    try{ if(typeof window.loadPaymentsStore==='function'){var loaded=window.loadPaymentsStore();if(loaded&&typeof loaded==='object')return loaded;} }catch(_){ }
+    return {};
+  }
+  function paymentIdentity(row,index){
+    var key=safe(row&&((row.id)||(row._id))).trim();
+    if(key)return key;
+    try{ if(typeof __paymentKey__==='function'){key=safe(__paymentKey__(row)).trim();if(key)return key;} }catch(_){ }
+    return 'legacy-pay:'+safe(row&&row.date)+'|'+safe(row&&row.time)+'|'+safe(row&&row.cust)+'|'+safe(row&&row.kind)+'|'+safe(row&&row.amount)+'|'+safe(row&&row.notes)+'|'+safe(index);
+  }
+  function comparePayment(row){return cleanValue(row,true)||{};}
+  function paymentMapFromStore(){
+    var map=new Map(),store=paymentStoreRef();
+    Object.keys(store||{}).forEach(function(day){
+      var arr=Array.isArray(store[day])?store[day]:[];
+      arr.forEach(function(row,index){
+        if(!row||typeof row!=='object')return;
+        var key=paymentIdentity(row,index),full=cleanValue(row,true)||{},comp=comparePayment(row);
+        map.set(key,{paymentId:key,day:safe(day),index:index,row:full,compare:comp,text:JSON.stringify(comp)});
+      });
+    });
+    return map;
+  }
+  function seedPaymentSnapshots(){paymentSnapshotMap=paymentMapFromStore();}
+  function isPaymentOp(op){return !!(op&&op.scope==='payment');}
+  function isPaymentDraft(rec){return !!(rec&&(rec.specialType==='financial-payment'||(Array.isArray(rec.ops)&&rec.ops.some(isPaymentOp))));}
+  function paymentOpOf(rec){return (rec&&Array.isArray(rec.ops)?rec.ops:[]).find(isPaymentOp)||null;}
+  function paymentRowLabel(row){
+    var r=row&&typeof row==='object'?row:{};
+    return [safe(r.kind||'حركة مالية'),Number(r.amount||0).toLocaleString('en-US'),safe(r.cust)].filter(Boolean).join(' — ');
+  }
+  function findPaymentDraft(paymentId){return state.drafts.find(function(x){return isPaymentDraft(x)&&safe(x.paymentId||safe(x.cardId).replace(/^PAYMENT:/,''))===safe(paymentId);})||null;}
+  function buildPaymentDraft(baseRec,currentRec,existing){
+    var stamp=now(),base=baseRec?clone(baseRec):null,current=currentRec?clone(currentRec):null,draft=existing||{};
+    var beforeRow=existing&&Object.prototype.hasOwnProperty.call(existing,'beforePayment')?clone(existing.beforePayment):(base?clone(base.row):null);
+    var beforeDay=existing?safe(existing.beforeDay):(base?safe(base.day):'');
+    var beforeIndex=existing?Number(existing.beforeIndex||-1):(base?Number(base.index):-1);
+    var afterRow=current?clone(current.row):null,afterDay=current?safe(current.day):'',afterIndex=current?Number(current.index):-1;
+    var pid=safe((current&&current.paymentId)||(base&&base.paymentId)||(existing&&existing.paymentId));
+    var beforeDeleted=!!(beforeRow&&beforeRow.deletedAt),afterDeleted=!!(afterRow&&afterRow.deletedAt),op=null;
+    if(!beforeRow){
+      if(!afterRow||afterDeleted)return null;
+      op={scope:'payment',action:'add',field:'__add__',paymentId:pid,after:clone(afterRow),afterDay:afterDay};
+    }else if(!afterRow||(!beforeDeleted&&afterDeleted)){
+      op={scope:'payment',action:'remove',field:'__remove__',paymentId:pid,before:clone(beforeRow),after:clone(afterRow)||null,beforeDay:beforeDay,afterDay:afterDay||beforeDay};
+    }else if(beforeDeleted&& !afterDeleted){
+      op={scope:'payment',action:'add',field:'__add__',paymentId:pid,after:clone(afterRow),afterDay:afterDay};
+    }else{
+      var fields=diffFields(beforeRow,afterRow,null);
+      if(!fields.length)return null;
+      op={scope:'payment',action:'patch',field:'__patch__',paymentId:pid,fields:fields,beforeDay:beforeDay,afterDay:afterDay};
+    }
+    if(!draft.id)draft.id=id();
+    draft.version=VERSION;draft.status='draft';draft.specialType='financial-payment';draft.createdAt=draft.createdAt||stamp;draft.updatedAt=stamp;draft.adminEmail=ADMIN_EMAIL;
+    draft.paymentId=pid;draft.cardId='PAYMENT:'+pid;draft.cardDay=afterDay||beforeDay;draft.beforeDay=beforeDay;draft.afterDay=afterDay||beforeDay;draft.beforeIndex=beforeIndex;draft.afterIndex=afterIndex;
+    draft.customer=safe((afterRow&&afterRow.cust)||(beforeRow&&beforeRow.cust));draft.billType='حسابات مالية';draft.beforeCard=null;draft.afterCard=null;
+    draft.beforePayment=beforeRow;draft.afterPayment=afterRow;draft.ops=[op];draft.changes=summarizeOps([op]);
+    return draft;
+  }
+  function capturePaymentChanges(){
+    var current=paymentMapFromStore();
+    if(!ready){paymentSnapshotMap=current;return;}
+    if(suppressCapture>0||!isAdmin()){paymentSnapshotMap=current;return;}
+    var keys=new Set(Array.from(paymentSnapshotMap.keys()).concat(Array.from(current.keys()))),created=[],changed=false,cancelled=0;
+    keys.forEach(function(pid){
+      var before=paymentSnapshotMap.get(pid)||null,after=current.get(pid)||null,existing=findPaymentDraft(pid);
+      if(before&&after&&before.text===after.text&&before.day===after.day)return;
+      var rebuilt=buildPaymentDraft(before,after,existing);
+      if(existing){
+        if(rebuilt){changed=true;}
+        else{state.drafts=state.drafts.filter(function(x){return safe(x.id)!==safe(existing.id);});changed=true;cancelled++;}
+      }else if(rebuilt){state.drafts.push(rebuilt);created.push(rebuilt);changed=true;}
+    });
+    paymentSnapshotMap=current;
+    if(changed){
+      schedulePersist();updateButton();if(isModalOpen())renderModal();
+      if(created.length){try{showToast('info',created.length===1?'تمت إضافة حركة الحسابات المالية إلى طلبات الإرسال':'تمت إضافة '+created.length+' حركات مالية إلى طلبات الإرسال');}catch(_){ }}
+      else if(cancelled){try{showToast('info','تم إلغاء مسودة الحركة المالية لأن الإضافة والحذف تعادلا قبل الإرسال');}catch(_){ }}
+    }
+  }
 
   function isGlobalCustomerRenameOp(op){
     return !!(op && op.scope==='card' && op.action==='field' && op.field==='__global_customer_rename__');
@@ -35950,14 +36079,29 @@ html body .card .item.assal-smart-added-item-safe-final{
     try{window.save=wrapped; save=wrapped;}catch(_){window.save=wrapped;}
     window.__ASSAL_CARD_REQUEST_SAVE_WRAPPED__=true;
   }
+  function wrapSavePayments(){
+    if(window.__ASSAL_CARD_REQUEST_PAYMENTS_SAVE_WRAPPED__)return;
+    var bridge=null;
+    try{bridge=window.assalSavePaymentsDay;}catch(_){bridge=null;}
+    if(typeof bridge!=='function')return;
+    originalSavePayments=bridge;
+
+    // نافذة الحسابات داخل IIFE مستقل، لذلك نلتقط الحفظ عبر حدث صريح بدل محاولة لف دالة محلية مخفية.
+    var onPaymentsSaved=function(){
+      localRevision++;
+      try{capturePaymentChanges();}catch(err){try{console.warn('[ASSAL payment requests capture]',err);}catch(_){ }}
+    };
+    window.addEventListener('assal:payments-saved',onPaymentsSaved,false);
+    window.__ASSAL_CARD_REQUEST_PAYMENTS_SAVE_WRAPPED__=true;
+  }
   function withSuppressedCapture(fn){
     suppressCapture++;
-    try{ return fn(); }finally{ suppressCapture=Math.max(0,suppressCapture-1); seedSnapshots(); }
+    try{ return fn(); }finally{ suppressCapture=Math.max(0,suppressCapture-1); seedSnapshots();seedPaymentSnapshots(); }
   }
   function wrapImportFunction(name){
     try{
       var fn=window[name]; if(typeof fn!=='function'||fn.__assalCrWrapped)return;
-      var wrapped=async function(){ suppressCapture++; try{return await fn.apply(this,arguments);}finally{suppressCapture=Math.max(0,suppressCapture-1);seedSnapshots();} };
+      var wrapped=async function(){ suppressCapture++; try{return await fn.apply(this,arguments);}finally{suppressCapture=Math.max(0,suppressCapture-1);seedSnapshots();seedPaymentSnapshots();} };
       wrapped.__assalCrWrapped=true; window[name]=wrapped;
     }catch(_){ }
   }
@@ -36092,8 +36236,9 @@ html body .card .item.assal-smart-added-item-safe-final{
       /* اليوم الظاهر في لوحة البطاقات هو selectedDay، أما currentDay فهو خاص بنافذة الحسابات المالية. */
       var activeDay=currentSelectedDay();
       var touchesVisibleDay=[safe(req.cardDay),safe(req.beforeDay),safe(req.afterDay),safe(found.day)].some(function(d){return !!d&&d===activeDay;});
-      var boardStructural=false,railChanged=false,financial=false,needsVisibleBoardRefresh=false;
+      var boardStructural=false,railChanged=false,financial=false,needsVisibleBoardRefresh=false,paymentTouched=false;
       ops.forEach(function(op){
+        if(op.scope==='payment'){paymentTouched=true;financial=true;return;}
         if(op.scope==='card'&&['add','remove','move'].indexOf(op.action)>=0){boardStructural=true;railChanged=true;}
         if(op.scope==='line'&&['add','remove'].indexOf(op.action)>=0)boardStructural=true;
         if(op.scope==='note')boardStructural=true;
@@ -36111,7 +36256,8 @@ html body .card .item.assal-smart-added-item-safe-final{
       });
       if((boardStructural&&(cardEl||touchesVisibleDay))||needsVisibleBoardRefresh){try{renderBoard();}catch(_){ }}
       if(railChanged){try{renderRail();}catch(_){ }}
-      if(financial){try{refreshStats();window.assalRequestFastDebtBadgeRefresh&&window.assalRequestFastDebtBadgeRefresh();}catch(_){ }}
+      if(paymentTouched){try{window.refreshPaymentsUI&&window.refreshPaymentsUI();}catch(_){ }}
+      if(financial){try{refreshStats();window.assalRequestFastDebtBadgeRefresh&&window.assalRequestFastDebtBadgeRefresh();window.refreshDebtsUI&&window.refreshDebtsUI();window.assalRefreshCustomerDebtBadges&&window.assalRefreshCustomerDebtBadges();}catch(_){ }}
     }catch(_){ }
   }
   function scheduleFollowupSyncIfNeeded(snapshotRevision){
@@ -36191,22 +36337,28 @@ html body .card .item.assal-smart-added-item-safe-final{
     if(!rows)rows='<div class="assal-cr-newcard-empty"><i class="fa-solid fa-box-open"></i> البطاقة الجديدة لا تحتوي مواد حالياً</div>';
     return '<div class="assal-cr-newcard"><div class="assal-cr-newcard-top"><div class="assal-cr-newcard-title"><i class="fa-solid fa-file-circle-plus"></i><span>إضافة بطاقة جديدة كاملة</span></div><span class="assal-cr-newcard-count">'+lines.length+' مادة</span></div><div class="assal-cr-newcard-lines">'+rows+'</div>'+(more?'<div class="assal-cr-newcard-more">ويوجد '+more+' مواد أخرى ضمن نفس البطاقة</div>':'')+'</div>';
   }
+  function paymentRequestHtml(rec){
+    var op=paymentOpOf(rec)||{},row=clone(rec.afterPayment)||clone(op.after)||clone(rec.beforePayment)||clone(op.before)||{};
+    var action=op.action==='remove'?'حذف حركة مالية':(op.action==='add'?'إضافة حركة مالية':'تعديل حركة مالية');
+    var amount=Number(row.amount||0);try{amount=amount.toLocaleString('en-US');}catch(_){amount=safe(row.amount||0);}
+    return '<div class="assal-cr-payment"><div class="assal-cr-payment-top"><div class="assal-cr-payment-title"><i class="fa-solid fa-money-bill-transfer"></i><span>'+esc(action)+'</span></div><span class="assal-cr-payment-kind">'+esc(row.kind||'حركة')+'</span></div><div class="assal-cr-payment-grid"><div class="assal-cr-payment-cell"><span>الزبون</span><b>'+esc(row.cust||rec.customer||'—')+'</b></div><div class="assal-cr-payment-cell amount"><span>المبلغ</span><b>'+esc(amount)+'</b></div><div class="assal-cr-payment-cell"><span>التاريخ</span><b>'+esc(row.date||rec.cardDay||'—')+'</b></div><div class="assal-cr-payment-cell"><span>الوقت</span><b>'+esc(row.time||'—')+'</b></div><div class="assal-cr-payment-cell assal-cr-payment-note"><span>الملاحظات</span><b>'+esc(row.notes||'لا توجد ملاحظات')+'</b></div></div></div>';
+  }
   function cardHtml(rec,mode){
-    var changes=Array.isArray(rec.changes)?rec.changes:summarizeOps(rec.ops||[]),isBundle=isNewCardBundle(rec),bundleOp=isBundle?cardAddOperation(rec):null,bundleCard=isBundle?(clone(rec.afterCard)||(bundleOp&&clone(bundleOp.after))||{}):null;
+    var changes=Array.isArray(rec.changes)?rec.changes:summarizeOps(rec.ops||[]),isBundle=isNewCardBundle(rec),isPayment=isPaymentDraft(rec),bundleOp=isBundle?cardAddOperation(rec):null,bundleCard=isBundle?(clone(rec.afterCard)||(bundleOp&&clone(bundleOp.after))||{}):null;
     var bundleLines=isBundle&&Array.isArray(bundleCard.lines)?bundleCard.lines:[],shown=changes.slice(0,8),more=Math.max(0,changes.length-shown.length),status=safe(rec.status||'draft');
     var localPending=isMain()&&status==='pending_review'&&isAppliedLocal(rec.id);if(localPending)status='approved_pending_upload';
     var cls=status==='applied'?'applied':(status==='rejected'?'rejected':(status==='conflict'?'conflict':'pending'));
     var time=rec.sentAt||rec.createdAt||rec.updatedAt||'',isBusy=busyIds.has(safe(rec.id))||safe(activeUploadRequestId)===safe(rec.id),dis=isBusy?' disabled':'';
     var spin=isBusy?'fa-spinner':'fa-cloud-arrow-up',actions='';
-    if(mode==='draft')actions='<button class="assal-cr-btn send" data-cr-send="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-paper-plane')+'"></i> '+(isBusy?'جاري الإرسال':'إرسال')+'</button><button class="assal-cr-btn delete" data-cr-delete-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-solid fa-rotate-left"></i> '+(isBundle?'حذف البطاقة والتراجع':'حذف وإرجاع الأصل')+'</button>';
-    else if(mode==='admin-archive')actions='<button class="assal-cr-btn delete" data-cr-hide-archive="'+esc(rec.id)+'"'+dis+'><i class="fa-regular fa-trash-can"></i> حذف</button>';
+    if(mode==='draft')actions='<button class="assal-cr-btn send" data-cr-send="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-paper-plane')+'"></i> '+(isBusy?'جاري الإرسال':'إرسال')+'</button><button class="assal-cr-btn delete" data-cr-delete-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-solid fa-rotate-left"></i> '+(isBundle?'حذف البطاقة والتراجع':'حذف وإرجاع الأصل')+'</button><button class="assal-cr-btn delete-only" data-cr-dismiss-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-regular fa-trash-can"></i> حذف الحركة</button>';
+    else if(mode==='admin-archive')actions='<button class="assal-cr-btn delete" data-cr-hide-archive="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-trash-can')+'"></i> '+(isBusy?'جاري الحذف':'حذف')+'</button>';
     else if(mode==='main-incoming'){
       if(status==='approved_pending_upload')actions='<button class="assal-cr-btn retry '+(isBusy?'is-busy':'')+'" data-cr-retry="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+spin+'"></i> '+(isBusy?'جاري الرفع':'إكمال الرفع')+'</button>';
       else actions='<button class="assal-cr-btn approve '+(isBusy?'is-busy':'')+'" data-cr-approve="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-check')+'"></i> '+(isBusy?'جاري التنفيذ':'موافقة')+'</button><button class="assal-cr-btn reject" data-cr-reject="'+esc(rec.id)+'"'+dis+'><i class="fa-solid fa-xmark"></i> رفض</button>';
     }
     var conflict=rec.conflictNote?'<div class="assal-cr-conflict"><i class="fa-solid fa-triangle-exclamation"></i> '+esc(rec.conflictNote)+'</div>':'';
-    var subtitle=esc(rec.cardDay||rec.afterDay||rec.beforeDay||'—')+' • '+esc(fmtDateTime(time))+' • '+(isBundle?'بطاقة جديدة — '+bundleLines.length+' مادة':changes.length+' تغيير');
-    var body=isBundle?newCardBundleHtml(rec):'<div class="assal-cr-changes">'+shown.map(changeHtml).join('')+'</div>'+(more?'<div class="assal-cr-more">ويوجد '+more+' تغييرات أخرى ضمن نفس الطلب</div>':'');
+    var subtitle=esc(rec.cardDay||rec.afterDay||rec.beforeDay||'—')+' • '+esc(fmtDateTime(time))+' • '+(isBundle?'بطاقة جديدة — '+bundleLines.length+' مادة':(isPayment?'حركة حسابات مالية':changes.length+' تغيير'));
+    var body=isBundle?newCardBundleHtml(rec):(isPayment?paymentRequestHtml(rec):'<div class="assal-cr-changes">'+shown.map(changeHtml).join('')+'</div>'+(more?'<div class="assal-cr-more">ويوجد '+more+' تغييرات أخرى ضمن نفس الطلب</div>':''));
     return '<article class="assal-cr-card '+cls+'"><div class="assal-cr-card-head"><div class="assal-cr-card-title"><b>'+esc(rec.customer||'بطاقة بدون اسم')+'</b><span>'+subtitle+'</span></div><span class="assal-cr-status '+esc(status)+'">'+esc(statusText(status))+'</span></div>'+body+conflict+(actions?'<div class="assal-cr-actions">'+actions+'</div>':'')+'</article>';
   }
 
@@ -36236,10 +36388,53 @@ html body .card .item.assal-smart-added-item-safe-final{
     Object.keys(days||{}).forEach(function(day){if(!Array.isArray(days[day]))return;days[day]=days[day].filter(function(c){return safe(c&&c.id)!==safe(cardId);});if(!days[day].length)delete days[day];});
   }
   function currentCardRecord(cardId){var m=cardMapFromDays();return m.get(safe(cardId))||null;}
+  function findPaymentRecord(paymentId,dayHint){
+    var store=paymentStoreRef(),daysToCheck=[];
+    if(dayHint)daysToCheck.push(safe(dayHint));
+    Object.keys(store||{}).forEach(function(d){if(daysToCheck.indexOf(d)<0)daysToCheck.push(d);});
+    for(var di=0;di<daysToCheck.length;di++){
+      var day=daysToCheck[di],arr=Array.isArray(store[day])?store[day]:[];
+      for(var i=0;i<arr.length;i++){if(paymentIdentity(arr[i],i)===safe(paymentId))return {day:day,index:i,row:arr[i],arr:arr};}
+    }
+    return null;
+  }
+  function savePaymentDayLocal(day){
+    var store=paymentStoreRef(),arr=Array.isArray(store[day])?store[day]:[];
+    if(typeof window.assalSavePaymentsDay==='function'){
+      window.assalSavePaymentsDay(day,arr);
+      return;
+    }
+    // لا نعلن نجاح تطبيق حركة مالية إذا كان جسر الحفظ الحقيقي غير متاح.
+    throw new Error('تعذر حفظ حركة الحسابات محلياً');
+  }
+  async function dismissDraftOnly(reqId){
+    var d=findDraft(reqId);if(!d||busyIds.has(reqId))return;
+    var newer=state.drafts.some(function(x){return safe(x.cardId)===safe(d.cardId)&&new Date(x.createdAt||0)>new Date(d.createdAt||0);});
+    if(newer){try{showToast('warn',d.specialType==='global-customer-rename'?'احذف أحدث تغيير اسم شامل أولاً':'احذف أحدث تعديل لنفس البطاقة أو الحركة أولاً');}catch(_){ }return;}
+    var ok=typeof showConfirm==='function'?await showConfirm({title:'حذف الحركة فقط',message:'سيُحذف هذا الطلب من قائمة التعديلات فقط، وتبقى القيمة الحالية في البطاقة أو الحسابات كما هي من دون إرجاع الأصل.',okText:'حذف الحركة',cancelText:'تراجع',danger:true}):confirm('حذف الحركة فقط؟');
+    if(!ok)return;
+    state.drafts=state.drafts.filter(function(x){return safe(x.id)!==safe(reqId);});
+    seedSnapshots();seedPaymentSnapshots();schedulePersist();renderModal();updateButton();
+    try{showToast('info','تم حذف الحركة من طلبات الإرسال وبقيت البيانات المحلية كما هي');}catch(_){ }
+  }
   async function deleteDraft(reqId){
     var d=findDraft(reqId);if(!d)return;
     var newer=state.drafts.some(function(x){return safe(x.cardId)===safe(d.cardId)&&new Date(x.createdAt||0)>new Date(d.createdAt||0);});
     if(newer){try{showToast('warn',d.specialType==='global-customer-rename'?'احذف أحدث تغيير اسم شامل أولاً':'احذف أحدث تعديل لهذه البطاقة أولاً');}catch(_){}return;}
+    if(isPaymentDraft(d)){
+      var pop=paymentOpOf(d),prow=clone(d.afterPayment)||clone(pop&&pop.after)||clone(d.beforePayment)||clone(pop&&pop.before)||{};
+      var pok=typeof showConfirm==='function'?await showConfirm({title:'حذف التعديل المالي وإرجاع الأصل',message:'سيُحذف طلب '+esc(prow.kind||'الحركة المالية')+' غير المرسل وتعود الحسابات المالية إلى حالتها السابقة. هل تريد المتابعة؟',okText:'حذف وإرجاع الأصل',cancelText:'تراجع',danger:true}):confirm('حذف التعديل المالي وإرجاع الأصل؟');
+      if(!pok)return;
+      withSuppressedCapture(function(){
+        var store=paymentStoreRef(),touched=new Set(),pid=safe(d.paymentId||pop&&pop.paymentId);
+        Object.keys(store||{}).forEach(function(day){var arr=Array.isArray(store[day])?store[day]:[];var filtered=arr.filter(function(r,i){return paymentIdentity(r,i)!==pid;});if(filtered.length!==arr.length){store[day]=filtered;touched.add(day);}});
+        if(d.beforePayment){var bd=safe(d.beforeDay||d.cardDay),arr=Array.isArray(store[bd])?store[bd]:(store[bd]=[]),idx=Math.max(0,Math.min(arr.length,Number(d.beforeIndex)>=0?Number(d.beforeIndex):arr.length));arr.splice(idx,0,clone(d.beforePayment));touched.add(bd);}
+        touched.forEach(savePaymentDayLocal);
+      });
+      state.drafts=state.drafts.filter(function(x){return safe(x.id)!==safe(reqId);});schedulePersist();
+      try{window.refreshPaymentsUI&&window.refreshPaymentsUI();refreshStats();window.refreshDebtsUI&&window.refreshDebtsUI();showToast('info','تم حذف الطلب المالي وإرجاع الحسابات إلى الأصل');}catch(_){ }
+      renderModal();updateButton();return;
+    }
     if(d.specialType==='global-customer-rename'||(d.ops||[]).some(isGlobalCustomerRenameOp)){
       var gop=(d.ops||[]).find(isGlobalCustomerRenameOp);if(!gop)return;
       var gok=typeof showConfirm==='function'?await showConfirm({title:'حذف تغيير الاسم وإرجاع الأصل',message:'سيُحذف هذا الطلب غير المرسل ويُعاد اسم الزبون من «'+esc(gop.after)+'» إلى «'+esc(gop.before)+'» في السجلات المحلية. هل تريد المتابعة؟',okText:'حذف وإرجاع الاسم',cancelText:'تراجع',danger:true}):confirm('حذف تغيير الاسم وإرجاع الأصل؟');
@@ -36277,6 +36472,7 @@ html body .card .item.assal-smart-added-item-safe-final{
       var payload=clone(d);payload.status='pending_review';payload.sentAt=now();payload.adminEmail=ADMIN_EMAIL;
       /* النسخ الكاملة مطلوبة للإرجاع المحلي قبل الإرسال فقط؛ السيرفر يستلم العمليات الدقيقة دون تكرار البطاقة كاملة. */
       delete payload.beforeCard; delete payload.afterCard;
+      delete payload.beforePayment; delete payload.afterPayment;
       if(!quiet){progressSet('','إرسال طلب التعديل','إرسال الطلب إلى الحاسبة الرئيسية',58,'fa-solid fa-paper-plane');await nextPaint();}
       var res=await serverPost('card-request-submit',{version:VERSION,actorEmail:email(),request:payload});
       if(!quiet){progressSet('','إرسال طلب التعديل','تثبيت الطلب في الأرشيف المحلي',86,'fa-solid fa-box-archive');await nextPaint();}
@@ -36293,11 +36489,20 @@ html body .card .item.assal-smart-added-item-safe-final{
     var sent=0;for(var i=0;i<ids.length;i++){if(await sendDraft(ids[i],true))sent++;else break;}try{showToast(sent===ids.length?'success':'warn','تم إرسال '+sent+' من '+ids.length+' طلب');}catch(_){}renderModal();
   }
   async function hideArchive(reqId){
-    var rec=state.archive.find(function(x){return safe(x.id)===safe(reqId);});if(!rec)return;
-    var status=safe(rec.status);var action=status==='pending_review'?'cancel':'hide-admin';
+    var rec=state.archive.find(function(x){return safe(x.id)===safe(reqId);});if(!rec||busyIds.has(reqId))return;
+    var status=safe(rec.status),action=status==='pending_review'?'cancel':'hide-admin';
     var msg=status==='pending_review'?'سيتم سحب الطلب من الحاسبة الرئيسية وحذفه من أرشيفك. لن تتغير البطاقة المحلية.':'سيُحذف سجل الطلب من أرشيف هذا الأدمن فقط، ولن تنعكس البيانات المطبقة.';
     var ok=typeof showConfirm==='function'?await showConfirm({title:status==='pending_review'?'سحب وحذف الطلب':'حذف سجل الأرشيف',message:msg,okText:status==='pending_review'?'سحب الطلب':'حذف السجل',cancelText:'تراجع',danger:true}):confirm(msg);if(!ok)return;
-    try{await serverPost('card-request-action',{version:VERSION,action:action,requestId:reqId,actorEmail:email()});state.archive=state.archive.filter(function(x){return safe(x.id)!==safe(reqId);});schedulePersist();renderModal();updateButton();try{showToast('info',status==='pending_review'?'تم سحب الطلب':'تم حذف سجل الأرشيف');}catch(_){} }catch(err){try{showToast('error','تعذر حذف الطلب: '+safe(err&&err.message||err));}catch(_){} }
+    busyIds.add(reqId);if(isModalOpen())renderModal();await nextPaint();
+    var oldIndex=state.archive.findIndex(function(x){return safe(x.id)===safe(reqId);}),backup=clone(rec);
+    if(oldIndex>=0)state.archive.splice(oldIndex,1);if(isModalOpen())renderModal();updateButton();
+    try{
+      await serverPost('card-request-action',{version:VERSION,action:action,requestId:reqId,actorEmail:email()});
+      schedulePersist();try{showToast('info',status==='pending_review'?'تم سحب الطلب':'تم حذف سجل الأرشيف');}catch(_){} 
+    }catch(err){
+      if(backup){var idx=Math.max(0,Math.min(state.archive.length,oldIndex<0?state.archive.length:oldIndex));state.archive.splice(idx,0,backup);}if(isModalOpen())renderModal();updateButton();
+      try{showToast('error','تعذر حذف الطلب: '+safe(err&&err.message||err));}catch(_){} 
+    }finally{busyIds.delete(reqId);if(isModalOpen())renderModal();}
   }
 
   function findCard(day,cardId){var arr=Array.isArray(days&&days[day])?days[day]:[];return arr.find(function(c){return safe(c&&c.id)===safe(cardId);})||null;}
@@ -36311,6 +36516,12 @@ html body .card .item.assal-smart-added-item-safe-final{
         if(currentRefs===0){conflicts.push('سجلات الاسم الأصلي غير موجودة على الحاسبة الرئيسية');return;}
         if(expectedRefs&&currentRefs!==expectedRefs)conflicts.push('عدد سجلات الاسم الأصلي تغير على الرئيسية: '+currentRefs+' بدلاً من '+expectedRefs);
         return;
+      }
+      if(op.scope==='payment'){
+        var ph=findPaymentRecord(op.paymentId,op.beforeDay||op.afterDay||req.cardDay);
+        if(op.action==='add'){if(ph&&!ph.row.deletedAt&&!deepEqual(comparePayment(ph.row),comparePayment(op.after)))conflicts.push('الحركة المالية موجودة مسبقاً بشكل مختلف');return;}
+        if(op.action==='remove'){if(!ph){conflicts.push('الحركة المالية المراد حذفها غير موجودة');return;}if(ph.row.deletedAt)return;if(!deepEqual(comparePayment(ph.row),comparePayment(op.before)))conflicts.push('الحركة المالية تغيرت على الرئيسية قبل الحذف');return;}
+        if(op.action==='patch'){if(!ph){conflicts.push('الحركة المالية المطلوبة غير موجودة');return;}(op.fields||[]).forEach(function(f){var has=Object.prototype.hasOwnProperty.call(ph.row,f.field),cur=has?cleanValue(ph.row[f.field],true):{__assalMissing:true};if(!deepEqual(cur,f.before))conflicts.push('حقل '+fieldLabel('payment',f.field)+' تغير في الحسابات المالية');});return;}
       }
       if(op.scope==='card'&&op.action==='add'){if(card&&!deepEqual(compareCard(card),compareCard(op.after)))conflicts.push('البطاقة موجودة مسبقاً');return;}
       if(op.scope==='card'&&op.action==='remove'){if(!card)return;if(!deepEqual(compareCard(card),compareCard(op.before)))conflicts.push('محتوى البطاقة الحالية يختلف قبل الحذف');return;}
@@ -36335,12 +36546,18 @@ html body .card .item.assal-smart-added-item-safe-final{
     return Array.from(new Set(conflicts));
   }
   function applyRequestOps(req,force){
-    var stamp=now(),found=findCardAny(req.cardId),card=found.card,currentDay=found.day;
+    var stamp=now(),found=findCardAny(req.cardId),card=found.card,currentDay=found.day,touchedPaymentDays=new Set();
     (req.ops||[]).forEach(function(op){
       if(isGlobalCustomerRenameOp(op)){
         if(typeof window.assalApplyRenameCustomerEverywhere!=='function')throw new Error('دالة تغيير الاسم غير متاحة');
         window.assalApplyRenameCustomerEverywhere(op.before,op.after,{skipSave:true,silentUi:true});
         return;
+      }
+      if(op.scope==='payment'){
+        var store=paymentStoreRef(),ph=findPaymentRecord(op.paymentId,op.beforeDay||op.afterDay||req.cardDay),pday=safe(op.afterDay||op.beforeDay||req.cardDay);
+        if(op.action==='add'){var addRow=clone(op.after)||{};if(!addRow.id)addRow.id=safe(op.paymentId);if(ph){ph.arr[ph.index]=addRow;touchedPaymentDays.add(ph.day);}else{if(!Array.isArray(store[pday]))store[pday]=[];store[pday].push(addRow);touchedPaymentDays.add(pday);}return;}
+        if(op.action==='remove'){if(ph){var removed=clone(op.after)||clone(ph.row)||{};removed.id=removed.id||safe(op.paymentId);removed.deletedAt=removed.deletedAt||stamp;removed.updatedAt=stamp;ph.arr[ph.index]=removed;touchedPaymentDays.add(ph.day);}return;}
+        if(op.action==='patch'&&ph){(op.fields||[]).forEach(function(f){if(isMissingValue(f.after))delete ph.row[f.field];else ph.row[f.field]=clone(f.after);});ph.row.updatedAt=stamp;touchedPaymentDays.add(ph.day);return;}
       }
       if(op.scope==='card'&&op.action==='add'){
         if(!card){var d=op.afterDay||req.afterDay||req.cardDay;if(!Array.isArray(days[d]))days[d]=[];card=clone(op.after);card.updatedAt=stamp;days[d].push(card);currentDay=d;}return;
@@ -36365,6 +36582,7 @@ html body .card .item.assal-smart-added-item-safe-final{
       }
     });
     if(card){card.updatedAt=stamp;if(card.customer){try{if(Array.isArray(names)&&names.indexOf(card.customer)<0)names.push(card.customer);}catch(_){}}}
+    touchedPaymentDays.forEach(function(day){savePaymentDayLocal(day);});
   }
   async function uploadAndComplete(req,mode){
     if(isUploadBusyForOther(req.id))throw new Error('يوجد رفع طلب آخر قيد التنفيذ');
@@ -36445,8 +36663,8 @@ html body .card .item.assal-smart-added-item-safe-final{
     catch(err){progressError('تعذر رفض الطلب',safe(err&&err.message||err));}
     finally{busyIds.delete(reqId);if(isModalOpen())renderModal();}
   }
-  function handleListClick(e){var b=e.target.closest('button');if(!b)return;var idv=b.getAttribute('data-cr-send')||b.getAttribute('data-cr-delete-draft')||b.getAttribute('data-cr-hide-archive')||b.getAttribute('data-cr-approve')||b.getAttribute('data-cr-reject')||b.getAttribute('data-cr-retry');if(!idv)return;e.preventDefault();
-    var task=null;if(b.hasAttribute('data-cr-send'))task=sendDraft(idv,false);else if(b.hasAttribute('data-cr-delete-draft'))task=deleteDraft(idv);else if(b.hasAttribute('data-cr-hide-archive'))task=hideArchive(idv);else if(b.hasAttribute('data-cr-approve'))task=approveRequest(idv);else if(b.hasAttribute('data-cr-reject'))task=rejectRequest(idv);else if(b.hasAttribute('data-cr-retry'))task=retryUpload(idv);if(task&&typeof task.catch==='function')task.catch(function(err){try{console.error('[ASSAL request action]',err);}catch(_){ }});
+  function handleListClick(e){var b=e.target.closest('button');if(!b)return;var idv=b.getAttribute('data-cr-send')||b.getAttribute('data-cr-delete-draft')||b.getAttribute('data-cr-dismiss-draft')||b.getAttribute('data-cr-hide-archive')||b.getAttribute('data-cr-approve')||b.getAttribute('data-cr-reject')||b.getAttribute('data-cr-retry');if(!idv)return;e.preventDefault();
+    var task=null;if(b.hasAttribute('data-cr-send'))task=sendDraft(idv,false);else if(b.hasAttribute('data-cr-delete-draft'))task=deleteDraft(idv);else if(b.hasAttribute('data-cr-dismiss-draft'))task=dismissDraftOnly(idv);else if(b.hasAttribute('data-cr-hide-archive'))task=hideArchive(idv);else if(b.hasAttribute('data-cr-approve'))task=approveRequest(idv);else if(b.hasAttribute('data-cr-reject'))task=rejectRequest(idv);else if(b.hasAttribute('data-cr-retry'))task=retryUpload(idv);if(task&&typeof task.catch==='function')task.catch(function(err){try{console.error('[ASSAL request action]',err);}catch(_){ }});
   }
 
   async function refreshFromServer(showMsg){
@@ -36471,7 +36689,7 @@ html body .card .item.assal-smart-added-item-safe-final{
     var bundledDraftGroups=0;
     try{bundledDraftGroups=consolidateNewCardDrafts();}catch(_){bundledDraftGroups=0;}
     if(legacyDraftsCleared||bundledDraftGroups){try{await persistState();}catch(_){ }}
-    seedSnapshots();ready=true;wrapSave();wrapImportFunction('smartImportFromServer');wrapImportFunction('importInvoicesFromFile');
+    seedSnapshots();seedPaymentSnapshots();ready=true;wrapSave();wrapSavePayments();wrapImportFunction('smartImportFromServer');wrapImportFunction('importInvoicesFromFile');
     ensureButton();updateButton();
     if(legacyDraftsCleared){try{showToast('info','تم تنظيف '+legacyDraftsCleared+' مسودة خاطئة من النسخة السابقة');}catch(_){ }}
     if(bundledDraftGroups){try{showToast('success','تم تجميع إضافات البطاقات الجديدة ضمن طلب واحد لكل بطاقة');}catch(_){ }}
@@ -36497,6 +36715,7 @@ html body .card .item.assal-smart-added-item-safe-final{
 
   window.assalCardChangeRequestsRefresh=refreshFromServer;
   window.assalCardChangeRequestsOpen=openModal;
+  window.assalCardChangeRequestsCapturePayments=capturePaymentChanges;
 })();
 </script>
 <!-- ASSAL CARD REQUESTS NEW CARD BUNDLE FINAL - END -->
@@ -36576,6 +36795,11 @@ html body .card .item.assal-smart-added-item-safe-final{
 }
 </style>
 <!-- ASSAL REQUESTS + CUSTOMER ACCOUNT SCROLL HARD FIX FINAL - END -->
+
+<!-- ASSAL FINANCIAL REQUESTS BRIDGE FIX FINAL - START -->
+<!-- ربط معزول بين حفظ الحسابات المالية ونظام طلبات التعديل دون تغيير سلوك الحفظ المالي -->
+<!-- ASSAL FINANCIAL REQUESTS BRIDGE FIX FINAL - END -->
+
 
 </body>
 </html>
