@@ -36089,7 +36089,8 @@ html body .card .item.assal-smart-added-item-safe-final{
       var rename=ops.find(isGlobalCustomerRenameOp);if(rename){refreshVisibleCustomerRename(rename.before,rename.after);return;}
       var found=findCardAny(req.cardId),card=found.card;
       var cardEl=document.getElementById('card-'+safe(req.cardId));
-      var activeDay='';try{activeDay=(typeof currentDay!=='undefined'&&currentDay)?safe(currentDay):'';}catch(_){ }
+      /* اليوم الظاهر في لوحة البطاقات هو selectedDay، أما currentDay فهو خاص بنافذة الحسابات المالية. */
+      var activeDay=currentSelectedDay();
       var touchesVisibleDay=[safe(req.cardDay),safe(req.beforeDay),safe(req.afterDay),safe(found.day)].some(function(d){return !!d&&d===activeDay;});
       var boardStructural=false,railChanged=false,financial=false,needsVisibleBoardRefresh=false;
       ops.forEach(function(op){
@@ -36270,17 +36271,22 @@ html body .card .item.assal-smart-added-item-safe-final{
     var older=state.drafts.some(function(x){return safe(x.cardId)===safe(d.cardId)&&new Date(x.createdAt||0)<new Date(d.createdAt||0);});
     if(older){if(!quiet)try{showToast('warn','أرسل أقدم تعديل لهذه البطاقة أولاً');}catch(_){}return false;}
     busyIds.add(reqId);
+    if(isModalOpen())renderModal();
     try{
+      if(!quiet){progressSet('','إرسال طلب التعديل','تجهيز الطلب والتحقق من محتواه',18,'fa-solid fa-file-circle-check');await nextPaint();}
       var payload=clone(d);payload.status='pending_review';payload.sentAt=now();payload.adminEmail=ADMIN_EMAIL;
       /* النسخ الكاملة مطلوبة للإرجاع المحلي قبل الإرسال فقط؛ السيرفر يستلم العمليات الدقيقة دون تكرار البطاقة كاملة. */
       delete payload.beforeCard; delete payload.afterCard;
+      if(!quiet){progressSet('','إرسال طلب التعديل','إرسال الطلب إلى الحاسبة الرئيسية',58,'fa-solid fa-paper-plane');await nextPaint();}
       var res=await serverPost('card-request-submit',{version:VERSION,actorEmail:email(),request:payload});
+      if(!quiet){progressSet('','إرسال طلب التعديل','تثبيت الطلب في الأرشيف المحلي',86,'fa-solid fa-box-archive');await nextPaint();}
       var record=(res&&res.request)||payload;record.status=record.status||'pending_review';record.sentAt=record.sentAt||payload.sentAt;
       state.drafts=state.drafts.filter(function(x){return safe(x.id)!==safe(reqId);});state.archive.push(record);schedulePersist();
-      if(!quiet)try{showToast('success','تم إرسال طلب التعديل إلى الحاسبة الرئيسية');}catch(_){}
-      renderModal();updateButton();return true;
-    }catch(err){if(!quiet)try{showToast('error','تعذر إرسال الطلب: '+safe(err&&err.message||err));}catch(_){}return false;}
-    finally{busyIds.delete(reqId);}
+      updateButton();if(isModalOpen())renderModal();
+      if(!quiet)progressSuccess('تم إرسال طلب التعديل','انتقل الطلب إلى الأرشيف وبانتظار مراجعة الحاسبة الرئيسية');
+      return true;
+    }catch(err){if(!quiet)progressError('تعذر إرسال الطلب',safe(err&&err.message||err));return false;}
+    finally{busyIds.delete(reqId);if(isModalOpen())renderModal();}
   }
   async function sendAllDrafts(){
     var ids=state.drafts.map(function(x){return x.id;});if(!ids.length)return;var ok=typeof showConfirm==='function'?await showConfirm({title:'إرسال كل التعديلات',message:'سيتم إرسال '+ids.length+' طلب تعديل واحداً بعد الآخر إلى الحاسبة الرئيسية.',okText:'إرسال الكل',cancelText:'تراجع',danger:false}):true;if(!ok)return;
