@@ -18161,8 +18161,51 @@ function exportDayPDF_Vector(){
  const dateStr = new Date(selectedDay)
   .toLocaleDateString('ar-EG', { weekday:'long', year:'numeric', month:'2-digit', day:'2-digit' });
 
-  // نحضر بايلود + نمرر قائمة الزبائن المعروفة
-  const payload = { dateStr, cards, known: CUSTOMERS || [] };
+  // حسابات نفس يوم البطاقات المفتوح فقط، حتى لو كان تاريخ اليوم الحالي مختلفاً.
+  // قراءة فقط من نفس مخزن الحسابات الذي تستخدمه نافذة الحسابات المالية، بلا حفظ أو تعديل.
+  let dayPayments = [];
+  try{
+    const paymentStore = (typeof window.loadPaymentsStore === 'function')
+      ? window.loadPaymentsStore()
+      : ((window.__assalPaymentsLiveStore && typeof window.__assalPaymentsLiveStore === 'object')
+          ? window.__assalPaymentsLiveStore
+          : {});
+    dayPayments = Array.isArray(paymentStore && paymentStore[selectedDay])
+      ? paymentStore[selectedDay].filter(r => r && !r.deletedAt)
+      : [];
+  }catch(_){
+    dayPayments = [];
+  }
+
+  // نبني صفوف الحسابات هنا بنفس منطق طباعة الحسابات المستقلة قبل تمرير البيانات
+  // إلى نافذة الطباعة. هذا يحافظ على قيمة amount الأصلية حتى مع السجلات القديمة/غير القابلة للتسلسل بالكامل.
+  const dayPaymentsRowsHTML = dayPayments.map((r, i)=> {
+    const kind = String((r && r.kind) ?? '').trim();
+    const isWithdraw = kind === 'سحب';
+    const amt = String((r && r.amount) ?? '')
+      .replace(/[^\d.]/g,'')
+      .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return `
+      <tr class="payment-row${isWithdraw ? ' withdraw' : ''}">
+        <td>${i + 1}</td>
+        <td>${escHtml((r && r.cust) ?? '')}</td>
+        <td>${escHtml(kind)}</td>
+        <td class="num">${escHtml(amt)}</td>
+        <td style="text-align:start">${escHtml((r && r.notes) ?? '')}</td>
+        <td>${escHtml((r && r.date) ?? '')}</td>
+        <td>${escHtml((r && r.time) ?? '')}</td>
+      </tr>`;
+  }).join('');
+
+  // نحضر بايلود البطاقات + نفس جدول الحسابات المالية لليوم المفتوح.
+  const payload = {
+    dayISO: selectedDay,
+    dateStr,
+    cards,
+    payments: dayPayments,
+    paymentsRowsHTML: dayPaymentsRowsHTML,
+    known: CUSTOMERS || []
+  };
 
   const w = window.open('', '_blank');
   if(!w){ showToast('error','المتصفح منع فتح نافذة الطباعة'); return; }
@@ -18254,6 +18297,49 @@ function exportDayPDF_Vector(){
         .note__text{ flex:1; }
         .note__time{ font-size:11px; color:#6b7280; white-space:nowrap; }
 
+        /* ===== نفس طباعة جدول الحسابات المالية الحالية، مدموجة كآخر صفحة ===== */
+        .payments-print-section{
+          page-break-before:always;
+          break-before:page;
+          padding-top:0;
+        }
+        .payments-print-section[hidden]{ display:none !important; }
+        .payments-print-section th,
+        .payments-print-section td{
+          border:1px solid var(--stroke);
+          padding:6px 8px;
+          font-size:12px;
+        }
+        .payments-print-section th{
+          background:#f3f4f6;
+          font-weight:900;
+          text-align:center;
+        }
+        .payments-print-section td{
+          text-align:center;
+          vertical-align:middle;
+        }
+        .payments-print-section .num{
+          font-variant-numeric:tabular-nums;
+          font-feature-settings:"tnum" 1;
+          font-weight:900;
+        }
+        .payments-print-section tbody tr:nth-child(even){ background:#fafafa; }
+        .payments-print-section .payment-row.withdraw{
+          background:#2a0c12 !important;
+          color:#fca5a5;
+        }
+        .payments-print-section .payment-row.withdraw td{
+          border-color:rgba(127,29,29,0.45) !important;
+        }
+        .payments-print-section .payment-row.withdraw td:nth-child(4){
+          background:#200a0f;
+          border:1px solid #7f1d1d !important;
+          color:#fecaca;
+          font-weight:800;
+        }
+
+        *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
         @media print{ .card{ break-inside: avoid; } }
       </style>
       
@@ -18281,6 +18367,27 @@ function exportDayPDF_Vector(){
           <div id="dateHolder" class="date"></div>
         </div>
         <div id="printCards"></div>
+
+        <div id="paymentsPrintSection" class="payments-print-section" hidden>
+          <div class="head">
+            <div class="title">حركة الحسابات — مكتب عسل</div>
+            <div id="paymentsPrintDate" class="date"></div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>الاسم</th>
+                <th>النوع</th>
+                <th>المبلغ (د.ع)</th>
+                <th>ملاحظات</th>
+                <th>تاريخ</th>
+                <th>وقت</th>
+              </tr>
+            </thead>
+            <tbody id="paymentsPrintRows"></tbody>
+          </table>
+        </div>
       </div>
       <script>
         // نفس مُنسّق السعر المُستخدم بالكروت
@@ -18489,6 +18596,61 @@ function exportDayPDF_Vector(){
 
             host.appendChild(box);
           });
+
+          // أضف في النهاية نفس جدول طباعة الحسابات المالية، لكن لليوم المفتوح selectedDay فقط.
+          (function renderPaymentsPrintSection(){
+            const payments = Array.isArray(PAYLOAD.payments)
+              ? PAYLOAD.payments.filter(r => r && !r.deletedAt)
+              : [];
+            if(!payments.length) return; // نفس سلوك طباعة الحسابات المستقلة: لا جدول عند عدم وجود بيانات.
+
+            const section = document.getElementById('paymentsPrintSection');
+            const rowsHost = document.getElementById('paymentsPrintRows');
+            const dateHost = document.getElementById('paymentsPrintDate');
+            if(!section || !rowsHost) return;
+
+            if(dateHost) dateHost.textContent = PAYLOAD.dayISO || '';
+            // الصفوف بُنيت في الصفحة الأصلية بنفس كود طباعة الحسابات المستقلة،
+            // لذلك لا نعيد تفسير amount بعد JSON داخل نافذة الطباعة.
+            const readyRows = String(PAYLOAD.paymentsRowsHTML || '');
+            if(readyRows){
+              rowsHost.innerHTML = readyRows;
+              section.hidden = false;
+              return;
+            }
+
+            // احتياط للسجلات العادية إذا لم يصل HTML الجاهز لأي سبب.
+            payments.forEach((r, i)=>{
+              const kind = String((r && r.kind) ?? '').trim();
+              const isWithdraw = kind === 'سحب';
+              const amount = String((r && r.amount) ?? '')
+                .replace(/[^\d.]/g,'')
+                .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+              const tr = document.createElement('tr');
+              tr.className = 'payment-row' + (isWithdraw ? ' withdraw' : '');
+
+              const values = [
+                String(i + 1),
+                String((r && r.cust) ?? ''),
+                kind,
+                amount,
+                String((r && r.notes) ?? ''),
+                String((r && r.date) ?? ''),
+                String((r && r.time) ?? '')
+              ];
+
+              values.forEach((value, index)=>{
+                const td = document.createElement('td');
+                if(index === 3) td.className = 'num';
+                if(index === 4) td.style.textAlign = 'start';
+                td.textContent = value;
+                tr.appendChild(td);
+              });
+              rowsHost.appendChild(tr);
+            });
+            section.hidden = false;
+          })();
 
           setTimeout(function(){ window.focus(); window.print(); }, 200);
         })();
