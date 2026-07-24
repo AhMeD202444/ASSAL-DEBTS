@@ -6844,6 +6844,71 @@ html body .payment-row{
 @media (max-width:760px){html body .payments-header-row,html body .payment-row{grid-template-columns:32px minmax(105px,1fr) 62px 88px minmax(105px,1fr) 78px 68px 36px 36px 36px !important}.assal-pay-balance-main{grid-template-columns:1fr}.assal-pay-balance-grid{grid-template-columns:1fr 1fr}.assal-pay-balance-title b{max-width:260px;font-size:16px}}
 @media (max-width:480px){.assal-pay-balance-grid{grid-template-columns:1fr}.assal-pay-balance-hero .v{font-size:22px}}
 </style>
+<style id="assal-payment-inline-edit-requests-final">
+/* ===== ASSAL: تعديل آمن لسطر التسديد/السحب داخل نافذة الحسابات المالية ===== */
+html body .payments-header-row,
+html body .payment-row{
+  /* # | الاسم | النوع | المبلغ | ملاحظات | التاريخ | الوقت | رصيد | تعديل | حذف | طباعة */
+  grid-template-columns:40px minmax(135px,1fr) 78px 112px minmax(150px,1fr) 96px 84px 42px 42px 42px 42px !important;
+}
+.payment-edit-btn,
+.payment-edit-save-btn,
+.payment-edit-cancel-btn{
+  height:28px;border-radius:8px;display:grid;place-items:center;
+  cursor:pointer;font-size:12px;line-height:0;transition:filter .16s ease,transform .16s ease;
+}
+.payment-edit-btn{width:28px}
+.payment-edit-save-btn,.payment-edit-cancel-btn{width:18px;font-size:10px}
+.payment-edit-btn{
+  border:1px solid rgba(250,204,21,.38);
+  background:linear-gradient(135deg,#713f12,#4a2b0b);color:#fef3c7;
+}
+.payment-edit-save-btn{
+  border:1px solid rgba(34,197,94,.42);
+  background:linear-gradient(135deg,#166534,#14532d);color:#dcfce7;
+}
+.payment-edit-cancel-btn{
+  border:1px solid rgba(248,113,113,.42);
+  background:linear-gradient(135deg,#7f1d1d,#4c0b0b);color:#fee2e2;
+}
+.payment-edit-btn:hover,.payment-edit-save-btn:hover,.payment-edit-cancel-btn:hover{filter:brightness(1.08)}
+.payment-edit-btn:active,.payment-edit-save-btn:active,.payment-edit-cancel-btn:active{transform:translateY(1px)}
+.assal-payment-edit-actions{display:flex;align-items:center;justify-content:center;gap:2px;width:100%;min-width:0}
+.payment-row.is-editing{
+  height:54px !important;min-height:54px !important;max-height:none !important;
+  background:linear-gradient(90deg,rgba(120,53,15,.22),#0b152e 26%,#0b152e 74%,rgba(120,53,15,.16)) !important;
+  border-color:rgba(250,204,21,.55) !important;
+  box-shadow:inset 0 0 0 1px rgba(250,204,21,.08);
+}
+html body .payment-row.is-editing .assal-payment-edit-kind,
+html body .payment-row.is-editing .assal-payment-edit-amount,
+html body .payment-row.is-editing .assal-payment-edit-notes{
+  all:revert !important;
+  box-sizing:border-box !important;
+  width:100% !important;height:32px !important;min-width:0 !important;
+  border:1px solid rgba(96,165,250,.42) !important;border-radius:8px !important;
+  background:#071126 !important;color:#f8fafc !important;
+  padding:4px 7px !important;font-family:inherit !important;font-size:12px !important;font-weight:850 !important;
+  outline:none !important;box-shadow:none !important;
+}
+html body .payment-row.is-editing .assal-payment-edit-kind:focus,
+html body .payment-row.is-editing .assal-payment-edit-amount:focus,
+html body .payment-row.is-editing .assal-payment-edit-notes:focus{
+  border-color:#38bdf8 !important;box-shadow:0 0 0 2px rgba(56,189,248,.16) !important;
+}
+html body .payment-row.is-editing .assal-payment-edit-kind{cursor:pointer !important;text-align:center !important}
+html body .payment-row.is-editing .assal-payment-edit-amount{direction:ltr !important;text-align:center !important;font-variant-numeric:tabular-nums !important}
+html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !important}
+.payment-row.is-editing > div:nth-child(5){overflow:visible !important;white-space:normal !important}
+.payment-row button:disabled{opacity:.38;cursor:not-allowed;filter:none !important;transform:none !important}
+@media (max-width:760px){
+  html body .payments-header-row,html body .payment-row{
+    grid-template-columns:32px minmax(105px,1fr) 62px 88px minmax(105px,1fr) 78px 68px 36px 36px 36px 36px !important;
+  }
+  .payment-edit-btn{width:26px;height:26px}
+  .payment-edit-save-btn,.payment-edit-cancel-btn{width:16px;height:26px;font-size:9px}
+}
+</style>
 
 
   <!-- ===== ASSAL FINAL: نوافذ تأكيد التسديد المدمجة — اسم الزبون فقط وبدون حركة ===== -->
@@ -9977,6 +10042,7 @@ html body .payment-row{
     <div>التاريخ</div>
     <div>الوقت</div>
     <div>رصيد</div>
+    <div>تعديل</div>
     <div>حذف</div>
     <div>طباعة</div>
   </div>
@@ -13608,16 +13674,27 @@ if(next){
 /* ===== Toasts: صف واحد دائمًا + تباعد أنيق ===== */
 const __toastQueue = [];
 let __toastBusy = false;
+let __toastScheduled = false;
+
+function assalScheduleToastQueue(){
+  if(__toastBusy || __toastScheduled || !__toastQueue.length) return;
+  __toastScheduled = true;
+  Promise.resolve().then(function(){
+    __toastScheduled = false;
+    return processToastQueueUnified();
+  }).catch(function(err){
+    __toastBusy = false;
+    __toastScheduled = false;
+    try{ console.warn('[ASSAL toast queue guarded]', err); }catch(_){ }
+    if(__toastQueue.length) setTimeout(assalScheduleToastQueue,0);
+  });
+}
 
 function showToast(type='info', message='تم التنفيذ', timeout=2200){
   const normalizedType = String(type || 'info').toLowerCase();
   const normalizedTimeout = Number.isFinite(Number(timeout)) ? Math.max(250, Number(timeout)) : 2200;
   __toastQueue.push({ type:normalizedType, message:String(message == null ? 'تم التنفيذ' : message), timeout:normalizedTimeout });
-  if(!__toastBusy){
-    Promise.resolve().then(processToastQueueUnified).catch(function(err){
-      try{ console.error('[ASSAL toast queue]', err); }catch(_){ }
-    });
-  }
+  assalScheduleToastQueue();
 }
 
 async function processToastQueueUnified(){
@@ -13681,11 +13758,11 @@ async function processToastQueueUnified(){
         try{ console.warn('[ASSAL toast item]', itemErr); }catch(_){ }
       }
     }
+  }catch(queueErr){
+    try{ console.warn('[ASSAL toast queue guarded]', queueErr); }catch(_){ }
   }finally{
     __toastBusy = false;
-    if(__toastQueue.length){
-      setTimeout(function(){ processToastQueueUnified().catch(function(err){ try{console.error('[ASSAL toast queue]',err);}catch(_){ } }); },0);
-    }
+    if(__toastQueue.length) setTimeout(assalScheduleToastQueue,0);
   }
 }
 
@@ -23637,12 +23714,14 @@ searchBtn?.addEventListener('click', ()=>{
 
 // كتابة البحث → فلترة فورية
 searchInput?.addEventListener('input', (e)=>{
+  assalPaymentEditState = null;
   paymentsSearchQuery = String(e.target.value || '').trim();
   renderPaymentsRows();
 });
 
 // مسح البحث
 searchClear?.addEventListener('click', ()=>{
+  assalPaymentEditState = null;
   paymentsSearchQuery = '';
   if (searchInput) searchInput.value = '';
   renderPaymentsRows();
@@ -23653,6 +23732,11 @@ searchClear?.addEventListener('click', ()=>{
 
   // البيانات بالذاكرة
   let paymentsData = [];
+
+  // حالة تعديل سطر مالي واحد فقط داخل النافذة.
+  // لا تُحفظ المسودة ولا تغيّر أي رقم إلا بعد تأكيد الحفظ النهائي.
+  let assalPaymentEditState = null;
+
  // لا تنسَ تصلّح getAllCustomers فوق بالمشروع كله
 function getAllCustomers(){
   return Array.isArray(CUSTOMERS) ? [...CUSTOMERS] : [];
@@ -23717,6 +23801,7 @@ let currentDay = null;
 
 // ضبط اليوم الحالي + تحميل بياناته
 function setCurrentDay(day){
+  assalPaymentEditState = null;
   currentDay   = getDayKey(day);
   paymentsData = listPayments(currentDay);
   try{ window.__assalPaymentsLiveStore = paymentsStore; }catch(_){}
@@ -23946,6 +24031,7 @@ function closePayments(){
   }
   if (typeof paymentsSearchQuery !== 'undefined') paymentsSearchQuery = '';
   if (searchInput) searchInput.value = '';
+  assalPaymentEditState = null;
 
   // إن تحب ترجّع الجدول بدون فلترة فورًا (اختياري):
   if (typeof renderPaymentsRows === 'function') renderPaymentsRows();
@@ -24344,6 +24430,310 @@ form?.addEventListener('submit', (e)=>{
 
 
 
+// ==== تعديل آمن لسطر تسديد/سحب داخل نفس الصف ====
+function assalPaymentEditEsc(value){
+  return String(value ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+function assalPaymentEditLatin(value){
+  return String(value ?? '').replace(/[\u0660-\u0669\u06F0-\u06F9]/g, function(ch){
+    return String('٠١٢٣٤٥٦٧٨٩'.indexOf(ch));
+  });
+}
+
+function assalPaymentEditAmount(value){
+  const n = Number(assalPaymentEditLatin(value).replace(/[^\d.]/g,''));
+  return Math.round(isFinite(n) ? n : 0);
+}
+
+function assalPaymentStableKey(row){
+  try{
+    const direct = String(row?.id || row?._id || '').trim();
+    if(direct) return direct;
+    if(typeof __paymentKey__ === 'function'){
+      const legacy = String(__paymentKey__(row) || '').trim();
+      if(legacy) return legacy;
+    }
+  }catch(_){ }
+  return JSON.stringify({
+    cust:String(row?.cust || ''), date:String(row?.date || ''), time:String(row?.time || ''),
+    kind:String(row?.kind || ''), amount:String(row?.amount ?? ''), notes:String(row?.notes || '')
+  });
+}
+
+function assalPaymentSourceDay(row){
+  try{
+    const keys = Object.keys(paymentsStore || {});
+    for(const day of keys){
+      const arr = paymentsStore[day];
+      if(Array.isArray(arr) && arr.includes(row)) return getDayKey(day);
+    }
+  }catch(_){ }
+  return getDayKey(row?.date || currentDay || todayStr());
+}
+
+function assalFindPaymentRef(day, key){
+  const sourceDay = getDayKey(day);
+  const arr = listPayments(sourceDay);
+  let index = arr.findIndex(function(row){ return assalPaymentStableKey(row) === String(key || ''); });
+  if(index < 0){
+    index = arr.findIndex(function(row){ return String(row?.id || row?._id || '') === String(key || ''); });
+  }
+  return index >= 0 ? {day:sourceDay,arr,index,row:arr[index]} : null;
+}
+
+function assalPaymentDebtEffect(kind, amount){
+  const n = Math.max(0, Math.round(Number(amount) || 0));
+  return String(kind || '').trim() === 'سحب' ? n : -n;
+}
+
+function assalPaymentImpactText(delta){
+  const n = Math.round(Number(delta) || 0);
+  if(n > 0) return 'زيادة دين الزبون بمقدار ' + n.toLocaleString('ar-IQ') + ' د.ع';
+  if(n < 0) return 'خفض دين الزبون بمقدار ' + Math.abs(n).toLocaleString('ar-IQ') + ' د.ع';
+  return 'لا يوجد تغيير في رصيد الزبون';
+}
+
+
+function assalPaymentEditBuildOpenConfirm(row, amount){
+  const customer = assalPaymentEditEsc(row?.cust || '—');
+  const kind = assalPaymentEditEsc(row?.kind || '—');
+  const notes = assalPaymentEditEsc(row?.notes || 'لا توجد');
+  const amountText = Math.max(0,Math.round(Number(amount)||0)).toLocaleString('ar-IQ');
+  return '' +
+    '<div class="assal-return-pop assal-return-pop--normal">' +
+      '<div class="assal-return-pop__hero">' +
+        '<span class="assal-return-pop__icon"><i class="fa-solid fa-pen-to-square"></i></span>' +
+        '<div><div class="assal-return-pop__title">فتح تعديل الحركة المالية</div><div class="assal-return-pop__sub">سيُفتح هذا السطر وحده للتعديل داخل نافذة الحسابات</div></div>' +
+      '</div>' +
+      '<div class="assal-return-pop__box">' +
+        'الزبون <b>' + customer + '</b> — الحركة الحالية <span class="assal-return-pop__pill"><i class="fa-solid fa-money-bill-transfer"></i>' + kind + ' ' + amountText + ' د.ع</span><br>' +
+        'الملاحظات: <b>' + notes + '</b>' +
+      '</div>' +
+      '<div class="assal-return-line-age"><i class="fa-solid fa-lock"></i><span>اسم الزبون والتاريخ والوقت تبقى ثابتة؛ المتاح فقط النوع والمبلغ والملاحظات.</span></div>' +
+      '<div class="assal-return-pop__hint"><span>اضغط متابعة لفتح السطر، أو إلغاء للعودة من دون أي تغيير.</span><span class="assal-return-pop__kbd">Enter</span></div>' +
+    '</div>';
+}
+
+function assalPaymentEditBuildSaveConfirm(row, currentKind, currentAmount, nextKind, nextAmount, nextNotes, delta, risky){
+  const cls = risky ? 'assal-return-pop--line-paid' : 'assal-return-pop--normal';
+  const icon = risky ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-floppy-disk';
+  const customer = assalPaymentEditEsc(row?.cust || '—');
+  const beforeText = assalPaymentEditEsc(currentKind) + ' — ' + Math.max(0,Math.round(Number(currentAmount)||0)).toLocaleString('ar-IQ') + ' د.ع';
+  const afterText = assalPaymentEditEsc(nextKind) + ' — ' + Math.max(0,Math.round(Number(nextAmount)||0)).toLocaleString('ar-IQ') + ' د.ع';
+  const impact = assalPaymentEditEsc(assalPaymentImpactText(delta));
+  const notes = assalPaymentEditEsc(nextNotes || 'لا توجد');
+  return '' +
+    '<div class="assal-return-pop ' + cls + '">' +
+      '<div class="assal-return-pop__hero">' +
+        '<span class="assal-return-pop__icon"><i class="' + icon + '"></i></span>' +
+        '<div><div class="assal-return-pop__title">تأكيد تعديل الحركة المالية</div><div class="assal-return-pop__sub">راجع القيم قبل تثبيت التعديل على نفس الحركة</div></div>' +
+      '</div>' +
+      '<div class="assal-return-pop__box">' +
+        'الزبون: <b>' + customer + '</b><br>' +
+        'قبل: <b>' + beforeText + '</b><br>' +
+        'بعد: <b>' + afterText + '</b><br>' +
+        'أثر التعديل: <span class="assal-return-pop__pill"><i class="fa-solid fa-scale-balanced"></i>' + impact + '</span><br>' +
+        'الملاحظات الجديدة: <b>' + notes + '</b>' +
+      '</div>' +
+      '<div class="assal-return-pop__hint"><span>لن يُحذف السطر ولن تُنشأ حركة جديدة؛ سيُحدَّث السطر نفسه فقط.</span><span class="assal-return-pop__kbd">Enter</span></div>' +
+    '</div>';
+}
+
+async function assalPaymentEditConfirmWindow(options){
+  const opts = options || {};
+  if(typeof showConfirm !== 'function') return window.confirm(String(opts.fallback || opts.title || 'تأكيد التعديل؟'));
+  const kind = opts.kind === 'line-paid' ? 'line-paid' : 'normal';
+  const promise = showConfirm({
+    title:String(opts.title || 'تأكيد'),
+    message:String(opts.message || ''),
+    okText:String(opts.okText || 'متابعة'),
+    cancelText:'إلغاء',
+    danger:false
+  });
+  try{
+    if(typeof assalReturnDecorateConfirm === 'function') assalReturnDecorateConfirm(kind);
+    const okBtn = document.getElementById('modal-confirm');
+    const cancelBtn = document.getElementById('modal-cancel');
+    if(okBtn) okBtn.innerHTML = '<i class="' + String(opts.okIcon || 'fa-solid fa-check') + '"></i> ' + assalPaymentEditEsc(opts.okText || 'متابعة');
+    if(cancelBtn) cancelBtn.innerHTML = '<i class="fa-solid fa-xmark"></i> إلغاء';
+    if(typeof assalReturnConfirmWithEnter === 'function') return await assalReturnConfirmWithEnter(promise);
+    return await promise;
+  }finally{
+    if(typeof assalReturnClearConfirmDecor === 'function') assalReturnClearConfirmDecor();
+  }
+}
+
+function assalPaymentEditIsAdminRequestComputer(){
+  try{
+    const login = String(window.ASSAL_LOGIN_EMAIL || '').trim().toLowerCase();
+    return window.ASSAL_IS_ADMIN_DEBTS === true || login === 'admin-debts@assal.com';
+  }catch(_){ return false; }
+}
+
+function assalPaymentEditNotifySaved(){
+  // حاسبة الأدمن يعلن عنها نظام طلبات التعديل نفسه بنفس توست التطبيق الحالي؛ لا نكرر توستاً ثانياً.
+  if(assalPaymentEditIsAdminRequestComputer()) return;
+  try{
+    if(typeof window.showToast === 'function') window.showToast('success','تم تعديل الحركة المالية');
+    else if(typeof showToast === 'function') showToast('success','تم تعديل الحركة المالية');
+  }catch(_){ }
+}
+
+function assalPaymentIsEditing(day,key){
+  return !!(assalPaymentEditState && assalPaymentEditState.day === getDayKey(day) && assalPaymentEditState.key === String(key || ''));
+}
+
+function assalCancelPaymentEdit(redraw){
+  assalPaymentEditState = null;
+  if(redraw !== false) renderPaymentsRows();
+}
+
+async function assalBeginPaymentEdit(day,key){
+  const sourceDay = getDayKey(day);
+  const stableKey = String(key || '');
+  if(assalPaymentEditState){
+    if(assalPaymentIsEditing(sourceDay,stableKey)) return;
+    try{ showToast && showToast('warn','احفظ أو ألغِ تعديل السطر الحالي أولاً'); }catch(_){ }
+    return;
+  }
+
+  const ref = assalFindPaymentRef(sourceDay,stableKey);
+  if(!ref || !ref.row || ref.row.deletedAt){
+    try{ showToast && showToast('error','تعذر العثور على الحركة المالية'); }catch(_){ }
+    return;
+  }
+
+  const row = ref.row;
+  const amount = assalPaymentEditAmount(row.amount);
+  const ok = await assalPaymentEditConfirmWindow({
+    title:'فتح تعديل الحركة المالية',
+    message:assalPaymentEditBuildOpenConfirm(row,amount),
+    okText:'فتح التعديل',
+    okIcon:'fa-solid fa-pen-to-square',
+    kind:'normal',
+    fallback:'فتح تعديل الحركة المالية؟'
+  });
+  if(!ok) return;
+
+  const fresh = assalFindPaymentRef(sourceDay,stableKey);
+  if(!fresh || !fresh.row || fresh.row.deletedAt){
+    try{ showToast && showToast('warn','تغيّرت الحركة قبل فتح التعديل'); }catch(_){ }
+    return;
+  }
+
+  assalPaymentEditState = {
+    day:sourceDay,
+    key:stableKey,
+    original:{
+      kind:String(fresh.row.kind || 'تسديد'),
+      amount:assalPaymentEditAmount(fresh.row.amount),
+      notes:String(fresh.row.notes || '')
+    }
+  };
+  renderPaymentsRows();
+  setTimeout(function(){
+    try{
+      const field = rowsWrap.querySelector('.payment-row.is-editing .assal-payment-edit-amount');
+      field && field.focus({preventScroll:true});
+      field && field.select && field.select();
+    }catch(_){ }
+  },0);
+}
+
+async function assalSavePaymentEdit(day,key){
+  const sourceDay = getDayKey(day);
+  const stableKey = String(key || '');
+  if(!assalPaymentIsEditing(sourceDay,stableKey)) return;
+
+  const editRow = rowsWrap.querySelector('.payment-row.is-editing');
+  if(!editRow) return;
+  const kindInput = editRow.querySelector('.assal-payment-edit-kind');
+  const amountInput = editRow.querySelector('.assal-payment-edit-amount');
+  const notesInput = editRow.querySelector('.assal-payment-edit-notes');
+  const nextKind = String(kindInput?.value || '').trim();
+  const nextAmount = assalPaymentEditAmount(amountInput?.value || '');
+  const nextNotes = String(notesInput?.value || '').trim();
+
+  if(nextKind !== 'تسديد' && nextKind !== 'سحب'){
+    try{ showToast && showToast('warn','اختر نوع الحركة: تسديد أو سحب'); }catch(_){ }
+    return;
+  }
+  if(nextAmount <= 0){
+    try{ showToast && showToast('warn','أدخل مبلغاً صحيحاً أكبر من صفر'); }catch(_){ }
+    try{ amountInput && amountInput.focus(); }catch(_){ }
+    return;
+  }
+
+  const ref = assalFindPaymentRef(sourceDay,stableKey);
+  if(!ref || !ref.row || ref.row.deletedAt){
+    assalCancelPaymentEdit(true);
+    try{ showToast && showToast('error','تعذر العثور على الحركة عند الحفظ'); }catch(_){ }
+    return;
+  }
+
+  const original = assalPaymentEditState.original || {};
+  const currentKind = String(ref.row.kind || 'تسديد');
+  const currentAmount = assalPaymentEditAmount(ref.row.amount);
+  const currentNotes = String(ref.row.notes || '');
+  if(currentKind !== String(original.kind || '') || currentAmount !== Number(original.amount || 0) || currentNotes !== String(original.notes || '')){
+    assalCancelPaymentEdit(true);
+    try{ showToast && showToast('warn','تغيّرت الحركة أثناء التعديل؛ أعد فتحها لحماية البيانات'); }catch(_){ }
+    return;
+  }
+
+  if(nextKind === currentKind && nextAmount === currentAmount && nextNotes === currentNotes){
+    assalCancelPaymentEdit(true);
+    try{ showToast && showToast('info','لم يتم تغيير أي بيانات في الحركة'); }catch(_){ }
+    return;
+  }
+
+  const delta = assalPaymentDebtEffect(nextKind,nextAmount) - assalPaymentDebtEffect(currentKind,currentAmount);
+  const riskyChange = (nextKind !== currentKind || delta > 0);
+  const ok = await assalPaymentEditConfirmWindow({
+    title:'تأكيد تعديل الحركة المالية',
+    message:assalPaymentEditBuildSaveConfirm(ref.row,currentKind,currentAmount,nextKind,nextAmount,nextNotes,delta,riskyChange),
+    okText:'حفظ التعديل',
+    okIcon:'fa-solid fa-floppy-disk',
+    kind:riskyChange ? 'line-paid' : 'normal',
+    fallback:'حفظ تعديل الحركة المالية؟'
+  });
+  if(!ok) return;
+
+  const fresh = assalFindPaymentRef(sourceDay,stableKey);
+  if(!fresh || !fresh.row || fresh.row.deletedAt){
+    assalCancelPaymentEdit(true);
+    try{ showToast && showToast('error','تعذر العثور على الحركة بعد التأكيد'); }catch(_){ }
+    return;
+  }
+  const freshKind = String(fresh.row.kind || 'تسديد');
+  const freshAmount = assalPaymentEditAmount(fresh.row.amount);
+  const freshNotes = String(fresh.row.notes || '');
+  if(freshKind !== currentKind || freshAmount !== currentAmount || freshNotes !== currentNotes){
+    assalCancelPaymentEdit(true);
+    try{ showToast && showToast('warn','تغيّرت الحركة قبل الحفظ؛ لم يُطبّق التعديل'); }catch(_){ }
+    return;
+  }
+
+  // تثبيت هوية الحركة القديمة قبل تعديل حقولها حتى تُسجّل كـ patch واحد في طلبات تعديل الأدمن.
+  const fixedId = String(fresh.row.id || fresh.row._id || assalPaymentStableKey(fresh.row));
+  fresh.row.id = fixedId;
+  fresh.row.kind = nextKind;
+  fresh.row.amount = nextAmount;
+  fresh.row.notes = nextNotes;
+  fresh.row.updatedAt = new Date().toISOString();
+
+  assalPaymentEditState = null;
+  savePayments(sourceDay, fresh.arr);
+  renderPaymentsRows();
+  assalPaymentEditNotifySaved();
+}
+
 // ==== حذف حركة تسديد/سحب مع تأكيد ====
 async function deletePayment(idx){
   const row = paymentsData[idx];
@@ -24484,18 +24874,24 @@ function renderPaymentsRows(){
     return minutesFrom12h(b?.time) - minutesFrom12h(a?.time);
   });
 
-  // ❺ بناء الصفوف (نفس تنسيقك القديم)
+  // ❺ بناء الصفوف مع دعم تعديل سطر مالي واحد فقط
   rowsWrap.innerHTML = view.map((row,idx)=>{
-    // تنسيق المبلغ بأمان (لو كان نص/فارغ/أرقام عربية)
     const amtNum = Number(
       toLatinDigits(String(row?.amount ?? '0')).replace(/[^\d.]/g,'')
     );
-    const formattedAmt = (isFinite(amtNum) ? amtNum : 0).toLocaleString('ar-IQ');
+    const safeAmount = isFinite(amtNum) ? amtNum : 0;
+    const formattedAmt = safeAmount.toLocaleString('ar-IQ');
 
     const isIn  = row?.kind === 'تسديد';
     const isOut = row?.kind === 'سحب';
+    const sourceDay = assalPaymentSourceDay(row);
+    const paymentKey = assalPaymentStableKey(row);
+    const isEditing = assalPaymentIsEditing(sourceDay,paymentKey);
+    const dayAttr = encodeURIComponent(sourceDay);
+    const keyAttr = encodeURIComponent(paymentKey);
 
     const rowPayload = encodeURIComponent(JSON.stringify({
+      id: row?.id ?? row?._id ?? '',
       cust: row?.cust ?? '',
       kind: row?.kind ?? '',
       amount: row?.amount ?? '',
@@ -24504,29 +24900,47 @@ function renderPaymentsRows(){
       time: row?.time ?? ''
     }));
 
+    const kindCell = isEditing
+      ? `<select class="assal-payment-edit-kind" aria-label="نوع الحركة">
+           <option value="تسديد" ${isIn ? 'selected' : ''}>تسديد</option>
+           <option value="سحب" ${isOut ? 'selected' : ''}>سحب</option>
+         </select>`
+      : `<div class="pay-type ${isIn ? 'pay-in':'pay-out'}">${assalPaymentEditEsc(row?.kind ?? '')}</div>`;
+    const amountCell = isEditing
+      ? `<input class="assal-payment-edit-amount" type="text" inputmode="numeric" value="${assalPaymentEditEsc(safeAmount.toLocaleString('en-US'))}" aria-label="مبلغ الحركة">`
+      : formattedAmt;
+    const notesCell = isEditing
+      ? `<input class="assal-payment-edit-notes" type="text" value="${assalPaymentEditEsc(row?.notes || '')}" placeholder="ملاحظات الحركة" aria-label="ملاحظات الحركة">`
+      : assalPaymentEditEsc(row?.notes || '');
+    const editActions = isEditing
+      ? `<div class="assal-payment-edit-actions">
+           <button type="button" class="payment-edit-save-btn" data-day="${dayAttr}" data-key="${keyAttr}" title="حفظ التعديل" aria-label="حفظ التعديل"><i class="fa-solid fa-check"></i></button>
+           <button type="button" class="payment-edit-cancel-btn" title="إلغاء التعديل" aria-label="إلغاء التعديل"><i class="fa-solid fa-xmark"></i></button>
+         </div>`
+      : `<button type="button" class="payment-edit-btn" data-day="${dayAttr}" data-key="${keyAttr}" title="تعديل الحركة" aria-label="تعديل الحركة"><i class="fa-solid fa-pen"></i></button>`;
+
     return `
-      <div class="payment-row ${isOut ? 'withdraw' : ''}">
+      <div class="payment-row ${isOut ? 'withdraw' : ''} ${isEditing ? 'is-editing' : ''}" data-payment-day="${dayAttr}" data-payment-key="${keyAttr}">
         <div>${idx+1}</div>
-        <div>${row?.cust ?? ''}</div>
+        <div>${assalPaymentEditEsc(row?.cust ?? '')}</div>
+        <div>${kindCell}</div>
+        <div class="pay-amt">${amountCell}</div>
+        <div>${notesCell}</div>
+        <div>${assalPaymentEditEsc(row?.date || '')}</div>
+        <div>${assalPaymentEditEsc(row?.time || '')}</div>
         <div>
-          <div class="pay-type ${isIn ? 'pay-in':'pay-out'}">${row?.kind ?? ''}</div>
-        </div>
-        <div class="pay-amt">${formattedAmt}</div>
-        <div>${row?.notes || ''}</div>
-        <div>${row?.date || ''}</div>
-        <div>${row?.time || ''}</div>
-        <div>
-          <button class="payment-balance-btn" data-row="${rowPayload}" title="عرض رصيد الزبون الحالي">
+          <button type="button" class="payment-balance-btn" data-row="${rowPayload}" title="عرض رصيد الزبون الحالي" ${isEditing ? 'disabled' : ''}>
             <i class="fa-solid fa-scale-balanced"></i>
           </button>
         </div>
+        <div>${editActions}</div>
         <div>
-          <button class="payment-del-btn" data-idx="${paymentsData.indexOf(row)}" title="حذف الحركة">
+          <button type="button" class="payment-del-btn" data-idx="${paymentsData.indexOf(row)}" title="حذف الحركة" ${isEditing ? 'disabled' : ''}>
             <i class="fa-solid fa-trash-can"></i>
           </button>
         </div>
         <div>
-          <button class="payment-print-btn" data-row="${rowPayload}" title="طباعة وصل">
+          <button type="button" class="payment-print-btn" data-row="${rowPayload}" title="طباعة وصل" ${isEditing ? 'disabled' : ''}>
             <i class="fa-solid fa-print"></i>
           </button>
         </div>
@@ -24665,6 +25079,31 @@ function renderPaymentsRows(){
 
 
   rowsWrap.addEventListener('click', e=>{
+    // فتح تعديل السطر
+    const editBtn = e.target.closest('.payment-edit-btn');
+    if(editBtn){
+      const day = decodeURIComponent(editBtn.getAttribute('data-day') || '');
+      const key = decodeURIComponent(editBtn.getAttribute('data-key') || '');
+      assalBeginPaymentEdit(day,key);
+      return;
+    }
+
+    // حفظ التعديل
+    const saveEditBtn = e.target.closest('.payment-edit-save-btn');
+    if(saveEditBtn){
+      const day = decodeURIComponent(saveEditBtn.getAttribute('data-day') || '');
+      const key = decodeURIComponent(saveEditBtn.getAttribute('data-key') || '');
+      assalSavePaymentEdit(day,key);
+      return;
+    }
+
+    // إلغاء التعديل وإرجاع العرض كما كان دون حفظ
+    const cancelEditBtn = e.target.closest('.payment-edit-cancel-btn');
+    if(cancelEditBtn){
+      assalCancelPaymentEdit(true);
+      return;
+    }
+
     // عرض رصيد الزبون الحالي
     const balanceBtn = e.target.closest('.payment-balance-btn');
     if(balanceBtn){
@@ -24702,6 +25141,29 @@ function renderPaymentsRows(){
     }catch(err){
       console.error('printPaymentReceipt parse error:', err);
       (typeof showToast==='function') && showToast('error','فشل تحضير بيانات الطباعة');
+    }
+  });
+
+  // تنسيق مبلغ التعديل داخل السطر فقط، بدون لمس حقل إضافة حركة جديدة.
+  rowsWrap.addEventListener('input', function(e){
+    const input = e.target.closest && e.target.closest('.assal-payment-edit-amount');
+    if(!input) return;
+    const digits = assalPaymentEditLatin(input.value).replace(/[^\d]/g,'');
+    input.value = digits ? Number(digits).toLocaleString('en-US') : '';
+  });
+
+  // Enter يحفظ السطر و Escape يلغي المسودة، مع بقاء الأزرار متاحة دائماً.
+  rowsWrap.addEventListener('keydown', function(e){
+    const field = e.target.closest && e.target.closest('.assal-payment-edit-kind,.assal-payment-edit-amount,.assal-payment-edit-notes');
+    if(!field) return;
+    const rowEl = field.closest('.payment-row.is-editing');
+    if(!rowEl) return;
+    const day = decodeURIComponent(rowEl.getAttribute('data-payment-day') || '');
+    const key = decodeURIComponent(rowEl.getAttribute('data-payment-key') || '');
+    if(e.key === 'Escape'){
+      e.preventDefault();e.stopPropagation();assalCancelPaymentEdit(true);
+    }else if(e.key === 'Enter'){
+      e.preventDefault();e.stopPropagation();assalSavePaymentEdit(day,key);
     }
   });
 
