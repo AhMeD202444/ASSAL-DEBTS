@@ -37227,8 +37227,27 @@ html body .card .item.assal-smart-added-item-safe-final{
     return '<div class="assal-cr-newcard"><div class="assal-cr-newcard-top"><div class="assal-cr-newcard-title"><i class="fa-solid fa-file-circle-plus"></i><span>إضافة بطاقة جديدة كاملة</span></div><span class="assal-cr-newcard-count">'+lines.length+' مادة</span></div><div class="assal-cr-newcard-lines">'+rows+'</div>'+(more?'<div class="assal-cr-newcard-more">ويوجد '+more+' مواد أخرى ضمن نفس البطاقة</div>':'')+'</div>';
   }
   function paymentRequestHtml(rec){
-    var op=paymentOpOf(rec)||{},row=clone(rec.afterPayment)||clone(op.after)||clone(rec.beforePayment)||clone(op.before)||{};
+    var op=paymentOpOf(rec)||{};
     var action=op.action==='remove'?'حذف حركة مالية':(op.action==='add'?'إضافة حركة مالية':'تعديل حركة مالية');
+
+    /* طلبات التعديل المالية المرسلة تحتفظ بالفروق داخل op.fields فقط،
+       بينما تُحذف النسختان الكاملتان beforePayment/afterPayment من حمولة الإرسال.
+       لذلك نعرض قيم قبل/بعد مباشرة من حقول الـ patch بدلاً من تكوين حركة فارغة بمبلغ صفر. */
+    if(op.action==='patch'){
+      var fields=Array.isArray(op.fields)?op.fields:[];
+      var visibleFields=fields.filter(function(f){return f&&safe(f.field)!=='id'&&safe(f.field)!=='_id';});
+      var customer=safe(rec&&rec.customer)||'—';
+      var cardDay=safe(rec&&rec.cardDay)||safe(op.afterDay)||safe(op.beforeDay)||'—';
+      var kindChange=visibleFields.find(function(f){return safe(f.field)==='kind';});
+      var badge='تعديل';
+      if(kindChange&&!isMissingValue(kindChange.after)&&safe(kindChange.after))badge=toDisplay(kindChange.after);
+      var changesHtml=visibleFields.length
+        ?visibleFields.map(function(f){return changeHtml({scope:'payment',field:f.field,before:f.before,after:f.after});}).join('')
+        :'<div class="assal-cr-newcard-empty"><i class="fa-solid fa-circle-info"></i> لا تتوفر تفاصيل الحقول المعدلة في هذا الطلب القديم</div>';
+      return '<div class="assal-cr-payment"><div class="assal-cr-payment-top"><div class="assal-cr-payment-title"><i class="fa-solid fa-money-bill-transfer"></i><span>'+esc(action)+'</span></div><span class="assal-cr-payment-kind">'+esc(badge)+'</span></div><div class="assal-cr-payment-grid"><div class="assal-cr-payment-cell"><span>الزبون</span><b>'+esc(customer)+'</b></div><div class="assal-cr-payment-cell"><span>التاريخ</span><b>'+esc(cardDay)+'</b></div></div><div class="assal-cr-changes">'+changesHtml+'</div></div>';
+    }
+
+    var row=clone(rec.afterPayment)||clone(op.after)||clone(rec.beforePayment)||clone(op.before)||{};
     var amount=Number(row.amount||0);try{amount=amount.toLocaleString('en-US');}catch(_){amount=safe(row.amount||0);}
     return '<div class="assal-cr-payment"><div class="assal-cr-payment-top"><div class="assal-cr-payment-title"><i class="fa-solid fa-money-bill-transfer"></i><span>'+esc(action)+'</span></div><span class="assal-cr-payment-kind">'+esc(row.kind||'حركة')+'</span></div><div class="assal-cr-payment-grid"><div class="assal-cr-payment-cell"><span>الزبون</span><b>'+esc(row.cust||rec.customer||'—')+'</b></div><div class="assal-cr-payment-cell amount"><span>المبلغ</span><b>'+esc(amount)+'</b></div><div class="assal-cr-payment-cell"><span>التاريخ</span><b>'+esc(row.date||rec.cardDay||'—')+'</b></div><div class="assal-cr-payment-cell"><span>الوقت</span><b>'+esc(row.time||'—')+'</b></div><div class="assal-cr-payment-cell assal-cr-payment-note"><span>الملاحظات</span><b>'+esc(row.notes||'لا توجد ملاحظات')+'</b></div></div></div>';
   }
