@@ -31697,6 +31697,9 @@ html body .card .card-foot > .card-sums .assal-toggle-face{
     -webkit-backdrop-filter:blur(16px) saturate(1.22);
   }
   .assal-ledger-results-backdrop.active{display:flex;}
+  /* عند فتح كشف الحساب من مركز متابعة الديون فقط: ارفعه فوق المركز مع إبقاء المركز بحالته خلفه. */
+  body.assal-ledger-return-debt-followup .assal-ledger-backdrop{z-index:2147482250 !important;}
+  body.assal-ledger-return-debt-followup .assal-ledger-results-backdrop{z-index:2147482300 !important;}
   .assal-ledger-results-modal{
     width:min(1680px,calc(100vw - 24px));
     height:min(94vh,980px);
@@ -32338,9 +32341,18 @@ html body .card .card-foot > .card-sums .assal-toggle-face{
     return bd;
   }
 
+  var assalLedgerReturnContext=null;
+  function assalLedgerFollowupActive(){
+    var root=document.getElementById('assalDebtFollowupModal');
+    return !!(root&&root.classList&&root.classList.contains('active'));
+  }
   function openModal(opts){
     closeResultsModal();
-    opts=opts||{}; state.name=resolveName(opts.name)||String(opts.name||'').trim(); var __liveInfo=getOpeningInfo(state.name)||{}; var __hasPassedAmount=(opts.amount!=null&&String(opts.amount).trim()!==''); var __hasLiveTotal=Object.prototype.hasOwnProperty.call(__liveInfo,'total')&&__liveInfo.total!=null&&__liveInfo.total!==''; state.amount=Math.round(money(__hasLiveTotal?__liveInfo.total:(__hasPassedAmount?opts.amount:0))); state.amountKnown=!!(__hasLiveTotal||__hasPassedAmount); state.mode='summary'; state.scope='smart'; state.data=null; state.rendered=false;
+    opts=opts||{};
+    var returnToFollowup=!!opts.returnToDebtFollowup&&assalLedgerFollowupActive();
+    assalLedgerReturnContext=returnToFollowup?{trigger:opts.trigger||null}:null;
+    document.body.classList.toggle('assal-ledger-return-debt-followup',returnToFollowup);
+    state.name=resolveName(opts.name)||String(opts.name||'').trim(); var __liveInfo=getOpeningInfo(state.name)||{}; var __hasPassedAmount=(opts.amount!=null&&String(opts.amount).trim()!==''); var __hasLiveTotal=Object.prototype.hasOwnProperty.call(__liveInfo,'total')&&__liveInfo.total!=null&&__liveInfo.total!==''; state.amount=Math.round(money(__hasLiveTotal?__liveInfo.total:(__hasPassedAmount?opts.amount:0))); state.amountKnown=!!(__hasLiveTotal||__hasPassedAmount); state.mode='summary'; state.scope='smart'; state.data=null; state.rendered=false;
     var bd=ensureModal(); var to=nowISO(); if(to && to < LEDGER_MIN_ISO) to=LEDGER_MIN_ISO; var from=monthStart(to); if(from && from < LEDGER_MIN_ISO) from=LEDGER_MIN_ISO;
     var n=bd.querySelector('#assalLedgerCustomerName'); if(n) n.textContent=state.name;
     var f=bd.querySelector('#assalLedgerFrom'); var t=bd.querySelector('#assalLedgerTo'); if(f){ f.min=LEDGER_MIN_ISO; f.value=from; } if(t){ t.min=LEDGER_MIN_ISO; t.value=to; }
@@ -32350,8 +32362,18 @@ html body .card .card-foot > .card-sums .assal-toggle-face{
     clearPreview('اختر الفترة ونوع الكشف، ثم اضغط عرض.');
     setTimeout(function(){ try{ f&&f.focus(); }catch(_){} },40);
   }
-  function closeModal(){ closeResultsModal(); var bd=document.getElementById('assalLedgerStatementBackdrop'); if(bd) bd.classList.remove('active'); try{ var debts=document.getElementById('debtsModal'); if(!(debts&&debts.classList&&debts.classList.contains('active'))) document.body.classList.remove('modal-open'); }catch(_){ document.body.classList.remove('modal-open'); } }
-  document.addEventListener('keydown',function(e){ var results=document.getElementById('assalLedgerResultsBackdrop'); if(results&&results.classList.contains('active')){ if(e.key==='Escape'){ e.preventDefault(); closeResultsModal(); } return; } var bd=document.getElementById('assalLedgerStatementBackdrop'); if(!bd||!bd.classList.contains('active')) return; if(e.key==='Escape'){ e.preventDefault(); closeModal(); return; } if(e.key==='Enter'&&e.target&&!String(e.target.tagName||'').match(/TEXTAREA/i)){ var id=e.target.id||''; if(id==='assalLedgerFrom'||id==='assalLedgerTo'){ e.preventDefault(); renderPreview(); } } },true);
+  function closeModal(){
+    closeResultsModal();
+    var context=assalLedgerReturnContext;
+    assalLedgerReturnContext=null;
+    var bd=document.getElementById('assalLedgerStatementBackdrop'); if(bd) bd.classList.remove('active');
+    document.body.classList.remove('assal-ledger-return-debt-followup');
+    try{ var debts=document.getElementById('debtsModal'); if(!(debts&&debts.classList&&debts.classList.contains('active'))) document.body.classList.remove('modal-open'); }catch(_){ document.body.classList.remove('modal-open'); }
+    if(context&&assalLedgerFollowupActive()){
+      setTimeout(function(){try{if(context.trigger&&document.documentElement.contains(context.trigger)&&typeof context.trigger.focus==='function')context.trigger.focus();}catch(_){ }},0);
+    }
+  }
+  document.addEventListener('keydown',function(e){ var results=document.getElementById('assalLedgerResultsBackdrop'); if(results&&results.classList.contains('active')){ if(e.key==='Escape'){ e.preventDefault(); e.stopImmediatePropagation(); closeResultsModal(); } return; } var bd=document.getElementById('assalLedgerStatementBackdrop'); if(!bd||!bd.classList.contains('active')) return; if(e.key==='Escape'){ e.preventDefault(); e.stopImmediatePropagation(); closeModal(); return; } if(e.key==='Enter'&&e.target&&!String(e.target.tagName||'').match(/TEXTAREA/i)){ var id=e.target.id||''; if(id==='assalLedgerFrom'||id==='assalLedgerTo'){ e.preventDefault(); renderPreview(); } } },true);
 
   function printStatement(){
     try{
@@ -39742,6 +39764,87 @@ body.assal-debt-followup-open{overflow:hidden !important;}
   .assal-debt-followup-row .assal-debt-followup-cell:nth-of-type(3),.assal-debt-followup-row .assal-debt-followup-cell:nth-of-type(4),.assal-debt-followup-row .assal-debt-followup-cell:nth-of-type(5),.assal-debt-followup-row .assal-debt-followup-cell:nth-of-type(6){display:none;}
   .assal-debt-followup-open-statement{width:36px;height:36px;}
 }
+
+/* ===== ASSAL DEBT FOLLOW-UP LIGHT UI FINAL — واجهة خفيفة فقط ===== */
+#assalDebtFollowupModal{
+  background:rgba(2,6,23,.84);
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+}
+.assal-debt-followup-shell{
+  background:linear-gradient(180deg,#111a2e,#070d1b) !important;
+  box-shadow:0 24px 66px rgba(0,0,0,.58),inset 0 1px 0 rgba(255,255,255,.055) !important;
+}
+.assal-debt-followup-body{scrollbar-gutter:stable;gap:0;scroll-padding-top:68px;}
+#assalDebtFollowupContent{display:contents;}
+.assal-debt-followup-summary{margin-bottom:12px;}
+.assal-debt-followup-controls{
+  position:sticky;
+  top:-8px;
+  z-index:20;
+  margin:0 0 9px;
+  border-color:rgba(96,165,250,.20);
+  background:#101a30 !important;
+  box-shadow:0 8px 18px rgba(2,6,23,.34);
+}
+.assal-debt-followup-search input{background:#091226 !important;border-color:rgba(96,165,250,.22);}
+.assal-debt-followup-filter{background:#16213a;border-color:rgba(148,163,184,.18);}
+.assal-debt-followup-filter:hover{background:#1b2947;border-color:rgba(96,165,250,.34);}
+.assal-debt-followup-filter.active{
+  background:linear-gradient(135deg,#b45309,#6d28d9) !important;
+  box-shadow:none !important;
+}
+.assal-debt-followup-stat{box-shadow:none !important;}
+.assal-debt-followup-stat:nth-child(1){background:linear-gradient(180deg,rgba(14,116,144,.24),rgba(15,23,42,.68));border-color:rgba(34,211,238,.24);}
+.assal-debt-followup-stat:nth-child(2){background:linear-gradient(180deg,rgba(127,29,29,.25),rgba(15,23,42,.68));border-color:rgba(248,113,113,.24);}
+.assal-debt-followup-stat:nth-child(3){background:linear-gradient(180deg,rgba(88,28,135,.24),rgba(15,23,42,.68));border-color:rgba(196,181,253,.22);}
+.assal-debt-followup-stat:nth-child(4){background:linear-gradient(180deg,rgba(146,64,14,.24),rgba(15,23,42,.68));border-color:rgba(251,191,36,.22);}
+.assal-debt-followup-stat:nth-child(5){background:linear-gradient(180deg,rgba(30,64,175,.22),rgba(15,23,42,.68));border-color:rgba(96,165,250,.22);}
+.assal-debt-followup-row{
+  background:linear-gradient(180deg,#111b30,#0a1223) !important;
+  box-shadow:none !important;
+  transition:border-color .14s ease,background-color .14s ease;
+}
+.assal-debt-followup-row:hover{filter:none !important;background:linear-gradient(180deg,#15223b,#0d172b) !important;}
+.assal-debt-followup-row.status-danger{border-inline-start:3px solid rgba(248,113,113,.72);}
+.assal-debt-followup-row.status-warn{border-inline-start:3px solid rgba(251,191,36,.72);}
+.assal-debt-followup-row.status-good{border-inline-start:3px solid rgba(52,211,153,.62);}
+.assal-debt-followup-person{
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:6px !important;
+  padding:1px 2px;
+}
+.assal-debt-followup-tags{flex-wrap:nowrap !important;gap:0 !important;min-width:0;}
+.assal-debt-followup-tag{
+  min-height:22px;
+  padding:2px 8px;
+  font-size:9.2px;
+  white-space:nowrap;
+  box-shadow:none !important;
+}
+.assal-debt-followup-name{font-size:13.1px;}
+.assal-debt-followup-cell{box-shadow:none !important;}
+.assal-debt-followup-cell.money{background:rgba(127,29,29,.20);border-color:rgba(248,113,113,.18);}
+.assal-debt-followup-cell.age{background:rgba(67,56,202,.17);border-color:rgba(129,140,248,.18);}
+.assal-debt-followup-cell.source{background:rgba(14,116,144,.17);border-color:rgba(34,211,238,.17);}
+.assal-debt-followup-cell.payment{background:rgba(21,128,61,.15);border-color:rgba(74,222,128,.16);}
+.assal-debt-followup-cell.growth{background:rgba(146,64,14,.15);border-color:rgba(251,191,36,.15);}
+.assal-debt-followup-open-statement{box-shadow:none !important;}
+@media(max-width:940px){
+  .assal-debt-followup-controls{top:-8px;}
+  .assal-debt-followup-person{grid-template-columns:minmax(0,1fr) auto;}
+}
+@media(max-width:620px){
+  .assal-debt-followup-summary{margin-bottom:10px;}
+  .assal-debt-followup-controls{padding:8px;box-shadow:0 6px 14px rgba(2,6,23,.38);}
+  .assal-debt-followup-person{display:flex !important;flex-direction:column;align-items:flex-start;gap:3px !important;}
+}
+
+/* ===== ASSAL DEBT FOLLOW-UP STICKY CLOSE HEADER FINAL =====
+   واجهة فقط: عند التثبيت يصعد صف البحث قرب هيدر النافذة،
+   مع إبقاء مكانه الطبيعي قبل التمرير وبلا تغيير لتصميمه أو توزيع الصفوف. */
 </style>
 <script id="assal-debt-followup-center-final-script">
 (function(){
@@ -39977,28 +40080,24 @@ body.assal-debt-followup-open{overflow:hidden !important;}
     document.body.appendChild(root);byId('assalDebtFollowupClose').addEventListener('click',closeModal);byId('assalDebtFollowupRefresh').addEventListener('click',refresh);
     root.addEventListener('click',function(e){
       var filter=e.target&&e.target.closest?e.target.closest('[data-debt-followup-filter]'):null;if(filter){state.filter=filter.getAttribute('data-debt-followup-filter')||'oldest';render();return;}
-      var statement=e.target&&e.target.closest?e.target.closest('[data-debt-followup-statement]'):null;if(statement){var name=statement.getAttribute('data-debt-followup-statement')||'';closeModal();setTimeout(function(){try{if(typeof window.assalOpenCustomerRangeStatement==='function')window.assalOpenCustomerRangeStatement({name:name,trigger:statement});}catch(_){ }},30);}
+      var statement=e.target&&e.target.closest?e.target.closest('[data-debt-followup-statement]'):null;if(statement){var name=statement.getAttribute('data-debt-followup-statement')||'';try{if(typeof window.assalOpenCustomerRangeStatement==='function')window.assalOpenCustomerRangeStatement({name:name,trigger:statement,returnToDebtFollowup:true});}catch(_){ }return;}
     });return root;
   }
   function stat(label,value,icon,cls){return '<div class="assal-debt-followup-stat '+(cls||'')+'"><span><i class="fa-solid '+icon+'"></i>'+esc(label)+'</span><b>'+esc(value)+'</b></div>';}
   function tags(row){
-    var out=['<span class="assal-debt-followup-tag '+esc(row.status.tone)+'"><i class="fa-solid '+esc(row.status.icon)+'"></i>'+esc(row.status.text)+'</span>'];
-    if(row.dead)out.push('<span class="assal-debt-followup-tag danger"><i class="fa-solid fa-ranking-star"></i>الأقدم أولاً • الأعلى مبلغاً</span>');
-    if(row.increasing)out.push('<span class="assal-debt-followup-tag warn"><i class="fa-solid fa-chart-line"></i>زاد خلال 30 يوم</span>');
-    if(row.ageSource==='payment')out.push('<span class="assal-debt-followup-tag good"><i class="fa-solid fa-hand-holding-dollar"></i>العمر من آخر تسديد</span>');
-    else if(!row.dead)out.push('<span class="assal-debt-followup-tag"><i class="fa-solid fa-calendar-day"></i>العمر من بداية الدورة</span>');
-    return out.join('');
+    var label=row.dead?'دين ميت':row.status.text;
+    return '<span class="assal-debt-followup-tag '+esc(row.status.tone)+'" title="'+esc(row.status.text)+'"><i class="fa-solid '+esc(row.status.icon)+'"></i>'+esc(label)+'</span>';
   }
   function ageText(z,daysCount,noneText){if(!z)return noneText||'غير متوفر';return fmtDate(z)+(daysCount!=null?' • '+daysCount+' يوم':'');}
   function sourceText(row){if(row.dead)return 'تأسيس البرنامج';if(row.ageSource==='payment')return 'آخر تسديد داخل الدين الحالي';if(row.ageSource==='official-balance')return 'أول رصيد موجب مثبت';if(row.ageSource==='card')return 'أول بطاقة بالدورة';if(row.ageSource==='withdrawal')return 'أول سحب بالدورة';return 'أول حركة دين بالدورة';}
   function rowHtml(row){
     var age=ageText(row.ageISO,row.ageDays,'غير محدد'),pay=row.lastPaymentISO?ageText(row.lastPaymentISO,row.lastPaymentDays,'غير متوفر'):'لا يوجد تسديد داخل الدورة',growthClass=row.recentNet>0?'positive':(row.recentNet<0?'negative':'zero');
-    return '<article class="assal-debt-followup-row">'+
+    return '<article class="assal-debt-followup-row status-'+esc(row.status.tone)+'">'+
       '<div class="assal-debt-followup-person"><button type="button" class="assal-debt-followup-name" data-debt-followup-statement="'+esc(row.name)+'" title="فتح كشف حساب الزبون">'+esc(row.name)+'</button><div class="assal-debt-followup-tags">'+tags(row)+'</div></div>'+
       '<div class="assal-debt-followup-cell money"><span>الدين النهائي الثابت</span><b>'+esc(money(row.debt))+'</b></div>'+
-      '<div class="assal-debt-followup-cell"><span>عمر الدين</span><b title="'+esc(age)+'">'+esc(age)+'</b></div>'+
-      '<div class="assal-debt-followup-cell"><span>مرجع العمر</span><b title="'+esc(sourceText(row))+'">'+esc(sourceText(row))+'</b></div>'+
-      '<div class="assal-debt-followup-cell"><span>آخر تسديد بالدورة</span><b title="'+esc(pay)+'">'+esc(pay)+'</b></div>'+
+      '<div class="assal-debt-followup-cell age"><span>عمر الدين</span><b title="'+esc(age)+'">'+esc(age)+'</b></div>'+
+      '<div class="assal-debt-followup-cell source"><span>مرجع العمر</span><b title="'+esc(sourceText(row))+'">'+esc(sourceText(row))+'</b></div>'+
+      '<div class="assal-debt-followup-cell payment"><span>آخر تسديد بالدورة</span><b title="'+esc(pay)+'">'+esc(pay)+'</b></div>'+
       '<div class="assal-debt-followup-cell growth '+growthClass+'"><span>صافي حركة 30 يوم</span><b>'+esc(signedMoney(row.recentNet))+'</b></div>'+
       '<button type="button" class="assal-debt-followup-open-statement" data-debt-followup-statement="'+esc(row.name)+'" title="فتح كشف الحساب"><i class="fa-solid fa-file-invoice-dollar"></i></button></article>';
   }
@@ -40027,8 +40126,7 @@ body.assal-debt-followup-open{overflow:hidden !important;}
     host.innerHTML='<div class="assal-debt-followup-summary">'+stat('الزبائن المدينون',String(state.rows.length),'fa-users','')+stat('إجمالي الديون الثابت',money(total),'fa-sack-dollar','danger')+stat('ديون ميتة',String(dead),'fa-skull-crossbones','danger')+stat('بلا تسديد بالدورة',String(never),'fa-circle-exclamation','warn')+stat('أقدم من 30 يوم',String(old),'fa-hourglass-half','warn')+'</div>'+
       '<div class="assal-debt-followup-controls"><label class="assal-debt-followup-search"><i class="fa-solid fa-magnifying-glass"></i><input id="assalDebtFollowupSearch" type="search" autocomplete="off" placeholder="ابحث باسم الزبون" value="'+esc(state.query)+'"></label><div class="assal-debt-followup-filters">'+filters+'</div></div>'+
       '<div class="assal-debt-followup-result-head"><span><i class="fa-solid '+esc(FILTERS[state.filter].icon)+'"></i> '+esc(FILTERS[state.filter].label)+'</span><small>'+esc(String(view.length))+' نتيجة</small></div>'+
-      '<div class="assal-debt-followup-list">'+(view.length?view.map(rowHtml).join(''):'<div class="assal-debt-followup-empty"><i class="fa-solid fa-magnifying-glass-chart"></i>لا توجد نتائج مطابقة لهذا التصنيف.</div>')+'</div>'+
-      '<div class="assal-debt-followup-note"><i class="fa-solid fa-circle-info"></i> الدين النهائي مأخوذ حرفياً من نافذة ديون الزبائن ولا يُعاد حسابه هنا. العمر يُبنى زمنياً من أول بطاقة أو حركة داخل التطبيق، مع تثبيت نقاط أرصدة DEBTS الرسمية؛ التسديد الجزئي يحدّث العمر ما دام الدين مفتوحاً، والراجع لا يحدّثه إلا إذا أغلق الدورة، وأول حركة دين بعد الصفر تبدأ دورة جديدة.</div>';
+      '<div class="assal-debt-followup-list">'+(view.length?view.map(rowHtml).join(''):'<div class="assal-debt-followup-empty"><i class="fa-solid fa-magnifying-glass-chart"></i>لا توجد نتائج مطابقة لهذا التصنيف.</div>')+'</div>';
     var search=byId('assalDebtFollowupSearch');if(search)search.addEventListener('input',function(){state.query=this.value||'';render();try{var x=byId('assalDebtFollowupSearch');if(x){x.focus();x.setSelectionRange(x.value.length,x.value.length);}}catch(_){ }});
   }
   function refresh(){
@@ -40039,7 +40137,7 @@ body.assal-debt-followup-open{overflow:hidden !important;}
   }
   function openModal(){var root=ensureModal();root.classList.add('active');root.setAttribute('aria-hidden','false');document.body.classList.add('assal-debt-followup-open');refresh();}
   function closeModal(){var root=byId('assalDebtFollowupModal');if(root){root.classList.remove('active');root.setAttribute('aria-hidden','true');}document.body.classList.remove('assal-debt-followup-open');}
-  function bind(){var btn=byId('btnDebtFollowupCenter');if(btn&&!btn.__assalDebtFollowupBound){btn.__assalDebtFollowupBound=true;btn.addEventListener('click',openModal);}document.addEventListener('keydown',function(e){var root=byId('assalDebtFollowupModal');if(root&&root.classList.contains('active')&&e.key==='Escape'){e.preventDefault();closeModal();}},true);}
+  function bind(){var btn=byId('btnDebtFollowupCenter');if(btn&&!btn.__assalDebtFollowupBound){btn.__assalDebtFollowupBound=true;btn.addEventListener('click',openModal);}document.addEventListener('keydown',function(e){var root=byId('assalDebtFollowupModal');if(root&&root.classList.contains('active')&&e.key==='Escape'){var ledger=byId('assalLedgerStatementBackdrop'),results=byId('assalLedgerResultsBackdrop');if((ledger&&ledger.classList.contains('active'))||(results&&results.classList.contains('active')))return;e.preventDefault();closeModal();}},true);}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
   window.showAssalDebtFollowupCenter=openModal;
   window.__ASSAL_DEBT_FOLLOWUP_TEST__={analyzeRow:analyzeRow};
