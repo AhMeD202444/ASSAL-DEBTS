@@ -26885,10 +26885,6 @@ clearAlertsBtn.addEventListener('click', function(){
   var alertTimer = null;
   var alertPausedByReminder = false; // NEW
 
-  /* ASSAL FINAL: تبويب واتساب مفرد ثابت — مؤقت بالذاكرة فقط */
-  var assalDebtWaWindow = null;
-  var ASSAL_DEBT_WA_WINDOW_NAME = 'ASSAL_DEBTS_WHATSAPP';
-
 
 
   function nrm(s){
@@ -27050,55 +27046,29 @@ clearAlertsBtn.addEventListener('click', function(){
       'مع التقدير.';
   }
 
-  function assalDebtWaBuildUrl(phone, msg){
-    var encoded = encodeURIComponent(msg || '');
-    var isMobile = false;
-    try{ isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || ''); }catch(_){ }
-    if(isMobile) return 'https://wa.me/' + phone + '?text=' + encoded;
-    // فتح مباشر لواتساب ويب وتجاوز وسيط wa.me على الحاسبة.
-    return 'https://web.whatsapp.com/send?phone=' + phone + '&text=' + encoded;
-  }
-
   function assalDebtWaOpenExternalUrl(url){
     try{
-      // على الهاتف نبقي سلوك wa.me الأصلي حتى يفتح تطبيق واتساب مباشرة.
-      if(String(url || '').indexOf('https://wa.me/') === 0){
-        var a = document.createElement('a');
-        a.href = url;
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-        a.referrerPolicy = 'no-referrer';
-        a.style.position = 'fixed';
-        a.style.left = '-9999px';
-        a.style.top = '-9999px';
-        a.setAttribute('aria-hidden','true');
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(function(){ try{ a.remove(); }catch(_remove){ } }, 0);
-        return true;
-      }
-
-      var w = assalDebtWaWindow;
-      if(w && !w.closed){
-        try{
-          // نعيد توجيه نفس تبويب واتساب المفتوح بدل إنشاء تبويب جديد.
-          w.location.href = url;
-          try{ w.focus(); }catch(_focus1){ }
-          return true;
-        }catch(_nav){
-          w = null;
-        }
-      }
-
-      // الاسم الثابت يعيد استعمال التبويب نفسه حتى لو فُقد المرجع المحلي.
-      w = window.open(url, ASSAL_DEBT_WA_WINDOW_NAME);
-      if(!w) return false;
-      assalDebtWaWindow = w;
-      try{ w.opener = null; }catch(_opener){ }
-      try{ w.focus(); }catch(_focus2){ }
+      var a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.referrerPolicy = 'no-referrer';
+      a.style.position = 'fixed';
+      a.style.left = '-9999px';
+      a.style.top = '-9999px';
+      a.setAttribute('aria-hidden','true');
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function(){ try{ a.remove(); }catch(_){ } }, 0);
       return true;
     }catch(_){
-      return false;
+      try{
+        var w = window.open(url, '_blank', 'noopener,noreferrer');
+        try{ if(w) w.opener = null; }catch(__){ }
+        return !!w;
+      }catch(__){
+        return false;
+      }
     }
   }
 
@@ -27113,7 +27083,7 @@ clearAlertsBtn.addEventListener('click', function(){
         return;
       }
       var msg = assalDebtWaBuildMessage(row);
-      var url = assalDebtWaBuildUrl(phone, msg);
+      var url = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(msg);
       var opened = assalDebtWaOpenExternalUrl(url);
       if(!opened){ try{ window.showToast('warn','اسمح بفتح النوافذ حتى يفتح واتساب', 3000); }catch(_){} return; }
       try{ window.showToast('success','تم فتح واتساب وتجهيز رسالة الدين', 2600); }catch(_){}
