@@ -40583,7 +40583,8 @@ body.assal-owner-mode > .footer{
 .assal-owner-live::before{content:"";width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 4px rgba(34,197,94,.10);}
 
 .assal-owner-controls{
-  position:sticky;top:-1px;z-index:12;
+  /* جسم صفحة المالك يملك padding علوي 14px؛ الإزاحة -11px تترك 3px أنيقة فقط عند التثبيت. */
+  position:sticky;top:-11px;z-index:12;
   display:grid;grid-template-columns:minmax(210px,1fr) auto;gap:9px;align-items:center;
   padding:9px;margin-bottom:11px;border-radius:18px;
   background:rgba(15,25,47,.96);border:1px solid rgba(125,211,252,.14);
@@ -40691,7 +40692,7 @@ body.assal-owner-mode > .footer{
   .assal-owner-hero{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
   .assal-owner-stat{padding:11px;}
   .assal-owner-stat b{font-size:16px;}
-  .assal-owner-controls{grid-template-columns:1fr;top:-1px;padding:8px;}
+  .assal-owner-controls{grid-template-columns:1fr;top:-11px;padding:8px;}
   .assal-owner-filters{width:100%;padding-bottom:1px;}
   .assal-owner-list{grid-template-columns:1fr;gap:8px;}
 }
@@ -41179,7 +41180,7 @@ body.assal-ledger-owner-context .assal-ledger-results-body .assal-ledger-stat{
         ok=await showConfirm({
           title:'تأكيد تسجيل الخروج',
           message:'<div class="assal-owner-logout-confirm-box"><div class="assal-owner-logout-confirm-icon"><i class="fa-solid fa-arrow-right-from-bracket"></i></div><b>هل تريد تسجيل الخروج من لوحة المالك؟</b><span>ستحتاج إلى إدخال بيانات الدخول مرة أخرى.</span></div>',
-          okText:'نعم، تسجيل الخروج',
+          okText:'تسجيل الخروج',
           cancelText:'البقاء',
           danger:true,
           modalClass:'assal-owner-logout-confirm-modal'
@@ -41284,13 +41285,49 @@ body.assal-ledger-owner-context .assal-ledger-results-body .assal-ledger-stat{
     state.followups=newFollows;state.notices=state.notices.slice(-120);return changed;
   }
 
+  function ownerSmartSearchMeta(name,query){
+    var raw=String(query==null?'':query).trim();
+    if(!raw)return null;
+    /* نفس محرك البحث الذكي المحافظ المستعمل في الأدمن والحاسبة الرئيسية. */
+    try{
+      if(typeof window.assalSmartCustomerMatchScore==='function')return window.assalSmartCustomerMatchScore(name,raw);
+    }catch(_){ }
+    try{
+      if(typeof assalSmartCustomerMatchScore==='function')return assalSmartCustomerMatchScore(name,raw);
+    }catch(_){ }
+    /* احتياط محافظ فقط إذا لم تكن الدالة العامة جاهزة: كل كلمات البحث تبقى إلزامية. */
+    var qTokens=nrm(raw).split(' ').filter(Boolean),nTokens=nrm(name).split(' ').filter(Boolean);
+    if(!qTokens.length||!nTokens.length)return null;
+    var ok=qTokens.every(function(qt){
+      return nTokens.some(function(nt){
+        return nt===qt||nt.indexOf(qt)===0||nt.indexOf('ال'+qt)===0||(qt.indexOf('ال')===0&&nt.indexOf(qt.slice(2))===0);
+      });
+    });
+    return ok?{score:70,exactHits:0,prefixHits:0,pos:9999,len:nrm(name).length}:null;
+  }
+  function ownerSmartMetaCompare(a,b){
+    a=a||{};b=b||{};
+    return Number(a.score||0)-Number(b.score||0)||
+      Number(b.exactHits||0)-Number(a.exactHits||0)||
+      Number(b.prefixHits||0)-Number(a.prefixHits||0)||
+      Number(a.pos==null?9999:a.pos)-Number(b.pos==null?9999:b.pos)||
+      Number(a.len||0)-Number(b.len||0);
+  }
   function visibleRows(){
-    var q=nrm(state.query),arr=state.rows.filter(function(r){return !q||nrm(r.name).indexOf(q)!==-1;});
+    var rawQ=String(state.query||'').trim(),metaByRow=new Map();
+    var arr=state.rows.filter(function(r){
+      if(!rawQ)return true;
+      var meta=ownerSmartSearchMeta(r&&r.name?r.name:'',rawQ);
+      if(!meta)return false;
+      metaByRow.set(r,meta);
+      return true;
+    });
     if(state.filter==='follow')arr=arr.filter(function(r){return !!followByName(r.name);});
     arr.sort(function(a,b){
       if(state.filter==='highest')return Number(b.debt||0)-Number(a.debt||0)||String(a.name).localeCompare(String(b.name),'ar');
       if(state.filter==='oldest')return Number(b.ageDays||0)-Number(a.ageDays||0)||Number(b.debt||0)-Number(a.debt||0);
       if(state.filter==='follow'){var af=followByName(a.name),bf=followByName(b.name);return Number(af&&af.startedAt||0)-Number(bf&&bf.startedAt||0);}
+      if(rawQ){var smartOrder=ownerSmartMetaCompare(metaByRow.get(a),metaByRow.get(b));if(smartOrder)return smartOrder;}
       return String(a.name).localeCompare(String(b.name),'ar');
     });return arr;
   }
@@ -41920,9 +41957,12 @@ body.assal-owner-exclusive > #modal.active{
   pointer-events:auto !important;
 }
 #modal.assal-owner-logout-confirm-modal .modal-card{
-  width:min(430px,calc(100vw - 30px)) !important;
-  padding:18px !important;
-  border-radius:23px !important;
+  width:min(420px,calc(100vw - 24px)) !important;
+  max-height:calc(100dvh - 24px) !important;
+  overflow:auto !important;
+  padding:16px !important;
+  gap:10px !important;
+  border-radius:22px !important;
   border:1px solid rgba(248,113,113,.24) !important;
   background:
     radial-gradient(380px 180px at 100% 0%,rgba(127,29,29,.22),transparent 68%),
@@ -41932,24 +41972,42 @@ body.assal-owner-exclusive > #modal.active{
 }
 #modal.assal-owner-logout-confirm-modal .modal-head{
   color:#fff !important;
-  font-size:17px !important;
+  font-size:16.5px !important;
+  line-height:1.45 !important;
 }
 #modal.assal-owner-logout-confirm-modal .modal-body{
   width:100% !important;
-  padding:2px 0 4px !important;
+  padding:0 !important;
 }
 .assal-owner-logout-confirm-box{
-  width:100%;display:flex;flex-direction:column;align-items:center;gap:7px;text-align:center;
+  width:100%;display:grid;grid-template-columns:52px minmax(0,1fr);grid-template-areas:'icon title' 'icon text';
+  align-items:center;column-gap:11px;row-gap:3px;text-align:right;padding:10px;border-radius:16px;
+  background:rgba(2,6,23,.28);border:1px solid rgba(248,113,113,.12);
 }
 .assal-owner-logout-confirm-icon{
-  width:58px;height:58px;border-radius:19px;display:grid;place-items:center;margin-bottom:3px;
-  color:#fff;font-size:22px;background:linear-gradient(135deg,#ef4444,#7f1d1d 58%,#4c0519);
-  box-shadow:0 15px 36px rgba(127,29,29,.34),inset 0 1px 0 rgba(255,255,255,.16);
+  grid-area:icon;width:52px;height:52px;border-radius:17px;display:grid;place-items:center;margin:0;
+  color:#fff;font-size:19px;background:linear-gradient(135deg,#ef4444,#7f1d1d 58%,#4c0519);
+  box-shadow:0 13px 30px rgba(127,29,29,.30),inset 0 1px 0 rgba(255,255,255,.16);
 }
-.assal-owner-logout-confirm-box b{color:#fff;font-size:15px;font-weight:950;line-height:1.7;}
-.assal-owner-logout-confirm-box span{color:#aebdd1;font-size:11.5px;font-weight:800;line-height:1.75;}
-#modal.assal-owner-logout-confirm-modal .modal-actions{gap:8px !important;}
-#modal.assal-owner-logout-confirm-modal .modal-btn{min-width:0 !important;flex:1 1 0 !important;height:43px !important;font-size:13px !important;border-radius:13px !important;}
+.assal-owner-logout-confirm-box b{grid-area:title;color:#fff;font-size:14px;font-weight:950;line-height:1.55;}
+.assal-owner-logout-confirm-box span{grid-area:text;color:#aebdd1;font-size:11px;font-weight:800;line-height:1.6;}
+#modal.assal-owner-logout-confirm-modal .modal-actions{display:grid !important;grid-template-columns:1fr 1fr;gap:8px !important;width:100% !important;}
+#modal.assal-owner-logout-confirm-modal .modal-btn{min-width:0 !important;width:100% !important;height:43px !important;padding:0 10px !important;font-size:13px !important;border-radius:13px !important;white-space:nowrap !important;}
+@media(max-width:430px){
+  #modal.assal-owner-logout-confirm-modal .modal-card{width:calc(100vw - 18px) !important;padding:13px !important;gap:8px !important;border-radius:19px !important;}
+  #modal.assal-owner-logout-confirm-modal .modal-head{font-size:15.5px !important;}
+  .assal-owner-logout-confirm-box{grid-template-columns:44px minmax(0,1fr);column-gap:9px;padding:9px;border-radius:14px;}
+  .assal-owner-logout-confirm-icon{width:44px;height:44px;border-radius:14px;font-size:16px;}
+  .assal-owner-logout-confirm-box b{font-size:13px;line-height:1.5;}
+  .assal-owner-logout-confirm-box span{font-size:10.2px;line-height:1.55;}
+  #modal.assal-owner-logout-confirm-modal .modal-actions{gap:6px !important;}
+  #modal.assal-owner-logout-confirm-modal .modal-btn{height:41px !important;padding:0 7px !important;font-size:12.3px !important;border-radius:12px !important;}
+}
+@media(max-width:340px){
+  .assal-owner-logout-confirm-box{grid-template-columns:40px minmax(0,1fr);column-gap:7px;padding:8px;}
+  .assal-owner-logout-confirm-icon{width:40px;height:40px;border-radius:13px;font-size:15px;}
+  #modal.assal-owner-logout-confirm-modal .modal-btn{font-size:11.5px !important;padding-inline:5px !important;}
+}
 
 /* إعادة عمر الدين بجانب آخر تسديد حتى على أضيق الهواتف، بلا زيادة ملحوظة بارتفاع البطاقة. */
 @media(max-width:420px){
