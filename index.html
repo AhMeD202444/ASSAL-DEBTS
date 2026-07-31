@@ -1,6 +1,43 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+<script id="assal-auth-first-paint-guard-script">
+(function(){
+  try{ document.documentElement.classList.add('assal-auth-pending'); }catch(_){ }
+})();
+</script>
+<style id="assal-auth-first-paint-guard-style">
+/* يمنع أي تسريب بصري لواجهة الأدمن/الحاسبة قبل حسم مسار المصادقة. */
+html.assal-auth-pending,
+html.assal-auth-pending body{
+  width:100% !important;
+  max-width:100% !important;
+  min-width:0 !important;
+  height:100% !important;
+  min-height:100% !important;
+  margin:0 !important;
+  padding:0 !important;
+  overflow:hidden !important;
+  background:#07101f !important;
+}
+html.assal-auth-pending body > :not(#authSplash):not(#loginGate):not(script):not(style):not(link):not(noscript){
+  display:none !important;
+  visibility:hidden !important;
+  pointer-events:none !important;
+  user-select:none !important;
+}
+html.assal-auth-pending body > #authSplash{
+  display:grid !important;
+  visibility:visible !important;
+  pointer-events:auto !important;
+  opacity:1 !important;
+  z-index:2147483647 !important;
+}
+html.assal-auth-pending body > #loginGate{
+  visibility:visible !important;
+  pointer-events:auto !important;
+}
+</style>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>ASSAL • فواتير ديون يومية مكتب عسل</title>
@@ -24631,7 +24668,7 @@ function assalOwnerAllowedNode(el){
   const id = String(el.id || '');
   if([
     'loginGate','authSplash','assalOwnerPanel','assalOwnerFirewall',
-    'assalLedgerStatementBackdrop','assalLedgerResultsBackdrop'
+    'assalLedgerStatementBackdrop','assalLedgerResultsBackdrop','modal','modal-backdrop'
   ].includes(id)) return true;
   try{ if(el.matches('.toasts')) return true; }catch(_){ }
   return false;
@@ -24667,7 +24704,7 @@ function assalSetOwnerHardLock(on, message){
     if(txt && message) txt.textContent = String(message);
     Array.from(body.children).forEach(assalOwnerApplyInert);
     // أعد السماح صراحةً للعناصر المسموحة، حتى لو أضيفت قبل هذا القفل.
-    ['loginGate','authSplash','assalOwnerPanel','assalOwnerFirewall','assalLedgerStatementBackdrop','assalLedgerResultsBackdrop'].forEach(id=>{
+    ['loginGate','authSplash','assalOwnerPanel','assalOwnerFirewall','assalLedgerStatementBackdrop','assalLedgerResultsBackdrop','modal','modal-backdrop'].forEach(id=>{
       const el = document.getElementById(id);
       if(el){
         try{ el.inert = false; el.removeAttribute('aria-hidden'); delete el.dataset.assalOwnerInert; }catch(_){ }
@@ -24691,11 +24728,13 @@ function assalSetOwnerHardLock(on, message){
   }
 }
 window.ASSAL_SET_OWNER_HARD_LOCK = assalSetOwnerHardLock;
-window.ASSAL_OWNER_AUTH_LOGOUT = async function(){ await signOut(auth); };
+function assalAuthBootBegin(){ try{ document.documentElement.classList.add('assal-auth-pending'); }catch(_){ } }
+function assalAuthBootFinish(){ try{ document.documentElement.classList.remove('assal-auth-pending'); }catch(_){ } }
+window.ASSAL_OWNER_AUTH_LOGOUT = async function(){ assalAuthBootBegin(); await signOut(auth); };
 
 function assalOwnerEventAllowed(target, event){
   try{
-    if(target && target.closest && target.closest('#assalOwnerPanel,#assalOwnerFirewall,#loginGate,#authSplash,#assalLedgerStatementBackdrop,#assalLedgerResultsBackdrop,.toasts')) return true;
+    if(target && target.closest && target.closest('#assalOwnerPanel,#assalOwnerFirewall,#loginGate,#authSplash,#assalLedgerStatementBackdrop,#assalLedgerResultsBackdrop,#modal,#modal-backdrop,.toasts')) return true;
     const ledgerActive = !!document.querySelector('#assalLedgerStatementBackdrop.active, #assalLedgerResultsBackdrop.active');
     if(ledgerActive && event && event.type === 'keydown' && (event.key === 'Escape' || event.key === 'Enter')) return true;
     return false;
@@ -24942,7 +24981,8 @@ btnEl?.addEventListener('click', async ()=>{
     if(lockAllowed === false) return;
   }catch(_){ }
 
-  // حركة زر + انتقال لطيف: gate يخفّ، بعدها يظهر Splash
+  // حركة زر + انتقال لطيف: أغلق كل واجهات التطبيق أولاً حتى يُحسم نوع الحساب.
+  assalAuthBootBegin();
   setBtnLoading(btnEl, true);
   try{
     hideGate();                 // أنيميشين خفيف
@@ -24952,6 +24992,7 @@ btnEl?.addEventListener('click', async ()=>{
     if(!(await isAllowed(user.email))){
       await signOut(auth);
       try{ window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE && window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE(false); }catch(_){ }
+      assalAuthBootFinish();
       hideSplash();
       showGate('هذا الإيميل غير مخوّل بالدخول');
       return;
@@ -24966,6 +25007,7 @@ btnEl?.addEventListener('click', async ()=>{
     // هنا لا نعرض توستين مع بعض؛ نظام الطابور يضمن واحد ورا الثاني تلقائيًا
   }catch(e){
     try{ window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE && window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE(false); }catch(_){ }
+    assalAuthBootFinish();
     hideSplash();
     showGate('فشل تسجيل الدخول');
   }finally{
@@ -24998,12 +25040,13 @@ onAuthStateChanged(auth, async (user)=>{
       const lockAllowed = window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE
         ? window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE(ownerSession)
         : true;
-      if(lockAllowed === false){ hideSplash(); return; }
+      if(lockAllowed === false){ assalAuthBootFinish(); hideSplash(); return; }
     }catch(_){ }
   }
 
   if(!user){
     setSignedOutUI();
+    assalAuthBootFinish();
     showGate('');
     hideSplash();
     return;
@@ -25013,6 +25056,7 @@ onAuthStateChanged(auth, async (user)=>{
   if(!ok){
     await signOut(auth);
     setSignedOutUI();
+    assalAuthBootFinish();
     showGate('الإيميل غير مخوّل');
     hideSplash();
     return;
@@ -25025,11 +25069,13 @@ onAuthStateChanged(auth, async (user)=>{
   if(window.ASSAL_OWNER_VIEWER === true){
     try{
       await assalEnterOwnerOnly(user);
+      assalAuthBootFinish();
     }catch(err){
       console.error('[ASSAL OWNER STRICT ROUTE]', err);
       try{ assalSetOwnerHardLock(true,'تعذر فتح واجهة المالك بأمان. سيتم إنهاء الجلسة دون فتح واجهة الديون.'); }catch(_){ }
       try{ await signOut(auth); }catch(_){ }
       setSignedOutUI();
+      assalAuthBootFinish();
       showGate('تعذر فتح واجهة المالك بأمان. أعد تسجيل الدخول.');
     }finally{
       hideSplash();
@@ -25038,6 +25084,7 @@ onAuthStateChanged(auth, async (user)=>{
   }
 
   // بقية الحسابات تبقى على سلوكها الأصلي نفسه.
+  assalAuthBootFinish();
   try{
     await window.initAssalIndexedStorage?.();
 
@@ -41125,7 +41172,32 @@ body.assal-ledger-owner-context .assal-ledger-results-body .assal-ledger-stat{
     document.body.appendChild(root);
 
     byId('assalOwnerRefresh').addEventListener('click',function(){refreshFromServer(false);});
-    byId('assalOwnerLogout').addEventListener('click',function(){if(typeof window.ASSAL_OWNER_AUTH_LOGOUT==='function'){window.ASSAL_OWNER_AUTH_LOGOUT().catch(function(err){console.error('[ASSAL owner] logout',err);});return;}var b=byId('btnLogout');if(b)b.click();});
+    byId('assalOwnerLogout').addEventListener('click',async function(e){
+      try{e.preventDefault();e.stopPropagation();}catch(_){ }
+      var ok=true;
+      if(typeof showConfirm==='function'){
+        ok=await showConfirm({
+          title:'تأكيد تسجيل الخروج',
+          message:'<div class="assal-owner-logout-confirm-box"><div class="assal-owner-logout-confirm-icon"><i class="fa-solid fa-arrow-right-from-bracket"></i></div><b>هل تريد تسجيل الخروج من لوحة المالك؟</b><span>ستحتاج إلى إدخال بيانات الدخول مرة أخرى.</span></div>',
+          okText:'نعم، تسجيل الخروج',
+          cancelText:'البقاء',
+          danger:true,
+          modalClass:'assal-owner-logout-confirm-modal'
+        });
+      }else{
+        ok=window.confirm('هل تريد تسجيل الخروج من لوحة المالك؟');
+      }
+      if(!ok)return;
+      if(typeof window.ASSAL_OWNER_AUTH_LOGOUT==='function'){
+        window.ASSAL_OWNER_AUTH_LOGOUT().catch(function(err){
+          try{document.documentElement.classList.remove('assal-auth-pending');}catch(_){ }
+          console.error('[ASSAL owner] logout',err);
+          try{showToast('error','تعذر تسجيل الخروج. حاول مرة أخرى.');}catch(_){ }
+        });
+        return;
+      }
+      var b=byId('btnLogout');if(b)b.click();
+    });
     byId('assalOwnerSearch').addEventListener('input',function(){state.query=this.value||'';renderList();});
     root.addEventListener('click',function(e){
       var f=e.target&&e.target.closest?e.target.closest('[data-owner-filter]'):null;if(f){state.filter=f.getAttribute('data-owner-filter')||'all';renderList();return;}
@@ -41701,7 +41773,7 @@ body.assal-owner-exclusive{
 }
 
 /* اخفِ فعلياً كل واجهات التطبيق الأصلية أثناء جلسة المالك. */
-body.assal-owner-exclusive > :not(#assalOwnerPanel):not(#assalLedgerStatementBackdrop):not(#assalLedgerResultsBackdrop):not(.toasts):not(script):not(style):not(link):not(noscript){
+body.assal-owner-exclusive > :not(#assalOwnerPanel):not(#assalLedgerStatementBackdrop):not(#assalLedgerResultsBackdrop):not(#modal):not(#modal-backdrop):not(.toasts):not(script):not(style):not(link):not(noscript){
   display:none !important;
   visibility:hidden !important;
   pointer-events:none !important;
@@ -41821,5 +41893,139 @@ body.assal-owner-exclusive #assalOwnerPanel .assal-owner-filters{
 }
 </style>
 <!-- ===== /ASSAL OWNER EXCLUSIVE VIEW + MULTIWINDOW FIX FINAL ===== -->
+
+
+<!-- ===== ASSAL OWNER FIRST-PAINT + TOUCH + AGE + LOGOUT CONFIRM FINAL ===== -->
+<style id="assal-owner-boot-touch-age-logout-final-style">
+/* عند بدء/إنهاء جلسة المالك يبقى السلاش وحده فوق كل شيء حتى اكتمال المسار. */
+html.assal-auth-pending body.assal-owner-exclusive > #authSplash{
+  display:grid !important;
+  visibility:visible !important;
+  pointer-events:auto !important;
+  opacity:1 !important;
+  z-index:2147483647 !important;
+}
+
+/* السماح لنافذة التأكيد الموحّدة فقط داخل وضع المالك. */
+body.assal-owner-exclusive > #modal,
+body.assal-owner-exclusive > #modal-backdrop{
+  visibility:visible !important;
+}
+body.assal-owner-exclusive > #modal-backdrop.active{
+  display:block !important;
+  pointer-events:auto !important;
+}
+body.assal-owner-exclusive > #modal.active{
+  display:flex !important;
+  pointer-events:auto !important;
+}
+#modal.assal-owner-logout-confirm-modal .modal-card{
+  width:min(430px,calc(100vw - 30px)) !important;
+  padding:18px !important;
+  border-radius:23px !important;
+  border:1px solid rgba(248,113,113,.24) !important;
+  background:
+    radial-gradient(380px 180px at 100% 0%,rgba(127,29,29,.22),transparent 68%),
+    radial-gradient(330px 170px at 0% 0%,rgba(124,58,237,.16),transparent 68%),
+    linear-gradient(180deg,#111d35,#081124) !important;
+  box-shadow:0 30px 86px rgba(0,0,0,.62),inset 0 1px 0 rgba(255,255,255,.06) !important;
+}
+#modal.assal-owner-logout-confirm-modal .modal-head{
+  color:#fff !important;
+  font-size:17px !important;
+}
+#modal.assal-owner-logout-confirm-modal .modal-body{
+  width:100% !important;
+  padding:2px 0 4px !important;
+}
+.assal-owner-logout-confirm-box{
+  width:100%;display:flex;flex-direction:column;align-items:center;gap:7px;text-align:center;
+}
+.assal-owner-logout-confirm-icon{
+  width:58px;height:58px;border-radius:19px;display:grid;place-items:center;margin-bottom:3px;
+  color:#fff;font-size:22px;background:linear-gradient(135deg,#ef4444,#7f1d1d 58%,#4c0519);
+  box-shadow:0 15px 36px rgba(127,29,29,.34),inset 0 1px 0 rgba(255,255,255,.16);
+}
+.assal-owner-logout-confirm-box b{color:#fff;font-size:15px;font-weight:950;line-height:1.7;}
+.assal-owner-logout-confirm-box span{color:#aebdd1;font-size:11.5px;font-weight:800;line-height:1.75;}
+#modal.assal-owner-logout-confirm-modal .modal-actions{gap:8px !important;}
+#modal.assal-owner-logout-confirm-modal .modal-btn{min-width:0 !important;flex:1 1 0 !important;height:43px !important;font-size:13px !important;border-radius:13px !important;}
+
+/* إعادة عمر الدين بجانب آخر تسديد حتى على أضيق الهواتف، بلا زيادة ملحوظة بارتفاع البطاقة. */
+@media(max-width:420px){
+  #assalOwnerPanel .assal-owner-meta-item:first-child{
+    display:flex !important;
+    flex:0 1 auto !important;
+  }
+  #assalOwnerPanel .assal-owner-meta-item:last-child{flex:1 1 auto !important;}
+  #assalOwnerPanel .assal-owner-meta{gap:3px !important;}
+  #assalOwnerPanel .assal-owner-meta-item{padding:2px 4px !important;gap:3px !important;}
+  #assalOwnerPanel .assal-owner-meta-item span{font-size:7.2px !important;}
+  #assalOwnerPanel .assal-owner-meta-item b{font-size:8.2px !important;}
+}
+
+/* طبقة لمس موحّدة: لا هايلايت خارج حدود الزر، ولا تحديد نص، وحالة الضغط داخل الزر فقط. */
+@media(hover:none), (pointer:coarse){
+  button,
+  input[type="button"],input[type="submit"],input[type="reset"],
+  [role="button"],.btn,.modal-btn,.icon-btn,.cat-item,
+  #assalOwnerPanel [data-owner-filter],#assalOwnerPanel [data-owner-open]{
+    -webkit-tap-highlight-color:transparent !important;
+    -webkit-touch-callout:none !important;
+    -webkit-user-select:none !important;
+    user-select:none !important;
+    touch-action:manipulation;
+  }
+  button:focus,
+  input[type="button"]:focus,input[type="submit"]:focus,input[type="reset"]:focus,
+  [role="button"]:focus,.btn:focus,.modal-btn:focus,.icon-btn:focus,.cat-item:focus{
+    -webkit-tap-highlight-color:transparent !important;
+  }
+  .assal-touch-inside-active{
+    outline:2px solid rgba(125,211,252,.72) !important;
+    outline-offset:-3px !important;
+    filter:brightness(1.10) saturate(1.04) !important;
+  }
+}
+</style>
+<script id="assal-mobile-touch-boundary-final-script">
+(function(){
+  'use strict';
+  var selector='button,input[type="button"],input[type="submit"],input[type="reset"],[role="button"],.btn,.modal-btn,.icon-btn,.cat-item,#assalOwnerPanel [data-owner-filter],#assalOwnerPanel [data-owner-open]';
+  var active=null, pointerId=null;
+  function eligible(el){
+    if(!el || !el.matches || !el.matches(selector))return false;
+    if(el.disabled || el.getAttribute('aria-disabled')==='true')return false;
+    return true;
+  }
+  function clear(){
+    if(active){try{active.classList.remove('assal-touch-inside-active');}catch(_){ }}
+    active=null;pointerId=null;
+  }
+  function inside(el,x,y){
+    try{var r=el.getBoundingClientRect();return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom;}catch(_){return false;}
+  }
+  document.addEventListener('pointerdown',function(e){
+    if(e.pointerType==='mouse')return;
+    var el=e.target&&e.target.closest?e.target.closest(selector):null;
+    if(!eligible(el) || !inside(el,e.clientX,e.clientY)){clear();return;}
+    clear();active=el;pointerId=e.pointerId;el.classList.add('assal-touch-inside-active');
+  },true);
+  document.addEventListener('pointermove',function(e){
+    if(!active || e.pointerId!==pointerId)return;
+    if(!inside(active,e.clientX,e.clientY))clear();
+  },true);
+  document.addEventListener('pointerup',clear,true);
+  document.addEventListener('pointercancel',clear,true);
+  document.addEventListener('scroll',clear,true);
+  window.addEventListener('blur',clear,true);
+  document.addEventListener('contextmenu',function(e){
+    var el=e.target&&e.target.closest?e.target.closest(selector):null;
+    if(el && eligible(el) && matchMedia('(hover:none), (pointer:coarse)').matches)e.preventDefault();
+  },true);
+})();
+</script>
+<!-- ===== /ASSAL OWNER FIRST-PAINT + TOUCH + AGE + LOGOUT CONFIRM FINAL ===== -->
+
 </body>
 </html>
