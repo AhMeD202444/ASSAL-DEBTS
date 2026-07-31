@@ -7469,16 +7469,25 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
   var ACTIVE_KEY  = LOCK_PREFIX + '_ACTIVE';
   var TAB_KEY     = LOCK_PREFIX + '_TAB_ID';
   var HEARTBEAT_MS = 2500;
-  var STALE_AFTER_MS = 5 * 60 * 1000; // مهلة طويلة حتى لا تستلم نافذة ثانية القفل بسهولة إذا الأولى بالخلفية
+  var STALE_AFTER_MS = 5 * 60 * 1000;
+  var AUTH_WAIT_MS = 15000;
 
   var originalSetInterval = window.setInterval.bind(window);
+  var originalClearInterval = window.clearInterval.bind(window);
   var originalSetTimeout  = window.setTimeout.bind(window);
+  var originalClearTimeout = window.clearTimeout.bind(window);
   var originalFetch       = window.fetch ? window.fetch.bind(window) : null;
   var OriginalXHR         = window.XMLHttpRequest;
   var OriginalEventSource = window.EventSource;
   var originalStorageSetItem = Storage && Storage.prototype && Storage.prototype.setItem;
   var originalStorageRemoveItem = Storage && Storage.prototype && Storage.prototype.removeItem;
   var originalStorageClear = Storage && Storage.prototype && Storage.prototype.clear;
+
+  var heartbeatId = 0;
+  var authWaitId = 0;
+  var regularClaimed = false;
+  var ownerBypass = false;
+  var pendingAuthDecision = false;
 
   function now(){ return Date.now(); }
   function makeId(){
@@ -7503,6 +7512,7 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
     }catch(e){ return null; }
   }
   function writeActive(){
+    if(ownerBypass || window.__ASSAL_SINGLE_WINDOW_LOCKED__) return;
     try{
       localStorage.setItem(ACTIVE_KEY, JSON.stringify({
         tabId:TAB_ID,
@@ -7525,6 +7535,14 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
     return !!(isFresh(active) && active.tabId !== TAB_ID);
   }
 
+  function hideLockedOverlay(){
+    try{
+      document.documentElement.classList.remove('assal-single-window-locked');
+      if(document.body) document.body.classList.remove('assal-single-window-locked');
+      var box = document.getElementById('assalSingleWindowLock');
+      if(box){ box.classList.remove('assal-lock-active'); box.style.display='none'; }
+    }catch(e){}
+  }
   function showLockedOverlay(){
     try{
       document.documentElement.classList.add('assal-single-window-locked');
@@ -7536,13 +7554,6 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
 
   function swallow(ev){
     try{
-      var box = document.getElementById('assalSingleWindowLock');
-      if(box && box.contains(ev.target)){
-        ev.preventDefault();
-        ev.stopImmediatePropagation();
-        ev.stopPropagation();
-        return false;
-      }
       ev.preventDefault();
       ev.stopImmediatePropagation();
       ev.stopPropagation();
@@ -7551,7 +7562,10 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
   }
 
   function blockPageCompletely(){
-    if(window.__ASSAL_SINGLE_WINDOW_LOCKED__) return;
+    if(ownerBypass || window.__ASSAL_SINGLE_WINDOW_LOCKED__) return false;
+    pendingAuthDecision = false;
+    window.__ASSAL_SINGLE_WINDOW_PENDING_AUTH__ = false;
+    if(authWaitId){ try{ originalClearTimeout(authWaitId); }catch(e){} authWaitId = 0; }
     window.__ASSAL_SINGLE_WINDOW_LOCKED__ = true;
 
     showLockedOverlay();
@@ -7570,26 +7584,19 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
       try{ document.addEventListener(name, swallow, true); }catch(e){}
     });
 
-    // منع أي مزامنة/طلبات شبكة من النافذة المقفولة فقط
     if(originalFetch){
       try{ window.fetch = function(){ return Promise.reject(new Error('ASSAL locked: another active window is open')); }; }catch(e){}
     }
     if(OriginalXHR){
-      try{
-        window.XMLHttpRequest = function(){ throw new Error('ASSAL locked: another active window is open'); };
-      }catch(e){}
+      try{ window.XMLHttpRequest = function(){ throw new Error('ASSAL locked: another active window is open'); }; }catch(e){}
     }
     if(OriginalEventSource){
-      try{
-        window.EventSource = function(){ throw new Error('ASSAL locked: another active window is open'); };
-      }catch(e){}
+      try{ window.EventSource = function(){ throw new Error('ASSAL locked: another active window is open'); }; }catch(e){}
     }
 
-    // منع تشغيل مؤقتات التطبيق داخل النافذة المقفولة حتى لا تبدأ مزامنة تلقائية
     try{ window.setInterval = function(){ return 0; }; }catch(e){}
-    try{ window.setTimeout = function(fn, delay){ return 0; }; }catch(e){}
+    try{ window.setTimeout = function(){ return 0; }; }catch(e){}
 
-    // منع كتابات localStorage من النافذة المقفولة، مع السماح بمفاتيح القفل فقط
     if(originalStorageSetItem){
       try{
         Storage.prototype.setItem = function(k, v){
@@ -7611,32 +7618,81 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
     if(originalStorageClear){
       try{ Storage.prototype.clear = function(){ return undefined; }; }catch(e){}
     }
+    return false;
   }
 
-  function claimAsOwner(){
+  function stopRegularClaim(){
+    if(heartbeatId){ try{ originalClearInterval(heartbeatId); }catch(e){} heartbeatId = 0; }
+    removeOwnLock();
+    regularClaimed = false;
+    window.__ASSAL_SINGLE_WINDOW_OWNER__ = false;
+  }
+
+  function claimRegularWindow(){
+    if(ownerBypass) return true;
+    if(window.__ASSAL_SINGLE_WINDOW_LOCKED__) return false;
+    if(regularClaimed){ writeActive(); return true; }
+    var active = readActive();
+    if(isOtherActive(active)) return blockPageCompletely();
+    regularClaimed = true;
     window.__ASSAL_SINGLE_WINDOW_OWNER__ = true;
     writeActive();
-    originalSetInterval(function(){
-      if(window.__ASSAL_SINGLE_WINDOW_LOCKED__) return;
+    heartbeatId = originalSetInterval(function(){
+      if(ownerBypass || window.__ASSAL_SINGLE_WINDOW_LOCKED__) return;
       writeActive();
     }, HEARTBEAT_MS);
-    window.addEventListener('pagehide', removeOwnLock, {capture:true});
-    window.addEventListener('beforeunload', removeOwnLock, {capture:true});
-    window.addEventListener('storage', function(ev){
-      if(!ev || ev.key !== ACTIVE_KEY || window.__ASSAL_SINGLE_WINDOW_LOCKED__) return;
-      var active = readActive();
-      // إذا نافذة ثانية حاولت تستلم القفل بالغلط، النافذة الأولى ترجع تثبت نفسها.
-      if(isOtherActive(active)){
-        writeActive();
-      }
-    }, false);
+    return true;
   }
+
+  function setOwnerMode(isOwner){
+    var enableOwner = isOwner === true;
+    if(enableOwner){
+      ownerBypass = true;
+      pendingAuthDecision = false;
+      window.__ASSAL_SINGLE_WINDOW_OWNER_BYPASS__ = true;
+      window.__ASSAL_SINGLE_WINDOW_PENDING_AUTH__ = false;
+      if(authWaitId){ try{ originalClearTimeout(authWaitId); }catch(e){} authWaitId = 0; }
+      stopRegularClaim();
+      hideLockedOverlay();
+      return true;
+    }
+
+    ownerBypass = false;
+    window.__ASSAL_SINGLE_WINDOW_OWNER_BYPASS__ = false;
+    pendingAuthDecision = false;
+    window.__ASSAL_SINGLE_WINDOW_PENDING_AUTH__ = false;
+    if(authWaitId){ try{ originalClearTimeout(authWaitId); }catch(e){} authWaitId = 0; }
+    if(window.__ASSAL_SINGLE_WINDOW_LOCKED__) return false;
+    var active = readActive();
+    if(isOtherActive(active)) return blockPageCompletely();
+    return claimRegularWindow();
+  }
+
+  window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE = setOwnerMode;
+  window.ASSAL_SINGLE_WINDOW_OWNER_BYPASS_ACTIVE = function(){ return ownerBypass === true; };
+
+  window.addEventListener('pagehide', function(){ if(!ownerBypass) stopRegularClaim(); }, {capture:true});
+  window.addEventListener('beforeunload', function(){ if(!ownerBypass) stopRegularClaim(); }, {capture:true});
+  window.addEventListener('storage', function(ev){
+    if(!ev || ev.key !== ACTIVE_KEY || ownerBypass || window.__ASSAL_SINGLE_WINDOW_LOCKED__) return;
+    if(pendingAuthDecision) return;
+    var active = readActive();
+    if(isOtherActive(active) && regularClaimed){ writeActive(); }
+  }, false);
 
   var active = readActive();
   if(isOtherActive(active)){
-    blockPageCompletely();
+    // لا نقفل فوراً: ننتظر Firebase ليحدد هل الجلسة هي حساب المالك.
+    // حساب المالك يستثنى بالكامل، أما أي حساب آخر فيستلم القفل الأصلي نفسه.
+    pendingAuthDecision = true;
+    window.__ASSAL_SINGLE_WINDOW_PENDING_AUTH__ = true;
+    authWaitId = originalSetTimeout(function(){
+      if(pendingAuthDecision && !ownerBypass && !window.__ASSAL_SINGLE_WINDOW_LOCKED__){
+        blockPageCompletely();
+      }
+    }, AUTH_WAIT_MS);
   }else{
-    claimAsOwner();
+    claimRegularWindow();
   }
 })();
 </script>
@@ -24666,6 +24722,7 @@ async function assalWaitOwnerEntry(timeoutMs = 12000){
 async function assalEnterOwnerOnly(user){
   // افتح واجهة المالك أولاً، ولا تجعل جلب السيرفر أو تجهيز البيانات يحجز الدخول.
   // يبقى المسار Fail-Closed: لا يوجد أي رجوع إلى واجهة الديون الأصلية.
+  try{ window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE && window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE(true); }catch(_){ }
   assalSetOwnerHardLock(true,'يتم تأمين حساب المالك وفتح واجهته الخاصة…');
   const enter = await assalWaitOwnerEntry();
   const entered = await enter({uid:String(user?.uid || ''), email:String(user?.email || '')});
@@ -24812,11 +24869,13 @@ function setSignedInUI(user){
   if(badge){ badge.textContent = cleanEmail || ''; badge.style.display = ''; }
   if(btnLogout){ btnLogout.style.display = ''; btnLogout.title = `تسجيل خروج (${cleanEmail||''})`; }
   if(owner){
+    try{ window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE && window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE(true); }catch(_){ }
     toggleControls(true);
     assalSetOwnerHardLock(true,'تم التحقق من إيميل المالك، جاري فتح واجهته الخاصة فقط…');
     // لا نمرر إيميل المالك إلى مسار أدوار الحاسبة الأصلي مطلقاً.
     return;
   }
+  try{ window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE && window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE(false); }catch(_){ }
   assalSetOwnerHardLock(false);
   toggleControls(false);
   try{ window.ASSAL_APPLY_ROLE_FROM_EMAIL && window.ASSAL_APPLY_ROLE_FROM_EMAIL(cleanEmail); }catch(_){ }
@@ -24830,6 +24889,7 @@ function setSignedOutUI(){
   window.ASSAL_OWNER_VIEWER = false;
   try{ window.ASSAL_OWNER_EXIT && window.ASSAL_OWNER_EXIT(); }catch(_){ }
   try{ assalSetOwnerHardLock(false); }catch(_){ }
+  try{ window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE && window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE(false); }catch(_){ }
   window.ASSAL_FORCED_DEVICE_ROLE = '';
   window.ASSAL_IS_ADMIN_DEBTS = false;
   window.ASSAL_IS_MAIN_DEBTS = false;
@@ -24874,6 +24934,14 @@ btnEl?.addEventListener('click', async ()=>{
   const pass  = passEl.value;
   if(!email || !pass){ msgEl.textContent = 'أدخل الإيميل وكلمة السر'; return; }
 
+  // حساب المالك لا يخضع لقفل النافذة الثانية؛ بقية الحسابات تبقى على القفل الأصلي.
+  try{
+    const lockAllowed = window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE
+      ? window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE(assalIsOwnerEmail(email))
+      : true;
+    if(lockAllowed === false) return;
+  }catch(_){ }
+
   // حركة زر + انتقال لطيف: gate يخفّ، بعدها يظهر Splash
   setBtnLoading(btnEl, true);
   try{
@@ -24883,6 +24951,7 @@ btnEl?.addEventListener('click', async ()=>{
     const { user } = await signInWithEmailAndPassword(auth, email, pass);
     if(!(await isAllowed(user.email))){
       await signOut(auth);
+      try{ window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE && window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE(false); }catch(_){ }
       hideSplash();
       showGate('هذا الإيميل غير مخوّل بالدخول');
       return;
@@ -24896,6 +24965,7 @@ btnEl?.addEventListener('click', async ()=>{
     }catch(_){ }
     // هنا لا نعرض توستين مع بعض؛ نظام الطابور يضمن واحد ورا الثاني تلقائيًا
   }catch(e){
+    try{ window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE && window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE(false); }catch(_){ }
     hideSplash();
     showGate('فشل تسجيل الدخول');
   }finally{
@@ -24921,6 +24991,16 @@ btnLogout?.addEventListener('click', async ()=>{
 // مراقبة حالة المصادقة (واحد فقط)
 onAuthStateChanged(auth, async (user)=>{
   showSplash();
+
+  if(user){
+    try{
+      const ownerSession = assalIsOwnerEmail(user.email);
+      const lockAllowed = window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE
+        ? window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE(ownerSession)
+        : true;
+      if(lockAllowed === false){ hideSplash(); return; }
+    }catch(_){ }
+  }
 
   if(!user){
     setSignedOutUI();
@@ -41061,10 +41141,10 @@ body.assal-ledger-owner-context .assal-ledger-results-body .assal-ledger-stat{
     var t=byId('assalOwnerLoadingTitle'),x=byId('assalOwnerLoadingText');if(t&&title)t.textContent=title;if(x&&text)x.textContent=text;
     var r=byId('assalOwnerRefresh');if(r)r.disabled=!!on;
   }
-  function activate(){try{window.ASSAL_SET_OWNER_HARD_LOCK&&window.ASSAL_SET_OWNER_HARD_LOCK(true,'تم فتح لوحة المالك الخاصة فقط.');}catch(_){ }var root=ensureRoot();document.body.classList.add('assal-owner-mode');root.classList.add('active');root.setAttribute('aria-hidden','false');}
+  function activate(){try{window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE&&window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE(true);}catch(_){ }try{window.ASSAL_SET_OWNER_HARD_LOCK&&window.ASSAL_SET_OWNER_HARD_LOCK(true,'تم فتح لوحة المالك الخاصة فقط.');}catch(_){ }var root=ensureRoot();document.documentElement.classList.add('assal-owner-exclusive-root');document.body.classList.add('assal-owner-mode','assal-owner-exclusive');root.classList.add('active');root.setAttribute('aria-hidden','false');try{window.scrollTo(0,0);root.scrollLeft=0;var ownerBody=byId('assalOwnerBody');if(ownerBody)ownerBody.scrollLeft=0;}catch(_){ }}
   function clearOwnerStatementContext(){document.body.classList.remove('assal-ledger-owner-context');if(ownerStatementObserver){try{ownerStatementObserver.disconnect();}catch(_){ }ownerStatementObserver=null;}}
   function watchOwnerStatementClose(){var bd=byId('assalLedgerStatementBackdrop');if(!bd)return;clearOwnerStatementContext();document.body.classList.add('assal-ledger-owner-context');ownerStatementObserver=new MutationObserver(function(){if(!bd.classList.contains('active'))clearOwnerStatementContext();});ownerStatementObserver.observe(bd,{attributes:true,attributeFilter:['class']});}
-  function deactivate(){if(document.body.classList.contains('assal-ledger-owner-context')){try{if(typeof window.assalCloseCustomerRangeStatement==='function')window.assalCloseCustomerRangeStatement();}catch(_){ }clearOwnerStatementContext();}var root=byId('assalOwnerPanel');if(root){root.classList.remove('active');root.setAttribute('aria-hidden','true');}document.body.classList.remove('assal-owner-mode');state={user:null,rows:[],followups:[],notices:[],query:'',filter:'all',busy:false,syncing:false,lastUpdated:0,briefNoticeIds:[]};}
+  function deactivate(){if(document.body.classList.contains('assal-ledger-owner-context')){try{if(typeof window.assalCloseCustomerRangeStatement==='function')window.assalCloseCustomerRangeStatement();}catch(_){ }clearOwnerStatementContext();}var root=byId('assalOwnerPanel');if(root){root.classList.remove('active');root.setAttribute('aria-hidden','true');}document.body.classList.remove('assal-owner-mode','assal-owner-exclusive');document.documentElement.classList.remove('assal-owner-exclusive-root');state={user:null,rows:[],followups:[],notices:[],query:'',filter:'all',busy:false,syncing:false,lastUpdated:0,briefNoticeIds:[]};}
 
   function sanitizeStore(raw){
     raw=raw&&typeof raw==='object'?raw:{};
@@ -41562,7 +41642,7 @@ body.assal-owner-hard-lock #assalOwnerFirewall{display:grid;}
     width:auto !important;flex-direction:column !important;align-items:flex-end !important;
     justify-content:center !important;gap:5px !important;
   }
-  #assalOwnerPanel .assal-owner-debt{font-size:14px !important;line-height:1.1 !important;transform:translateX(14px) !important;}
+  #assalOwnerPanel .assal-owner-debt{font-size:14px !important;line-height:1.1 !important;transform:translateX(6px) !important;}
   #assalOwnerPanel .assal-owner-follow-btn{
     min-width:92px !important;width:auto !important;height:29px !important;
     padding:0 8px !important;border-radius:9px !important;font-size:9.5px !important;gap:5px !important;
@@ -41583,5 +41663,163 @@ body.assal-owner-hard-lock #assalOwnerFirewall{display:grid;}
 </style>
 <!-- ===== /ASSAL OWNER FAST BACKGROUND + MOBILE COMPACT CARDS FINAL ===== -->
 
+
+
+<style id="assal-owner-exclusive-viewport-multiwindow-final-style">
+/* =========================================================
+   ASSAL OWNER EXCLUSIVE VIEW + VIEWPORT LOCK FINAL
+   - عند دخول المالك تظهر واجهته وحدها فقط.
+   - لا سحب أفقي ولا انزياح يمين/يسار في متصفحات الهاتف.
+   - السكرول العمودي يبقى داخل محتوى لوحة المالك.
+   - لا يغيّر أي تنسيق أو منطق في واجهة الحسابات العادية.
+========================================================= */
+html.assal-owner-exclusive-root,
+html.assal-owner-exclusive-root body{
+  width:100% !important;
+  max-width:100% !important;
+  min-width:0 !important;
+  height:100% !important;
+  min-height:100% !important;
+  margin:0 !important;
+  padding:0 !important;
+  overflow:hidden !important;
+  overscroll-behavior:none !important;
+}
+body.assal-owner-exclusive{
+  position:fixed !important;
+  inset:0 !important;
+  width:auto !important;
+  max-width:none !important;
+  min-width:0 !important;
+  height:auto !important;
+  min-height:0 !important;
+  margin:0 !important;
+  padding:0 !important;
+  overflow:hidden !important;
+  overscroll-behavior:none !important;
+  touch-action:none;
+}
+
+/* اخفِ فعلياً كل واجهات التطبيق الأصلية أثناء جلسة المالك. */
+body.assal-owner-exclusive > :not(#assalOwnerPanel):not(#assalLedgerStatementBackdrop):not(#assalLedgerResultsBackdrop):not(.toasts):not(script):not(style):not(link):not(noscript){
+  display:none !important;
+  visibility:hidden !important;
+  pointer-events:none !important;
+}
+body.assal-owner-exclusive > #loginGate,
+body.assal-owner-exclusive > #authSplash,
+body.assal-owner-exclusive > #assalOwnerFirewall,
+body.assal-owner-exclusive > #assalSingleWindowLock{
+  display:none !important;
+  visibility:hidden !important;
+  pointer-events:none !important;
+}
+
+body.assal-owner-exclusive #assalOwnerPanel.active{
+  position:fixed !important;
+  top:0 !important;
+  right:0 !important;
+  bottom:0 !important;
+  left:0 !important;
+  inset:0 !important;
+  inline-size:auto !important;
+  width:auto !important;
+  max-width:none !important;
+  min-width:0 !important;
+  block-size:auto !important;
+  height:auto !important;
+  min-height:0 !important;
+  max-height:none !important;
+  margin:0 !important;
+  padding:0 !important;
+  transform:none !important;
+  overflow:hidden !important;
+  overflow-x:hidden !important;
+  overscroll-behavior:none !important;
+  touch-action:none !important;
+  contain:layout paint !important;
+}
+body.assal-owner-exclusive #assalOwnerPanel .assal-owner-shell{
+  position:absolute !important;
+  top:0 !important;
+  right:0 !important;
+  bottom:0 !important;
+  left:0 !important;
+  inset:0 !important;
+  inline-size:auto !important;
+  width:auto !important;
+  max-width:none !important;
+  min-width:0 !important;
+  block-size:auto !important;
+  height:auto !important;
+  min-height:0 !important;
+  max-height:none !important;
+  margin:0 !important;
+  padding:0 !important;
+  transform:none !important;
+  overflow:hidden !important;
+  overflow-x:hidden !important;
+}
+body.assal-owner-exclusive #assalOwnerPanel .assal-owner-top,
+body.assal-owner-exclusive #assalOwnerPanel .assal-owner-body,
+body.assal-owner-exclusive #assalOwnerPanel .assal-owner-hero,
+body.assal-owner-exclusive #assalOwnerPanel .assal-owner-update-line,
+body.assal-owner-exclusive #assalOwnerPanel .assal-owner-follow-banner,
+body.assal-owner-exclusive #assalOwnerPanel .assal-owner-controls,
+body.assal-owner-exclusive #assalOwnerPanel .assal-owner-list,
+body.assal-owner-exclusive #assalOwnerPanel .assal-owner-card{
+  inline-size:100% !important;
+  width:100% !important;
+  max-width:100% !important;
+  min-width:0 !important;
+  box-sizing:border-box !important;
+}
+body.assal-owner-exclusive #assalOwnerPanel .assal-owner-body{
+  flex:1 1 auto !important;
+  min-height:0 !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  overscroll-behavior-x:none !important;
+  overscroll-behavior-y:contain !important;
+  touch-action:pan-y !important;
+  -webkit-overflow-scrolling:touch;
+}
+body.assal-owner-exclusive #assalOwnerPanel .assal-owner-top > *,
+body.assal-owner-exclusive #assalOwnerPanel .assal-owner-controls > *,
+body.assal-owner-exclusive #assalOwnerPanel .assal-owner-card > *,
+body.assal-owner-exclusive #assalOwnerPanel .assal-owner-brand,
+body.assal-owner-exclusive #assalOwnerPanel .assal-owner-brand-copy,
+body.assal-owner-exclusive #assalOwnerPanel .assal-owner-search,
+body.assal-owner-exclusive #assalOwnerPanel .assal-owner-main,
+body.assal-owner-exclusive #assalOwnerPanel .assal-owner-side{
+  min-width:0 !important;
+  max-width:100% !important;
+}
+body.assal-owner-exclusive #assalOwnerPanel .assal-owner-update-line > span{
+  min-width:0 !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  white-space:nowrap !important;
+}
+body.assal-owner-exclusive #assalOwnerPanel .assal-owner-filters{
+  max-width:100% !important;
+  overflow-x:hidden !important;
+  overscroll-behavior-x:none !important;
+}
+
+@media(max-width:820px){
+  body.assal-owner-exclusive #assalOwnerPanel .assal-owner-filters{
+    display:flex !important;
+    flex-wrap:wrap !important;
+    gap:6px !important;
+    width:100% !important;
+  }
+  body.assal-owner-exclusive #assalOwnerPanel .assal-owner-filter{
+    flex:1 1 auto !important;
+    min-width:0 !important;
+  }
+}
+</style>
+<!-- ===== /ASSAL OWNER EXCLUSIVE VIEW + MULTIWINDOW FIX FINAL ===== -->
 </body>
 </html>
