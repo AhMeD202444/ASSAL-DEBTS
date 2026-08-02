@@ -42580,5 +42580,608 @@ body.assal-owner-exclusive > #modal.active{
 <!-- ===== /ASSAL OWNER COMPACT HEADER + LEDGER VISUAL POLISH FINAL ===== -->
 
 
+
+<!-- ===== ASSAL OWNER READ-ONLY HUB + COLORED COMPACT CARDS + ATTENDANCE FINAL ===== -->
+<style id="assal-owner-readonly-hub-final-style">
+/* لوحة دخول المالك: أربع وجهات قراءة فقط، مع إبقاء صفحة الديون الأصلية كما هي. */
+#assalOwnerPanel[data-owner-view] #assalOwnerBody,
+#assalOwnerPanel .assal-owner-hub-view{display:none !important;}
+#assalOwnerPanel[data-owner-view="debts"] #assalOwnerBody{display:block !important;}
+#assalOwnerPanel[data-owner-view="home"] #assalOwnerHome,
+#assalOwnerPanel[data-owner-view="daily"] #assalOwnerDailyView,
+#assalOwnerPanel[data-owner-view="finance"] #assalOwnerFinanceView,
+#assalOwnerPanel[data-owner-view="attendance"] #assalOwnerAttendanceView{display:block !important;}
+
+.assal-owner-hub-view{
+  flex:1 1 auto;
+  min-height:0;
+  overflow:auto;
+  padding:14px 16px calc(22px + env(safe-area-inset-bottom));
+  scrollbar-width:thin;
+  overscroll-behavior:contain;
+}
+.assal-owner-home-wrap{width:min(760px,100%);margin:0 auto;}
+.assal-owner-home-intro{
+  position:relative;overflow:hidden;margin-bottom:12px;padding:17px 16px;border-radius:22px;
+  border:1px solid rgba(125,211,252,.16);
+  background:linear-gradient(135deg,rgba(14,116,144,.20),rgba(124,58,237,.17),rgba(9,17,34,.92));
+  box-shadow:0 16px 38px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.05);
+}
+.assal-owner-home-intro::after{content:"";position:absolute;left:-35px;top:-42px;width:140px;height:140px;border-radius:50%;background:rgba(45,212,191,.09);filter:blur(2px);pointer-events:none;}
+.assal-owner-home-intro b{display:block;position:relative;color:#fff;font-size:17px;font-weight:950;}
+.assal-owner-home-intro span{display:block;position:relative;margin-top:5px;color:#a9bad0;font-size:11.5px;line-height:1.8;font-weight:800;}
+.assal-owner-home-status{display:flex;align-items:center;justify-content:space-between;gap:9px;margin-top:11px;padding-top:10px;border-top:1px solid rgba(148,163,184,.10);font-size:10.5px;color:#8fa2bb;}
+.assal-owner-home-status em{font-style:normal;display:inline-flex;align-items:center;gap:6px;color:#bbf7d0;font-weight:900;}
+.assal-owner-home-status em::before{content:"";width:7px;height:7px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 4px rgba(34,197,94,.09);}
+.assal-owner-home-grid{display:grid;grid-template-columns:1fr;gap:9px;}
+.assal-owner-home-card{
+  --owner-accent:#22d3ee;
+  width:100%;min-width:0;min-height:92px;position:relative;overflow:hidden;
+  display:grid;grid-template-columns:48px minmax(0,1fr) auto;align-items:center;gap:11px;
+  padding:13px 14px;border-radius:20px;border:1px solid rgba(148,163,184,.14);
+  background:linear-gradient(180deg,rgba(17,28,51,.96),rgba(8,18,36,.96));
+  color:#eaf2ff;text-align:right;font-family:inherit;cursor:pointer;
+  box-shadow:0 13px 30px rgba(0,0,0,.17),inset 0 1px 0 rgba(255,255,255,.04);
+  -webkit-tap-highlight-color:transparent;
+}
+.assal-owner-home-card::before{content:"";position:absolute;right:0;top:12px;bottom:12px;width:3px;border-radius:99px;background:var(--owner-accent);box-shadow:0 0 18px color-mix(in srgb,var(--owner-accent) 58%,transparent);}
+.assal-owner-home-card.debts{--owner-accent:#22d3ee;}
+.assal-owner-home-card.daily{--owner-accent:#a78bfa;}
+.assal-owner-home-card.finance{--owner-accent:#34d399;}
+.assal-owner-home-card.attendance{--owner-accent:#fbbf24;}
+.assal-owner-home-card:active{transform:scale(.992);background:linear-gradient(180deg,rgba(21,35,62,.98),rgba(9,20,40,.98));}
+.assal-owner-home-icon{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;background:color-mix(in srgb,var(--owner-accent) 17%,#071226);border:1px solid color-mix(in srgb,var(--owner-accent) 30%,transparent);color:var(--owner-accent);font-size:18px;}
+.assal-owner-home-copy{min-width:0;}
+.assal-owner-home-copy strong{display:block;color:#f8fafc;font-size:14px;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.assal-owner-home-copy small{display:block;margin-top:4px;color:#8fa2bb;font-size:10px;line-height:1.65;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.assal-owner-home-metric{min-width:88px;text-align:left;}
+.assal-owner-home-metric b{display:block;color:#fff;font-size:12.5px;font-weight:950;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.assal-owner-home-metric span{display:block;margin-top:4px;color:#7488a5;font-size:8.5px;font-weight:850;white-space:nowrap;}
+.assal-owner-home-arrow{position:absolute;left:10px;bottom:8px;color:var(--owner-accent);font-size:9px;opacity:.72;}
+
+#assalOwnerHubBack{display:none;}
+#assalOwnerPanel:not([data-owner-view="home"]) #assalOwnerHubBack{display:inline-flex;}
+.assal-owner-action.hub-back{background:linear-gradient(135deg,#172554,#312e81);border-color:rgba(129,140,248,.25);color:#e0e7ff;}
+
+.assal-owner-section-wrap{width:min(920px,100%);margin:0 auto;}
+.assal-owner-section-toolbar{
+  position:sticky;top:-14px;z-index:15;margin:-1px 0 10px;padding:10px;border-radius:18px;
+  border:1px solid rgba(125,211,252,.13);background:rgba(13,23,43,.97);box-shadow:0 12px 28px rgba(0,0,0,.22);
+}
+.assal-owner-section-date-row{display:grid;grid-template-columns:38px minmax(0,1fr) 38px auto;gap:6px;align-items:center;}
+.assal-owner-section-date-row input{
+  min-width:0;width:100%;height:38px;padding:0 9px;border-radius:12px;border:1px solid rgba(96,165,250,.18);
+  background:#071226;color:#eaf2ff;outline:none;font-family:inherit;font-size:12px;font-weight:850;color-scheme:dark;
+}
+.assal-owner-section-date-row button,
+.assal-owner-today-btn{
+  height:38px;border-radius:12px;border:1px solid rgba(148,163,184,.17);background:#111d35;color:#dbeafe;
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;font-family:inherit;font-size:10px;font-weight:900;cursor:pointer;
+}
+.assal-owner-today-btn{padding:0 10px;white-space:nowrap;background:linear-gradient(135deg,rgba(14,116,144,.45),rgba(15,118,110,.42));}
+.assal-owner-section-search{position:relative;margin-top:7px;}
+.assal-owner-section-search i{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#7dd3fc;font-size:12px;pointer-events:none;}
+.assal-owner-section-search input{
+  width:100%;height:39px;padding:0 37px 0 11px;border-radius:12px;border:1px solid rgba(96,165,250,.16);
+  background:#071226;color:#eaf2ff;outline:none;font-family:inherit;font-size:12px;
+}
+.assal-owner-section-search input:focus{border-color:rgba(45,212,191,.48);box-shadow:0 0 0 3px rgba(45,212,191,.08);}
+.assal-owner-readonly-note{display:flex;align-items:center;gap:7px;margin-top:7px;color:#8fa2bb;font-size:9.5px;font-weight:800;}
+.assal-owner-readonly-note i{color:#5eead4;}
+.assal-owner-mini-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:9px;}
+.assal-owner-mini-stat{min-width:0;padding:8px 9px;border-radius:14px;border:1px solid rgba(148,163,184,.12);background:rgba(8,18,37,.75);}
+.assal-owner-mini-stat span{display:block;color:#8193ab;font-size:8.5px;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.assal-owner-mini-stat b{display:block;margin-top:4px;color:#eef6ff;font-size:11.5px;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;}
+
+.assal-owner-daily-list,.assal-owner-finance-list{display:grid;grid-template-columns:1fr;gap:7px;}
+.assal-owner-daily-card{
+  border-radius:18px;border:1px solid rgba(148,163,184,.13);overflow:hidden;
+  background:linear-gradient(180deg,#111c33,#091327);box-shadow:0 10px 24px rgba(0,0,0,.14);
+}
+.assal-owner-daily-card-head{
+  width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:center;
+  padding:10px 11px;border:0;background:transparent;color:inherit;text-align:right;font-family:inherit;cursor:pointer;
+}
+.assal-owner-daily-main{min-width:0;}
+.assal-owner-daily-name-row{display:flex;align-items:center;gap:6px;min-width:0;}
+.assal-owner-daily-name{min-width:0;color:#f8fafc;font-size:12.5px;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.assal-owner-daily-type{flex:0 0 auto;padding:3px 7px;border-radius:999px;border:1px solid rgba(56,189,248,.20);background:rgba(14,116,144,.17);color:#bae6fd;font-size:8px;font-weight:950;white-space:nowrap;}
+.assal-owner-daily-sub{display:flex;align-items:center;gap:8px;margin-top:6px;color:#8294ac;font-size:8.7px;font-weight:800;white-space:nowrap;overflow:hidden;}
+.assal-owner-daily-sub span{display:inline-flex;align-items:center;gap:4px;}
+.assal-owner-daily-side{text-align:left;min-width:88px;}
+.assal-owner-daily-side b{display:block;color:#fecaca;font-size:12.5px;font-weight:950;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.assal-owner-daily-side span{display:flex;align-items:center;justify-content:flex-end;gap:5px;margin-top:5px;color:#8fa2bb;font-size:8.5px;font-weight:850;}
+.assal-owner-daily-card.open .assal-owner-daily-side span i{transform:rotate(180deg);}
+.assal-owner-daily-lines{display:none;padding:0 9px 9px;}
+.assal-owner-daily-card.open .assal-owner-daily-lines{display:grid;gap:5px;}
+.assal-owner-daily-line{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 9px;border-radius:12px;
+  border:1px solid rgba(148,163,184,.09);background:rgba(2,6,23,.30);
+}
+.assal-owner-daily-line-copy{min-width:0;}
+.assal-owner-daily-line-copy b{display:block;color:#dbeafe;font-size:10px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.assal-owner-daily-line-copy span{display:block;margin-top:3px;color:#778aa5;font-size:8px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.assal-owner-daily-line-side{text-align:left;}
+.assal-owner-daily-line-side b{display:block;color:#fff;font-size:10px;font-weight:950;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.assal-owner-daily-line-side span{display:block;margin-top:3px;color:#91a4bc;font-size:7.8px;font-weight:850;white-space:nowrap;}
+.assal-owner-line-status{display:inline-flex !important;width:max-content;margin-top:4px !important;padding:2px 6px;border-radius:999px;background:rgba(22,163,74,.14);border:1px solid rgba(74,222,128,.16);color:#bbf7d0 !important;}
+.assal-owner-line-status.returned{background:rgba(37,99,235,.14);border-color:rgba(96,165,250,.18);color:#bfdbfe !important;}
+
+.assal-owner-finance-filters{display:flex;gap:5px;margin-top:7px;overflow:auto;scrollbar-width:none;}
+.assal-owner-finance-filter{height:32px;padding:0 10px;border-radius:999px;border:1px solid rgba(148,163,184,.16);background:#111d35;color:#aebfd4;font-family:inherit;font-size:9px;font-weight:900;white-space:nowrap;cursor:pointer;}
+.assal-owner-finance-filter.active{background:linear-gradient(135deg,#0e7490,#7c3aed);border-color:transparent;color:#fff;}
+.assal-owner-finance-row{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:center;padding:10px 11px;border-radius:17px;
+  border:1px solid rgba(148,163,184,.13);background:linear-gradient(180deg,#111c33,#091327);box-shadow:0 9px 22px rgba(0,0,0,.13);
+}
+.assal-owner-finance-main{min-width:0;}
+.assal-owner-finance-name-row{display:flex;align-items:center;gap:6px;min-width:0;}
+.assal-owner-finance-name{min-width:0;color:#f8fafc;font-size:12px;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.assal-owner-finance-kind{flex:0 0 auto;min-width:48px;height:25px;padding:0 8px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(74,222,128,.18);background:rgba(22,163,74,.14);color:#bbf7d0;font-size:8.5px;font-weight:950;}
+.assal-owner-finance-kind.withdraw{border-color:rgba(248,113,113,.18);background:rgba(127,29,29,.17);color:#fecaca;}
+.assal-owner-finance-notes{margin-top:5px;color:#8193ab;font-size:8.7px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.assal-owner-finance-meta{display:flex;gap:7px;margin-top:5px;color:#687d99;font-size:8px;font-weight:800;}
+.assal-owner-finance-amount{text-align:left;}
+.assal-owner-finance-amount b{display:block;color:#bbf7d0;font-size:12.5px;font-weight:950;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.assal-owner-finance-row.withdraw .assal-owner-finance-amount b{color:#fecaca;}
+.assal-owner-finance-amount span{display:block;margin-top:4px;color:#6f839f;font-size:8px;font-weight:850;white-space:nowrap;}
+.assal-owner-view-empty{padding:34px 14px;text-align:center;border-radius:18px;border:1px dashed rgba(148,163,184,.17);color:#8fa2bb;font-size:11px;line-height:1.9;font-weight:800;}
+.assal-owner-view-empty i{display:block;margin-bottom:8px;color:#38bdf8;font-size:24px;}
+
+/* بطاقات قراءة مضغوطة ومميزة لونياً — واجهة المالك فقط */
+.assal-owner-daily-list,.assal-owner-finance-list,.assal-owner-attendance-list{display:grid;grid-template-columns:1fr;gap:6px;}
+.assal-owner-daily-card,.assal-owner-finance-row,.assal-owner-attendance-row{
+  --row-accent:#38bdf8;--row-tint:rgba(56,189,248,.075);
+  position:relative;border-color:color-mix(in srgb,var(--row-accent) 26%,rgba(148,163,184,.11));
+  background:linear-gradient(100deg,var(--row-tint),rgba(8,18,37,.96) 42%,rgba(6,14,29,.98));
+  box-shadow:0 7px 18px rgba(0,0,0,.11),inset -3px 0 0 var(--row-accent);
+}
+.assal-owner-daily-card:nth-child(4n+1),.assal-owner-finance-row:nth-child(4n+1),.assal-owner-attendance-row:nth-child(4n+1){--row-accent:#38bdf8;--row-tint:rgba(56,189,248,.08);}
+.assal-owner-daily-card:nth-child(4n+2),.assal-owner-finance-row:nth-child(4n+2),.assal-owner-attendance-row:nth-child(4n+2){--row-accent:#a78bfa;--row-tint:rgba(167,139,250,.08);}
+.assal-owner-daily-card:nth-child(4n+3),.assal-owner-finance-row:nth-child(4n+3),.assal-owner-attendance-row:nth-child(4n+3){--row-accent:#34d399;--row-tint:rgba(52,211,153,.075);}
+.assal-owner-daily-card:nth-child(4n+4),.assal-owner-finance-row:nth-child(4n+4),.assal-owner-attendance-row:nth-child(4n+4){--row-accent:#f59e0b;--row-tint:rgba(245,158,11,.075);}
+.assal-owner-daily-card{border-radius:15px;}
+.assal-owner-daily-card-head{padding:8px 9px;gap:7px;}
+.assal-owner-daily-name{font-size:11.5px;}
+.assal-owner-daily-type{padding:2px 6px;font-size:7.5px;}
+.assal-owner-daily-sub{margin-top:4px;font-size:7.8px;}
+.assal-owner-daily-side{min-width:78px;}
+.assal-owner-daily-side b{font-size:11px;}
+.assal-owner-daily-side span{margin-top:3px;font-size:7.5px;}
+.assal-owner-daily-lines{padding:0 7px 7px;}
+.assal-owner-daily-card.open .assal-owner-daily-lines{gap:3px;}
+.assal-owner-daily-line{
+  min-height:31px;display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:5px;align-items:center;
+  padding:5px 6px;border-radius:9px;border:1px solid rgba(148,163,184,.075);background:rgba(2,6,23,.28);
+}
+.assal-owner-daily-line.returned{background:rgba(37,99,235,.08);}
+.assal-owner-daily-line.paid{background:rgba(22,163,74,.075);}
+.assal-owner-daily-line-name{min-width:0;color:#dbeafe;font-size:9.2px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.assal-owner-line-status{margin:0 !important;min-width:43px;height:20px;padding:0 6px !important;align-items:center;justify-content:center;font-size:7.2px;white-space:nowrap;}
+.assal-owner-line-status.paid{background:rgba(22,163,74,.14);border-color:rgba(74,222,128,.17);color:#bbf7d0 !important;}
+.assal-owner-daily-line-unit{color:#8294ac;font-size:7.2px;font-weight:800;white-space:nowrap;}
+.assal-owner-daily-line-amount{color:#fff;font-size:9px;font-weight:950;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.assal-owner-daily-line.returned .assal-owner-daily-line-amount{color:#bfdbfe;}
+.assal-owner-daily-line.paid .assal-owner-daily-line-amount{color:#bbf7d0;}
+.assal-owner-finance-row{
+  min-height:43px;grid-template-columns:minmax(0,1fr) auto minmax(58px,auto) auto;gap:6px;padding:7px 8px;border-radius:13px;
+}
+.assal-owner-finance-name{font-size:10.5px;}
+.assal-owner-finance-kind{min-width:45px;height:22px;padding:0 6px;border-radius:8px;font-size:7.7px;}
+.assal-owner-finance-inline-meta{min-width:0;color:#8092aa;font-size:7.7px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.assal-owner-finance-amount-inline{color:#bbf7d0;font-size:10.5px;font-weight:950;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.assal-owner-finance-row.withdraw .assal-owner-finance-amount-inline{color:#fecaca;}
+
+/* كشف حضور المالك — قراءة فقط */
+.assal-owner-attendance-summary{grid-template-columns:repeat(4,minmax(0,1fr));}
+.assal-owner-attendance-row{
+  min-height:48px;display:grid;grid-template-columns:34px minmax(0,1fr) auto auto;align-items:center;gap:7px;
+  padding:7px 8px;border-radius:14px;border:1px solid rgba(148,163,184,.12);
+}
+.assal-owner-attendance-avatar{width:31px;height:31px;border-radius:10px;display:grid;place-items:center;background:color-mix(in srgb,var(--row-accent) 15%,#071226);border:1px solid color-mix(in srgb,var(--row-accent) 27%,transparent);color:var(--row-accent);font-size:12px;}
+.assal-owner-attendance-copy{min-width:0;}
+.assal-owner-attendance-name{display:block;color:#f8fafc;font-size:10.8px;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.assal-owner-attendance-time{display:block;margin-top:3px;color:#8294ac;font-size:7.8px;font-weight:800;white-space:nowrap;}
+.assal-owner-attendance-status{min-width:48px;height:23px;padding:0 7px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(148,163,184,.15);background:rgba(71,85,105,.14);color:#cbd5e1;font-size:7.8px;font-weight:950;white-space:nowrap;}
+.assal-owner-attendance-status.present{border-color:rgba(74,222,128,.18);background:rgba(22,163,74,.14);color:#bbf7d0;}
+.assal-owner-attendance-status.leave{border-color:rgba(250,204,21,.20);background:rgba(161,98,7,.15);color:#fde68a;}
+.assal-owner-attendance-status.duty{border-color:rgba(56,189,248,.20);background:rgba(14,116,144,.15);color:#bae6fd;}
+.assal-owner-attendance-status.absent{border-color:rgba(248,113,113,.17);background:rgba(127,29,29,.14);color:#fecaca;}
+.assal-owner-attendance-photo{width:30px;height:30px;border-radius:9px;border:1px solid rgba(96,165,250,.20);background:rgba(30,64,175,.15);color:#bfdbfe;display:grid;place-items:center;cursor:pointer;font-size:10px;}
+.assal-owner-attendance-photo:active{transform:scale(.95);}
+.assal-owner-attendance-photo-spacer{width:30px;height:30px;}
+.assal-owner-photo-modal{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:14px;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);}
+.assal-owner-photo-modal.open{display:flex;}
+.assal-owner-photo-card{width:min(560px,100%);max-height:88dvh;overflow:auto;border-radius:18px;border:1px solid rgba(96,165,250,.22);background:#0b1427;padding:10px;box-shadow:0 24px 70px rgba(0,0,0,.48);}
+.assal-owner-photo-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 2px 9px;color:#eaf2ff;font-size:11px;font-weight:900;}
+.assal-owner-photo-close{width:31px;height:31px;border-radius:9px;border:1px solid rgba(248,113,113,.18);background:rgba(127,29,29,.16);color:#fecaca;display:grid;place-items:center;cursor:pointer;}
+.assal-owner-photo-card img{display:block;width:100%;max-height:72dvh;object-fit:contain;border-radius:13px;background:#020617;}
+.assal-owner-photo-meta{padding:8px 3px 2px;text-align:center;color:#93a4bc;font-size:9px;font-weight:800;}
+
+@media (min-width:760px){
+  .assal-owner-home-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .assal-owner-home-card{grid-template-columns:46px minmax(0,1fr);min-height:144px;align-content:center;}
+  .assal-owner-home-metric{grid-column:1/-1;min-width:0;text-align:right;padding-top:8px;border-top:1px solid rgba(148,163,184,.09);}
+  .assal-owner-daily-list{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+@media (max-width:720px){
+  .assal-owner-hub-view{padding:10px 10px calc(15px + env(safe-area-inset-bottom));}
+  .assal-owner-home-intro{padding:14px 13px;border-radius:19px;margin-bottom:9px;}
+  .assal-owner-home-intro b{font-size:15px;}
+  .assal-owner-home-intro span{font-size:10px;}
+  .assal-owner-home-status{font-size:9px;}
+  .assal-owner-home-grid{gap:7px;}
+  .assal-owner-home-card{min-height:78px;grid-template-columns:42px minmax(0,1fr) auto;gap:9px;padding:10px 11px;border-radius:17px;}
+  .assal-owner-home-icon{width:40px;height:40px;border-radius:13px;font-size:15px;}
+  .assal-owner-home-copy strong{font-size:12.5px;}
+  .assal-owner-home-copy small{font-size:8.8px;}
+  .assal-owner-home-metric{min-width:76px;}
+  .assal-owner-home-metric b{font-size:10.5px;}
+  .assal-owner-home-metric span{font-size:7.5px;}
+  .assal-owner-action.hub-back{width:38px !important;padding:0 !important;}
+  .assal-owner-action.hub-back span{display:none !important;}
+  .assal-owner-section-toolbar{top:-10px;margin:0 0 8px;padding:8px;border-radius:15px;}
+  .assal-owner-section-date-row{grid-template-columns:34px minmax(0,1fr) 34px auto;gap:5px;}
+  .assal-owner-section-date-row input,.assal-owner-section-date-row button,.assal-owner-today-btn{height:35px;border-radius:10px;}
+  .assal-owner-section-date-row input{font-size:11px;}
+  .assal-owner-today-btn{padding:0 8px;font-size:8.5px;}
+  .assal-owner-section-search{margin-top:6px;}
+  .assal-owner-section-search input{height:36px;font-size:11px;}
+  .assal-owner-mini-summary{gap:5px;margin-bottom:7px;}
+  .assal-owner-mini-stat{padding:7px;border-radius:12px;}
+  .assal-owner-mini-stat span{font-size:7.5px;}
+  .assal-owner-mini-stat b{font-size:10px;}
+  .assal-owner-daily-card-head{padding:9px;}
+  .assal-owner-daily-name{font-size:11.5px;}
+  .assal-owner-daily-side b{font-size:11px;}
+  .assal-owner-finance-row{padding:7px 8px;border-radius:13px;}
+  .assal-owner-daily-line{grid-template-columns:minmax(0,1fr) auto auto;gap:4px;}
+  .assal-owner-daily-line-unit{display:none;}
+  .assal-owner-attendance-summary{grid-template-columns:repeat(4,minmax(0,1fr));}
+  .assal-owner-attendance-row{grid-template-columns:31px minmax(0,1fr) auto auto;padding:6px 7px;}
+}
+@media (max-width:380px){
+  .assal-owner-home-card{grid-template-columns:38px minmax(0,1fr);}
+  .assal-owner-home-metric{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;min-width:0;padding-top:6px;border-top:1px solid rgba(148,163,184,.08);text-align:right;}
+  .assal-owner-home-metric span{margin-top:0;}
+  .assal-owner-section-date-row{grid-template-columns:32px minmax(0,1fr) 32px;}
+  .assal-owner-today-btn{grid-column:1/-1;height:30px;}
+}
+
+
+/* ===== OWNER DAILY TABLE + GLOBAL SEARCH FINAL (owner page only) ===== */
+#assalOwnerDailyView .assal-owner-section-toolbar{padding-bottom:10px;}
+#assalOwnerDailyView .assal-owner-daily-search-shell{
+  margin-top:11px;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:7px;
+  min-height:42px;padding:4px;border:1px solid rgba(96,165,250,.17);border-radius:13px;background:#071226;
+}
+#assalOwnerDailyView .assal-owner-daily-search-modes{display:flex;align-items:center;gap:3px;padding:0 2px;}
+#assalOwnerDailyView .assal-owner-daily-search-mode{
+  min-width:48px;height:32px;padding:0 9px;border-radius:9px;border:1px solid rgba(148,163,184,.14);
+  background:#111d35;color:#8fa2bb;font-family:inherit;font-size:9.5px;font-weight:950;cursor:pointer;
+}
+#assalOwnerDailyView .assal-owner-daily-search-mode.active{
+  color:#ecfeff;border-color:rgba(34,211,238,.38);background:linear-gradient(135deg,rgba(14,116,144,.72),rgba(15,118,110,.58));
+  box-shadow:0 0 0 2px rgba(34,211,238,.06);
+}
+#assalOwnerDailyView .assal-owner-daily-search-field{margin:0;min-width:0;}
+#assalOwnerDailyView .assal-owner-daily-search-field input{height:32px;border:0;background:transparent;padding-right:31px;font-size:10.5px;box-shadow:none !important;}
+#assalOwnerDailyView .assal-owner-daily-search-field i{right:10px;font-size:10.5px;}
+#assalOwnerDailyView .assal-owner-readonly-note{margin-top:8px;}
+
+#assalOwnerDailyView .assal-owner-daily-lines{padding:0 7px 7px;}
+#assalOwnerDailyView .assal-owner-daily-card.open .assal-owner-daily-lines{display:block;}
+#assalOwnerDailyView .assal-owner-daily-table-head,
+#assalOwnerDailyView .assal-owner-daily-line{
+  display:grid;grid-template-columns:20% minmax(0,1fr) 20% 25%;gap:0;align-items:stretch;direction:rtl;
+}
+#assalOwnerDailyView .assal-owner-daily-table-head{
+  min-height:27px;margin-top:1px;border:1px solid rgba(125,211,252,.12);border-radius:9px 9px 0 0;
+  background:rgba(15,23,42,.78);overflow:hidden;
+}
+#assalOwnerDailyView .assal-owner-daily-table-head span{
+  display:flex;align-items:center;justify-content:center;min-width:0;padding:5px 3px;color:#8fa2bb;
+  font-size:7.4px;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  border-inline-start:1px solid rgba(148,163,184,.11);
+}
+#assalOwnerDailyView .assal-owner-daily-table-head span:first-child{border-inline-start:0;}
+#assalOwnerDailyView .assal-owner-daily-line{
+  min-height:34px;padding:0;border-radius:0;border-top:0;background:rgba(2,6,23,.28);overflow:hidden;
+}
+#assalOwnerDailyView .assal-owner-daily-line:last-child{border-radius:0 0 9px 9px;}
+#assalOwnerDailyView .assal-owner-daily-cell{
+  min-width:0;display:flex;align-items:center;justify-content:center;padding:5px 4px;
+  border-inline-start:1px solid rgba(148,163,184,.10);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#assalOwnerDailyView .assal-owner-daily-cell:first-child{border-inline-start:0;}
+#assalOwnerDailyView .assal-owner-daily-cell.category{color:#91a4bc;font-size:7.8px;font-weight:850;}
+#assalOwnerDailyView .assal-owner-daily-cell.material{justify-content:flex-start;color:#e7efff;font-size:8.8px;font-weight:950;}
+#assalOwnerDailyView .assal-owner-daily-cell.type{padding-inline:3px;}
+#assalOwnerDailyView .assal-owner-daily-cell.price{color:#fff;font-size:8.8px;font-weight:950;font-variant-numeric:tabular-nums;}
+#assalOwnerDailyView .assal-owner-daily-line.returned .assal-owner-daily-cell.price{color:#bfdbfe;}
+#assalOwnerDailyView .assal-owner-daily-line.paid .assal-owner-daily-cell.price{color:#bbf7d0;}
+#assalOwnerDailyView .assal-owner-line-status{max-width:100%;padding:2px 5px;font-size:7px;overflow:hidden;text-overflow:ellipsis;}
+#assalOwnerDailyView .assal-owner-daily-date-group{display:grid;gap:6px;margin-bottom:10px;}
+#assalOwnerDailyView .assal-owner-daily-date-label{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;padding:3px 5px 1px;color:#9fb2ca;
+}
+#assalOwnerDailyView .assal-owner-daily-date-label b{font-size:9.5px;font-weight:950;color:#dbeafe;}
+#assalOwnerDailyView .assal-owner-daily-date-label span{font-size:8px;font-weight:850;color:#7f93ad;}
+@media (max-width:430px){
+  #assalOwnerDailyView .assal-owner-daily-search-shell{grid-template-columns:auto minmax(0,1fr);gap:5px;margin-top:10px;}
+  #assalOwnerDailyView .assal-owner-daily-search-mode{min-width:43px;padding:0 7px;font-size:8.7px;}
+  #assalOwnerDailyView .assal-owner-daily-table-head,
+  #assalOwnerDailyView .assal-owner-daily-line{grid-template-columns:18% minmax(0,1fr) 22% 25%;}
+  #assalOwnerDailyView .assal-owner-daily-cell{padding-inline:3px;}
+  #assalOwnerDailyView .assal-owner-daily-cell.material{font-size:8.3px;}
+  #assalOwnerDailyView .assal-owner-daily-cell.category{font-size:7.2px;}
+  #assalOwnerDailyView .assal-owner-daily-cell.price{font-size:8.2px;}
+}
+/* ===== /OWNER DAILY TABLE + GLOBAL SEARCH FINAL ===== */
+
+</style>
+
+<script id="assal-owner-readonly-hub-final-script">
+(function(){
+  'use strict';
+  if(window.__ASSAL_OWNER_READONLY_HUB_FINAL__) return;
+  window.__ASSAL_OWNER_READONLY_HUB_FINAL__ = true;
+
+  var ui={view:'home',dailyDay:'',dailyQuery:'',dailySearchMode:'customer',financeDay:'',financeQuery:'',financeFilter:'all',attendanceDay:'',expanded:new Set(),observer:null,headerObserver:null,headerGuardTimer:0};
+  function byId(id){return document.getElementById(id);}
+  function esc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+  function num(v){if(v==null)return 0;if(typeof v==='number')return isFinite(v)?v:0;var n=Number(String(v).replace(/[\u0660-\u0669]/g,function(c){return String(c.charCodeAt(0)-0x0660);}).replace(/[\u06F0-\u06F9]/g,function(c){return String(c.charCodeAt(0)-0x06F0);}).replace(/[^\d.\-]/g,''));return isFinite(n)?n:0;}
+  function money(v){var n=Math.round(Number(v||0));try{return n.toLocaleString('en-US')+' د.ع';}catch(_){return String(n)+' د.ع';}}
+  function localISO(d){var x=d instanceof Date?d:new Date(d);if(isNaN(x.getTime()))x=new Date();return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');}
+  function fmtDate(v){var m=String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?(m[3]+'-'+m[2]+'-'+m[1]):String(v||'—');}
+  function norm(v){return String(v==null?'':v).trim().toLowerCase().replace(/[\u064B-\u0652]/g,'').replace(/[إأآا]/g,'ا').replace(/[ىي]/g,'ي').replace(/ة/g,'ه').replace(/[\s\-_،,./\\]+/g,' ');}
+  function shiftDay(day,amount){var m=String(day||'').match(/^(\d{4})-(\d{2})-(\d{2})$/),d=m?new Date(Number(m[1]),Number(m[2])-1,Number(m[3])):new Date();d.setDate(d.getDate()+Number(amount||0));return localISO(d);}
+  function currentDays(){try{if(typeof days!=='undefined'&&days)return days;}catch(_){ }return window.days||{};}
+  function cardsFrom(v){try{if(typeof window.__getCardsFromDayVal__==='function')return window.__getCardsFromDayVal__(v)||[];}catch(_){ }return Array.isArray(v)?v:(v&&Array.isArray(v.cards)?v.cards:[]);}
+  function activeLines(card){return (Array.isArray(card&&card.lines)?card.lines:[]).filter(function(line){return line&&!line.deletedAt;});}
+  function cardName(card){return String(card&&(card.customer||card.cust||card.name)||'بدون اسم').trim()||'بدون اسم';}
+  function lineName(line){return String(line&&(line.item||line.name||line.description)||'مادة غير مسماة').trim()||'مادة غير مسماة';}
+  function lineCategory(line){return String(line&&(line.category||line.cat||line.type)||'').trim();}
+  function lineAmount(line){var q=num(line&&line.qty);if(!isFinite(q)||q<=0)q=1;return Math.round(num(line&&line.price)*q);}
+  function cardSums(card){try{if(typeof window.sumCardAmounts==='function')return window.sumCardAmounts(card)||{};}catch(_){ }try{if(typeof sumCardAmounts==='function')return sumCardAmounts(card)||{};}catch(_){ }var total=0,paid=0,returned=0;activeLines(card).forEach(function(line){var a=lineAmount(line);if(line.returned)returned+=a;else{total+=a;if(line.paid)paid+=a;}});return {total:total,paid:paid,returned:returned,final:total-paid-returned,itemsCount:activeLines(card).length};}
+  function cardType(card){
+    var labels=[];
+    activeLines(card).forEach(function(line){var raw=String(line&&(line.type||line.billType)||card&&(card.billType||card.type||card.kind)||'').trim();try{if(typeof window.normalizeBillType==='function')raw=window.normalizeBillType(raw);}catch(_){ }if(raw&&labels.indexOf(raw)<0)labels.push(raw);});
+    if(!labels.length){var raw=String(card&&(card.billType||card.type||card.kind)||'بطاقة').trim();labels.push(raw||'بطاقة');}
+    return labels.slice(0,2).join(' / ');
+  }
+  function cardTime(card){var raw=String(card&&(card.time||card.createdTime)||'').trim();if(raw)return raw;var d=new Date(card&&(card.createdAt||card.at)||'');if(isNaN(d.getTime()))return '';try{return d.toLocaleTimeString('ar-IQ',{hour:'2-digit',minute:'2-digit'});}catch(_){return '';}}
+  function paymentStore(){try{if(typeof window.assalDebtMergePaymentStores==='function')return window.assalDebtMergePaymentStores()||{};}catch(_){ }try{if(typeof window.loadPaymentsStore==='function')return window.loadPaymentsStore()||{};}catch(_){ }return window.__assalPaymentsLiveStore||{};}
+  function paymentKind(row){var s=String(row&&(row.kind||row.type)||'').trim();return s==='سحب'?'سحب':'تسديد';}
+  function paymentCustomer(row){return String(row&&(row.cust||row.customer||row.name)||'بدون اسم').trim()||'بدون اسم';}
+  function paymentNotes(row){return String(row&&(row.notes||row.note||row.description)||'').trim();}
+  function smartHit(name,q){if(!q)return true;try{if(typeof window.assalSmartCustomerMatchScore==='function'&&window.assalSmartCustomerMatchScore(name,q))return true;}catch(_){ }return norm(name).indexOf(norm(q))>=0;}
+  function debtRows(){var rows=[];try{if(typeof window.ASSAL_BUILD_DEBT_FOLLOWUP_ROWS==='function')rows=window.ASSAL_BUILD_DEBT_FOLLOWUP_ROWS()||[];}catch(_){ }return rows.filter(function(r){return r&&Number(r.debt||0)>0;});}
+
+  function ensureHub(){
+    var root=byId('assalOwnerPanel');if(!root)return null;
+    if(byId('assalOwnerHome'))return root;
+    var shell=root.querySelector('.assal-owner-shell'),header=root.querySelector('.assal-owner-top'),actions=root.querySelector('.assal-owner-actions');
+    if(!shell||!header||!actions)return root;
+    var back=document.createElement('button');back.id='assalOwnerHubBack';back.type='button';back.className='assal-owner-action hub-back';back.title='العودة إلى لوحة المالك';back.innerHTML='<i class="fa-solid fa-house"></i><span>الرئيسية</span>';actions.insertBefore(back,actions.firstChild);
+    var home=document.createElement('main');home.id='assalOwnerHome';home.className='assal-owner-hub-view';home.innerHTML=
+      '<div class="assal-owner-home-wrap">'+
+        '<section class="assal-owner-home-intro"><b>مركز متابعة مكتب عسل</b><span>وصول سريع إلى الديون والبطاقات اليومية والحسابات المالية وكشف الحضور، بجميع الأقسام بوضع اطلاع آمن فقط.</span><div class="assal-owner-home-status"><em>واجهة قراءة فقط</em><span id="assalOwnerHomeUpdated">آخر تحديث: —</span></div></section>'+
+        '<section class="assal-owner-home-grid">'+
+          '<button type="button" class="assal-owner-home-card debts" data-owner-section="debts"><span class="assal-owner-home-icon"><i class="fa-solid fa-users-viewfinder"></i></span><span class="assal-owner-home-copy"><strong>متابعة الديون</strong><small>الذمم، البحث الذكي وكشف حساب الزبائن</small></span><span class="assal-owner-home-metric"><b id="assalOwnerHomeDebtMetric">—</b><span id="assalOwnerHomeDebtSub">الديون الحالية</span></span><i class="fa-solid fa-chevron-left assal-owner-home-arrow"></i></button>'+
+          '<button type="button" class="assal-owner-home-card daily" data-owner-section="daily"><span class="assal-owner-home-icon"><i class="fa-solid fa-calendar-days"></i></span><span class="assal-owner-home-copy"><strong>بطاقات الديون اليومية</strong><small>عرض بطاقات اليوم والمواد وتفاصيلها</small></span><span class="assal-owner-home-metric"><b id="assalOwnerHomeDailyMetric">—</b><span>بطاقات اليوم</span></span><i class="fa-solid fa-chevron-left assal-owner-home-arrow"></i></button>'+
+          '<button type="button" class="assal-owner-home-card finance" data-owner-section="finance"><span class="assal-owner-home-icon"><i class="fa-solid fa-money-bill-transfer"></i></span><span class="assal-owner-home-copy"><strong>متابعة التسديدات</strong><small>التسديدات والسحوبات في الحسابات المالية</small></span><span class="assal-owner-home-metric"><b id="assalOwnerHomeFinanceMetric">—</b><span>تسديدات اليوم</span></span><i class="fa-solid fa-chevron-left assal-owner-home-arrow"></i></button>'+
+          '<button type="button" class="assal-owner-home-card attendance" data-owner-section="attendance"><span class="assal-owner-home-icon"><i class="fa-solid fa-user-check"></i></span><span class="assal-owner-home-copy"><strong>كشف الحضور</strong><small>حضور الموظفين وحالات اليوم</small></span><span class="assal-owner-home-metric"><b id="assalOwnerHomeAttendanceMetric">—</b><span>اكتمال اليوم</span></span><i class="fa-solid fa-chevron-left assal-owner-home-arrow"></i></button>'+
+        '</section>'+
+      '</div>';
+    var daily=document.createElement('main');daily.id='assalOwnerDailyView';daily.className='assal-owner-hub-view';daily.innerHTML=
+      '<div class="assal-owner-section-wrap">'+
+        '<section class="assal-owner-section-toolbar">'+
+          '<div class="assal-owner-section-date-row"><button type="button" data-owner-day-shift="-1" title="اليوم السابق"><i class="fa-solid fa-chevron-right"></i></button><input id="assalOwnerDailyDate" type="date" aria-label="تاريخ البطاقات"><button type="button" data-owner-day-shift="1" title="اليوم التالي"><i class="fa-solid fa-chevron-left"></i></button><button type="button" id="assalOwnerDailyToday" class="assal-owner-today-btn">اليوم</button></div>'+
+          '<div class="assal-owner-daily-search-shell"><div class="assal-owner-daily-search-modes" role="group" aria-label="نوع البحث"><button type="button" class="assal-owner-daily-search-mode active" data-owner-daily-mode="customer">زبون</button><button type="button" class="assal-owner-daily-search-mode" data-owner-daily-mode="material">مادة</button></div><label class="assal-owner-section-search assal-owner-daily-search-field"><i class="fa-solid fa-magnifying-glass"></i><input id="assalOwnerDailySearch" type="search" autocomplete="off" placeholder="ابحث باسم الزبون في كل الأيام"></label></div>'+
+          '<div class="assal-owner-readonly-note"><i class="fa-solid fa-shield-halved"></i>عرض فقط — لا توجد أزرار إضافة أو تعديل أو حذف</div>'+
+        '</section>'+
+        '<section id="assalOwnerDailySummary" class="assal-owner-mini-summary"></section><section id="assalOwnerDailyList" class="assal-owner-daily-list"></section>'+
+      '</div>';
+    var finance=document.createElement('main');finance.id='assalOwnerFinanceView';finance.className='assal-owner-hub-view';finance.innerHTML=
+      '<div class="assal-owner-section-wrap">'+
+        '<section class="assal-owner-section-toolbar">'+
+          '<div class="assal-owner-section-date-row"><button type="button" data-owner-finance-shift="-1" title="اليوم السابق"><i class="fa-solid fa-chevron-right"></i></button><input id="assalOwnerFinanceDate" type="date" aria-label="تاريخ الحسابات المالية"><button type="button" data-owner-finance-shift="1" title="اليوم التالي"><i class="fa-solid fa-chevron-left"></i></button><button type="button" id="assalOwnerFinanceToday" class="assal-owner-today-btn">اليوم</button></div>'+
+          '<label class="assal-owner-section-search"><i class="fa-solid fa-magnifying-glass"></i><input id="assalOwnerFinanceSearch" type="search" autocomplete="off" placeholder="ابحث باسم الزبون أو الملاحظة"></label>'+
+          '<div class="assal-owner-finance-filters"><button type="button" class="assal-owner-finance-filter active" data-owner-finance-filter="all">الكل</button><button type="button" class="assal-owner-finance-filter" data-owner-finance-filter="pay">التسديدات</button><button type="button" class="assal-owner-finance-filter" data-owner-finance-filter="withdraw">السحوبات</button></div>'+
+          '<div class="assal-owner-readonly-note"><i class="fa-solid fa-shield-halved"></i>عرض فقط — العمليات المالية الأصلية لم تتغير</div>'+
+        '</section>'+
+        '<section id="assalOwnerFinanceSummary" class="assal-owner-mini-summary"></section><section id="assalOwnerFinanceList" class="assal-owner-finance-list"></section>'+
+      '</div>';
+    var attendance=document.createElement('main');attendance.id='assalOwnerAttendanceView';attendance.className='assal-owner-hub-view';attendance.innerHTML=
+      '<div class="assal-owner-section-wrap">'+
+        '<section class="assal-owner-section-toolbar">'+
+          '<div class="assal-owner-section-date-row"><button type="button" data-owner-attendance-shift="-1" title="اليوم السابق"><i class="fa-solid fa-chevron-right"></i></button><input id="assalOwnerAttendanceDate" type="date" aria-label="تاريخ الحضور"><button type="button" data-owner-attendance-shift="1" title="اليوم التالي"><i class="fa-solid fa-chevron-left"></i></button><button type="button" id="assalOwnerAttendanceToday" class="assal-owner-today-btn">اليوم</button></div>'+
+          '<div class="assal-owner-readonly-note"><i class="fa-solid fa-shield-halved"></i>عرض فقط — لا تسجيل حضور ولا تغيير للحالات</div>'+
+        '</section>'+
+        '<section id="assalOwnerAttendanceSummary" class="assal-owner-mini-summary assal-owner-attendance-summary"></section><section id="assalOwnerAttendanceList" class="assal-owner-attendance-list"></section>'+
+      '</div>';
+    var photoModal=document.createElement('div');photoModal.id='assalOwnerAttendancePhotoModal';photoModal.className='assal-owner-photo-modal';photoModal.setAttribute('aria-hidden','true');photoModal.innerHTML='<div class="assal-owner-photo-card" role="dialog" aria-modal="true" aria-label="صورة الحضور"><div class="assal-owner-photo-head"><span id="assalOwnerAttendancePhotoTitle">صورة الحضور</span><button type="button" class="assal-owner-photo-close" data-owner-photo-close aria-label="إغلاق"><i class="fa-solid fa-xmark"></i></button></div><img id="assalOwnerAttendancePhotoImage" alt="صورة الحضور"><div class="assal-owner-photo-meta" id="assalOwnerAttendancePhotoMeta"></div></div>';
+    var body=byId('assalOwnerBody');shell.insertBefore(home,body||shell.children[1]||null);shell.insertBefore(daily,body||null);shell.insertBefore(finance,body||null);shell.insertBefore(attendance,body||null);root.appendChild(photoModal);
+    bindHub(root);
+    observeOwnerUpdates();
+    installHeaderGuard();
+    return root;
+  }
+
+  function setHeader(title,sub){var root=byId('assalOwnerPanel');if(!root)return;var h=root.querySelector('.assal-owner-brand-copy h1'),p=root.querySelector('.assal-owner-brand-copy p');if(h&&h.textContent!==title)h.textContent=title;if(p&&p.textContent!==sub)p.textContent=sub;}
+  function enforceHubHeader(){
+    var root=byId('assalOwnerPanel');if(!root||ui.view==='debts')return;
+    var title='لوحة مالك مكتب عسل',sub='مركز المتابعة والاطلاع • قراءة فقط',compact=false;
+    if(ui.view==='daily'){title='بطاقات الديون اليومية';sub='عرض البطاقات والمواد حسب اليوم';var d=byId('assalOwnerDailyView');compact=!!(d&&d.scrollTop>8);}
+    if(ui.view==='finance'){title='متابعة التسديدات';sub='الحسابات المالية • عرض فقط';var f=byId('assalOwnerFinanceView');compact=!!(f&&f.scrollTop>8);}
+    if(ui.view==='attendance'){title='كشف الحضور';sub='حضور الموظفين • عرض فقط';var a=byId('assalOwnerAttendanceView');compact=!!(a&&a.scrollTop>8);}
+    root.classList.toggle('assal-owner-header-compact',compact);
+    setHeader(title,sub);
+  }
+  function scheduleHeaderGuard(){if(ui.headerGuardTimer)return;ui.headerGuardTimer=requestAnimationFrame(function(){ui.headerGuardTimer=0;enforceHubHeader();});}
+  function installHeaderGuard(){
+    if(ui.headerObserver)return;
+    var root=byId('assalOwnerPanel');if(!root)return;
+    var title=root.querySelector('.assal-owner-brand-copy h1');
+    ui.headerObserver=new MutationObserver(scheduleHeaderGuard);
+    ui.headerObserver.observe(root,{attributes:true,attributeFilter:['class']});
+    if(title)ui.headerObserver.observe(title,{childList:true,subtree:true,characterData:true});
+    window.addEventListener('resize',scheduleHeaderGuard,{passive:true});
+  }
+  function showView(view){
+    var root=ensureHub();if(!root)return;
+    view=['home','debts','daily','finance','attendance'].indexOf(view)>=0?view:'home';ui.view=view;root.setAttribute('data-owner-view',view);root.classList.remove('assal-owner-header-compact');
+    if(view==='home'){setHeader('لوحة مالك مكتب عسل','مركز المتابعة والاطلاع • قراءة فقط');renderHome();var h=byId('assalOwnerHome');if(h)h.scrollTop=0;}
+    if(view==='debts'){setHeader('متابعة الديون','الذمم وكشوف حساب الزبائن');var d=byId('assalOwnerBody');if(d&&d.scrollTop>8)root.classList.add('assal-owner-header-compact');}
+    if(view==='daily'){setHeader('بطاقات الديون اليومية','عرض البطاقات والمواد حسب اليوم');renderDaily();var dv=byId('assalOwnerDailyView');if(dv)dv.scrollTop=0;}
+    if(view==='finance'){setHeader('متابعة التسديدات','الحسابات المالية • عرض فقط');renderFinance();var fv=byId('assalOwnerFinanceView');if(fv)fv.scrollTop=0;}
+    if(view==='attendance'){setHeader('كشف الحضور','حضور الموظفين • عرض فقط');renderAttendance();var av=byId('assalOwnerAttendanceView');if(av)av.scrollTop=0;}
+  }
+
+  function renderHome(){
+    var rows=debtRows(),total=rows.reduce(function(s,r){return s+Number(r.debt||0);},0),today=localISO(new Date());
+    var cards=cardsFrom(currentDays()[today]).filter(function(c){return c&&!c.deletedAt&&activeLines(c).length;});
+    var pays=(Array.isArray(paymentStore()[today])?paymentStore()[today]:[]).filter(function(r){return r&&!r.deletedAt;});
+    var paid=pays.filter(function(r){return paymentKind(r)==='تسديد';}).reduce(function(s,r){return s+Math.max(0,num(r.amount));},0);
+    var att=attendanceState(),attRec=(att.days&&att.days[today])||{},attMap=attRec.employees||{},attNames=attendanceNames(attMap),attDone=attNames.filter(function(name){return attendanceStatus(attMap[name]).key!=='absent';}).length;
+    var debtMetric=byId('assalOwnerHomeDebtMetric'),debtSub=byId('assalOwnerHomeDebtSub'),dailyMetric=byId('assalOwnerHomeDailyMetric'),finMetric=byId('assalOwnerHomeFinanceMetric'),attMetric=byId('assalOwnerHomeAttendanceMetric'),updated=byId('assalOwnerHomeUpdated'),src=byId('assalOwnerUpdated');
+    if(debtMetric)debtMetric.textContent=money(total);if(debtSub)debtSub.textContent=rows.length+' زبون مدين';if(dailyMetric)dailyMetric.textContent=String(cards.length);if(finMetric)finMetric.textContent=money(paid);if(attMetric)attMetric.textContent=attDone+'/'+attNames.length;if(updated)updated.textContent=src?src.textContent:'آخر تحديث: —';
+  }
+
+  function renderDaily(){
+    var day=ui.dailyDay||localISO(new Date()),date=byId('assalOwnerDailyDate');ui.dailyDay=day;if(date&&date.value!==day)date.value=day;
+    var q=String(ui.dailyQuery||'').trim(),mode=ui.dailySearchMode==='material'?'material':'customer',daysMap=currentDays()||{};
+    var input=byId('assalOwnerDailySearch');if(input){input.placeholder=mode==='material'?'ابحث باسم المادة في كل الأيام':'ابحث باسم الزبون في كل الأيام';}
+    document.querySelectorAll('#assalOwnerDailyView [data-owner-daily-mode]').forEach(function(btn){btn.classList.toggle('active',(btn.getAttribute('data-owner-daily-mode')||'customer')===mode);});
+
+    function lineMatches(line){return norm(lineName(line)+' '+lineCategory(line)).indexOf(norm(q))>=0;}
+    function renderLine(line,card){
+      var qv=num(line.qty);if(!isFinite(qv)||qv<=0)qv=1;
+      var rawType=String(line.type||line.billType||card.billType||card.type||'بيع آجل').trim()||'بيع آجل';
+      var status=line.returned?'راجع':(line.paid?'تسديد':rawType),tone=line.returned?' returned':(line.paid?' paid':'');
+      var category=lineCategory(line)||'مادة',name=lineName(line),amount=lineAmount(line),shownAmount=(line.returned||line.paid)?-Math.abs(amount):amount;
+      var detail=[category,name,status,(qv>1?(qv+' × '+money(num(line.price))):money(num(line.price))),money(shownAmount)].join(' • ');
+      return '<div class="assal-owner-daily-line'+tone+'" title="'+esc(detail)+'" aria-label="'+esc(detail)+'"><span class="assal-owner-daily-cell category">'+esc(category)+'</span><b class="assal-owner-daily-cell material">'+esc(name)+'</b><span class="assal-owner-daily-cell type"><span class="assal-owner-line-status'+tone+'">'+esc(status)+'</span></span><b class="assal-owner-daily-cell price">'+esc(money(shownAmount))+'</b></div>';
+    }
+    function renderCard(card,index,cardDay,visibleLines,forceOpen){
+      var key=cardDay+'::'+String(card.id||card._id||index),open=forceOpen||ui.expanded.has(key),allLines=activeLines(card),lines=visibleLines||allLines,s=cardSums(card),final=Number(s.final!=null?s.final:s.finalAmount||0),time=cardTime(card);
+      var details='<div class="assal-owner-daily-table-head"><span>الصنف</span><span>اسم المادة</span><span>النوع</span><span>السعر</span></div>'+lines.map(function(line){return renderLine(line,card);}).join('');
+      if((!q||mode==='customer')&&Number(s.partialPaid||0)>0){details+='<div class="assal-owner-daily-line paid" title="تسديد جزئي • '+esc(money(Number(s.partialPaid||0)))+'"><span class="assal-owner-daily-cell category">حساب</span><b class="assal-owner-daily-cell material">تسديد جزئي</b><span class="assal-owner-daily-cell type"><span class="assal-owner-line-status paid">تسديد</span></span><b class="assal-owner-daily-cell price">'+esc(money(-Math.abs(Number(s.partialPaid||0))))+'</b></div>';}
+      return '<article class="assal-owner-daily-card '+(open?'open ':'')+'tone-'+((index%4)+1)+'" data-owner-daily-key="'+esc(encodeURIComponent(key))+'"><button type="button" class="assal-owner-daily-card-head" data-owner-daily-toggle="'+esc(encodeURIComponent(key))+'"><span class="assal-owner-daily-main"><span class="assal-owner-daily-name-row"><span class="assal-owner-daily-name">'+esc(cardName(card))+'</span><span class="assal-owner-daily-type">'+esc(cardType(card))+'</span></span><span class="assal-owner-daily-sub"><span><i class="fa-solid fa-boxes-stacked"></i>'+allLines.length+' مادة</span>'+(time?'<span><i class="fa-regular fa-clock"></i>'+esc(time)+'</span>':'')+'</span></span><span class="assal-owner-daily-side"><b>'+esc(money(final))+'</b><span>التفاصيل <i class="fa-solid fa-chevron-down"></i></span></span></button><div class="assal-owner-daily-lines">'+details+'</div></article>';
+    }
+
+    var summary=byId('assalOwnerDailySummary'),list=byId('assalOwnerDailyList');if(!list)return;
+    if(!q){
+      var all=cardsFrom(daysMap[day]).filter(function(c){return c&&!c.deletedAt&&activeLines(c).length;}),items=0,total=0;
+      all.forEach(function(c){var s=cardSums(c);items+=Number(s.itemsCount||activeLines(c).length);total+=Number(s.final!=null?s.final:s.finalAmount||0);});
+      if(summary)summary.innerHTML='<div class="assal-owner-mini-stat"><span>بطاقات '+esc(fmtDate(day))+'</span><b>'+all.length+'</b></div><div class="assal-owner-mini-stat"><span>عدد المواد</span><b>'+items+'</b></div><div class="assal-owner-mini-stat"><span>صافي البطاقات</span><b>'+esc(money(total))+'</b></div>';
+      if(!all.length){list.innerHTML='<div class="assal-owner-view-empty"><i class="fa-solid fa-calendar-xmark"></i>لا توجد بطاقات في هذا اليوم.</div>';return;}
+      list.innerHTML=all.map(function(card,index){return renderCard(card,index,day,null,false);}).join('');return;
+    }
+
+    var groups=[],cardCount=0,matchCount=0;
+    Object.keys(daysMap).filter(function(k){return /^\d{4}-\d{2}-\d{2}$/.test(k);}).sort().reverse().forEach(function(cardDay){
+      var cards=cardsFrom(daysMap[cardDay]).filter(function(c){return c&&!c.deletedAt&&activeLines(c).length;}),matched=[];
+      cards.forEach(function(card,index){
+        if(mode==='customer'){
+          if(smartHit(cardName(card),q)){matched.push({card:card,index:index,lines:activeLines(card)});matchCount++;}
+        }else{
+          var lines=activeLines(card).filter(lineMatches);if(lines.length){matched.push({card:card,index:index,lines:lines});matchCount+=lines.length;}
+        }
+      });
+      if(matched.length){groups.push({day:cardDay,cards:matched});cardCount+=matched.length;}
+    });
+    if(summary)summary.innerHTML='<div class="assal-owner-mini-stat"><span>أيام النتائج</span><b>'+groups.length+'</b></div><div class="assal-owner-mini-stat"><span>البطاقات</span><b>'+cardCount+'</b></div><div class="assal-owner-mini-stat"><span>'+(mode==='material'?'المواد المطابقة':'الزبائن المطابقون')+'</span><b>'+matchCount+'</b></div>';
+    if(!groups.length){list.innerHTML='<div class="assal-owner-view-empty"><i class="fa-solid fa-magnifying-glass"></i>لا توجد نتائج مطابقة في جميع الأيام.</div>';return;}
+    list.innerHTML=groups.map(function(group,groupIndex){return '<section class="assal-owner-daily-date-group"><div class="assal-owner-daily-date-label"><b>'+esc(fmtDate(group.day))+'</b><span>'+group.cards.length+' بطاقة</span></div>'+group.cards.map(function(entry,index){return renderCard(entry.card,index+(groupIndex*10),group.day,entry.lines,mode==='material');}).join('')+'</section>';}).join('');
+  }
+
+  function paymentSortValue(r){var d=new Date(r&&(r.createdAt||r.updatedAt||r.at||r.timestamp)||'');if(!isNaN(d.getTime()))return d.getTime();var t=String(r&&r.time||''),m=t.match(/(\d{1,2}):(\d{1,2})/);if(!m)return 0;var h=Number(m[1]),mi=Number(m[2]);if(/م|PM/i.test(t)&&h<12)h+=12;if(/ص|AM/i.test(t)&&h===12)h=0;return h*60+mi;}
+  function renderFinance(){
+    var day=ui.financeDay||localISO(new Date()),date=byId('assalOwnerFinanceDate');ui.financeDay=day;if(date&&date.value!==day)date.value=day;
+    var all=(Array.isArray(paymentStore()[day])?paymentStore()[day]:[]).filter(function(r){return r&&!r.deletedAt;});
+    var payTotal=0,withdrawTotal=0;all.forEach(function(r){if(paymentKind(r)==='سحب')withdrawTotal+=Math.max(0,num(r.amount));else payTotal+=Math.max(0,num(r.amount));});
+    var q=String(ui.financeQuery||'').trim(),rows=all.filter(function(r){var k=paymentKind(r);if(ui.financeFilter==='pay'&&k!=='تسديد')return false;if(ui.financeFilter==='withdraw'&&k!=='سحب')return false;if(!q)return true;return smartHit(paymentCustomer(r),q)||norm(paymentNotes(r)).indexOf(norm(q))>=0||String(Math.round(num(r.amount))).indexOf(String(q).replace(/[^\d]/g,''))>=0;}).sort(function(a,b){return paymentSortValue(b)-paymentSortValue(a);});
+    document.querySelectorAll('#assalOwnerFinanceView [data-owner-finance-filter]').forEach(function(b){b.classList.toggle('active',(b.getAttribute('data-owner-finance-filter')||'all')===ui.financeFilter);});
+    var summary=byId('assalOwnerFinanceSummary');if(summary)summary.innerHTML='<div class="assal-owner-mini-stat"><span>عدد الحركات</span><b>'+all.length+'</b></div><div class="assal-owner-mini-stat"><span>مجموع التسديدات</span><b>'+esc(money(payTotal))+'</b></div><div class="assal-owner-mini-stat"><span>مجموع السحوبات</span><b>'+esc(money(withdrawTotal))+'</b></div>';
+    var list=byId('assalOwnerFinanceList');if(!list)return;
+    if(!rows.length){list.innerHTML='<div class="assal-owner-view-empty"><i class="fa-solid fa-receipt"></i>لا توجد حركات مالية مطابقة في هذا اليوم.</div>';return;}
+    list.innerHTML=rows.map(function(row,index){
+      var kind=paymentKind(row),withdraw=kind==='سحب',notes=paymentNotes(row),time=String(row.time||'').trim(),rdate=String(row.date||fmtDate(day)).trim();
+      var meta=[time,notes||rdate].filter(Boolean).join(' • '),full=paymentCustomer(row)+' • '+kind+' • '+money(Math.abs(num(row.amount)))+(meta?' • '+meta:'');
+      return '<article class="assal-owner-finance-row '+(withdraw?'withdraw ':'')+'tone-'+((index%4)+1)+'" title="'+esc(full)+'" aria-label="'+esc(full)+'"><div class="assal-owner-finance-name">'+esc(paymentCustomer(row))+'</div><span class="assal-owner-finance-kind '+(withdraw?'withdraw':'')+'">'+esc(kind)+'</span><span class="assal-owner-finance-inline-meta">'+esc(meta||'بدون ملاحظات')+'</span><b class="assal-owner-finance-amount-inline">'+esc(money(Math.abs(num(row.amount))))+'</b></article>';
+    }).join('');
+  }
+
+  function attendanceState(){
+    try{if(typeof window.ASSAL_ATTENDANCE_EXPORT==='function'){var st=window.ASSAL_ATTENDANCE_EXPORT();if(st&&typeof st==='object')return st;}}catch(_){ }
+    try{var raw=localStorage.getItem('assal_attendance_state_v2');if(raw){var parsed=JSON.parse(raw);if(parsed&&typeof parsed==='object')return parsed;}}catch(_){ }
+    return {version:2,updatedAt:'',days:{}};
+  }
+  function attendanceNames(map){var out=['مصطفى','إسماعيل'];Object.keys(map||{}).forEach(function(name){if(out.indexOf(name)<0)out.push(name);});return out;}
+  function attendanceStatus(rec){
+    if(rec&&(rec.leave===true||rec.status==='leave'))return {key:'leave',label:'مجاز',icon:'fa-umbrella-beach'};
+    if(rec&&(rec.duty===true||rec.status==='duty'))return {key:'duty',label:'واجب',icon:'fa-helmet-safety'};
+    if(rec&&rec.present===true)return {key:'present',label:'حاضر',icon:'fa-user-check'};
+    return {key:'absent',label:'غائب',icon:'fa-user-xmark'};
+  }
+  function attendanceTime(rec,status){if(!rec)return 'لا يوجد تسجيل';if(status.key==='present')return String(rec.time||'وقت غير مثبت');if(status.key==='leave')return 'إجازة مثبتة';if(status.key==='duty')return 'واجب عمل';return 'لا يوجد تسجيل';}
+  function renderAttendance(){
+    var day=ui.attendanceDay||localISO(new Date()),date=byId('assalOwnerAttendanceDate');ui.attendanceDay=day;if(date&&date.value!==day)date.value=day;
+    var st=attendanceState(),dayRec=(st.days&&st.days[day])||{},map=dayRec.employees||{},names=attendanceNames(map),counts={present:0,leave:0,duty:0,absent:0};
+    names.forEach(function(name){counts[attendanceStatus(map[name]).key]++;});
+    var summary=byId('assalOwnerAttendanceSummary');if(summary)summary.innerHTML='<div class="assal-owner-mini-stat"><span>حاضر</span><b>'+counts.present+'</b></div><div class="assal-owner-mini-stat"><span>مجاز</span><b>'+counts.leave+'</b></div><div class="assal-owner-mini-stat"><span>واجب</span><b>'+counts.duty+'</b></div><div class="assal-owner-mini-stat"><span>غائب</span><b>'+counts.absent+'</b></div>';
+    var list=byId('assalOwnerAttendanceList');if(!list)return;
+    list.innerHTML=names.map(function(name,index){var rec=map[name]||null,status=attendanceStatus(rec),photo=rec&&rec.photoKey?'<button type="button" class="assal-owner-attendance-photo" data-owner-attendance-photo="'+esc(rec.photoKey)+'" title="عرض صورة الحضور" aria-label="عرض صورة حضور '+esc(name)+'"><i class="fa-solid fa-camera"></i></button>':'<span class="assal-owner-attendance-photo-spacer"></span>';return '<article class="assal-owner-attendance-row tone-'+((index%4)+1)+'"><span class="assal-owner-attendance-avatar"><i class="fa-solid '+status.icon+'"></i></span><span class="assal-owner-attendance-copy"><b class="assal-owner-attendance-name">'+esc(name)+'</b><span class="assal-owner-attendance-time">'+esc(attendanceTime(rec,status))+'</span></span><span class="assal-owner-attendance-status '+status.key+'">'+status.label+'</span>'+photo+'</article>';}).join('');
+  }
+  function readAttendancePhoto(key){return new Promise(function(resolve,reject){try{var req=indexedDB.open('assal_attendance_photos_db_v1',1);req.onerror=function(){reject(req.error||new Error('db'));};req.onupgradeneeded=function(){var db=req.result;if(!db.objectStoreNames.contains('photos'))db.createObjectStore('photos',{keyPath:'key'});};req.onsuccess=function(){var db=req.result,tx=db.transaction('photos','readonly'),get=tx.objectStore('photos').get(key);get.onsuccess=function(){resolve(get.result||null);};get.onerror=function(){reject(get.error||new Error('read'));};tx.oncomplete=function(){try{db.close();}catch(_){}};};}catch(err){reject(err);}});}
+  async function showAttendancePhoto(key){
+    var modal=byId('assalOwnerAttendancePhotoModal'),img=byId('assalOwnerAttendancePhotoImage'),title=byId('assalOwnerAttendancePhotoTitle'),meta=byId('assalOwnerAttendancePhotoMeta');if(!modal||!img)return;
+    try{var rec=await readAttendancePhoto(key);if(!rec||!rec.dataUrl){if(window.showToast)window.showToast('info','الصورة غير موجودة على هذا الجهاز');return;}img.src=rec.dataUrl;if(title)title.textContent='صورة حضور '+String(rec.employee||'');if(meta)meta.textContent=[rec.day||'',rec.time||''].filter(Boolean).join(' • ');modal.classList.add('open');modal.setAttribute('aria-hidden','false');}catch(_){if(window.showToast)window.showToast('error','تعذر فتح صورة الحضور');}
+  }
+  function closeAttendancePhoto(){var modal=byId('assalOwnerAttendancePhotoModal'),img=byId('assalOwnerAttendancePhotoImage');if(modal){modal.classList.remove('open');modal.setAttribute('aria-hidden','true');}if(img)img.removeAttribute('src');}
+
+  function refreshVisible(){renderHome();if(ui.view==='daily')renderDaily();if(ui.view==='finance')renderFinance();if(ui.view==='attendance')renderAttendance();}
+  function bindHub(root){
+    if(root.__assalOwnerHubBound)return;root.__assalOwnerHubBound=true;
+    root.addEventListener('click',function(e){
+      var section=e.target&&e.target.closest?e.target.closest('[data-owner-section]'):null;if(section){showView(section.getAttribute('data-owner-section'));return;}
+      if(e.target&&e.target.closest&&e.target.closest('#assalOwnerHubBack')){showView('home');return;}
+      var dailyMode=e.target&&e.target.closest?e.target.closest('[data-owner-daily-mode]'):null;if(dailyMode){ui.dailySearchMode=dailyMode.getAttribute('data-owner-daily-mode')==='material'?'material':'customer';ui.expanded.clear();renderDaily();var dailyInput=byId('assalOwnerDailySearch');if(dailyInput)dailyInput.focus();return;}
+      var shift=e.target&&e.target.closest?e.target.closest('[data-owner-day-shift]'):null;if(shift){ui.dailyDay=shiftDay(ui.dailyDay||localISO(new Date()),Number(shift.getAttribute('data-owner-day-shift')||0));ui.expanded.clear();renderDaily();return;}
+      if(e.target&&e.target.closest&&e.target.closest('#assalOwnerDailyToday')){ui.dailyDay=localISO(new Date());ui.expanded.clear();renderDaily();return;}
+      var toggle=e.target&&e.target.closest?e.target.closest('[data-owner-daily-toggle]'):null;if(toggle){var key=decodeURIComponent(toggle.getAttribute('data-owner-daily-toggle')||'');if(ui.expanded.has(key))ui.expanded.delete(key);else ui.expanded.add(key);renderDaily();return;}
+      var fshift=e.target&&e.target.closest?e.target.closest('[data-owner-finance-shift]'):null;if(fshift){ui.financeDay=shiftDay(ui.financeDay||localISO(new Date()),Number(fshift.getAttribute('data-owner-finance-shift')||0));renderFinance();return;}
+      if(e.target&&e.target.closest&&e.target.closest('#assalOwnerFinanceToday')){ui.financeDay=localISO(new Date());renderFinance();return;}
+      var filter=e.target&&e.target.closest?e.target.closest('[data-owner-finance-filter]'):null;if(filter){ui.financeFilter=filter.getAttribute('data-owner-finance-filter')||'all';renderFinance();return;}
+      var ashift=e.target&&e.target.closest?e.target.closest('[data-owner-attendance-shift]'):null;if(ashift){ui.attendanceDay=shiftDay(ui.attendanceDay||localISO(new Date()),Number(ashift.getAttribute('data-owner-attendance-shift')||0));renderAttendance();return;}
+      if(e.target&&e.target.closest&&e.target.closest('#assalOwnerAttendanceToday')){ui.attendanceDay=localISO(new Date());renderAttendance();return;}
+      var photo=e.target&&e.target.closest?e.target.closest('[data-owner-attendance-photo]'):null;if(photo){showAttendancePhoto(photo.getAttribute('data-owner-attendance-photo')||'');return;}
+      if(e.target&&e.target.closest&&e.target.closest('[data-owner-photo-close]')){closeAttendancePhoto();return;}
+      if(e.target&&e.target.id==='assalOwnerAttendancePhotoModal'){closeAttendancePhoto();return;}
+    });
+    root.addEventListener('input',function(e){if(e.target&&e.target.id==='assalOwnerDailySearch'){ui.dailyQuery=e.target.value||'';renderDaily();}if(e.target&&e.target.id==='assalOwnerFinanceSearch'){ui.financeQuery=e.target.value||'';renderFinance();}});
+    root.addEventListener('change',function(e){if(e.target&&e.target.id==='assalOwnerDailyDate'){ui.dailyDay=e.target.value||localISO(new Date());ui.expanded.clear();renderDaily();}if(e.target&&e.target.id==='assalOwnerFinanceDate'){ui.financeDay=e.target.value||localISO(new Date());renderFinance();}if(e.target&&e.target.id==='assalOwnerAttendanceDate'){ui.attendanceDay=e.target.value||localISO(new Date());renderAttendance();}});
+    [['assalOwnerDailyView','daily'],['assalOwnerFinanceView','finance'],['assalOwnerAttendanceView','attendance']].forEach(function(pair){var view=byId(pair[0]);if(!view)return;view.addEventListener('scroll',function(){if(ui.view!==pair[1])return;root.classList.toggle('assal-owner-header-compact',view.scrollTop>8);},{passive:true});});
+    window.addEventListener('assal:payments-saved',refreshVisible);
+    window.addEventListener('storage',function(e){if(!e||!e.key||e.key==='assal.payments.v1'||e.key==='assal_attendance_state_v2')refreshVisible();});
+  }
+  function observeOwnerUpdates(){if(ui.observer)return;var targets=[byId('assalOwnerUpdated'),byId('assalOwnerCount'),byId('assalOwnerTotal')].filter(Boolean);if(!targets.length)return;ui.observer=new MutationObserver(function(){setTimeout(refreshVisible,0);});targets.forEach(function(t){ui.observer.observe(t,{childList:true,subtree:true,characterData:true});});}
+
+  var originalEnter=window.ASSAL_OWNER_ENTER;
+  if(typeof originalEnter==='function'){
+    window.ASSAL_OWNER_ENTER=async function(){var ok=await originalEnter.apply(this,arguments);if(ok===true){ensureHub();ui.dailyDay=localISO(new Date());ui.financeDay=localISO(new Date());ui.attendanceDay=localISO(new Date());ui.dailyQuery='';ui.dailySearchMode='customer';ui.financeQuery='';ui.financeFilter='all';ui.expanded.clear();showView('home');setTimeout(refreshVisible,0);}return ok;};
+  }
+  var originalExit=window.ASSAL_OWNER_EXIT;
+  if(typeof originalExit==='function'){
+    window.ASSAL_OWNER_EXIT=function(){var root=byId('assalOwnerPanel');if(root){root.removeAttribute('data-owner-view');root.classList.remove('assal-owner-header-compact');}ui.view='home';ui.expanded.clear();return originalExit.apply(this,arguments);};
+  }
+  window.ASSAL_OWNER_SHOW_HOME=function(){showView('home');};
+  window.__ASSAL_OWNER_READONLY_HUB_TEST__={showView:showView,renderHome:renderHome,renderDaily:renderDaily,renderFinance:renderFinance,renderAttendance:renderAttendance};
+})();
+</script>
+<!-- ===== /ASSAL OWNER READ-ONLY HUB + COLORED COMPACT CARDS + ATTENDANCE FINAL ===== -->
+
 </body>
 </html>
