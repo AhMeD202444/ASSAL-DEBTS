@@ -21305,26 +21305,398 @@ function cleanupEmptyCardsOnce(){
 
 
 // تصدير محلي نظيف: بدون تومبستونات + أسماء من CUSTOMERS فقط
-function exportInvoices(){
+/* =====================================================================
+   ASSAL FULL SYSTEM EXPORT V4 — تعديل محصور بزر التصدير المحلي الموجود
+   - لا يغيّر الرفع أو السحب أو الدمج أو الحفظ أو واجهة النظام.
+   - يجمع الحالة المحلية الخام + IndexedDB + صور الحضور + أرشيف اليوم/البطاقة
+     وطلبات التعديل من Apps Script في ملف JSON واحد.
+   - لا يصدّر كلمات المرور أو توكن المزامنة أو جلسات Firebase أو أقفال التبويبات.
+===================================================================== */
+const ASSAL_FULL_EXPORT_VERSION = 4;
+const ASSAL_FULL_EXPORT_MODE = 'full-system';
+const ASSAL_FULL_EXPORT_AUDIT_BATCH = 24;
+
+function assalFullExportClone(value){
+  try{ return JSON.parse(JSON.stringify(value)); }catch(_){ return value; }
+}
+
+function assalFullExportParseJSON(raw, fallback){
   try{
-    const payload = {
-      version   : 3,
-      mode      : "clean", // علم يفيد بالاستيراد
-      exportedAt: new Date().toISOString(),
-      days      : compactDaysForExport(days || {}),
-      names     : Array.from(CUSTOMERS) // أو [] إذا ما تريدها
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    const d = new Date().toISOString().slice(0,10);
-    a.download = `assal-bills-backup-${d}.json`;
-    document.body.appendChild(a); a.click();
-    URL.revokeObjectURL(a.href); a.remove();
-    showToast?.('success','تم تصدير الفواتير كـ JSON (نظيف)');
+    if(raw == null || raw === '') return fallback;
+    return JSON.parse(raw);
+  }catch(_){ return fallback; }
+}
+
+function assalFullExportKnownLocalStorage(){
+  const exactKeys = new Set([
+    'assal_attendance_state_v2',
+    'assal_attendance_test_log_v1',
+    'assal_attendance_timeout_log_v1',
+    'assal:board:v3',
+    'assal:names:v3',
+    'assal.payments.v1',
+    'assal.ledger.showWholesale.v1',
+    'assal:deviceRole',
+    'ASSAL_TRANSFER_DATE',
+    'ASSAL_ADVANCED_SERVER_UPLOAD_ARCHIVE_V1',
+    'ASSAL_IDEM_LOG',
+    'ASSAL_IDEM_PENDING',
+    'assal.debts.alerts.v1',
+    'ASSAL_DEBTS_OPENING_BALANCE_HISTORY_V1',
+    'ASSAL_CARD_ACTION_DAYS_V1',
+    'ASSAL_CARD_AUDIT_SERVER_QUEUE_V1',
+    'ASSAL_CARD_CHANGE_REQUESTS_LOCAL_V1',
+    'ASSAL_CARD_CHANGE_REQUESTS_APPLIED_MAIN_V1',
+    'ASSAL_SYNC_SAFETY_CACHE_V1'
+  ]);
+  const prefixes = [
+    'ASSAL_CARD_ACTION_DAY_V1::',
+    'ASSAL_CARD_ACTION_CARD_V1::'
+  ];
+  const out = {};
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const key = localStorage.key(i);
+      if(!key) continue;
+      const allowed = exactKeys.has(key) || prefixes.some(prefix => key.indexOf(prefix) === 0);
+      if(!allowed) continue;
+      out[key] = localStorage.getItem(key);
+    }
   }catch(err){
-    console.error(err);
-    showToast?.('error','تعذّر التصدير');
+    throw new Error('تعذر قراءة مخازن النظام المحلية: ' + (err?.message || err));
+  }
+  return out;
+}
+
+function assalFullExportStructuredLocalStorage(rawMap){
+  const get = (key, fallback)=> assalFullExportParseJSON(rawMap?.[key], fallback);
+  const dayRecords = [];
+  const cardRecords = [];
+  Object.keys(rawMap || {}).forEach(key=>{
+    if(key.indexOf('ASSAL_CARD_ACTION_DAY_V1::') === 0){
+      dayRecords.push({ key, value:get(key, null) });
+    }else if(key.indexOf('ASSAL_CARD_ACTION_CARD_V1::') === 0){
+      cardRecords.push({ key, value:get(key, null) });
+    }
+  });
+  dayRecords.sort((a,b)=> String(a.key).localeCompare(String(b.key)));
+  cardRecords.sort((a,b)=> String(a.key).localeCompare(String(b.key)));
+  return {
+    attendanceState:get('assal_attendance_state_v2', {version:2,updatedAt:'',days:{}}),
+    attendanceLegacy:get('assal_attendance_test_log_v1', []),
+    attendanceTimeoutLegacy:get('assal_attendance_timeout_log_v1', []),
+    transferDate:String(rawMap?.ASSAL_TRANSFER_DATE || ''),
+    alerts:get('assal.debts.alerts.v1', null),
+    openingBalanceHistory:get('ASSAL_DEBTS_OPENING_BALANCE_HISTORY_V1', null),
+    idempotencyLog:get('ASSAL_IDEM_LOG', null),
+    idempotencyPending:get('ASSAL_IDEM_PENDING', null),
+    cardChangeRequestsLocal:get('ASSAL_CARD_CHANGE_REQUESTS_LOCAL_V1', null),
+    cardChangeRequestsAppliedMain:get('ASSAL_CARD_CHANGE_REQUESTS_APPLIED_MAIN_V1', null),
+    syncSafetyCache:get('ASSAL_SYNC_SAFETY_CACHE_V1', null),
+    cardAudit:{
+      dayIndex:get('ASSAL_CARD_ACTION_DAYS_V1', []),
+      serverQueue:get('ASSAL_CARD_AUDIT_SERVER_QUEUE_V1', []),
+      dayRecords,
+      cardRecords
+    },
+    settings:{
+      deviceRole:String(rawMap?.['assal:deviceRole'] || ''),
+      showWholesaleLedger:String(rawMap?.['assal.ledger.showWholesale.v1'] || '')
+    }
+  };
+}
+
+async function assalFullExportReadIDBStore(dbName, storeName){
+  if(!window.indexedDB) return { dbName, storeName, version:0, exists:false, records:[] };
+  try{
+    if(typeof indexedDB.databases === 'function'){
+      const dbs = await indexedDB.databases();
+      if(Array.isArray(dbs) && !dbs.some(x=>x && x.name === dbName)){
+        return { dbName, storeName, version:0, exists:false, records:[] };
+      }
+    }
+  }catch(_){ }
+
+  return await new Promise((resolve,reject)=>{
+    let createdDuringExport = false;
+    const req = indexedDB.open(dbName);
+    req.onupgradeneeded = ()=>{
+      // لا ننشئ قاعدة فارغة بسبب مجرد التصدير إذا كانت غير موجودة.
+      createdDuringExport = true;
+      try{ req.transaction.abort(); }catch(_){ }
+    };
+    req.onerror = ()=>{
+      if(createdDuringExport){ resolve({ dbName, storeName, version:0, exists:false, records:[] }); return; }
+      reject(req.error || new Error('تعذر فتح IndexedDB: ' + dbName));
+    };
+    req.onblocked = ()=> reject(new Error('IndexedDB محجوز من نافذة أخرى: ' + dbName));
+    req.onsuccess = ()=>{
+      const db = req.result;
+      try{
+        if(!db.objectStoreNames.contains(storeName)){
+          try{ db.close(); }catch(_){ }
+          resolve({ dbName, storeName, version:Number(db.version || 0), exists:true, records:[] });
+          return;
+        }
+        const tx = db.transaction(storeName,'readonly');
+        const store = tx.objectStore(storeName);
+        const records = [];
+        if(typeof store.getAll === 'function'){
+          const all = store.getAll();
+          all.onsuccess = ()=>{ records.push(...(all.result || [])); };
+          all.onerror = ()=> reject(all.error || new Error('تعذر قراءة IndexedDB: ' + dbName));
+        }else{
+          const cur = store.openCursor();
+          cur.onsuccess = ()=>{
+            const cursor = cur.result;
+            if(cursor){ records.push(cursor.value); cursor.continue(); }
+          };
+          cur.onerror = ()=> reject(cur.error || new Error('تعذر قراءة IndexedDB: ' + dbName));
+        }
+        tx.oncomplete = ()=>{
+          try{ db.close(); }catch(_){ }
+          resolve({ dbName, storeName, version:Number(db.version || 0), exists:true, records:assalFullExportClone(records) });
+        };
+        tx.onerror = ()=>{
+          try{ db.close(); }catch(_){ }
+          reject(tx.error || new Error('تعذر إكمال قراءة IndexedDB: ' + dbName));
+        };
+        tx.onabort = ()=>{
+          try{ db.close(); }catch(_){ }
+          reject(tx.error || new Error('أُلغيت قراءة IndexedDB: ' + dbName));
+        };
+      }catch(err){
+        try{ db.close(); }catch(_){ }
+        reject(err);
+      }
+    };
+  });
+}
+
+function assalFullExportServerUrl(section, params){
+  if(typeof SYNC !== 'object' || !SYNC.BASE_URL || !SYNC.TOKEN){
+    throw new Error('إعدادات السيرفر غير متوفرة');
+  }
+  const base = String(SYNC.BASE_URL);
+  const query = Object.assign({
+    mode:'full-system-export',
+    section:String(section || ''),
+    token:String(SYNC.TOKEN),
+    _:Date.now()
+  }, params || {});
+  const sep = base.includes('?') ? '&' : '?';
+  return base + sep + Object.keys(query).map(key=>
+    encodeURIComponent(key) + '=' + encodeURIComponent(query[key] == null ? '' : query[key])
+  ).join('&');
+}
+
+async function assalFullExportFetchServerSection(section, params){
+  const resp = await fetch(assalFullExportServerUrl(section, params), {
+    method:'GET',
+    cache:'no-store',
+    headers:{ 'Authorization':'Bearer ' + String(SYNC.TOKEN || '') }
+  });
+  const text = await resp.text();
+  if(!resp.ok) throw new Error('فشل جلب قسم ' + section + ' من السيرفر (' + resp.status + ')');
+  let json;
+  try{ json = JSON.parse(text); }
+  catch(_){ throw new Error('استجابة غير صالحة من قسم ' + section); }
+  if(!json || json.status !== 'ok'){
+    throw new Error(String(json?.message || ('فشل قسم ' + section)));
+  }
+  return json;
+}
+
+async function assalFullExportFetchServerBundle(){
+  const backupRes = await assalFullExportFetchServerSection('backup');
+  const requestsRes = await assalFullExportFetchServerSection('card-requests');
+  const manifestRes = await assalFullExportFetchServerSection('audit-manifest');
+  const manifest = Array.isArray(manifestRes.files) ? manifestRes.files : [];
+  const auditFiles = [];
+
+  for(let offset=0; offset<manifest.length; offset += ASSAL_FULL_EXPORT_AUDIT_BATCH){
+    const batch = await assalFullExportFetchServerSection('audit-batch', {
+      offset,
+      limit:ASSAL_FULL_EXPORT_AUDIT_BATCH
+    });
+    const files = Array.isArray(batch.files) ? batch.files : [];
+    auditFiles.push(...files);
+  }
+
+  if(auditFiles.length !== manifest.length){
+    throw new Error('أرشيف السيرفر غير مكتمل: ' + auditFiles.length + ' من ' + manifest.length);
+  }
+  const expectedIds = new Set(manifest.map(x=>String(x?.id || '')));
+  const receivedIds = new Set(auditFiles.map(x=>String(x?.id || '')));
+  if(expectedIds.size !== receivedIds.size || Array.from(expectedIds).some(id=>!receivedIds.has(id))){
+    throw new Error('تعذر مطابقة ملفات أرشيف اليوم والبطاقة مع فهرس السيرفر');
+  }
+
+  return {
+    backup:backupRes.backup || {},
+    backupSource:String(backupRes.source || ''),
+    cardRequests:requestsRes.cardRequests || {},
+    cardRequestFiles:requestsRes.files || [],
+    auditManifest:manifest,
+    auditFiles
+  };
+}
+
+function assalFullExportCoreSnapshot(localStorageRaw){
+  let customerNames = [];
+  try{
+    if(Array.isArray(names)) customerNames = names.slice();
+    else if(typeof CUSTOMERS !== 'undefined' && CUSTOMERS) customerNames = Array.from(CUSTOMERS);
+  }catch(_){ }
+  let payments = {};
+  try{ payments = (typeof loadPaymentsStore === 'function') ? loadPaymentsStore() : {}; }catch(_){ payments = {}; }
+  const attendance = assalFullExportParseJSON(localStorageRaw?.assal_attendance_state_v2, {version:2,updatedAt:'',days:{}});
+  return {
+    version:3,
+    capturedAt:new Date().toISOString(),
+    updatedAtMax:(typeof getUpdatedAtMax === 'function') ? Number(getUpdatedAtMax(days || {}) || 0) : 0,
+    days:assalFullExportClone(days || {}),
+    names:assalFullExportClone(customerNames),
+    transferDate:(typeof getTransferDateIso === 'function') ? String(getTransferDateIso() || '') : String(localStorageRaw?.ASSAL_TRANSFER_DATE || ''),
+    payments:assalFullExportClone(payments || {}),
+    attendance:assalFullExportClone(attendance || {version:2,updatedAt:'',days:{}}),
+    attendanceUpdatedAt:String(attendance?.updatedAt || '')
+  };
+}
+
+function assalFullExportCountCore(core){
+  let cards=0, lines=0, notes=0, payments=0, attendanceEmployees=0, attendanceTimeouts=0;
+  const dayObj = core?.days && typeof core.days === 'object' ? core.days : {};
+  Object.values(dayObj).forEach(dayCards=>{
+    (Array.isArray(dayCards)?dayCards:[]).forEach(card=>{
+      cards++;
+      lines += Array.isArray(card?.lines) ? card.lines.length : 0;
+      notes += Array.isArray(card?.notes) ? card.notes.length : 0;
+    });
+  });
+  const payObj = core?.payments && typeof core.payments === 'object' ? core.payments : {};
+  Object.values(payObj).forEach(list=>{ payments += Array.isArray(list) ? list.length : 0; });
+  const attDays = core?.attendance?.days && typeof core.attendance.days === 'object' ? core.attendance.days : {};
+  Object.values(attDays).forEach(rec=>{
+    attendanceEmployees += rec?.employees && typeof rec.employees === 'object' ? Object.keys(rec.employees).length : 0;
+    attendanceTimeouts += Array.isArray(rec?.timeouts) ? rec.timeouts.length : 0;
+  });
+  return {
+    days:Object.keys(dayObj).length,
+    cards,
+    lines,
+    notes,
+    names:Array.isArray(core?.names) ? core.names.length : 0,
+    paymentDays:Object.keys(payObj).length,
+    payments,
+    attendanceDays:Object.keys(attDays).length,
+    attendanceEmployees,
+    attendanceTimeouts
+  };
+}
+
+function assalFullExportFindIDBValue(idbDump, key, fallback){
+  const rec = (idbDump?.records || []).find(x=>String(x?.key || '') === String(key));
+  return rec && Object.prototype.hasOwnProperty.call(rec,'value') ? assalFullExportClone(rec.value) : fallback;
+}
+
+async function assalFullExportDownload(payload, filename){
+  const text = JSON.stringify(payload);
+  const blob = new Blob([text], {type:'application/json;charset=utf-8'});
+  if(window.navigator && typeof window.navigator.msSaveOrOpenBlob === 'function'){
+    window.navigator.msSaveOrOpenBlob(blob, filename);
+    return {ok:true, bytes:new TextEncoder().encode(text).length};
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.rel = 'noopener';
+  a.style.position = 'fixed';
+  a.style.left = '-9999px';
+  document.body.appendChild(a);
+  try{ a.click(); }
+  finally{
+    setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(_){ } try{ a.remove(); }catch(_){ } },15000);
+  }
+  return {ok:true, bytes:new TextEncoder().encode(text).length};
+}
+
+// نفس زر التصدير المحلي الموجود، لكن بمحتوى شامل وغير منظّف.
+async function exportInvoices(){
+  const btn = document.getElementById('btnExportLocal');
+  const oldDisabled = !!btn?.disabled;
+  try{
+    if(btn){ btn.disabled = true; btn.setAttribute('aria-busy','true'); }
+    showToast?.('info','جارٍ جمع نسخة النظام الشاملة من الحاسبة والسيرفر…');
+
+    const localStorageRaw = assalFullExportKnownLocalStorage();
+    const localStructured = assalFullExportStructuredLocalStorage(localStorageRaw);
+    const localCore = assalFullExportCoreSnapshot(localStorageRaw);
+
+    const mainIDB = await assalFullExportReadIDBStore('ASSAL_DEBTS_LOCAL_DB_V1','kv');
+    const attendancePhotosIDB = await assalFullExportReadIDBStore('assal_attendance_photos_db_v1','photos');
+    const server = await assalFullExportFetchServerBundle();
+
+    localStructured.advancedServerUploadArchive = assalFullExportFindIDBValue(
+      mainIDB,
+      'ASSAL_ADVANCED_SERVER_UPLOAD_ARCHIVE_V1',
+      assalFullExportParseJSON(localStorageRaw?.ASSAL_ADVANCED_SERVER_UPLOAD_ARCHIVE_V1, null)
+    );
+
+    const exportedAt = new Date().toISOString();
+    const content = {
+      schema:{
+        name:'ASSAL_DEBTS_FULL_SYSTEM_EXPORT',
+        version:ASSAL_FULL_EXPORT_VERSION,
+        mode:ASSAL_FULL_EXPORT_MODE,
+        sourceSystem:'ASSAL DEBTS OLD'
+      },
+      exportedAt,
+      local:{
+        core:localCore,
+        localStorageRaw,
+        structured:localStructured,
+        indexedDB:{
+          main:mainIDB,
+          attendancePhotos:attendancePhotosIDB
+        }
+      },
+      server,
+      manifest:{
+        localCore:assalFullExportCountCore(localCore),
+        localStorageKeys:Object.keys(localStorageRaw).length,
+        mainIndexedDBRecords:Array.isArray(mainIDB.records) ? mainIDB.records.length : 0,
+        attendancePhotos:Array.isArray(attendancePhotosIDB.records) ? attendancePhotosIDB.records.length : 0,
+        localAuditDayRecords:localStructured.cardAudit.dayRecords.length,
+        localAuditCardRecords:localStructured.cardAudit.cardRecords.length,
+        serverAuditFiles:Array.isArray(server.auditFiles) ? server.auditFiles.length : 0,
+        serverCardRequests:Array.isArray(server.cardRequests?.requests) ? server.cardRequests.requests.length : 0
+      }
+    };
+
+    const contentText = JSON.stringify(content);
+    const contentHash = (typeof sha256 === 'function') ? await sha256(contentText) : '';
+    const payload = {
+      version:ASSAL_FULL_EXPORT_VERSION,
+      mode:ASSAL_FULL_EXPORT_MODE,
+      exportedAt,
+      content,
+      integrity:{
+        algorithm:'SHA-256',
+        contentBytes:new TextEncoder().encode(contentText).length,
+        contentHash
+      }
+    };
+
+    const day = exportedAt.slice(0,10);
+    const result = await assalFullExportDownload(payload, `assal-full-system-backup-${day}.json`);
+    showToast?.('success','تم تصدير نسخة النظام الشاملة بنجاح (' + Number(result.bytes || 0).toLocaleString('en-US') + ' بايت)');
+  }catch(err){
+    console.error('[ASSAL FULL SYSTEM EXPORT]',err);
+    showToast?.('error','تعذر التصدير الشامل: ' + (err?.message || err));
+  }finally{
+    if(btn){ btn.disabled = oldDisabled; btn.removeAttribute('aria-busy'); }
   }
 }
 
@@ -43163,7 +43535,7 @@ body.assal-owner-exclusive > #modal.active{
     });
     root.addEventListener('input',function(e){if(e.target&&e.target.id==='assalOwnerDailySearch'){ui.dailyQuery=e.target.value||'';renderDaily();}if(e.target&&e.target.id==='assalOwnerFinanceSearch'){ui.financeQuery=e.target.value||'';renderFinance();}});
     root.addEventListener('change',function(e){if(e.target&&e.target.id==='assalOwnerDailyDate'){ui.dailyDay=e.target.value||localISO(new Date());ui.expanded.clear();renderDaily();}if(e.target&&e.target.id==='assalOwnerFinanceDate'){ui.financeDay=e.target.value||localISO(new Date());renderFinance();}if(e.target&&e.target.id==='assalOwnerAttendanceDate'){ui.attendanceDay=e.target.value||localISO(new Date());renderAttendance();}});
-    [['assalOwnerDailyView','daily'],['assalOwnerFinanceView','finance'],['assalOwnerAttendanceView','attendance']].forEach(function(pair){var view=byId(pair[0]);if(!view)return;view.addEventListener('scroll',function(){if(ui.view!==pair[1])return;root.classList.toggle('assal-owner-header-compact',view.scrollTop>8);},{passive:true});});
+    [['assalOwn-erDailyView','daily'],['assalOwnerFinanceView','finance'],['assalOwnerAttendanceView','attendance']].forEach(function(pair){var view=byId(pair[0]);if(!view)return;view.addEventListener('scroll',function(){if(ui.view!==pair[1])return;root.classList.toggle('assal-owner-header-compact',view.scrollTop>8);},{passive:true});});
     window.addEventListener('assal:payments-saved',refreshVisible);
     window.addEventListener('storage',function(e){if(!e||!e.key||e.key==='assal.payments.v1'||e.key==='assal_attendance_state_v2')refreshVisible();});
   }
