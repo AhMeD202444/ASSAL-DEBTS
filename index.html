@@ -5308,6 +5308,21 @@ body{ padding-top: var(--hdr-h); }
   color:#fff;font-weight:900;font-family:ui-monospace,Menlo,Consolas,monospace;
 }
 
+/* تسجيل الخروج من زر الهيدر — نفس هوية نوافذ الراجع، واجهة فقط */
+.assal-return-pop--auth-logout .assal-return-pop__icon{
+  background:linear-gradient(135deg,#ef4444,#7f1d1d);
+}
+.assal-return-pop--auth-logout .assal-return-pop__box{
+  border-color:rgba(251,113,133,.29);
+  background:linear-gradient(135deg,rgba(190,18,60,.11),rgba(15,23,42,.62));
+}
+#modal.assal-auth-logout-confirm-modal #modal-confirm{
+  background:linear-gradient(135deg,#ef4444,#7f1d1d) !important;
+  color:#fff !important;
+  border:1px solid rgba(251,113,133,.46) !important;
+  box-shadow:0 14px 34px rgba(127,29,29,.30),inset 0 1px 0 rgba(255,255,255,.14) !important;
+}
+
 /* تأكيد تعليم/إلغاء الراجع من زر السطر — واجهة فقط */
 #modal.assal-return-confirm-normal #modal-confirm{
   background:linear-gradient(135deg,#f59e0b,#ea580c) !important;
@@ -7753,6 +7768,19 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
         <div class="att-info"><i class="fa-regular fa-clock"></i><span id="assalAttendanceTimeText">—</span></div>
       </div>
 
+      <div id="attHalfDayAdminPanel" class="att-halfday-admin-panel" hidden aria-label="اختيار تاريخ طلب دوام نصف يوم">
+        <div class="att-halfday-admin-copy">
+          <span class="att-halfday-admin-icon"><i class="fa-solid fa-circle-half-stroke"></i></span>
+          <span><b>طلب دوام نصف يوم</b><small id="attHalfDayDateText">اختر اليوم المطلوب ثم اضغط زر نصف يوم أمام الموظف</small></span>
+        </div>
+        <div class="att-halfday-date-controls">
+          <button id="attHalfDayPrevDay" type="button" title="اليوم السابق" aria-label="اليوم السابق"><i class="fa-solid fa-chevron-right"></i></button>
+          <input id="attHalfDayDateInput" type="date" aria-label="تاريخ طلب دوام نصف يوم">
+          <button id="attHalfDayNextDay" type="button" title="اليوم التالي" aria-label="اليوم التالي"><i class="fa-solid fa-chevron-left"></i></button>
+          <button id="attHalfDayToday" type="button" class="att-halfday-today">اليوم</button>
+        </div>
+      </div>
+
       <div class="att-camera-panel" id="attCameraPanel" aria-label="نافذة كاميرا الحضور" aria-hidden="true">
         <div class="att-camera-card" role="dialog" aria-modal="true" aria-labelledby="attCameraEmployee">
           <div class="att-camera-glow att-camera-glow-a"></div>
@@ -7809,6 +7837,7 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
             <button class="att-person-btn" type="button" data-emp="مصطفى"><i class="fa-solid fa-user-check"></i><span>حضور مصطفى</span></button>
             <button class="att-leave-btn" type="button" data-emp="مصطفى" title="تحديد مصطفى مجاز" aria-label="تحديد مصطفى مجاز"><i class="fa-solid fa-umbrella-beach"></i><span class="att-leave-text">مجاز</span></button>
             <button class="att-duty-btn" type="button" data-emp="مصطفى" title="تحديد مصطفى في واجب عمل" aria-label="تحديد مصطفى في واجب عمل"><i class="fa-solid fa-briefcase"></i><span class="att-duty-text">واجب</span></button>
+            <button class="att-halfday-btn" type="button" data-emp="مصطفى" title="إضافة طلب دوام نصف يوم لـ مصطفى" aria-label="إضافة طلب دوام نصف يوم لـ مصطفى" aria-pressed="false" hidden><i class="fa-solid fa-circle-half-stroke"></i><span class="att-halfday-text">نصف يوم</span></button>
           </div>
         </div>
 
@@ -7824,12 +7853,13 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
             <button class="att-person-btn" type="button" data-emp="إسماعيل"><i class="fa-solid fa-user-check"></i><span>حضور إسماعيل</span></button>
             <button class="att-leave-btn" type="button" data-emp="إسماعيل" title="تحديد إسماعيل مجاز" aria-label="تحديد إسماعيل مجاز"><i class="fa-solid fa-umbrella-beach"></i><span class="att-leave-text">مجاز</span></button>
             <button class="att-duty-btn" type="button" data-emp="إسماعيل" title="تحديد إسماعيل في واجب عمل" aria-label="تحديد إسماعيل في واجب عمل"><i class="fa-solid fa-briefcase"></i><span class="att-duty-text">واجب</span></button>
+            <button class="att-halfday-btn" type="button" data-emp="إسماعيل" title="إضافة طلب دوام نصف يوم لـ إسماعيل" aria-label="إضافة طلب دوام نصف يوم لـ إسماعيل" aria-pressed="false" hidden><i class="fa-solid fa-circle-half-stroke"></i><span class="att-halfday-text">نصف يوم</span></button>
           </div>
         </div>
       </div>
 
       <div class="att-selected">
-        <span>حضور اليوم:</span>
+        <span id="assalAttendanceQuickLabel">حضور اليوم:</span>
         <b id="assalAttendanceQuickNames">لا يوجد حضور مسجل</b>
       </div>
 
@@ -7856,11 +7886,18 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
         <button id="attBackToMain" class="att-back" type="button"><i class="fa-solid fa-arrow-right"></i><span>رجوع للحضور</span></button>
         <div class="att-report-title-wrap">
           <h2>كشف الحضور والزمنيات</h2>
-          <p>جدول حضور مقارن لمصطفى وإسماعيل مع سجل الزمنيات للشهر الحالي</p>
+          <p>جدول حضور مقارن لمصطفى وإسماعيل مع سجل الزمنيات للشهر المحدد</p>
         </div>
         <div class="att-report-head-actions">
           <button id="attPrintReport" class="att-print" type="button"><i class="fa-solid fa-print"></i><span>طباعة الكشف</span></button>
-          <div class="att-report-month" id="attReportMonthText">—</div>
+          <div class="att-report-month-nav" aria-label="التنقل بين شهور كشف الحضور">
+            <button id="attReportPrevMonth" class="att-report-month-shift" type="button" title="الشهر السابق" aria-label="الشهر السابق"><i class="fa-solid fa-chevron-right"></i></button>
+            <div class="att-report-month">
+              <span id="attReportMonthText">—</span>
+              <input id="attReportMonthPicker" type="month" aria-label="اختر شهر كشف الحضور">
+            </div>
+            <button id="attReportNextMonth" class="att-report-month-shift" type="button" title="الشهر التالي" aria-label="الشهر التالي"><i class="fa-solid fa-chevron-left"></i></button>
+          </div>
         </div>
       </div>
 
@@ -7973,7 +8010,7 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
   .att-camera-panel.is-captured .att-camera-box img{display:block;}
   .att-camera-panel.is-live .att-camera-placeholder,.att-camera-panel.is-captured .att-camera-placeholder{display:none;}
   .att-camera-panel.is-error{border-color:rgba(239,68,68,.38);background:linear-gradient(135deg,rgba(127,29,29,.18),rgba(14,165,233,.06));}
-  .att-person-btn.att-busy,.att-leave-btn.att-busy,.att-duty-btn.att-busy,.att-confirm.att-busy{opacity:.62!important;pointer-events:none!important;}
+  .att-person-btn.att-busy,.att-leave-btn.att-busy,.att-duty-btn.att-busy,.att-halfday-btn.att-busy,.att-confirm.att-busy{opacity:.62!important;pointer-events:none!important;}
   .att-photo-btn{margin-top:0;width:28px;height:24px;border:1px solid rgba(14,165,233,.32);background:#061324;color:#bfdbfe;border-radius:999px;padding:0;font-size:11px;font-weight:950;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:0;line-height:1;white-space:nowrap;vertical-align:middle;flex:0 0 auto;}
   .att-photo-btn span{display:none!important;}
   .att-photo-btn:hover{filter:brightness(1.08);border-color:rgba(18,209,180,.44);}
@@ -7985,21 +8022,24 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
   .att-text strong{display:block;font-size:28px;line-height:1.2;color:#fff;font-weight:950;}
   .att-text small{display:block;margin-top:7px;font-size:14px;font-weight:900;color:#9fb0c8;}
   .att-check{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#071120;border:1px solid rgba(148,163,184,.18);color:transparent;z-index:1;}
-  .att-code-row{grid-column:1 / -1;display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,172px) 52px 52px;gap:8px;z-index:1;align-items:center;}
+  .att-code-row{grid-column:1 / -1;display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,172px) 52px 52px 58px;gap:8px;z-index:1;align-items:center;}
   .att-code-input,.att-timeout-input{height:48px;border:1px solid rgba(148,163,184,.16);border-radius:14px;background:#050b16;color:#e7eef9;outline:none;padding:0 14px;font-family:var(--ui-font,"Cairo",system-ui);font-weight:900;font-size:15px;}
   .att-code-input{letter-spacing:3px;text-align:center;font-family:Consolas,"Courier New",monospace!important;-webkit-text-security:disc!important;text-security:disc!important;caret-color:#12d1b4!important;}
   .att-code-input::-ms-reveal,.att-code-input::-ms-clear{display:none!important;width:0!important;height:0!important;}
   .att-code-input:focus,.att-timeout-input:focus{border-color:rgba(18,209,180,.55);box-shadow:0 0 0 3px rgba(18,209,180,.12);}
   .att-person-btn{height:48px;border:0;border-radius:14px;cursor:pointer;background:linear-gradient(135deg,#0e7490,#155e75);color:#ecfeff;font-weight:950;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:14px;}
-  .att-leave-btn,.att-duty-btn{width:52px;min-width:52px;height:48px;padding:0;border-radius:14px;cursor:pointer;font-weight:950;display:inline-flex;align-items:center;justify-content:center;font-size:17px;overflow:hidden;}
+  .att-leave-btn,.att-duty-btn,.att-halfday-btn{width:52px;min-width:52px;height:48px;padding:0;border-radius:14px;cursor:pointer;font-weight:950;display:inline-flex;align-items:center;justify-content:center;font-size:17px;overflow:hidden;}
   .att-leave-btn{border:1px solid rgba(245,158,11,.36);background:#2a1d08;color:#fde68a;}
   .att-duty-btn{border:1px solid rgba(14,165,233,.38);background:#08243a;color:#bae6fd;}
-  .att-leave-btn .att-leave-text,.att-duty-btn .att-duty-text{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
-  .att-leave-btn:hover,.att-duty-btn:hover{filter:brightness(1.03)!important;transform:none!important;}
-  .att-leave-btn:disabled,.att-duty-btn:disabled{cursor:not-allowed;}
+  .att-halfday-btn{width:58px;min-width:58px;flex:0 0 58px;position:relative;border:1px solid rgba(168,85,247,.42);background:#24113d;color:#e9d5ff;}
+  .att-halfday-btn i{font-size:18px;line-height:1;pointer-events:none;}
+  .att-halfday-btn.is-selected{background:#5b21b6;color:#fff;border-color:rgba(196,181,253,.72);box-shadow:0 0 0 3px rgba(139,92,246,.13),inset 0 0 0 1px rgba(255,255,255,.05);}
+  .att-leave-btn .att-leave-text,.att-duty-btn .att-duty-text,.att-halfday-btn .att-halfday-text{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+  .att-leave-btn:hover,.att-duty-btn:hover,.att-halfday-btn:hover{filter:brightness(1.03)!important;transform:none!important;}
+  .att-leave-btn:disabled,.att-duty-btn:disabled,.att-halfday-btn:disabled{cursor:not-allowed;}
   .att-leave-btn.att-locked{background:#161b2a;color:#d6b36a;border-color:rgba(245,158,11,.22);opacity:.42;}
   .att-duty-btn.att-locked{background:#161b2a;color:#78a9c5;border-color:rgba(14,165,233,.20);opacity:.42;}
-  .att-person-btn:hover,.att-leave-btn:hover,.att-duty-btn:hover,.att-confirm:not(.att-disabled):hover,.att-report:hover,.att-back:hover,.att-timeout-save:hover,.att-print:hover{filter:brightness(1.05);transform:translateY(-1px);}
+  .att-person-btn:hover,.att-leave-btn:hover,.att-duty-btn:hover,.att-halfday-btn:hover,.att-confirm:not(.att-disabled):hover,.att-report:hover,.att-back:hover,.att-timeout-save:hover,.att-print:hover{filter:brightness(1.05);transform:translateY(-1px);}
   .att-person.is-checked{border-color:rgba(18,209,180,.62);box-shadow:0 16px 34px rgba(18,209,180,.14),inset 0 0 0 1px rgba(255,255,255,.035);}
   .att-person.is-checked::before{opacity:1;}
   .att-person.is-checked .att-check{background:linear-gradient(135deg,#16a34a,#0f766e);color:#fff;border-color:rgba(34,197,94,.42);}
@@ -8023,6 +8063,35 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
   .att-leave-badge,.att-duty-badge{display:inline-flex;align-items:center;justify-content:center;min-width:72px;height:26px;border-radius:999px;font-weight:950;font-size:12px;}
   .att-leave-badge{border:1px solid rgba(245,158,11,.42);background:#2a1d08;color:#fde68a;}
   .att-duty-badge{border:1px solid rgba(14,165,233,.42);background:#08243a;color:#bae6fd;}
+  .att-person.is-half-day{border-color:rgba(168,85,247,.62);box-shadow:0 14px 30px rgba(124,58,237,.13),inset 0 0 0 1px rgba(255,255,255,.03);}
+  .att-person.is-half-day::before{opacity:1;background:linear-gradient(135deg,rgba(168,85,247,.15),rgba(14,165,233,.08));}
+  .att-person.is-half-day .att-check{background:linear-gradient(135deg,#7e22ce,#4338ca);color:#fff;border-color:rgba(168,85,247,.45);}
+  .att-person.is-half-day .assal-attendance-state{color:#e9d5ff;}
+  .att-person.is-half-day .att-code-input,.att-person.is-half-day .att-person-btn,.att-person.is-half-day .att-leave-btn,.att-person.is-half-day .att-duty-btn{opacity:.45;pointer-events:none;}
+  .att-person.is-half-day .att-halfday-btn{background:#4c1d95;color:#fff;border-color:rgba(196,181,253,.55);}
+  .att-halfday-badge{display:inline-flex;align-items:center;justify-content:center;min-width:78px;height:26px;border-radius:999px;font-weight:950;font-size:12px;border:1px solid rgba(168,85,247,.45);background:#24113d;color:#e9d5ff;}
+  .att-halfday-badge.is-pending{min-width:132px;gap:6px;padding:0 8px;}
+  .att-halfday-badge .att-halfday-review{display:inline-flex;align-items:center;justify-content:center;height:17px;padding:0 6px;border-radius:999px;font-size:8.5px;font-weight:950;line-height:1;color:#fde68a;background:rgba(245,158,11,.14);border:1px solid rgba(245,158,11,.38);white-space:nowrap;}
+  .att-halfday-admin-panel{margin:0 0 14px;border:1px solid rgba(168,85,247,.28);background:linear-gradient(135deg,rgba(76,29,149,.18),rgba(14,116,144,.10));border-radius:17px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .att-halfday-admin-panel[hidden]{display:none!important;}
+  .att-halfday-admin-copy{display:flex;align-items:center;gap:10px;min-width:0;color:#f8fafc;}
+  .att-halfday-admin-icon{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#7e22ce,#0e7490);color:#fff;flex:0 0 auto;}
+  .att-halfday-admin-copy b{display:block;font-size:13px;font-weight:950;}
+  .att-halfday-admin-copy small{display:block;margin-top:2px;color:#b9c5d8;font-size:10.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:480px;}
+  .att-halfday-date-controls{display:flex;align-items:center;gap:7px;flex:0 0 auto;}
+  .att-halfday-date-controls button,.att-halfday-date-controls input{height:38px;border-radius:11px;border:1px solid rgba(148,163,184,.18);background:#071120;color:#e7eef9;font-family:var(--ui-font,"Cairo",system-ui);font-weight:900;}
+  .att-halfday-date-controls button{min-width:38px;padding:0 10px;cursor:pointer;display:grid;place-items:center;}
+  .att-halfday-date-controls input{padding:0 10px;color-scheme:dark;}
+  .att-halfday-date-controls button:disabled{opacity:.38;cursor:not-allowed;}
+  .att-halfday-today{min-width:58px!important;color:#c4b5fd!important;}
+  .att-halfday-btn.is-pending{background:#2b1b07;color:#fde68a;border-color:rgba(245,158,11,.40);}
+  .att-halfday-btn.is-applied{background:#12351f;color:#bbf7d0;border-color:rgba(34,197,94,.38);}
+  .att-report-month-nav{display:flex;align-items:center;gap:6px;}
+  .att-report-month-shift{width:42px;height:54px;border-radius:14px;border:1px solid rgba(148,163,184,.16);background:#081122;color:#dbeafe;cursor:pointer;display:grid;place-items:center;}
+  .att-report-month-shift:disabled{opacity:.35;cursor:not-allowed;}
+  .att-report-month{padding:4px 9px;grid-template-rows:auto auto;line-height:1.1;}
+  .att-report-month span{font-size:12.5px;}
+  .att-report-month input{width:132px;max-width:100%;border:0;background:transparent;color:#bbf7d0;color-scheme:dark;font-family:var(--ui-font,"Cairo",system-ui);font-size:10.5px;font-weight:900;text-align:center;outline:none;}
   .att-selected{min-height:52px;border-radius:16px;border:1px solid rgba(148,163,184,.14);background:#081122;display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:14px;font-size:15px;font-weight:900;}
   .att-selected span{color:#aebbd0}.att-selected b{color:#f8fafc;}
   .att-actions{display:grid;grid-template-columns:1fr 210px;gap:12px;}
@@ -8082,6 +8151,12 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
     .att-title-wrap,.att-report-title-wrap{text-align:center;}
     .att-count{margin:auto;}
     .att-code-row{grid-template-columns:1fr;}
+    .att-halfday-admin-panel{align-items:stretch;flex-direction:column;}
+    .att-halfday-admin-copy small{white-space:normal;max-width:none;}
+    .att-halfday-date-controls{display:grid;grid-template-columns:42px minmax(0,1fr) 42px 58px;}
+    .att-halfday-date-controls input{width:100%;min-width:0;}
+    .att-report-month-nav{width:100%;display:grid;grid-template-columns:42px minmax(0,1fr) 42px;}
+    .att-report-month{width:100%!important;}
     .att-report-head-actions{justify-content:center;flex-wrap:wrap;}
     .att-back,.att-print,.att-report-month{width:100%;}
   }
@@ -8887,6 +8962,8 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
   var PHOTO_STORE = 'photos';
   var cameraStream = null;
   var captureBusy = false;
+  var reportMonthValue = monthKey(new Date());
+  var halfDaySelectedDay = todayKey();
 
   function $(id){ return document.getElementById(id); }
   function pad(n){ return String(n).padStart(2,'0'); }
@@ -8895,6 +8972,11 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
   function monthKey(d){ d = d || new Date(); return d.getFullYear() + '-' + pad(d.getMonth()+1); }
   function arDate(d){ try{ return d.toLocaleDateString('ar-IQ',{weekday:'long',year:'numeric',month:'2-digit',day:'2-digit'}); }catch(_){ return todayKey(d); } }
   function arMonth(d){ try{ return d.toLocaleDateString('ar-IQ',{year:'numeric',month:'long'}); }catch(_){ return monthKey(d); } }
+  function dateFromDayKey(v){ var m=String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); if(!m)return new Date(); return new Date(Number(m[1]),Number(m[2])-1,Number(m[3])); }
+  function dateFromMonthKey(v){ var m=String(v||'').match(/^(\d{4})-(\d{2})$/); if(!m)return new Date(new Date().getFullYear(),new Date().getMonth(),1); return new Date(Number(m[1]),Number(m[2])-1,1); }
+  function clampPastOrTodayDay(v){ var d=dateFromDayKey(v),today=todayKey(); var key=todayKey(d); return key>today?today:key; }
+  function clampReportMonth(v){ var mk=String(v||''); if(!/^\d{4}-\d{2}$/.test(mk))mk=monthKey(); var current=monthKey(); return mk>current?current:mk; }
+  function shiftMonthKey(v,delta){ var d=dateFromMonthKey(v); d.setMonth(d.getMonth()+Number(delta||0)); return clampReportMonth(monthKey(d)); }
   function time12(d){
     d = d || new Date();
     var h = d.getHours(), m = d.getMinutes();
@@ -9002,13 +9084,60 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
   function todayMap(){ return todayRec(readState()).employees || {}; }
   function isLeaveRecord(rec){ return !!(rec && (rec.leave === true || rec.status === 'leave')); }
   function isDutyRecord(rec){ return !!(rec && (rec.duty === true || rec.status === 'duty')); }
-  function isPresentRecord(rec){ return !!(rec && rec.present === true && !isLeaveRecord(rec) && !isDutyRecord(rec)); }
-  function isCompletedRecord(rec){ return isPresentRecord(rec) || isLeaveRecord(rec) || isDutyRecord(rec); }
+  function isHalfDayRecord(rec){ return !!(rec && (rec.halfDay === true || rec.status === 'half-day')); }
+  function halfDayRequestInfo(day, employee){
+    if(!assalAttendanceIsExactAdmin()) return null;
+    try{
+      var fn = window.ASSAL_ATTENDANCE_HALF_DAY_REQUEST_STATUS;
+      if(typeof fn !== 'function') return null;
+      var info = fn(String(day || ''), String(employee || ''));
+      if(!info || typeof info !== 'object') return null;
+      var status = String(info.status || '');
+      if(['draft','pending_review','approved_pending_upload','applied'].indexOf(status) < 0) return null;
+      return { id:String(info.id || ''), status:status, updatedAt:String(info.updatedAt || '') };
+    }catch(_){ return null; }
+  }
+  function halfDayReportState(day, employee, rec){
+    var actual = isHalfDayRecord(rec);
+    var req = halfDayRequestInfo(day, employee);
+    var requested = !!req;
+    return {
+      show: actual || requested,
+      pending: !actual && requested && req.status !== 'applied',
+      approved: actual || (requested && req.status === 'applied'),
+      status: actual ? 'applied-local' : (req ? req.status : ''),
+      updatedAt: req ? req.updatedAt : ''
+    };
+  }
+  function reportAttendanceRecord(day, employee, rec){
+    var state = halfDayReportState(day, employee, rec);
+    if(state.show){
+      var out = Object.assign({}, rec || {});
+      out.day = String(out.day || day || '');
+      out.employee = String(out.employee || employee || '');
+      out.__assalReportHalfDay = true;
+      out.__assalReportHalfDayPending = !!state.pending;
+      out.__assalReportHalfDayApproved = !!state.approved;
+      out.__assalReportHalfDayStatus = String(state.status || '');
+      out.__assalReportHadCompleted = isCompletedRecord(rec);
+      if(!out.at && state.updatedAt) out.at = state.updatedAt;
+      return out;
+    }
+    return isCompletedRecord(rec) ? rec : null;
+  }
+  function isReportHalfDayRecord(rec){ return !!(rec && (isHalfDayRecord(rec) || rec.__assalReportHalfDay === true)); }
+  function reportHalfDayBadgeHtml(rec){
+    var pending = !!(rec && rec.__assalReportHalfDayPending === true);
+    return '<span class="att-halfday-badge' + (pending ? ' is-pending' : '') + '"' + (pending ? ' title="بانتظار موافقة الحاسبة الرئيسية" aria-label="نصف يوم — قيد المراجعة"' : '') + '>نصف يوم' + (pending ? '<small class="att-halfday-review">قيد المراجعة</small>' : '') + '</span>';
+  }
+  function isPresentRecord(rec){ return !!(rec && rec.present === true && !isLeaveRecord(rec) && !isDutyRecord(rec) && !isHalfDayRecord(rec)); }
+  function isCompletedRecord(rec){ return isPresentRecord(rec) || isLeaveRecord(rec) || isDutyRecord(rec) || isHalfDayRecord(rec); }
   function todayNames(map){ map = map || todayMap(); return EMPLOYEES.map(function(e){ return isPresentRecord(map[e.name]) ? e.name : ''; }).filter(Boolean); }
   function todayDisplayNames(map){
     map = map || todayMap();
     return EMPLOYEES.map(function(e){
       var rec = map[e.name];
+      if(isHalfDayRecord(rec)) return e.name + ' (نصف يوم)';
       if(isPresentRecord(rec)) return e.name + ' (' + normalizeAnyTime(rec.time || '—') + ')';
       if(isLeaveRecord(rec)) return e.name + ' (مجاز)';
       if(isDutyRecord(rec)) return e.name + ' (واجب)';
@@ -9040,7 +9169,7 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
   function wait(ms){ return new Promise(function(resolve){ setTimeout(resolve, ms); }); }
   function setCaptureLock(on){
     captureBusy = !!on;
-    Array.prototype.slice.call(document.querySelectorAll('#assalAttendanceGate .att-person-btn, #assalAttendanceGate .att-leave-btn, #assalAttendanceGate .att-duty-btn')).forEach(function(btn){ btn.classList.toggle('att-busy', !!on); btn.disabled = !!on || btn.disabled; });
+    Array.prototype.slice.call(document.querySelectorAll('#assalAttendanceGate .att-person-btn, #assalAttendanceGate .att-leave-btn, #assalAttendanceGate .att-duty-btn, #assalAttendanceGate .att-halfday-btn')).forEach(function(btn){ btn.classList.toggle('att-busy', !!on); btn.disabled = !!on || btn.disabled; });
     var confirm = $('assalAttendanceConfirm'); if(confirm) confirm.classList.toggle('att-busy', !!on);
     if(!on) syncPersonVisuals();
   }
@@ -9341,29 +9470,32 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
     var completedCount = completedCountToday(map);
     if($('assalAttendanceSelectedCount')) $('assalAttendanceSelectedCount').textContent = String(completedCount);
     if($('assalAttendanceQuickNames')){
-      $('assalAttendanceQuickNames').textContent = displayNames.length ? displayNames.join('، ') : 'لا يوجد حضور أو مجاز أو واجب مسجل';
+      $('assalAttendanceQuickNames').textContent = displayNames.length ? displayNames.join('، ') : 'لا يوجد حضور أو مجاز أو واجب أو نصف يوم مسجل';
     }
     EMPLOYEES.forEach(function(emp){
       var person = document.querySelector('#assalAttendanceGate .att-person[data-emp="' + emp.name + '"]');
       var rec = map[emp.name];
+      var halfDay = isHalfDayRecord(rec);
       var present = isPresentRecord(rec);
       var leave = isLeaveRecord(rec);
       var duty = isDutyRecord(rec);
-      var done = present || leave || duty;
+      var done = present || leave || duty || halfDay;
       if(person){
         person.classList.toggle('is-checked', present);
         person.classList.toggle('is-leave', leave);
         person.classList.toggle('is-duty', duty);
+        person.classList.toggle('is-half-day', halfDay);
         var state = person.querySelector('.assal-attendance-state');
         if(state){
-          if(present) state.textContent = 'حاضر • ' + normalizeAnyTime(rec.time || '—');
+          if(halfDay) state.textContent = 'دوام نصف يوم' + (rec.time ? ' • ' + normalizeAnyTime(rec.time) : '');
+          else if(present) state.textContent = 'حاضر • ' + normalizeAnyTime(rec.time || '—');
           else if(leave) state.textContent = 'مجاز • ' + normalizeAnyTime(rec.time || '—');
           else if(duty) state.textContent = 'واجب • ' + normalizeAnyTime(rec.time || '—');
           else state.textContent = 'بانتظار الرمز';
         }
         var checkIcon = person.querySelector('.att-check i');
         if(checkIcon){
-          checkIcon.className = leave ? 'fa-solid fa-umbrella-beach' : (duty ? 'fa-solid fa-briefcase' : 'fa-solid fa-check');
+          checkIcon.className = halfDay ? 'fa-solid fa-circle-half-stroke' : (leave ? 'fa-solid fa-umbrella-beach' : (duty ? 'fa-solid fa-briefcase' : 'fa-solid fa-check'));
         }
       }
       var input = $(emp.input);
@@ -9372,14 +9504,17 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
       if(btn){
         btn.disabled = !!done;
         var sp = btn.querySelector('span');
-        if(sp) sp.textContent = present ? 'تم الحضور' : ((leave || duty) ? 'الحضور متوقف' : ('حضور ' + emp.name));
+        if(sp) sp.textContent = present ? 'تم الحضور' : (halfDay ? 'نصف يوم معتمد' : ((leave || duty) ? 'الحضور متوقف' : ('حضور ' + emp.name)));
       }
       var leaveBtn = person ? person.querySelector('.att-leave-btn') : null;
       if(leaveBtn){
-        leaveBtn.disabled = !!present;
-        leaveBtn.classList.toggle('att-locked', !!present);
+        leaveBtn.disabled = !!(present || halfDay);
+        leaveBtn.classList.toggle('att-locked', !!(present || halfDay));
         var leaveIcon = leaveBtn.querySelector('i');
-        if(present){
+        if(halfDay){
+          leaveBtn.title = 'خيار المجاز متوقف لأن ' + emp.name + ' معتمد له دوام نصف يوم';
+          if(leaveIcon) leaveIcon.className = 'fa-solid fa-umbrella-beach';
+        }else if(present){
           leaveBtn.title = 'خيار المجاز متوقف لأن ' + emp.name + ' سجّل حضوره اليوم';
           if(leaveIcon) leaveIcon.className = 'fa-solid fa-umbrella-beach';
         }else if(leave){
@@ -9390,14 +9525,17 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
           if(leaveIcon) leaveIcon.className = 'fa-solid fa-umbrella-beach';
         }
         leaveBtn.setAttribute('aria-label', leaveBtn.title);
-        var lsp = leaveBtn.querySelector('span'); if(lsp) lsp.textContent = present ? 'مجاز متوقف' : (leave ? 'إلغاء مجاز' : 'مجاز');
+        var lsp = leaveBtn.querySelector('span'); if(lsp) lsp.textContent = (present || halfDay) ? 'مجاز متوقف' : (leave ? 'إلغاء مجاز' : 'مجاز');
       }
       var dutyBtn = person ? person.querySelector('.att-duty-btn') : null;
       if(dutyBtn){
-        dutyBtn.disabled = !!present;
-        dutyBtn.classList.toggle('att-locked', !!present);
+        dutyBtn.disabled = !!(present || halfDay);
+        dutyBtn.classList.toggle('att-locked', !!(present || halfDay));
         var dutyIcon = dutyBtn.querySelector('i');
-        if(present){
+        if(halfDay){
+          dutyBtn.title = 'خيار الواجب متوقف لأن ' + emp.name + ' معتمد له دوام نصف يوم';
+          if(dutyIcon) dutyIcon.className = 'fa-solid fa-briefcase';
+        }else if(present){
           dutyBtn.title = 'خيار الواجب متوقف لأن ' + emp.name + ' سجّل حضوره اليوم';
           if(dutyIcon) dutyIcon.className = 'fa-solid fa-briefcase';
         }else if(duty){
@@ -9408,9 +9546,10 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
           if(dutyIcon) dutyIcon.className = 'fa-solid fa-briefcase';
         }
         dutyBtn.setAttribute('aria-label', dutyBtn.title);
-        var dsp = dutyBtn.querySelector('span'); if(dsp) dsp.textContent = present ? 'واجب متوقف' : (duty ? 'إلغاء واجب' : 'واجب');
+        var dsp = dutyBtn.querySelector('span'); if(dsp) dsp.textContent = (present || halfDay) ? 'واجب متوقف' : (duty ? 'إلغاء واجب' : 'واجب');
       }
     });
+    syncHalfDayAdminUi();
     var confirm = $('assalAttendanceConfirm');
     if(confirm){
       var s = confirm.querySelector('span');
@@ -9418,9 +9557,9 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
       confirm.classList.toggle('ready', count > 0);
       confirm.classList.toggle('att-disabled', count === 0);
       if(s){
-        if(isCompleteToday()) s.textContent = 'اكتمل الحضور/المجاز/الواجب • فتح التطبيق';
+        if(isCompleteToday()) s.textContent = 'اكتمل الحضور/المجاز/الواجب/نصف اليوم • فتح التطبيق';
         else if(count > 0) s.textContent = 'فتح التطبيق ومتابعة انتظار باقي الكادر';
-        else s.textContent = 'سجل حضور أحد الموظفين أو حدده مجاز أو واجب أولاً';
+        else s.textContent = 'سجل حضور أحد الموظفين أو حدده مجاز أو واجب أو نصف يوم أولاً';
       }
     }
   }
@@ -9546,8 +9685,8 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
       setTimeout(function(){ closeGate(rec.employees[emp.name]); }, 750);
     }
   }
-  function monthAttendanceRows(){
-    var st = readState(), mk = monthKey();
+  function monthOfficialAttendanceRows(mk){
+    var st = readState(); mk = clampReportMonth(mk || reportMonthValue);
     return Object.keys(st.days || {}).filter(function(day){ return day.indexOf(mk) === 0; }).map(function(day){
       var emp = (st.days[day] && st.days[day].employees) || {};
       var mustafa = isCompletedRecord(emp['مصطفى']) ? emp['مصطفى'] : null;
@@ -9555,16 +9694,47 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
       return { day:day, mustafa:mustafa, ismail:ismail };
     }).filter(function(r){ return r.mustafa || r.ismail; }).sort(function(a,b){ return b.day.localeCompare(a.day); });
   }
-  function monthAttendanceDetails(){
-    var rows = [];
-    monthAttendanceRows().forEach(function(r){
-      if(isPresentRecord(r.mustafa)) rows.push(r.mustafa);
-      if(isPresentRecord(r.ismail)) rows.push(r.ismail);
-    });
-    return rows.sort(function(a,b){ return Date.parse(b.at || '') - Date.parse(a.at || ''); });
+  function halfDayRequestDaysForMonth(mk){
+    if(!assalAttendanceIsExactAdmin()) return [];
+    try{
+      var fn = window.ASSAL_ATTENDANCE_HALF_DAY_REQUESTS_FOR_MONTH;
+      if(typeof fn !== 'function') return [];
+      var list = fn(mk);
+      return Array.isArray(list) ? list.filter(function(r){
+        var status = String(r && r.status || '');
+        return r && String(r.day || '').indexOf(mk) === 0 && ['draft','pending_review','approved_pending_upload','applied'].indexOf(status) >= 0;
+      }) : [];
+    }catch(_){ return []; }
   }
-  function monthTimeouts(){
-    var st = readState(), mk = monthKey(), out = [];
+  function monthAttendanceRows(mk){
+    var st = readState(); mk = clampReportMonth(mk || reportMonthValue); var daySet = {};
+    Object.keys(st.days || {}).forEach(function(day){ if(day.indexOf(mk) === 0) daySet[day] = true; });
+    halfDayRequestDaysForMonth(mk).forEach(function(r){ if(r && r.day) daySet[String(r.day)] = true; });
+    return Object.keys(daySet).map(function(day){
+      var emp = (st.days[day] && st.days[day].employees) || {};
+      var mustafa = reportAttendanceRecord(day, 'مصطفى', emp['مصطفى']);
+      var ismail = reportAttendanceRecord(day, 'إسماعيل', emp['إسماعيل']);
+      return { day:day, mustafa:mustafa, ismail:ismail };
+    }).filter(function(r){ return r.mustafa || r.ismail; }).sort(function(a,b){ return b.day.localeCompare(a.day); });
+  }
+  function monthOfficialAttendanceDetails(mk){
+    var rows = [];
+    monthOfficialAttendanceRows(mk).forEach(function(r){
+      if(isPresentRecord(r.mustafa) || isHalfDayRecord(r.mustafa)) rows.push(r.mustafa);
+      if(isPresentRecord(r.ismail) || isHalfDayRecord(r.ismail)) rows.push(r.ismail);
+    });
+    return rows.sort(function(a,b){ return Date.parse(b.at || b.halfDayApprovedAt || '') - Date.parse(a.at || a.halfDayApprovedAt || ''); });
+  }
+  function monthAttendanceDetails(mk){
+    var rows = [];
+    monthAttendanceRows(mk).forEach(function(r){
+      if(isPresentRecord(r.mustafa) || isReportHalfDayRecord(r.mustafa)) rows.push(r.mustafa);
+      if(isPresentRecord(r.ismail) || isReportHalfDayRecord(r.ismail)) rows.push(r.ismail);
+    });
+    return rows.sort(function(a,b){ return Date.parse(b.at || b.halfDayApprovedAt || '') - Date.parse(a.at || a.halfDayApprovedAt || ''); });
+  }
+  function monthTimeouts(mk){
+    var st = readState(); mk = clampReportMonth(mk || reportMonthValue); var out = [];
     Object.keys(st.days || {}).forEach(function(day){
       if(day.indexOf(mk) !== 0) return;
       ((st.days[day] && st.days[day].timeouts) || []).forEach(function(r){ out.push(r); });
@@ -9572,13 +9742,18 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
     return out.sort(function(a,b){ return Date.parse(b.at || '') - Date.parse(a.at || ''); });
   }
   function refreshReport(){
-    var d = new Date();
-    var cmpRows = monthAttendanceRows();
-    var details = monthAttendanceDetails();
-    var timeouts = monthTimeouts();
+    reportMonthValue = clampReportMonth(reportMonthValue);
+    var d = dateFromMonthKey(reportMonthValue);
+    var cmpRows = monthAttendanceRows(reportMonthValue);
+    var details = monthAttendanceDetails(reportMonthValue);
+    var officialCmpRows = monthOfficialAttendanceRows(reportMonthValue);
+    var officialDetails = monthOfficialAttendanceDetails(reportMonthValue);
+    var timeouts = monthTimeouts(reportMonthValue);
     if($('attReportMonthText')) $('attReportMonthText').textContent = arMonth(d);
-    if($('attReportNowText')) $('attReportNowText').textContent = time12(d);
-    if($('attMonthAttendanceCount')) $('attMonthAttendanceCount').textContent = String(details.length);
+    if($('attReportNowText')) $('attReportNowText').textContent = time12(new Date());
+    var monthPicker=$('attReportMonthPicker'); if(monthPicker){monthPicker.max=monthKey();monthPicker.value=reportMonthValue;}
+    var nextMonthBtn=$('attReportNextMonth'); if(nextMonthBtn)nextMonthBtn.disabled=reportMonthValue>=monthKey();
+    if($('attMonthAttendanceCount')) $('attMonthAttendanceCount').textContent = String(officialDetails.length);
     if($('attMonthTimeoutCount')) $('attMonthTimeoutCount').textContent = String(timeouts.length);
     var logBody = $('assalAttendanceLog');
     if(logBody){
@@ -9586,12 +9761,13 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
       else{
         function cellHtml(rec){
           if(!rec) return '<span class="att-log-empty">—</span>';
+          if(isReportHalfDayRecord(rec)) return reportHalfDayBadgeHtml(rec);
           if(isLeaveRecord(rec)) return '<span class="att-leave-badge">مجاز</span>';
           if(isDutyRecord(rec)) return '<span class="att-duty-badge">واجب</span>';
           var btn = rec.photoKey ? '<button type="button" class="att-photo-btn" data-photo-key="' + esc(rec.photoKey) + '" title="عرض صورة الحضور" aria-label="عرض صورة الحضور"><i class="fa-solid fa-camera"></i><span>الصورة</span></button>' : '';
           return '<span class="att-log-line"><b class="att-log-time">' + esc(normalizeAnyTime(rec.time)) + '</b>' + btn + '</span>';
         }
-        function cellClass(rec){ return isPresentRecord(rec) ? 'att-present' : (isLeaveRecord(rec) ? 'att-leave' : (isDutyRecord(rec) ? 'att-duty' : 'att-absent')); }
+        function cellClass(rec){ return isReportHalfDayRecord(rec) ? 'att-half-day' : (isPresentRecord(rec) ? 'att-present' : (isLeaveRecord(rec) ? 'att-leave' : (isDutyRecord(rec) ? 'att-duty' : 'att-absent'))); }
         logBody.innerHTML = cmpRows.map(function(r){
           return '<tr><td class="att-date-cell">' + esc(r.day) + '</td>' +
             '<td class="att-time-cell ' + cellClass(r.mustafa) + '">' + cellHtml(r.mustafa) + '</td>' +
@@ -9628,25 +9804,40 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
     refreshReport();
     queueServerSync('timeout');
   }
+  // ASSAL ATTENDANCE HALF-DAY PENDING REPORT FINAL: admin report overlays draft/pending half-day requests without changing the stored attendance record or fingerprint time.
   function printReport(){
     try{
-      var d = new Date();
-      var issued = arDate(d) + ' • ' + time12(d);
-      var cmpRows = monthAttendanceRows();
-      var details = monthAttendanceDetails();
-      var timeouts = monthTimeouts();
+      reportMonthValue = clampReportMonth(reportMonthValue);
+      var d = dateFromMonthKey(reportMonthValue), issuedNow = new Date();
+      var issued = arDate(issuedNow) + ' • ' + time12(issuedNow);
+      var cmpRows = monthAttendanceRows(reportMonthValue);
+      var details = monthAttendanceDetails(reportMonthValue);
+      var officialCmpRows = monthOfficialAttendanceRows(reportMonthValue);
+      var officialDetails = monthOfficialAttendanceDetails(reportMonthValue);
+      var timeouts = monthTimeouts(reportMonthValue);
+      function printHalfDayBadge(rec){
+        var pending = !!(rec && rec.__assalReportHalfDayPending === true);
+        return '<span class="att-print-badge att-print-halfday' + (pending ? ' is-pending' : '') + '">نصف يوم' + (pending ? '<small>قيد المراجعة</small>' : '') + '</span>';
+      }
+      function printAttendanceCell(rec){
+        if(!rec) return '<span class="att-print-empty">—</span>';
+        if(isReportHalfDayRecord(rec)) return printHalfDayBadge(rec);
+        if(isLeaveRecord(rec)) return '<span class="att-print-badge att-print-leave">مجاز</span>';
+        if(isDutyRecord(rec)) return '<span class="att-print-badge att-print-duty">واجب</span>';
+        return '<span class="att-print-time">' + esc(normalizeAnyTime(rec.time)) + '</span>' + (rec.photoSaved ? '<small class="att-print-photo">صورة محفوظة</small>' : '');
+      }
       var cmpHtml = cmpRows.length ? cmpRows.slice().reverse().map(function(r,idx){
-        function pc(rec){ if(!rec) return '—'; if(isLeaveRecord(rec)) return 'مجاز'; if(isDutyRecord(rec)) return 'واجب'; return normalizeAnyTime(rec.time) + (rec.photoSaved ? ' • صورة محفوظة' : ''); }
-        return '<tr><td>'+esc(idx+1)+'</td><td>'+esc(r.day)+'</td><td>'+esc(pc(r.mustafa))+'</td><td>'+esc(pc(r.ismail))+'</td></tr>';
+        return '<tr><td>'+esc(idx+1)+'</td><td>'+esc(r.day)+'</td><td>'+printAttendanceCell(r.mustafa)+'</td><td>'+printAttendanceCell(r.ismail)+'</td></tr>';
       }).join('') : '<tr><td colspan="4" class="empty">لا يوجد سجل حضور لهذا الشهر</td></tr>';
       var timeoutHtml = timeouts.length ? timeouts.slice().reverse().map(function(r,idx){
         return '<tr><td>'+esc(idx+1)+'</td><td>'+esc(r.day||'—')+'</td><td>'+esc(r.employee||'—')+'</td><td>'+esc(normalizeAnyTime(r.time||'—'))+'</td><td class="note">'+esc(r.note||'خروج زمنية')+'</td></tr>';
       }).join('') : '<tr><td colspan="5" class="empty">لا توجد زمنيات مسجلة لهذا الشهر</td></tr>';
       var detailsHtml = details.length ? details.slice().reverse().map(function(r,idx){
-        return '<tr><td>'+esc(idx+1)+'</td><td>'+esc(r.day||'—')+'</td><td>'+esc(r.employee||'—')+'</td><td>'+esc(normalizeAnyTime(r.time||'—'))+'</td></tr>';
+        var detailCell=isReportHalfDayRecord(r)?printHalfDayBadge(r):'<span class="att-print-time">'+esc(normalizeAnyTime(r.time||'—'))+'</span>';
+        return '<tr><td>'+esc(idx+1)+'</td><td>'+esc(r.day||'—')+'</td><td>'+esc(r.employee||'—')+'</td><td>'+detailCell+'</td></tr>';
       }).join('') : '<tr><td colspan="4" class="empty">لا توجد تفاصيل حضور</td></tr>';
-      var css = '@page{size:A4;margin:10mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0;background:#fff;color:#0f172a;font-family:"Cairo","Segoe UI",Tahoma,Arial,sans-serif}.wrap{padding:10px}.doc{max-width:980px;margin:0 auto;border:1px solid #dbe3ef;border-radius:18px;overflow:hidden}.topbar{height:6px;background:linear-gradient(90deg,#0f766e,#0ea5e9,#7c3aed)}.head{display:flex;justify-content:space-between;gap:12px;padding:14px 16px;background:linear-gradient(180deg,#fff,#f8fafc);border-bottom:1px solid #e5e7eb}.brand b{display:block;font-size:20px;font-weight:900}.brand span,.title span{display:block;margin-top:3px;color:#64748b;font-size:12px;font-weight:800}.title{text-align:left}.title b{display:block;font-size:18px;font-weight:900}.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px}.m{border:1px solid #e5e7eb;border-radius:14px;padding:9px;text-align:center;background:#f8fafc}.m span{display:block;color:#64748b;font-size:11px;font-weight:900}.m b{display:block;margin-top:4px;font-size:15px;font-weight:900}.section{padding:0 12px 12px}.section h3{margin:8px 0 8px;font-size:15px;font-weight:900;color:#0f172a}table{width:100%;border-collapse:collapse;font-size:11.5px}th{background:#0f172a;color:#fff;padding:8px;border:1px solid #1f2937;white-space:nowrap}td{padding:7px;border:1px solid #e5e7eb;text-align:center;font-weight:750;vertical-align:top}tbody tr:nth-child(even) td{background:#f8fafc}.empty{color:#64748b;padding:18px}.note{text-align:right}.foot{display:flex;justify-content:space-between;gap:14px;padding:12px 16px;border-top:1px solid #e5e7eb;color:#64748b;font-size:12px;font-weight:800}.sig{display:inline-block;height:28px;border-bottom:1px solid #111;min-width:180px;vertical-align:middle}@media print{.wrap{padding:0}.doc{border-radius:0}}';
-      var html = '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>كشف الحضور والزمنيات</title><style>'+css+'</style></head><body><div class="wrap"><div class="doc"><div class="topbar"></div><div class="head"><div class="brand"><b>ASSAL DEBTS</b><span>مكتب عسل • كشف الحضور والزمنيات</span></div><div class="title"><b>كشف شهر '+esc(arMonth(d))+'</b><span>تاريخ الطباعة: '+esc(issued)+'</span></div></div><div class="meta"><div class="m"><span>حضور الشهر</span><b>'+esc(details.length)+'</b></div><div class="m"><span>أيام الحضور</span><b>'+esc(cmpRows.length)+'</b></div><div class="m"><span>زمنيات الشهر</span><b>'+esc(timeouts.length)+'</b></div><div class="m"><span>مصدر البيانات</span><b>محلي + سيرفر</b></div></div><div class="section"><h3>جدول مقارنة الحضور</h3><table><thead><tr><th>#</th><th>التاريخ</th><th>مصطفى</th><th>إسماعيل</th></tr></thead><tbody>'+cmpHtml+'</tbody></table></div><div class="section"><h3>سجل الزمنيات</h3><table><thead><tr><th>#</th><th>التاريخ</th><th>الموظف</th><th>وقت الخروج</th><th>الملاحظة</th></tr></thead><tbody>'+timeoutHtml+'</tbody></table></div><div class="section"><h3>تفاصيل الحضور</h3><table><thead><tr><th>#</th><th>التاريخ</th><th>الموظف</th><th>وقت الحضور</th></tr></thead><tbody>'+detailsHtml+'</tbody></table></div><div class="foot"><div>تم إنشاء الكشف إلكترونياً حسب سجلات الحضور والزمنيات وقت الطباعة.</div><div>التوقيع / الختم <span class="sig"></span></div></div></div></div><script>window.addEventListener("load",function(){setTimeout(function(){try{window.print();}catch(e){}},250);});<\/script></body></html>';
+      var css = '@page{size:A4;margin:10mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0;background:#fff;color:#0f172a;font-family:"Cairo","Segoe UI",Tahoma,Arial,sans-serif}.wrap{padding:10px}.doc{max-width:980px;margin:0 auto;border:1px solid #dbe3ef;border-radius:18px;overflow:hidden}.topbar{height:6px;background:linear-gradient(90deg,#0f766e,#0ea5e9,#7c3aed)}.head{display:flex;justify-content:space-between;gap:12px;padding:14px 16px;background:linear-gradient(180deg,#fff,#f8fafc);border-bottom:1px solid #e5e7eb}.brand b{display:block;font-size:20px;font-weight:900}.brand span,.title span{display:block;margin-top:3px;color:#64748b;font-size:12px;font-weight:800}.title{text-align:left}.title b{display:block;font-size:18px;font-weight:900}.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px}.m{border:1px solid #e5e7eb;border-radius:14px;padding:9px;text-align:center;background:#f8fafc}.m span{display:block;color:#64748b;font-size:11px;font-weight:900}.m b{display:block;margin-top:4px;font-size:15px;font-weight:900}.section{padding:0 12px 12px}.section h3{margin:8px 0 8px;font-size:15px;font-weight:900;color:#0f172a}table{width:100%;border-collapse:collapse;font-size:11.5px}th{background:#0f172a;color:#fff;padding:8px;border:1px solid #1f2937;white-space:nowrap}td{padding:7px;border:1px solid #e5e7eb;text-align:center;font-weight:750;vertical-align:top}tbody tr:nth-child(even) td{background:#f8fafc}.empty{color:#64748b;padding:18px}.att-print-badge{display:inline-flex;align-items:center;justify-content:center;min-width:68px;height:24px;padding:0 11px;border-radius:999px;font-size:11px;font-weight:950;line-height:1;border:1px solid transparent;white-space:nowrap}.att-print-halfday{color:#6b21a8;background:#f3e8ff;border-color:#d8b4fe}.att-print-halfday.is-pending{min-width:116px;gap:5px;padding:0 7px}.att-print-halfday.is-pending small{display:inline-flex;align-items:center;height:15px;padding:0 5px;border-radius:999px;font-size:7.5px;font-weight:950;color:#92400e;background:#fef3c7;border:1px solid #fcd34d}.att-print-leave{color:#92400e;background:#fef3c7;border-color:#fcd34d}.att-print-duty{color:#075985;background:#e0f2fe;border-color:#7dd3fc}.att-print-time{font-weight:900;color:#0f172a}.att-print-photo{display:block;margin-top:2px;color:#64748b;font-size:9px;font-weight:800}.att-print-empty{color:#94a3b8}.note{text-align:right}.foot{display:flex;justify-content:space-between;gap:14px;padding:12px 16px;border-top:1px solid #e5e7eb;color:#64748b;font-size:12px;font-weight:800}.sig{display:inline-block;height:28px;border-bottom:1px solid #111;min-width:180px;vertical-align:middle}@media print{.wrap{padding:0}.doc{border-radius:0}}';
+      var html = '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>كشف الحضور والزمنيات</title><style>'+css+'</style></head><body><div class="wrap"><div class="doc"><div class="topbar"></div><div class="head"><div class="brand"><b>ASSAL DEBTS</b><span>مكتب عسل • كشف الحضور والزمنيات</span></div><div class="title"><b>كشف شهر '+esc(arMonth(d))+'</b><span>تاريخ الطباعة: '+esc(issued)+'</span></div></div><div class="meta"><div class="m"><span>حضور الشهر</span><b>'+esc(officialDetails.length)+'</b></div><div class="m"><span>أيام الحضور</span><b>'+esc(officialCmpRows.length)+'</b></div><div class="m"><span>زمنيات الشهر</span><b>'+esc(timeouts.length)+'</b></div><div class="m"><span>مصدر البيانات</span><b>محلي + سيرفر</b></div></div><div class="section"><h3>جدول مقارنة الحضور</h3><table><thead><tr><th>#</th><th>التاريخ</th><th>مصطفى</th><th>إسماعيل</th></tr></thead><tbody>'+cmpHtml+'</tbody></table></div><div class="section"><h3>سجل الزمنيات</h3><table><thead><tr><th>#</th><th>التاريخ</th><th>الموظف</th><th>وقت الخروج</th><th>الملاحظة</th></tr></thead><tbody>'+timeoutHtml+'</tbody></table></div><div class="section"><h3>تفاصيل الحضور</h3><table><thead><tr><th>#</th><th>التاريخ</th><th>الموظف</th><th>الحالة / وقت الحضور</th></tr></thead><tbody>'+detailsHtml+'</tbody></table></div><div class="foot"><div>تم إنشاء الكشف إلكترونياً حسب سجلات الحضور والزمنيات وقت الطباعة.</div><div>التوقيع / الختم <span class="sig"></span></div></div></div></div><script>window.addEventListener("load",function(){setTimeout(function(){try{window.print();}catch(e){}},250);});<\/script></body></html>';
       var w = window.open('', '_blank', 'width=980,height=760');
       if(!w){ setTimeoutMsg('اسمح بفتح النوافذ المنبثقة حتى تتم الطباعة.', false); return; }
       w.document.open(); w.document.write(html); w.document.close(); try{ w.focus(); }catch(_){ }
@@ -9675,7 +9866,7 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
   }
   function openAfterAnyConfirmed(){
     var map = todayMap();
-    if(completedCountToday(map) <= 0){ setMsg('سجل حضور أحد الموظفين أو حدده مجاز أو واجب حتى يتم فتح التطبيق.', false); return; }
+    if(completedCountToday(map) <= 0){ setMsg('سجل حضور أحد الموظفين أو حدده مجاز أو واجب أو نصف يوم حتى يتم فتح التطبيق.', false); return; }
     closeGate(null);
   }
   function noteActivity(){ if(!isGateOpen()) lastActivityAt = Date.now(); }
@@ -9724,6 +9915,112 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
     }
     if(actions) actions.classList.toggle('assal-admin-exit-visible', !!can);
   }
+  function assalAttendanceIsExactAdmin(){
+    try{return String(window.ASSAL_LOGIN_EMAIL||'').trim().toLowerCase()==='admin-debts@assal.com'||window.ASSAL_IS_ADMIN_DEBTS===true;}catch(_){return false;}
+  }
+  function attendanceDayRecord(day,employee){
+    var st=readState(),rec=st.days&&st.days[day],map=rec&&rec.employees;return map&&map[employee]?map[employee]:null;
+  }
+  function attendanceRecordSnapshot(rec,employee,day){
+    if(!rec)return {__assalMissing:true};
+    return {employee:employee,day:day,present:rec.present===true,leave:rec.leave===true,duty:rec.duty===true,halfDay:isHalfDayRecord(rec),status:String(rec.status||''),time:String(rec.time||'')};
+  }
+  function attendanceRecordLabel(rec){
+    if(!rec)return 'لا يوجد تسجيل';
+    if(isHalfDayRecord(rec))return 'دوام نصف يوم'+(rec.time?' • '+normalizeAnyTime(rec.time):'');
+    if(isLeaveRecord(rec))return 'مجاز';
+    if(isDutyRecord(rec))return 'واجب';
+    if(isPresentRecord(rec))return 'حاضر'+(rec.time?' • '+normalizeAnyTime(rec.time):'');
+    return 'لا يوجد تسجيل';
+  }
+  function attendanceMapForDay(day){
+    try{var st=readState(),rec=st&&st.days&&st.days[day];return rec&&rec.employees&&typeof rec.employees==='object'?rec.employees:{};}catch(_){return {};}
+  }
+  function refreshHalfDaySelectedDayView(){
+    if(assalAttendanceIsExactAdmin()&&halfDaySelectedDay===todayKey())syncPersonVisuals();else syncHalfDayAdminUi();
+  }
+  function shiftHalfDaySelectedDay(delta){var d=dateFromDayKey(halfDaySelectedDay);d.setDate(d.getDate()+Number(delta||0));halfDaySelectedDay=clampPastOrTodayDay(todayKey(d));refreshHalfDaySelectedDayView();}
+  function halfDayRequestStatus(day,employee){try{return typeof window.ASSAL_ATTENDANCE_HALF_DAY_REQUEST_STATUS==='function'?window.ASSAL_ATTENDANCE_HALF_DAY_REQUEST_STATUS(day,employee):null;}catch(_){return null;}}
+  function syncHalfDayHistoricalAttendancePreview(){
+    if(!assalAttendanceIsExactAdmin()||halfDaySelectedDay===todayKey()){
+      var currentLabel=$('assalAttendanceQuickLabel');if(currentLabel)currentLabel.textContent='حضور اليوم:';
+      return;
+    }
+    var map=attendanceMapForDay(halfDaySelectedDay),displayNames=todayDisplayNames(map),completedCount=completedCountToday(map);
+    var countEl=$('assalAttendanceSelectedCount');if(countEl)countEl.textContent=String(completedCount);
+    var quickLabel=$('assalAttendanceQuickLabel');if(quickLabel)quickLabel.textContent='حضور التاريخ المحدد:';
+    var quickNames=$('assalAttendanceQuickNames');if(quickNames)quickNames.textContent=displayNames.length?displayNames.join('، '):'لا توجد بصمة أو حالة حضور مسجلة لهذا اليوم';
+    EMPLOYEES.forEach(function(emp){
+      var person=document.querySelector('#assalAttendanceGate .att-person[data-emp="'+emp.name+'"]'),rec=map[emp.name]||null;
+      var halfDay=isHalfDayRecord(rec),present=isPresentRecord(rec),leave=isLeaveRecord(rec),duty=isDutyRecord(rec);
+      if(person){
+        person.classList.toggle('is-checked',present);person.classList.toggle('is-leave',leave);person.classList.toggle('is-duty',duty);person.classList.toggle('is-half-day',halfDay);
+        var stateEl=person.querySelector('.assal-attendance-state');
+        if(stateEl){
+          if(halfDay)stateEl.textContent='دوام نصف يوم'+(rec&&rec.time?' • '+normalizeAnyTime(rec.time):'');
+          else if(present)stateEl.textContent='حاضر • '+normalizeAnyTime(rec&&rec.time||'—');
+          else if(leave)stateEl.textContent='مجاز'+(rec&&rec.time?' • '+normalizeAnyTime(rec.time):'');
+          else if(duty)stateEl.textContent='واجب'+(rec&&rec.time?' • '+normalizeAnyTime(rec.time):'');
+          else stateEl.textContent='لا توجد بصمة في هذا اليوم';
+        }
+        var checkIcon=person.querySelector('.att-check i');if(checkIcon)checkIcon.className=halfDay?'fa-solid fa-circle-half-stroke':(leave?'fa-solid fa-umbrella-beach':(duty?'fa-solid fa-briefcase':(present?'fa-solid fa-check':'fa-solid fa-minus')));
+        var normalBtn=person.querySelector('.att-person-btn');if(normalBtn){normalBtn.disabled=true;var normalText=normalBtn.querySelector('span');if(normalText)normalText.textContent='عرض يوم سابق';normalBtn.title='تسجيل الحضور المباشر متاح لليوم الحالي فقط';}
+        var leaveBtn=person.querySelector('.att-leave-btn');if(leaveBtn){leaveBtn.disabled=true;leaveBtn.classList.add('att-locked');leaveBtn.title='عرض فقط — التاريخ المحدد يوم سابق';}
+        var dutyBtn=person.querySelector('.att-duty-btn');if(dutyBtn){dutyBtn.disabled=true;dutyBtn.classList.add('att-locked');dutyBtn.title='عرض فقط — التاريخ المحدد يوم سابق';}
+      }
+      var codeInput=$(emp.input);if(codeInput){codeInput.disabled=true;codeInput.value='';}
+    });
+  }
+  function syncHalfDayAdminUi(){
+    var panel=$('attHalfDayAdminPanel'),can=assalAttendanceIsExactAdmin();
+    if(panel){panel.hidden=!can;panel.setAttribute('aria-hidden',can?'false':'true');}
+    Array.prototype.slice.call(document.querySelectorAll('#assalAttendanceGate .att-halfday-btn')).forEach(function(btn){btn.hidden=!can;});
+    if(!can)return;
+    halfDaySelectedDay=clampPastOrTodayDay(halfDaySelectedDay||todayKey());
+    var input=$('attHalfDayDateInput');if(input){input.max=todayKey();input.value=halfDaySelectedDay;}
+    var next=$('attHalfDayNextDay');if(next)next.disabled=halfDaySelectedDay>=todayKey();
+    var label=$('attHalfDayDateText');if(label)label.textContent='التاريخ المحدد: '+arDate(dateFromDayKey(halfDaySelectedDay));
+    EMPLOYEES.forEach(function(emp){
+      var btn=document.querySelector('#assalAttendanceGate .att-halfday-btn[data-emp="'+emp.name+'"]');if(!btn)return;
+      var rec=attendanceDayRecord(halfDaySelectedDay,emp.name),status=halfDayRequestStatus(halfDaySelectedDay,emp.name)||{};
+      var state=String(status.status||''),draft=state==='draft',pending=state==='pending_review'||state==='approved_pending_upload',applied=isHalfDayRecord(rec)||state==='applied';
+      btn.classList.toggle('is-selected',draft);btn.classList.toggle('is-pending',pending);btn.classList.toggle('is-applied',applied);btn.disabled=!!(pending||applied||captureBusy);
+      btn.setAttribute('aria-pressed',draft?'true':'false');
+      var sp=btn.querySelector('span');if(sp)sp.textContent=applied?'نصف يوم معتمد':(pending?'قيد المراجعة':'نصف يوم');
+      var icon=btn.querySelector('i');if(icon)icon.className=applied?'fa-solid fa-circle-check':(pending?'fa-solid fa-clock':'fa-solid fa-circle-half-stroke');
+      btn.title=(applied?'دوام نصف يوم معتمد':(pending?'يوجد طلب نصف يوم قيد المتابعة':(draft?'تم تحديد نصف يوم — اضغط مرة ثانية لإلغاء التحديد':'تحديد دوام نصف يوم')))+' • '+emp.name+' • '+halfDaySelectedDay;
+      btn.setAttribute('aria-label',btn.title);
+    });
+    syncHalfDayHistoricalAttendancePreview();
+  }
+  async function createHalfDayRequest(employee){
+    if(!assalAttendanceIsExactAdmin()){setMsg('طلب نصف اليوم متاح لحاسبة الأدمن فقط.',false);return;}
+    var day=clampPastOrTodayDay(halfDaySelectedDay),rec=attendanceDayRecord(day,employee),bridge=window.ASSAL_CREATE_ATTENDANCE_HALF_DAY_REQUEST;
+    if(typeof bridge!=='function'){setMsg('نظام طلبات التعديل لم يكتمل تحميله بعد. انتظر لحظات ثم أعد المحاولة.',false);return;}
+    try{
+      var result=await bridge({employee:employee,day:day,before:attendanceRecordSnapshot(rec,employee,day),beforeLabel:attendanceRecordLabel(rec)});
+      if(result&&result.ok){setMsg('تم تحديد نصف يوم لـ '+employee+' بتاريخ '+day+' داخل خانة طلبات التعديل. اضغط الزر مرة ثانية لإلغاء التحديد قبل الإرسال.',true);syncHalfDayAdminUi();}
+      else setMsg((result&&result.message)||'تعذر إنشاء طلب نصف اليوم.',false);
+    }catch(err){setMsg((err&&err.message)||'تعذر إنشاء طلب نصف اليوم.',false);}
+  }
+  async function toggleHalfDayRequest(employee){
+    if(!assalAttendanceIsExactAdmin()){setMsg('طلب نصف اليوم متاح لحاسبة الأدمن فقط.',false);return;}
+    var day=clampPastOrTodayDay(halfDaySelectedDay),status=halfDayRequestStatus(day,employee)||{},state=String(status.status||'');
+    if(state==='draft'){
+      var cancelBridge=window.ASSAL_CANCEL_ATTENDANCE_HALF_DAY_DRAFT;
+      if(typeof cancelBridge!=='function'){setMsg('نظام إلغاء مسودة نصف اليوم لم يكتمل تحميله بعد.',false);return;}
+      try{
+        var cancelled=await cancelBridge({employee:employee,day:day,id:String(status.id||'')});
+        if(cancelled&&cancelled.ok){setMsg('تم إلغاء تحديد نصف اليوم لـ '+employee+' بتاريخ '+day+'.',true);syncHalfDayAdminUi();}
+        else setMsg((cancelled&&cancelled.message)||'تعذر إلغاء تحديد نصف اليوم.',false);
+      }catch(err){setMsg((err&&err.message)||'تعذر إلغاء تحديد نصف اليوم.',false);}
+      return;
+    }
+    if(state==='pending_review'||state==='approved_pending_upload'){setMsg('طلب نصف اليوم لهذا الموظف والتاريخ قيد المراجعة ولا يمكن إلغاؤه من الزر.',false);return;}
+    if(state==='applied'||isHalfDayRecord(attendanceDayRecord(day,employee))){setMsg('دوام نصف اليوم معتمد مسبقاً لهذا الموظف والتاريخ.',false);return;}
+    await createHalfDayRequest(employee);
+  }
+
   function shouldAutoOpen(){
     if(window.ASSAL_IS_ADMIN_DEBTS === true) return false;
     if(typeof isSubDevice === 'function' && isSubDevice()) return false;
@@ -9754,6 +10051,8 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
   function bind(){
     ['pointerdown','keydown','input','change','wheel','touchstart','scroll'].forEach(function(ev){ document.addEventListener(ev, noteActivity, true); });
     var confirmBtn = $('assalAttendanceConfirm'), reportBtn = $('assalAttendanceReport'), headerBtn = $('btnAttendanceOpen'), backBtn = $('attBackToMain'), timeoutSave = $('attTimeoutSave'), printBtn = $('attPrintReport'), adminExitBtn = $('assalAttendanceAdminExit');
+    var reportPrev=$('attReportPrevMonth'),reportNext=$('attReportNextMonth'),reportPicker=$('attReportMonthPicker');
+    var halfPrev=$('attHalfDayPrevDay'),halfNext=$('attHalfDayNextDay'),halfToday=$('attHalfDayToday'),halfDate=$('attHalfDayDateInput');
     if(confirmBtn) confirmBtn.addEventListener('click', openAfterAnyConfirmed, false);
     if(reportBtn) reportBtn.addEventListener('click', function(){ switchView('report'); }, false);
     if(backBtn) backBtn.addEventListener('click', function(){ switchView('main'); }, false);
@@ -9767,12 +10066,21 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
     }, false);
     if(timeoutSave) timeoutSave.addEventListener('click', saveTimeout, false);
     if(printBtn) printBtn.addEventListener('click', printReport, false);
+    if(reportPrev) reportPrev.addEventListener('click',function(){reportMonthValue=shiftMonthKey(reportMonthValue,-1);refreshReport();},false);
+    if(reportNext) reportNext.addEventListener('click',function(){reportMonthValue=shiftMonthKey(reportMonthValue,1);refreshReport();},false);
+    if(reportPicker) reportPicker.addEventListener('change',function(){reportMonthValue=clampReportMonth(reportPicker.value);refreshReport();},false);
+    if(halfPrev) halfPrev.addEventListener('click',function(){shiftHalfDaySelectedDay(-1);},false);
+    if(halfNext) halfNext.addEventListener('click',function(){shiftHalfDaySelectedDay(1);},false);
+    if(halfToday) halfToday.addEventListener('click',function(){halfDaySelectedDay=todayKey();refreshHalfDaySelectedDayView();},false);
+    if(halfDate) halfDate.addEventListener('change',function(){halfDaySelectedDay=clampPastOrTodayDay(halfDate.value);refreshHalfDaySelectedDayView();},false);
     var reportView = $('attReportView');
     if(reportView){ reportView.addEventListener('click', function(ev){ var btn = ev.target && ev.target.closest ? ev.target.closest('.att-photo-btn') : null; if(btn){ ev.preventDefault(); showAttendancePhoto(btn.getAttribute('data-photo-key')); } }, false); }
     if(headerBtn) headerBtn.addEventListener('click', function(){ openGate('manual'); }, false);
     Array.prototype.slice.call(document.querySelectorAll('#assalAttendanceGate .att-person-btn')).forEach(function(btn){ btn.addEventListener('click', function(){ confirmEmployee(btn.getAttribute('data-emp')); }, false); });
     Array.prototype.slice.call(document.querySelectorAll('#assalAttendanceGate .att-leave-btn')).forEach(function(btn){ btn.addEventListener('click', function(){ markEmployeeLeave(btn.getAttribute('data-emp')); }, false); });
     Array.prototype.slice.call(document.querySelectorAll('#assalAttendanceGate .att-duty-btn')).forEach(function(btn){ btn.addEventListener('click', function(){ markEmployeeDuty(btn.getAttribute('data-emp')); }, false); });
+    Array.prototype.slice.call(document.querySelectorAll('#assalAttendanceGate .att-halfday-btn')).forEach(function(btn){ btn.addEventListener('click', function(){ toggleHalfDayRequest(btn.getAttribute('data-emp')); }, false); });
+    try{window.addEventListener('assal:attendance-halfday-requests-updated',function(){syncHalfDayAdminUi();refreshReport();},false);}catch(_){}
     Array.prototype.slice.call(document.querySelectorAll('#assalAttendanceGate .att-code-input')).forEach(function(input){
       input.addEventListener('focus', function(){ try{ input.type='password'; }catch(_){} }, false);
       input.addEventListener('input', function(){ try{ input.type='password'; }catch(_){} var v = normalizeCode(input.value).replace(/[^a-z0-9]/g,'').slice(0,12); if(input.value !== v) input.value = v; }, false);
@@ -9787,13 +10095,14 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
     var gate = $('assalAttendanceGate');
     if(gate){ gate.addEventListener('keydown', function(ev){ if(ev.key === 'Escape'){ ev.preventDefault(); ev.stopPropagation(); if(assalAttendanceCanAdminExit()){ closeGate(null); }else{ setMsg('نافذة الحضور إجبارية حتى تسجيل حضور أحد الموظفين، وتعود كل 10 دقائق لحين اكتمال الكادر.', false); } } }, true); }
     var cur = splitTime12(new Date()); if($('attTimeoutTime')) $('attTimeoutTime').value = cur.hm; if($('attTimeoutPeriod')) $('attTimeoutPeriod').value = cur.period;
-    syncPersonVisuals(); refreshReport(); installServerHooks(); startAutoPromptLoop();
+    syncPersonVisuals(); refreshReport(); syncHalfDayAdminUi(); installServerHooks(); startAutoPromptLoop();
   }
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind); else bind();
   window.showAssalAttendanceGate = openGate;
   window.ASSAL_ATTENDANCE_EXPORT = exportAttendance;
   window.ASSAL_ATTENDANCE_IMPORT = importAttendance;
   window.ASSAL_ATTENDANCE_AUTO_CHECK = nudgeAutoPrompt;
+  window.ASSAL_ATTENDANCE_REFRESH = function(){syncPersonVisuals();refreshReport();syncHalfDayAdminUi();};
   try{ window.addEventListener('assal:auth-ready', nudgeAutoPrompt, false); }catch(_){ }
 })();
 </script>
@@ -12266,7 +12575,7 @@ function assalReturnBuildOldReturnMessage(itemName, customer, label){
       '<div class="assal-return-pop__box">' +
         'المادة <b>' + safeItem + '</b> للزبون <b>' + safeCustomer + '</b> مأخوذة <span class="assal-return-pop__pill"><i class="fa-regular fa-clock"></i>' + safeLabel + '</span> وهي خارج مدة 7 أيام.' +
       '</div>' +
-      '<div class="assal-return-pop__hint"><span>قبول الراجع يكمل الإدخال وينتقل إلى حقل العدد مع إضافة ملاحظة بعدد الأيام.</span><span class="assal-return-pop__kbd">Enter</span></div>' +
+      '<div class="assal-return-pop__hint"><span>للمتابعة، اضغط زر قبول الراجع داخل النافذة.</span></div>' +
     '</div>';
 }
 function assalReturnBuildMissingReturnMessage(itemName, customer){
@@ -12281,7 +12590,7 @@ function assalReturnBuildMissingReturnMessage(itemName, customer){
       '<div class="assal-return-pop__box">' +
         'المادة <b>' + safeItem + '</b> لم يتم شراؤها من قبل الزبون <b>' + safeCustomer + '</b> مسبقاً.' +
       '</div>' +
-      '<div class="assal-return-pop__hint"><span>قبول الراجع يكمل الإدخال، ويبقى السعر فارغاً لأن النظام لم يجد سعر شراء سابق.</span><span class="assal-return-pop__kbd">Enter</span></div>' +
+      '<div class="assal-return-pop__hint"><span>للمتابعة، اضغط زر قبول الراجع؛ ويبقى السعر فارغاً لعدم وجود شراء سابق.</span></div>' +
     '</div>';
 }
 function assalReturnBuildAlreadyReturnedMessage(itemName, customer){
@@ -12296,7 +12605,7 @@ function assalReturnBuildAlreadyReturnedMessage(itemName, customer){
       '<div class="assal-return-pop__box">' +
         'المادة <b>' + safeItem + '</b> للزبون <b>' + safeCustomer + '</b> تم إرجاعها مسبقاً <span class="assal-return-pop__pill"><i class="fa-solid fa-rotate-left"></i>مرجعة مسبقاً</span>.' +
       '</div>' +
-      '<div class="assal-return-pop__hint"><span>قبول الراجع يكمل الإدخال ويضيف ملاحظة بأن المادة كانت مرجعة مسبقاً.</span><span class="assal-return-pop__kbd">Enter</span></div>' +
+      '<div class="assal-return-pop__hint"><span>للمتابعة، اضغط زر قبول الراجع داخل النافذة.</span></div>' +
     '</div>';
 }
 function assalReturnBuildPaidReturnMessage(itemName, customer){
@@ -12311,7 +12620,7 @@ function assalReturnBuildPaidReturnMessage(itemName, customer){
       '<div class="assal-return-pop__box">' +
         'المادة <b>' + safeItem + '</b> للزبون <b>' + safeCustomer + '</b> تم تسديدها مسبقاً <span class="assal-return-pop__pill"><i class="fa-solid fa-check"></i>مسددة مسبقاً</span>.' +
       '</div>' +
-      '<div class="assal-return-pop__hint"><span>قبول الراجع يكمل الإدخال ويستخدم سعر الشراء الأصلي مع إضافة ملاحظة التسديد.</span><span class="assal-return-pop__kbd">Enter</span></div>' +
+      '<div class="assal-return-pop__hint"><span>للمتابعة، اضغط زر قبول الراجع داخل النافذة.</span></div>' +
     '</div>';
 }
 function assalReturnLineToggleAgeInfo(card, line){
@@ -12507,7 +12816,7 @@ function assalActionConfirmHtml(kind, data){
         '<div><div class="assal-return-pop__title">إضافة إلى يوم سابق</div><div class="assal-return-pop__sub">تأكيد الإضافة إلى تاريخ قديم</div></div>' +
       '</div>' +
       '<div class="assal-return-pop__box">سيتم إضافة المادة <b>' + safeItem + '</b> للزبون <b>' + safeCustomer + '</b>' + (safeDay ? ' في يوم <b>' + safeDay + '</b>' : '') + '.</div>' +
-      '<div class="assal-return-pop__hint"><span>اضغط Enter للمتابعة والإضافة.</span><span class="assal-return-pop__kbd">Enter</span></div>' +
+      '<div class="assal-return-pop__hint"><span>للمتابعة، اضغط زر نعم، متابعة داخل النافذة.</span></div>' +
     '</div>';
 }
 async function assalActionConfirm(kind, data){
@@ -12524,7 +12833,8 @@ async function assalActionConfirm(kind, data){
     message:assalActionConfirmHtml(kind, data),
     okText:cfg.okText,
     cancelText:'إلغاء',
-    danger:false
+    danger:false,
+    pointerOnly:kind === 'past-day'
   });
   try{
     const modal = document.getElementById('modal');
@@ -12567,7 +12877,8 @@ async function assalReturnConfirmOldReturn(customer, itemName, daysCount, label)
     message: assalReturnBuildOldReturnMessage(itemName, customer, label),
     okText: 'قبول الراجع',
     cancelText: 'إلغاء',
-    danger: false
+    danger: false,
+    pointerOnly: true
   });
   assalReturnDecorateConfirm('old');
   return await assalReturnConfirmWithEnter(p);
@@ -12579,7 +12890,8 @@ async function assalReturnConfirmMissingReturn(customer, itemName){
     message: assalReturnBuildMissingReturnMessage(itemName, customer),
     okText: 'قبول الراجع',
     cancelText: 'إلغاء',
-    danger: false
+    danger: false,
+    pointerOnly: true
   });
   assalReturnDecorateConfirm('missing');
   return await assalReturnConfirmWithEnter(p);
@@ -12591,7 +12903,8 @@ async function assalReturnConfirmAlreadyReturned(customer, itemName){
     message: assalReturnBuildAlreadyReturnedMessage(itemName, customer),
     okText: 'قبول الراجع',
     cancelText: 'إلغاء',
-    danger: false
+    danger: false,
+    pointerOnly: true
   });
   assalReturnDecorateConfirm('returned');
   return await assalReturnConfirmWithEnter(p);
@@ -12603,7 +12916,8 @@ async function assalReturnConfirmPaidReturn(customer, itemName){
     message: assalReturnBuildPaidReturnMessage(itemName, customer),
     okText: 'قبول الراجع',
     cancelText: 'إلغاء',
-    danger: false
+    danger: false,
+    pointerOnly: true
   });
   assalReturnDecorateConfirm('paid');
   return await assalReturnConfirmWithEnter(p);
@@ -13193,10 +13507,14 @@ function updateRoleUIState(){
       : 'رفع النسخة للسيرفر';
   }
   if(importBtn){
-    importBtn.disabled = false;                  // السحب دايمًا مسموح
-    importBtn.title = isSubDevice()
-      ? 'سحب نسخة السيرفر إلى IndexedDB المحلي' 
-      : 'سحب النسخة من السيرفر (دمج ذكي)';
+    const pullBusy = window.__ASSAL_SERVER_PULL_ACTIVE__ === true;
+    importBtn.disabled = pullBusy;               // مسموح دائماً إلا أثناء السحب اليدوي الجاري
+    importBtn.setAttribute('aria-disabled', pullBusy ? 'true' : 'false');
+    importBtn.title = pullBusy
+      ? 'جاري سحب نسخة السيرفر — انتظر اكتمال العملية الحالية'
+      : (isSubDevice()
+          ? 'سحب نسخة السيرفر إلى IndexedDB المحلي'
+          : 'سحب النسخة من السيرفر (دمج ذكي)');
   }
   if(roleBtn){
     roleBtn.title = forced
@@ -14243,17 +14561,16 @@ function showToast(type='info', message='تم التنفيذ', timeout=2200){
 }
 
 async function processToastQueueUnified(){
-  if(__toastBusy) return;
+  if(__toastBusy || !__toastQueue.length) return;
   __toastBusy = true;
   try{
-    while(__toastQueue.length){
-      const entry = __toastQueue.shift() || {};
-      const type = ['success','warn','error','info'].includes(entry.type) ? entry.type : 'info';
-      const message = String(entry.message == null ? 'تم التنفيذ' : entry.message);
-      const timeout = Number.isFinite(Number(entry.timeout)) ? Math.max(250, Number(entry.timeout)) : 2200;
-      const host = document.getElementById('toasts');
-      if(!host) continue;
+    const entry = __toastQueue.shift() || {};
+    const type = ['success','warn','error','info'].includes(entry.type) ? entry.type : 'info';
+    const message = String(entry.message == null ? 'تم التنفيذ' : entry.message);
+    const timeout = Number.isFinite(Number(entry.timeout)) ? Math.max(250, Number(entry.timeout)) : 2200;
+    const host = document.getElementById('toasts');
 
+    if(host){
       try{
         const t = document.createElement('div');
         t.className = `toast ${type}`;
@@ -14324,7 +14641,7 @@ async function processToastQueueUnified(){
     const $mcancel= $('#modal-cancel');
     let __assalConfirmExtraClass = '';
 
-    function showConfirm({title='تأكيد', message='هل أنت متأكد؟', okText='تأكيد', cancelText='إلغاء', danger=true, modalClass=''}={}){
+    function showConfirm({title='تأكيد', message='هل أنت متأكد؟', okText='تأكيد', cancelText='إلغاء', danger=true, modalClass='', pointerOnly=false}={}){
       return new Promise((resolve)=>{
         if(__assalConfirmExtraClass){ try{ $modal.classList.remove(__assalConfirmExtraClass); }catch(_){ } __assalConfirmExtraClass = ''; }
         if(modalClass){ try{ $modal.classList.add(modalClass); __assalConfirmExtraClass = modalClass; }catch(_){ } }
@@ -14334,6 +14651,7 @@ async function processToastQueueUnified(){
           $modal.classList.add('assal-return-confirm-modal','assal-unified-confirm-modal');
           $modal.classList.toggle('assal-unified-confirm-danger', !!danger);
           $modal.classList.toggle('assal-unified-confirm-safe', !danger);
+          $modal.classList.toggle('assal-confirm-pointer-only', !!pointerOnly);
         }catch(_){ }
 
         $mtitle.textContent = title;
@@ -14374,7 +14692,11 @@ async function processToastQueueUnified(){
               e.preventDefault();
               e.stopPropagation();
               e.stopImmediatePropagation();
-              $mok.click();
+              if(!pointerOnly) $mok.click();
+            }else if(pointerOnly && (e.key === ' ' || e.code === 'Space')){
+              e.preventDefault();
+              e.stopPropagation();
+              e.stopImmediatePropagation();
             }else if(e.key === 'Escape'){
               /* مقفلة: الخروج يكون من زر الإلغاء داخل النافذة فقط. */
               e.preventDefault();
@@ -14397,21 +14719,33 @@ async function processToastQueueUnified(){
           $modal.classList.remove('active');
           if(__assalConfirmExtraClass){ try{ $modal.classList.remove(__assalConfirmExtraClass); }catch(_){ } __assalConfirmExtraClass = ''; }
           try{
-            $modal.classList.remove('assal-return-confirm-modal','assal-unified-confirm-modal','assal-unified-confirm-danger','assal-unified-confirm-safe');
+            $modal.classList.remove('assal-return-confirm-modal','assal-unified-confirm-modal','assal-unified-confirm-danger','assal-unified-confirm-safe','assal-confirm-pointer-only');
           }catch(_){ }
           document.body.style.overflow = previousOverflow;
           $mok.onclick = null;
+          $mok.onpointerdown = null;
+          $mok.ontouchstart = null;
           $mcancel.onclick = null;
           resolve(val);
         };
 
-        $mok.onclick     = ()=> done(true);
+        let pointerApprovalArmed = false;
+        $mok.onpointerdown = ()=>{ pointerApprovalArmed = true; };
+        $mok.ontouchstart = ()=>{ pointerApprovalArmed = true; };
+        $mok.onclick = (ev)=>{
+          /* في التنبيهات المرتبطة بحركة الإدخال: القبول يكون بنقرة/لمسة فعلية فقط. */
+          if(pointerOnly && !pointerApprovalArmed && !(ev && Number(ev.detail || 0) > 0)) return;
+          pointerApprovalArmed = false;
+          done(true);
+        };
         $mcancel.onclick = ()=> done(false);
 
         /* تأخير الربط يمنع ضغطة Enter التي فتحت النافذة من تأكيدها فوراً. */
         keyAttachTimer = setTimeout(()=>{
           try{ window.addEventListener('keydown', onUnifiedConfirmKey, true); }catch(_){ }
-          try{ $mok.focus({preventScroll:true}); }catch(_){ try{ $mok.focus(); }catch(__){ } }
+          if(!pointerOnly){
+            try{ $mok.focus({preventScroll:true}); }catch(_){ try{ $mok.focus(); }catch(__){ } }
+          }
         }, 0);
       });
     }
@@ -21104,54 +21438,641 @@ document.getElementById('btnNextDay')?.addEventListener('click', toggleNextDayFr
 // التصدير الآن يرفع إلى السيرفر (ويب آب)
 btnExportAll && (btnExportAll.onclick = smartExportToServer);
 
+/* =====================================================================
+   ASSAL SERVER PULL PROGRESS — توست واحد لمراحل زر سحب نسخة السيرفر
+   - لا يغيّر منطق الرفع/السحب/الدمج أو ترتيب عملياته الحالية.
+   - يلغي فقط توستات مسار زر السحب القديمة أثناء هذه العملية.
+   - يبقي الصفحة قابلة للاستخدام، ويعطّل زر السحب وحده حتى النهاية.
+===================================================================== */
+const ASSAL_SERVER_PULL_PROGRESS_TOTAL = 8;
+let assalServerPullInProgress = false;
+let assalServerPullProgressHideTimer = 0;
+let assalServerPullCurrentStage = 'تهيئة السحب';
+let assalServerPullCurrentProgress = {step:0, percent:0};
+
+function assalServerPullYield(){
+  return new Promise(resolve=>{
+    if(typeof requestAnimationFrame === 'function'){
+      requestAnimationFrame(()=>setTimeout(resolve,0));
+    }else{
+      setTimeout(resolve,0);
+    }
+  });
+}
+
+function assalServerPullEnsureProgressToast(){
+  let host = document.getElementById('assalServerPullProgressHost');
+  if(host) return host;
+
+  if(!document.getElementById('assalServerPullProgressStyle')){
+    const style = document.createElement('style');
+    style.id = 'assalServerPullProgressStyle';
+    style.textContent = `
+#assalServerPullProgressHost{
+  position:fixed;
+  top:calc(var(--hdr-h, 54px) + 12px);
+  left:50%;
+  transform:translateX(-50%);
+  width:min(720px, calc(100vw - 28px));
+  z-index:2147483595;
+  pointer-events:none;
+  direction:rtl;
+  font-family:var(--ui-font, "Cairo", system-ui) !important;
+  contain:layout style paint;
+}
+#assalServerPullProgressToast{
+  display:none;
+  position:relative;
+  overflow:hidden;
+  border-radius:17px;
+  border:1px solid rgba(56,189,248,.28);
+  background:
+    radial-gradient(430px 150px at 100% 0%, rgba(14,165,233,.15), transparent 68%),
+    radial-gradient(350px 130px at 0% 100%, rgba(37,99,235,.12), transparent 70%),
+    linear-gradient(180deg, rgba(15,29,53,.96), rgba(7,18,37,.97));
+  box-shadow:0 18px 48px rgba(0,0,0,.48), inset 0 1px 0 rgba(255,255,255,.055);
+  color:#eef7ff;
+  backdrop-filter:blur(13px);
+  -webkit-backdrop-filter:blur(13px);
+  opacity:0;
+  transform:translateY(-7px) scale(.992);
+}
+#assalServerPullProgressToast.is-visible{
+  display:block;
+  opacity:1;
+  transform:translateY(0) scale(1);
+  animation:assalServerPullToastIn .20s ease-out both;
+}
+#assalServerPullProgressToast.is-success{border-color:rgba(74,222,128,.36)}
+#assalServerPullProgressToast.is-error{border-color:rgba(251,113,133,.44)}
+#btnImportAll.assal-server-pull-static-busy{
+  animation:none !important;
+  transition:none !important;
+  transform:none !important;
+  translate:none !important;
+  scale:1 !important;
+  pointer-events:none !important;
+}
+#btnImportAll.assal-server-pull-static-busy *{
+  animation:none !important;
+  transition:none !important;
+  transform:none !important;
+}
+.assal-server-pull-progress-main{
+  display:grid;
+  grid-template-columns:46px minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+  padding:12px 14px 11px;
+}
+.assal-server-pull-progress-icon{
+  width:46px;
+  height:46px;
+  display:grid;
+  place-items:center;
+  border-radius:14px;
+  color:#fff;
+  font-size:17px;
+  background:linear-gradient(135deg,#0284c7,#1d4ed8);
+  box-shadow:0 10px 24px rgba(14,165,233,.18), inset 0 1px 0 rgba(255,255,255,.13);
+}
+#assalServerPullProgressToast.is-success .assal-server-pull-progress-icon{
+  background:linear-gradient(135deg,#059669,#15803d);
+}
+#assalServerPullProgressToast.is-error .assal-server-pull-progress-icon{
+  background:linear-gradient(135deg,#dc2626,#9f1239);
+}
+.assal-server-pull-progress-copy{min-width:0;text-align:right}
+.assal-server-pull-progress-copy b{
+  display:block;
+  color:#fff;
+  font-size:14px;
+  line-height:1.35;
+  font-weight:950;
+  letter-spacing:.1px;
+}
+.assal-server-pull-progress-copy span{
+  display:block;
+  margin-top:4px;
+  color:#b9c8dc;
+  font-size:11.5px;
+  line-height:1.45;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.assal-server-pull-progress-meta{
+  min-width:76px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:2px;
+  padding:5px 8px;
+  border-radius:11px;
+  border:1px solid rgba(125,211,252,.15);
+  background:rgba(2,6,23,.25);
+}
+.assal-server-pull-progress-meta strong{
+  color:#bae6fd;
+  font-size:13px;
+  font-weight:950;
+  font-variant-numeric:tabular-nums;
+}
+.assal-server-pull-progress-meta span{
+  color:#8fa4be;
+  font-size:9.5px;
+  white-space:nowrap;
+}
+.assal-server-pull-progress-track{
+  height:5px;
+  overflow:hidden;
+  background:rgba(148,163,184,.13);
+  border-top:1px solid rgba(148,163,184,.08);
+}
+#assalServerPullProgressBar{
+  position:relative;
+  width:0%;
+  height:100%;
+  background:linear-gradient(90deg,#22d3ee,#2563eb,#38bdf8);
+  background-size:180% 100%;
+  box-shadow:0 0 14px rgba(34,211,238,.30);
+  transition:width .30s ease;
+  animation:assalServerPullBarFlow 2.3s linear infinite;
+}
+#assalServerPullProgressToast.is-success #assalServerPullProgressBar{
+  background:linear-gradient(90deg,#22c55e,#4ade80);
+  animation:none;
+}
+#assalServerPullProgressToast.is-error #assalServerPullProgressBar{
+  background:linear-gradient(90deg,#ef4444,#fb7185);
+  animation:none;
+}
+@keyframes assalServerPullToastIn{
+  from{opacity:0;transform:translateY(-7px) scale(.992)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes assalServerPullBarFlow{
+  from{background-position:0 0}
+  to{background-position:180% 0}
+}
+@media(max-width:640px){
+  #assalServerPullProgressHost{width:calc(100vw - 18px);top:calc(var(--hdr-h, 54px) + 8px)}
+  .assal-server-pull-progress-main{grid-template-columns:40px minmax(0,1fr) auto;gap:9px;padding:10px}
+  .assal-server-pull-progress-icon{width:40px;height:40px;border-radius:12px;font-size:15px}
+  .assal-server-pull-progress-copy b{font-size:12.5px}
+  .assal-server-pull-progress-copy span{font-size:10.5px}
+  .assal-server-pull-progress-meta{min-width:66px;padding-inline:5px}
+}
+@media(prefers-reduced-motion:reduce){
+  #assalServerPullProgressToast.is-visible,
+  #assalServerPullProgressBar{animation:none !important;transition:none !important}
+}
+`;
+    document.head.appendChild(style);
+  }
+
+  host = document.createElement('div');
+  host.id = 'assalServerPullProgressHost';
+  host.innerHTML = `
+    <div id="assalServerPullProgressToast" role="status" aria-live="polite" aria-atomic="true" aria-hidden="true">
+      <div class="assal-server-pull-progress-main">
+        <div class="assal-server-pull-progress-icon"><i id="assalServerPullProgressIcon" class="fa-solid fa-cloud-arrow-down"></i></div>
+        <div class="assal-server-pull-progress-copy">
+          <b id="assalServerPullProgressTitle">جاري سحب نسخة السيرفر</b>
+          <span id="assalServerPullProgressDetail">تهيئة عملية السحب الآمن</span>
+        </div>
+        <div class="assal-server-pull-progress-meta">
+          <strong id="assalServerPullProgressPct">0%</strong>
+          <span id="assalServerPullProgressStep">مرحلة 0 من ${ASSAL_SERVER_PULL_PROGRESS_TOTAL}</span>
+        </div>
+      </div>
+      <div class="assal-server-pull-progress-track"><div id="assalServerPullProgressBar"></div></div>
+    </div>`;
+  document.body.appendChild(host);
+  return host;
+}
+
+function assalServerPullProgressSet(options){
+  const opt = options || {};
+  clearTimeout(assalServerPullProgressHideTimer);
+  const host = assalServerPullEnsureProgressToast();
+  const toast = host.querySelector('#assalServerPullProgressToast');
+  const state = String(opt.state || 'working');
+  const percent = Math.max(0, Math.min(100, Number(opt.percent || 0)));
+  const step = Math.max(0, Math.min(ASSAL_SERVER_PULL_PROGRESS_TOTAL, Number(opt.step || 0)));
+  assalServerPullCurrentProgress = {step, percent};
+
+  toast.classList.remove('is-success','is-error');
+  if(state === 'success') toast.classList.add('is-success');
+  if(state === 'error') toast.classList.add('is-error');
+  toast.classList.add('is-visible');
+  toast.setAttribute('aria-hidden','false');
+
+  host.querySelector('#assalServerPullProgressTitle').textContent = String(opt.title || 'جاري سحب نسخة السيرفر');
+  host.querySelector('#assalServerPullProgressDetail').textContent = String(opt.detail || 'يرجى الانتظار');
+  host.querySelector('#assalServerPullProgressPct').textContent = Math.round(percent) + '%';
+  host.querySelector('#assalServerPullProgressStep').textContent = state === 'success'
+    ? 'اكتمل السحب'
+    : (state === 'error' ? 'توقف السحب' : ('مرحلة ' + step + ' من ' + ASSAL_SERVER_PULL_PROGRESS_TOTAL));
+  host.querySelector('#assalServerPullProgressBar').style.width = percent + '%';
+  host.querySelector('#assalServerPullProgressIcon').className = String(opt.icon || 'fa-solid fa-spinner fa-spin');
+}
+
+function assalServerPullProgressHide(delay){
+  clearTimeout(assalServerPullProgressHideTimer);
+  assalServerPullProgressHideTimer = setTimeout(()=>{
+    const host = document.getElementById('assalServerPullProgressHost');
+    const toast = host?.querySelector('#assalServerPullProgressToast');
+    if(!toast) return;
+    toast.classList.remove('is-visible','is-success','is-error');
+    toast.setAttribute('aria-hidden','true');
+  }, Math.max(0, Number(delay || 0)));
+}
+
+function assalServerPullProgressSuccess(result){
+  const info = result && typeof result === 'object' ? result : {};
+  const detailParts = [];
+  if(info.summary) detailParts.push(String(info.summary));
+  if(info.transferMessage) detailParts.push(String(info.transferMessage));
+  assalServerPullProgressSet({
+    state:'success',
+    step:ASSAL_SERVER_PULL_PROGRESS_TOTAL,
+    percent:100,
+    title:info.mode === 'sub' ? 'اكتمل سحب نسخة السيرفر' : 'اكتملت مزامنة السحب بنجاح',
+    detail:detailParts.join(' • ') || 'تم تطبيق نسخة السيرفر وتحديث الواجهة بنجاح',
+    icon:'fa-solid fa-circle-check'
+  });
+  assalServerPullProgressHide(5600);
+}
+
+function assalServerPullProgressError(stage, err, title){
+  const last = assalServerPullCurrentProgress || {step:0,percent:0};
+  assalServerPullProgressSet({
+    state:'error',
+    step:last.step,
+    percent:last.percent,
+    title:String(title || 'تعذر إكمال سحب نسخة السيرفر'),
+    detail:String(stage || 'مرحلة غير محددة') + ' — ' + String(err?.message || err || 'خطأ غير معروف'),
+    icon:'fa-solid fa-triangle-exclamation'
+  });
+  assalServerPullProgressHide(10000);
+}
+
+function assalServerPullProgressFromImport(stage, data){
+  const d = data && typeof data === 'object' ? data : {};
+  if(stage === 'fetch-start'){
+    assalServerPullCurrentStage = 'جلب نسخة الدمج المعتمدة من السيرفر';
+    assalServerPullProgressSet({step:5,percent:45,title:'جلب نسخة الدمج من السيرفر',detail:'الاتصال بالسيرفر وطلب أحدث نسخة قابلة للتطبيق',icon:'fa-solid fa-cloud-arrow-down'});
+  }else if(stage === 'fetch-done'){
+    assalServerPullCurrentStage = 'فحص بنية نسخة السيرفر';
+    assalServerPullProgressSet({step:5,percent:54,title:'تم استلام نسخة السيرفر',detail:Number(d.days || 0).toLocaleString('en-US') + ' يوم جاهز للفحص',icon:'fa-solid fa-cloud-circle-check'});
+  }else if(stage === 'validate'){
+    assalServerPullCurrentStage = 'فحص سلامة بيانات السيرفر';
+    assalServerPullProgressSet({step:6,percent:60,title:'فحص سلامة البيانات',detail:'التحقق من الأيام والبطاقات والأسماء والحسابات المالية',icon:'fa-solid fa-shield-halved'});
+  }else if(stage === 'merge-start'){
+    assalServerPullCurrentStage = 'تنفيذ الدمج الذكي';
+    assalServerPullProgressSet({step:6,percent:64,title:'تنفيذ الدمج الذكي',detail:'مقارنة النسخة المحلية مع نسخة السيرفر بدون حذف تلقائي',icon:'fa-solid fa-code-merge'});
+  }else if(stage === 'merge-done'){
+    assalServerPullCurrentStage = 'حفظ نتيجة الدمج محلياً';
+    assalServerPullProgressSet({step:6,percent:68,title:'اكتملت مقارنة البيانات',detail:Number(d.changes || 0).toLocaleString('en-US') + ' تغيير ضمن تقرير الدمج',icon:'fa-solid fa-code-merge'});
+  }else if(stage === 'save-days'){
+    assalServerPullCurrentStage = 'حفظ الأيام والبطاقات محلياً';
+    assalServerPullProgressSet({step:6,percent:72,title:'حفظ الأيام والبطاقات',detail:'تثبيت البيانات داخل مخزن IndexedDB المحلي',icon:'fa-solid fa-database'});
+  }else if(stage === 'save-names'){
+    assalServerPullCurrentStage = 'حفظ أسماء الزبائن';
+    assalServerPullProgressSet({step:6,percent:76,title:'حفظ أسماء الزبائن',detail:'تحديث قائمة الأسماء المرتبطة بالبطاقات',icon:'fa-solid fa-users'});
+  }else if(stage === 'save-payments'){
+    assalServerPullCurrentStage = 'حفظ الحسابات المالية';
+    assalServerPullProgressSet({step:6,percent:80,title:'حفظ الحسابات المالية',detail:'تثبيت التسديدات والسحوبات مع منع التكرار',icon:'fa-solid fa-money-check-dollar'});
+  }else if(stage === 'reload'){
+    assalServerPullCurrentStage = 'تحميل النسخة المحفوظة إلى الذاكرة';
+    assalServerPullProgressSet({step:7,percent:84,title:'تحميل البيانات المحفوظة',detail:'تهيئة النسخة الجديدة لعرضها داخل النظام',icon:'fa-solid fa-rotate'});
+  }else if(stage === 'audit'){
+    assalServerPullCurrentStage = 'تحديث أرشيف اليوم الظاهر';
+    assalServerPullProgressSet({step:7,percent:89,title:'تحديث أرشيف اليوم الظاهر',detail:'جلب سجل البطاقة واليوم للقراءة بعد اكتمال السحب',icon:'fa-solid fa-clock-rotate-left'});
+  }else if(stage === 'render'){
+    assalServerPullCurrentStage = 'تحديث واجهة النظام';
+    assalServerPullProgressSet({step:7,percent:94,title:'تحديث واجهة النظام',detail:'إعادة عرض البطاقات والأيام والمجاميع من النسخة المحفوظة',icon:'fa-solid fa-display'});
+  }else if(stage === 'complete'){
+    assalServerPullCurrentStage = 'إنهاء عملية السحب';
+    assalServerPullProgressSet({step:8,percent:98,title:'اكتملت مراحل السحب',detail:'تثبيت النتيجة النهائية وتجهيز ملخص العملية',icon:'fa-solid fa-circle-check'});
+  }
+}
+
+function assalServerPullWait(ms, signal){
+  return new Promise((resolve, reject)=>{
+    if(signal?.aborted){
+      const err = new Error('تم إلغاء طلب السحب');
+      err.name = 'AbortError';
+      reject(err);
+      return;
+    }
+    let settled = false;
+    const timer = setTimeout(()=>{
+      if(settled) return;
+      settled = true;
+      try{ signal?.removeEventListener?.('abort', onAbort); }catch(_){ }
+      resolve();
+    }, Math.max(0, Number(ms || 0)));
+    function onAbort(){
+      if(settled) return;
+      settled = true;
+      clearTimeout(timer);
+      const err = new Error('تم إلغاء طلب السحب');
+      err.name = 'AbortError';
+      reject(err);
+    }
+    try{ signal?.addEventListener?.('abort', onAbort, {once:true}); }catch(_){ }
+  });
+}
+
+function assalServerPullHttpError(status, statusText, bodyPreview){
+  const code = Number(status || 0);
+  const suffix = String(bodyPreview || '').trim().replace(/\s+/g,' ').slice(0,220);
+  const err = new Error('فشل سحب نسخة السيرفر (HTTP ' + code + (statusText ? ' ' + statusText : '') + ')' + (suffix ? ' — ' + suffix : ''));
+  err.httpStatus = code;
+  err.retryable = code === 0 || code === 404 || code === 408 || code === 409 || code === 425 || code === 429 || code >= 500;
+  return err;
+}
+
+async function assalServerPullParseJsonText(textValue){
+  const raw = String(textValue == null ? '' : textValue);
+  if(!raw.trim()) throw new Error('رد السيرفر فارغ');
+
+  // الملفات الكبيرة تُحلل خارج خيط الواجهة عند توفر Worker لتجنب توقف معاينة OneCompiler.
+  if(raw.length >= 262144 && typeof Worker === 'function' && typeof Blob === 'function' && typeof URL !== 'undefined' && URL.createObjectURL){
+    try{
+      return await new Promise((resolve, reject)=>{
+        const src = 'self.onmessage=function(e){try{self.postMessage({ok:true,data:JSON.parse(e.data)});}catch(err){self.postMessage({ok:false,error:String(err&&err.message||err)});}};';
+        const url = URL.createObjectURL(new Blob([src], {type:'application/javascript'}));
+        const worker = new Worker(url);
+        let done = false;
+        const finish = ()=>{ try{ worker.terminate(); }catch(_){ } try{ URL.revokeObjectURL(url); }catch(_){ } };
+        const timer = setTimeout(()=>{
+          if(done) return;
+          done = true;
+          finish();
+          reject(new Error('استغرق تحليل نسخة السيرفر وقتاً أطول من المسموح'));
+        }, 45000);
+        worker.onmessage = ev=>{
+          if(done) return;
+          done = true;
+          clearTimeout(timer);
+          const data = ev.data || {};
+          finish();
+          if(data.ok) resolve(data.data);
+          else reject(new Error('نسخة السيرفر ليست JSON صالحاً: ' + String(data.error || 'خطأ تحليل')));
+        };
+        worker.onerror = ()=>{
+          if(done) return;
+          done = true;
+          clearTimeout(timer);
+          finish();
+          reject(new Error('تعذر تشغيل محلل نسخة السيرفر'));
+        };
+        worker.postMessage(raw);
+      });
+    }catch(workerErr){
+      console.warn('[ASSAL ADMIN SERVER PULL] worker JSON parse fallback', workerErr);
+      await assalServerPullYield();
+    }
+  }
+
+  try{ return JSON.parse(raw); }
+  catch(parseErr){ throw new Error('نسخة السيرفر ليست JSON صالحاً: ' + String(parseErr?.message || parseErr)); }
+}
+
+async function assalServerPullFetchSubBackupOnce(timeoutMs){
+  const base = SYNC.BASE_URL;
+  const sep = base.includes('?') ? '&' : '?';
+  const url = `${base}${sep}token=${encodeURIComponent(SYNC.TOKEN)}&_=${Date.now()}`;
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(()=>{ timedOut = true; try{ controller.abort(); }catch(_){ } }, Math.max(15000, Number(timeoutMs || 45000)));
+
+  try{
+    const resp = await fetch(url, {
+      method:'GET',
+      cache:'no-store',
+      signal:controller.signal
+    });
+    const raw = await resp.text();
+    if(!resp.ok) throw assalServerPullHttpError(resp.status, resp.statusText, raw);
+    const server = await assalServerPullParseJsonText(raw);
+    if(!server || typeof server !== 'object') throw new Error('استجابة السيرفر لا تحتوي نسخة قابلة للقراءة');
+    return server;
+  }catch(err){
+    if(err?.name === 'AbortError' && timedOut){
+      const timeoutErr = new Error('انتهت مهلة انتظار رد السيرفر');
+      timeoutErr.retryable = true;
+      timeoutErr.code = 'PULL_TIMEOUT';
+      throw timeoutErr;
+    }
+    if(err?.name === 'AbortError') throw err;
+    if(typeof err?.retryable !== 'boolean'){
+      err.retryable = err instanceof TypeError || /network|fetch|connection|load failed|failed to fetch/i.test(String(err?.message || err));
+    }
+    throw err;
+  }finally{
+    clearTimeout(timer);
+  }
+}
+
+async function assalServerPullGetSubBackupWithRetry(){
+  const maxAttempts = 4;
+  const waits = [0, 1200, 2400, 4000];
+  let lastError = null;
+
+  for(let attempt = 1; attempt <= maxAttempts; attempt++){
+    assalServerPullCurrentStage = 'سحب نسخة السيرفر — المحاولة ' + attempt + ' من ' + maxAttempts;
+    assalServerPullProgressSet({
+      step:3,
+      percent:attempt === 1 ? 27 : (attempt === 2 ? 31 : (attempt === 3 ? 35 : 38)),
+      title:'سحب نسخة السيرفر',
+      detail:'محاولة الاتصال ' + attempt + ' من ' + maxAttempts + ' — بدون رفع أي بيانات من حاسبة الأدمن',
+      icon:'fa-solid fa-cloud-arrow-down'
+    });
+    await assalServerPullYield();
+
+    try{
+      const server = await assalServerPullFetchSubBackupOnce(50000);
+      return server;
+    }catch(err){
+      lastError = err;
+      console.warn('[ASSAL ADMIN SERVER PULL] GET attempt failed', attempt, {
+        message:String(err?.message || err),
+        status:Number(err?.httpStatus || 0),
+        retryable:err?.retryable === true
+      });
+
+      if(attempt >= maxAttempts || err?.retryable === false) break;
+      assalServerPullCurrentStage = 'انتظار إعادة محاولة سحب نسخة السيرفر';
+      assalServerPullProgressSet({
+        step:3,
+        percent:attempt === 1 ? 29 : (attempt === 2 ? 33 : 37),
+        title:'تعذر الاتصال مؤقتاً',
+        detail:'ستتم إعادة المحاولة تلقائياً (' + (attempt + 1) + ' من ' + maxAttempts + ') — ' + String(err?.message || 'خطأ اتصال'),
+        icon:'fa-solid fa-clock-rotate-left'
+      });
+      await assalServerPullWait(waits[attempt] || 1500);
+    }
+  }
+
+  throw lastError || new Error('تعذر سحب نسخة السيرفر بعد المحاولات التلقائية');
+}
+
 btnImportAll && (btnImportAll.onclick = async () => {
-if (document.visibilityState !== 'visible'){
-return showToast?.('warn','افتح التبويب قدّامك قبل السحب');
-}
-if (!navigator.onLine){
-return showToast?.('error','ماكو إنترنت للسحب');
-}
+  if(assalServerPullInProgress){
+    assalServerPullProgressSet({
+      step:Math.max(1, Number(assalServerPullCurrentProgress?.step || 1)),
+      percent:Math.max(4, Number(assalServerPullCurrentProgress?.percent || 4)),
+      title:'سحب نسخة السيرفر قيد التنفيذ',
+      detail:'انتظر اكتمال العملية الحالية؛ تم منع تشغيل سحب ثانٍ متزامن',
+      icon:'fa-solid fa-hourglass-half'
+    });
+    return;
+  }
 
+  if(document.visibilityState !== 'visible'){
+    assalServerPullCurrentStage = 'التحقق من ظهور التبويب';
+    assalServerPullProgressSet({step:1,percent:4,title:'تعذر بدء السحب',detail:'افتح التبويب قدّامك ثم أعد المحاولة',state:'error',icon:'fa-solid fa-eye-slash'});
+    assalServerPullProgressHide(6500);
+    return;
+  }
+  if(!navigator.onLine){
+    assalServerPullCurrentStage = 'التحقق من اتصال الإنترنت';
+    assalServerPullProgressSet({step:1,percent:4,title:'تعذر بدء السحب',detail:'ماكو اتصال إنترنت متاح للسحب من السيرفر',state:'error',icon:'fa-solid fa-wifi'});
+    assalServerPullProgressHide(6500);
+    return;
+  }
 
-// قفل الأوتو-سنك مؤقت
-const unlockAt = Date.now() + 20_000;
-SYNC_BLOCK_UNTIL = Math.max(SYNC_BLOCK_UNTIL, unlockAt);
+  const oldDisabled = !!btnImportAll.disabled;
+  assalServerPullInProgress = true;
+  window.__ASSAL_SERVER_PULL_ACTIVE__ = true;
+  assalServerPullCurrentStage = 'تهيئة عملية السحب';
+  assalServerPullCurrentProgress = {step:1,percent:4};
 
+  try{
+    btnImportAll.disabled = true;
+    btnImportAll.setAttribute('aria-busy','true');
+    btnImportAll.classList.add('assal-server-pull-static-busy');
 
-cancelInFlightSync();
+    assalServerPullProgressSet({
+      step:1,
+      percent:4,
+      title:'جاري تهيئة سحب نسخة السيرفر',
+      detail:'تثبيت حالة العملية ومنع تداخل سحب آخر أثناء التنفيذ',
+      icon:'fa-solid fa-cloud-arrow-down'
+    });
+    await assalServerPullYield();
 
+    // قفل الأوتو-سنك مؤقت — نفس السلوك السابق.
+    const unlockAt = Date.now() + 20_000;
+    SYNC_BLOCK_UNTIL = Math.max(SYNC_BLOCK_UNTIL, unlockAt);
+    cancelInFlightSync();
 
-try{
-// === سلوك الفرعية: سحب فقط بدون أي رفع ===
-if (typeof isSubDevice === 'function' && isSubDevice()){
-showToast?.('info','جهاز فرعي: نسحب فقط بدون رفع…');
-const server = await serverGetBackup(getSyncSignal());
-await smartImportFromServer?.(server);
-showToast?.('success','تم السحب (بدون رفع)');
-return;
-}
+    const subMode = (typeof isSubDevice === 'function' && isSubDevice());
 
+    if(subMode){
+      assalServerPullCurrentStage = 'تجهيز السحب المباشر للحاسبة الفرعية';
+      assalServerPullProgressSet({
+        step:2,
+        percent:16,
+        title:'تجهيز السحب المباشر',
+        detail:'الحاسبة الفرعية ستسحب وتحفظ محلياً بدون رفع أي بيانات',
+        icon:'fa-solid fa-computer'
+      });
+      await assalServerPullYield();
 
-// === سلوك الرئيسية: نرفع أولاً ثم نسحب ===
-showToast?.('info','نرفع التعديلات المحلية أولًا…');
-const payload = buildBackupPayload();
-await serverPostBackup(payload, getSyncSignal());
+      const server = await assalServerPullGetSubBackupWithRetry();
+      assalServerPullProgressSet({
+        step:4,
+        percent:40,
+        title:'تم استلام نسخة السيرفر',
+        detail:'نجح السحب؛ بدء فحص النسخة وحفظها محلياً بدون طلب GET ثانٍ',
+        icon:'fa-solid fa-cloud-circle-check'
+      });
 
+      const result = await smartImportFromServer({
+        __assalPullProgressV1:true,
+        suppressToasts:true,
+        throwOnError:true,
+        onProgress:assalServerPullProgressFromImport,
+        preloadedServer:server
+      });
+      assalServerPullProgressSuccess(result);
+      return;
+    }
 
-showToast?.('info','حسنًا، هسّه نسحب آخر نسخة من السيرفر…');
-const server = await serverGetBackup(getSyncSignal());
+    assalServerPullCurrentStage = 'تجهيز التعديلات المحلية للرفع';
+    assalServerPullProgressSet({
+      step:2,
+      percent:14,
+      title:'تجهيز التعديلات المحلية',
+      detail:'إنشاء نفس نسخة الرفع الحالية قبل تنفيذ السحب من السيرفر',
+      icon:'fa-solid fa-boxes-stacked'
+    });
+    const payload = buildBackupPayload();
+    await assalServerPullYield();
 
+    assalServerPullCurrentStage = 'رفع التعديلات المحلية أولاً';
+    assalServerPullProgressSet({
+      step:3,
+      percent:24,
+      title:'رفع التعديلات المحلية أولاً',
+      detail:'حماية آخر تغييرات الحاسبة الرئيسية قبل جلب نسخة السيرفر',
+      icon:'fa-solid fa-cloud-arrow-up'
+    });
+    await serverPostBackup(payload, getSyncSignal());
+    assalServerPullProgressSet({
+      step:3,
+      percent:32,
+      title:'اكتمل رفع التعديلات المحلية',
+      detail:'تم حفظ النسخة المحلية على السيرفر بنجاح قبل السحب',
+      icon:'fa-solid fa-cloud-circle-check'
+    });
 
-// دمج/استبدال بحسب منطقك الحالي في smartImportFromServer
-await smartImportFromServer?.(server);
+    assalServerPullCurrentStage = 'تأكيد جاهزية آخر نسخة على السيرفر';
+    assalServerPullProgressSet({
+      step:4,
+      percent:36,
+      title:'فحص آخر نسخة على السيرفر',
+      detail:'التأكد من جاهزية النسخة بعد اكتمال الرفع وقبل الدمج',
+      icon:'fa-solid fa-satellite-dish'
+    });
+    const server = await serverGetBackup(getSyncSignal());
+    void server; // إبقاء جلب التحقق نفسه كما كان سابقاً، بدون تغيير ترتيب السلوك.
+    assalServerPullProgressSet({
+      step:4,
+      percent:40,
+      title:'آخر نسخة جاهزة للسحب',
+      detail:'نجح فحص نسخة السيرفر؛ بدء مسار الدمج الذكي الحالي',
+      icon:'fa-solid fa-cloud-circle-check'
+    });
 
-
-showToast?.('success','تم الرفع ثم السحب بنجاح');
-}catch(e){
-if (e.name === 'AbortError') return; // تم إلغاء العملية
-console.error(e);
-showToast?.('error','فشل إجراء السحب: '+ (e?.message||e));
-}
+    const result = await smartImportFromServer({
+      __assalPullProgressV1:true,
+      suppressToasts:true,
+      throwOnError:true,
+      onProgress:assalServerPullProgressFromImport
+    });
+    assalServerPullProgressSuccess(result);
+  }catch(e){
+    if(e?.name === 'AbortError'){
+      assalServerPullProgressError(assalServerPullCurrentStage, new Error('تم إلغاء الطلب قبل اكتمال تطبيق البيانات'), 'تم إلغاء سحب نسخة السيرفر');
+    }else{
+      console.error(e);
+      assalServerPullProgressError(assalServerPullCurrentStage, e);
+    }
+  }finally{
+    assalServerPullInProgress = false;
+    window.__ASSAL_SERVER_PULL_ACTIVE__ = false;
+    btnImportAll.disabled = oldDisabled;
+    btnImportAll.removeAttribute('aria-busy');
+    btnImportAll.classList.remove('assal-server-pull-static-busy');
+    try{ updateRoleUIState(); }catch(_){ btnImportAll.disabled = oldDisabled; }
+  }
 });
 
 
@@ -24938,24 +25859,64 @@ function mergeAllDays(localDays, remoteDays){
 
 
 // استيراد ذكي: يسحب من السيرفر إذا هو أحدث (أو إذا المحلي فارغ)
-async function smartImportFromServer(){
+async function smartImportFromServer(options){
+  const progressMode = !!(options && options.__assalPullProgressV1 === true);
+  const notify = function(type, message, timeout){
+    if(progressMode && options?.suppressToasts) return;
+    try{ showToast(type, message, timeout); }catch(_){ }
+  };
+  const emit = function(stage, data){
+    if(!progressMode || typeof options?.onProgress !== 'function') return;
+    try{ options.onProgress(stage, data || {}); }catch(_){ }
+  };
+  const progressError = function(message, code){
+    const err = new Error(String(message || 'تعذر إكمال السحب'));
+    if(code) err.code = code;
+    return err;
+  };
+
   if(!window.IS_SIGNED_IN){
-    showToast('warn','سجّل دخول أولاً');
-    return;
+    notify('warn','سجّل دخول أولاً');
+    const err = progressError('سجّل دخول أولاً', 'NOT_SIGNED_IN');
+    if(progressMode && options?.throwOnError) throw err;
+    return {ok:false, error:err};
   }
 
   try{
-    // فرق برسالة التوست حسب الهوية
+    // فرق برسالة التوست حسب الهوية — يبقى للمسارات القديمة فقط.
     const subMode = (typeof isSubDevice === 'function' && isSubDevice());
-    showToast('info', subMode
-      ? 'جاري سحب نسخة السيرفر وحفظها محلياً داخل IndexedDB بدون حذف...' 
+    notify('info', subMode
+      ? 'جاري سحب نسخة السيرفر وحفظها محلياً داخل IndexedDB بدون حذف...'
       : 'جاري جلب آخر نسخة من السيرفر…', 1800);
 
-    const server = await serverGetBackup();
-    if(!server || !server.days){
-      showToast('warn','ماكو نسخة على السيرفر بعد');
-      return;
+    const hasPreloadedServer = !!(progressMode && options && Object.prototype.hasOwnProperty.call(options, 'preloadedServer'));
+    let server;
+    if(hasPreloadedServer){
+      server = options.preloadedServer;
+      emit('fetch-done', {
+        mode:subMode ? 'sub' : 'main',
+        days:Object.keys((server && server.days) || {}).length,
+        names:Array.isArray(server?.names) ? server.names.length : 0,
+        preloaded:true
+      });
+    }else{
+      emit('fetch-start', {mode:subMode ? 'sub' : 'main'});
+      server = await serverGetBackup();
+      emit('fetch-done', {
+        mode:subMode ? 'sub' : 'main',
+        days:Object.keys((server && server.days) || {}).length,
+        names:Array.isArray(server?.names) ? server.names.length : 0
+      });
     }
+
+    if(!server || !server.days){
+      notify('warn','ماكو نسخة على السيرفر بعد');
+      const err = progressError('ماكو نسخة صالحة على السيرفر بعد', 'NO_SERVER_BACKUP');
+      if(progressMode && options?.throwOnError) throw err;
+      return {ok:false, error:err};
+    }
+
+    emit('validate', {mode:subMode ? 'sub' : 'main'});
 
     // [NEW] أدوات إزالة التكرار لتسديدات قائمة الحسابات المالية
     const __paymentKey__ = function(p){
@@ -24993,19 +25954,25 @@ async function smartImportFromServer(){
 
     if(subMode){
       // ========= وضع "حاسبة فرعية": استبدال كامل محلي داخل IndexedDB بدون حذف =========
+      emit('save-days', {mode:'sub'});
       await saveBigStoreAndWait(STORAGE, server.days || {});
+
+      emit('save-names', {mode:'sub'});
       await saveBigStoreAndWait(NAMES, Array.isArray(server.names) ? server.names : []);
       if(server.transferDate){ setTransferDateIso(server.transferDate); }
+
       // [NEW] استبدال كامل للحسابات المالية + تنظيف تكرارات
+      emit('save-payments', {mode:'sub'});
       const srvPaysRaw = (server && server.payments && typeof server.payments === 'object') ? server.payments : {};
       const cleanSrvPays = __dedupePaymentsObject__(srvPaysRaw);
       await saveBigStoreAndWait(PAYMENTS_STORE_KEY, cleanSrvPays);
-      window.refreshPaymentsUI?.();   // <<< أضف هذا السطر
+      window.refreshPaymentsUI?.();
       // [END NEW]
 
       // حدّث الذاكرة والواجهة
+      emit('reload', {mode:'sub'});
       days  = load(STORAGE, {});
-      names = load(NAMES,   []);   // ← تصليح: نحمل كـ Array
+      names = load(NAMES,   []);
 
       // [AUTO] طبّق تصحيح أنواع الفواتير مباشرة بعد المزامنة (بدون ريفرش)
       try{
@@ -25015,6 +25982,7 @@ async function smartImportFromServer(){
       }catch{}
 
       // [ASSAL AUDIT] بعد اكتمال السحب فقط: جلب أرشيف اليوم الظاهر قراءةً وإظهاره فوراً.
+      emit('audit', {mode:'sub'});
       try{
         const __assalAuditDay = (typeof selectedDay === 'string' && selectedDay) ? selectedDay : '';
         if(__assalAuditDay && typeof window.assalCardAuditFetchServerCardDay === 'function'){
@@ -25024,32 +25992,46 @@ async function smartImportFromServer(){
         console.warn('[ASSAL card audit] pull refresh skipped', __assalAuditPullErr);
       }
 
+      emit('render', {mode:'sub'});
       renderBoard();
       renderRail();
       refreshStats();
 
-      showToast('success','تم السحب من السيرفر وحفظ النسخة محلياً داخل IndexedDB.');
+      notify('success','تم السحب من السيرفر وحفظ النسخة محلياً داخل IndexedDB.');
 
       // خبرنا آخر تاريخ نقل ديون إذا موجود
       const iso = getTransferDateIso();
-      if(iso){
-        showToast('info', formatTransferToastMsg(iso));
-      }
-      return; // خلصنا بالفرعية
+      const transferMessage = iso ? formatTransferToastMsg(iso) : '';
+      if(iso){ notify('info', transferMessage); }
+
+      const result = {
+        ok:true,
+        mode:'sub',
+        changes:null,
+        summary:'تم حفظ نسخة السيرفر محلياً داخل IndexedDB',
+        transferMessage
+      };
+      emit('complete', result);
+      return result;
     }
 
     // ========= وضع "حاسبة رئيسية": دمج ذكي مثل طريقتك =========
     const localDays  = days || {};
     const remoteDays = server.days || {};
 
+    emit('merge-start', {mode:'main'});
     const { days: mergedDays, report } = mergeAllDays(localDays, remoteDays);
     normalizeIdsInAllDays(mergedDays);
     dedupeAllDays(mergedDays);
+    const changes = (report && report.length) ? report.length : 0;
+    emit('merge-done', {mode:'main', changes});
 
     // خزن الفواتير/الأيام محلي داخل IndexedDB بدون أي حذف تلقائي
+    emit('save-days', {mode:'main'});
     await saveBigStoreAndWait(STORAGE, mergedDays);
 
     // وحّد أسماء الزبائن
+    emit('save-names', {mode:'main'});
     const curNames = Array.isArray(names) ? names : [];
     const srvNames = Array.isArray(server.names) ? server.names : [];
     const mergedNames = Array.from(new Set([...curNames, ...srvNames]));
@@ -25061,6 +26043,7 @@ async function smartImportFromServer(){
     }
 
     // [NEW] دمج مخزن الحسابات المالية (محلي + سيرفر) مع إزالة التكرار
+    emit('save-payments', {mode:'main'});
     try{
       const localPays = loadPaymentsStore() || {};
       const srvPays   = (server && server.payments && typeof server.payments === 'object') ? server.payments : {};
@@ -25071,31 +26054,33 @@ async function smartImportFromServer(){
         Object.keys(loc).forEach(dayKey=>{
           const L = Array.isArray(loc[dayKey]) ? loc[dayKey] : [];
           const R = Array.isArray(rem[dayKey]) ? rem[dayKey] : [];
-          out[dayKey] = __dedupePaymentList__([ ...R, ...L ]); // دمج + ديدوب لكل يوم
+          out[dayKey] = __dedupePaymentList__([ ...R, ...L ]);
         });
         return out;
       })(localPays, srvPays);
       const cleanMergedPays = __dedupePaymentsObject__(mergedPays);
       await saveBigStoreAndWait(PAYMENTS_STORE_KEY, cleanMergedPays);
-      window.refreshPaymentsUI?.();   // <<< أضف هذا السطر
+      window.refreshPaymentsUI?.();
     }catch{
-      // إذا صار خطأ بالتحويل JSON نخليها فارغة بدون ما نكسر التدفق
+      // إذا صار خطأ بالتحويل JSON نخليها فارغة بدون ما نكسر التدفق — نفس السلوك السابق.
       await saveBigStoreAndWait(PAYMENTS_STORE_KEY, {});
     }
     // [END NEW]
 
     // حدّث الذاكرة والواجهة
+    emit('reload', {mode:'main'});
     days  = load(STORAGE, {});
-    names = load(NAMES,   []);   // ← تصليح: نحمل كـ Array
+    names = load(NAMES,   []);
 
-      // [AUTO] طبّق تصحيح أنواع الفواتير مباشرة بعد المزامنة (بدون ريفرش)
-      try{
-        if(migrateLegacySellToAjal(days)){
-          saveBigStore(STORAGE, days);
-        }
-      }catch{}
+    // [AUTO] طبّق تصحيح أنواع الفواتير مباشرة بعد المزامنة (بدون ريفرش)
+    try{
+      if(migrateLegacySellToAjal(days)){
+        saveBigStore(STORAGE, days);
+      }
+    }catch{}
 
     // [ASSAL AUDIT] بعد اكتمال السحب فقط: جلب أرشيف اليوم الظاهر قراءةً وإظهاره فوراً.
+    emit('audit', {mode:'main'});
     try{
       const __assalAuditDay = (typeof selectedDay === 'string' && selectedDay) ? selectedDay : '';
       if(__assalAuditDay && typeof window.assalCardAuditFetchServerCardDay === 'function'){
@@ -25105,33 +26090,42 @@ async function smartImportFromServer(){
       console.warn('[ASSAL card audit] pull refresh skipped', __assalAuditPullErr);
     }
 
+    emit('render', {mode:'main'});
     renderBoard();
     renderRail();
     refreshStats();
 
-    const changes = (report && report.length) ? report.length : 0;
-    showToast(
-      'success',
-      changes
-        ? `تم الدمج الآمن (${changes} تغيير)`
-        : 'لا تغييرات — البيانات متطابقة'
-    );
+    const summary = changes
+      ? `تم الدمج الآمن (${changes} تغيير)`
+      : 'لا تغييرات — البيانات متطابقة';
+    notify('success', summary);
 
     // بعدين خبرنا آخر تاريخ نقل ديون اللي جبناه
     const iso = getTransferDateIso();
-    if(iso){
-      showToast('info', formatTransferToastMsg(iso));
-    }
+    const transferMessage = iso ? formatTransferToastMsg(iso) : '';
+    if(iso){ notify('info', transferMessage); }
 
     console.groupCollapsed?.('ASSAL MERGE REPORT (IMPORT)');
     (report||[]).forEach(r => console.log(r));
     console.groupEnd?.();
+
+    const result = {
+      ok:true,
+      mode:'main',
+      changes,
+      summary,
+      transferMessage
+    };
+    emit('complete', result);
+    return result;
   }catch(err){
     console.error(err);
-    showToast('error','تعذّر جلب/دمج النسخة من السيرفر');
+    notify('error','تعذّر جلب/دمج النسخة من السيرفر');
+    emit('error', {error:String(err?.message || err || 'خطأ غير معروف')});
+    if(progressMode && options?.throwOnError) throw err;
+    return {ok:false, error:err};
   }
 }
-
 
 
 
@@ -25874,8 +26868,47 @@ btnEl?.addEventListener('click', async ()=>{
 
 
 
-// خروج
+// خروج — تأكيد أنيق بنفس هوية نوافذ الراجع، بدون تنفيذ أي إجراء قبل الموافقة
 btnLogout?.addEventListener('click', async ()=>{
+  let confirmed = false;
+
+  try{
+    if(typeof showConfirm === 'function'){
+      const confirmPromise = showConfirm({
+        title:'تأكيد تسجيل الخروج',
+        message:
+          '<div class="assal-return-pop assal-return-pop--auth-logout">' +
+            '<div class="assal-return-pop__hero">' +
+              '<span class="assal-return-pop__icon"><i class="fa-solid fa-arrow-right-from-bracket"></i></span>' +
+              '<div><div class="assal-return-pop__title">تسجيل الخروج من الحساب</div><div class="assal-return-pop__sub">تأكيد إنهاء جلسة الحساب الحالية</div></div>' +
+            '</div>' +
+            '<div class="assal-return-pop__box">سيتم إنهاء جلسة الحساب والعودة إلى شاشة تسجيل الدخول. لن يتم حذف أو تغيير أي ديون أو ذمم أو بيانات محفوظة.</div>' +
+            '<div class="assal-return-pop__hint"><span>اضغط Enter لتأكيد تسجيل الخروج، أو إلغاء للعودة من دون أي تغيير.</span><span class="assal-return-pop__kbd">Enter</span></div>' +
+          '</div>',
+        okText:'نعم، تسجيل الخروج',
+        cancelText:'إلغاء',
+        danger:true,
+        modalClass:'assal-auth-logout-confirm-modal'
+      });
+
+      // أيقونات الأزرار فقط؛ النافذة نفسها تستخدم ستايل الراجع الموحّد الموجود أصلاً.
+      try{
+        const okBtn = document.getElementById('modal-confirm');
+        const cancelBtn = document.getElementById('modal-cancel');
+        if(okBtn) okBtn.innerHTML = '<i class="fa-solid fa-arrow-right-from-bracket"></i><span>نعم، تسجيل الخروج</span>';
+        if(cancelBtn) cancelBtn.innerHTML = '<i class="fa-solid fa-xmark"></i><span>إلغاء</span>';
+      }catch(_){ }
+
+      confirmed = await confirmPromise;
+    }else{
+      confirmed = window.confirm('هل تريد تسجيل الخروج من الحساب؟');
+    }
+  }catch(_){
+    confirmed = false;
+  }
+
+  if(!confirmed) return;
+
   showSplash();
   try{
     await signOut(auth);
@@ -39265,6 +40298,7 @@ html body .card .item.assal-smart-added-item-safe-final{
     if(scope==='payment' && field==='kind') return 'نوع الحركة';
     if(scope==='payment' && field==='cust') return 'اسم الزبون';
     if(scope==='payment' && field==='notes') return 'ملاحظات الحركة';
+    if(scope==='card' && field==='__attendance_half_day__') return 'دوام نصف يوم';
     return map[field] || field || 'تعديل';
   }
 
@@ -39364,6 +40398,19 @@ html body .card .item.assal-smart-added-item-safe-final{
   function isPaymentOp(op){return !!(op&&op.scope==='payment');}
   function isPaymentDraft(rec){return !!(rec&&(rec.specialType==='financial-payment'||(Array.isArray(rec.ops)&&rec.ops.some(isPaymentOp))));}
   function paymentOpOf(rec){return (rec&&Array.isArray(rec.ops)?rec.ops:[]).find(isPaymentOp)||null;}
+  function attendanceHalfDayOp(rec){return (rec&&Array.isArray(rec.ops)?rec.ops:[]).find(function(op){return op&&op.scope==='card'&&op.action==='patch'&&Array.isArray(op.fields)&&op.fields.some(function(f){return safe(f&&f.field)==='__attendance_half_day__';});})||null;}
+  function attendanceHalfDayField(rec){var op=attendanceHalfDayOp(rec);return op&&(op.fields||[]).find(function(f){return safe(f&&f.field)==='__attendance_half_day__';})||null;}
+  function isAttendanceHalfDayRequest(rec){return !!(rec&&(safe(rec.billType)==='attendance-half-day'||safe(rec.cardId).indexOf('ATTENDANCE_HALF_DAY:')===0||attendanceHalfDayOp(rec)));}
+  function attendanceHalfDayKey(day,employee){return 'ATTENDANCE_HALF_DAY:'+safe(day)+':'+safe(employee);}
+  function attendanceRequestTime(rec){return safe(rec&& (rec.sentAt||rec.createdAt||rec.updatedAt));}
+  function latestAttendanceHalfDayRequest(day,employee){
+    var key=attendanceHalfDayKey(day,employee),all=[];
+    state.drafts.forEach(function(x){if(isAttendanceHalfDayRequest(x)&&safe(x.cardId)===key)all.push(x);});
+    state.archive.forEach(function(x){if(isAttendanceHalfDayRequest(x)&&safe(x.cardId)===key)all.push(x);});
+    requestCache.forEach(function(x){if(isAttendanceHalfDayRequest(x)&&safe(x.cardId)===key)all.push(x);});
+    all.sort(function(a,b){return attendanceRequestTime(a).localeCompare(attendanceRequestTime(b));});return all.length?all[all.length-1]:null;
+  }
+  function notifyAttendanceHalfDayUi(){try{window.dispatchEvent(new CustomEvent('assal:attendance-halfday-requests-updated'));}catch(_){try{window.dispatchEvent(new Event('assal:attendance-halfday-requests-updated'));}catch(__){}}}
   function paymentRowLabel(row){
     var r=row&&typeof row==='object'?row:{};
     return [safe(r.kind||'حركة مالية'),Number(r.amount||0).toLocaleString('en-US'),safe(r.cust)].filter(Boolean).join(' — ');
@@ -39760,6 +40807,7 @@ html body .card .item.assal-smart-added-item-safe-final{
   }
   function refreshAffectedUi(req){
     try{
+      if(isAttendanceHalfDayRequest(req)){try{window.ASSAL_ATTENDANCE_REFRESH&&window.ASSAL_ATTENDANCE_REFRESH();}catch(_){}notifyAttendanceHalfDayUi();return;}
       var ops=Array.isArray(req&&req.ops)?req.ops:[];
       var rename=ops.find(isGlobalCustomerRenameOp);if(rename){refreshVisibleCustomerRename(rename.before,rename.after);return;}
       var found=findCardAny(req.cardId),card=found.card;
@@ -39833,7 +40881,7 @@ html body .card .item.assal-smart-added-item-safe-final{
   function updateButton(){
     var btn=ensureButton();if(!btn)return;var allowed=isAdmin()||isMain();btn.classList.toggle('assal-cr-visible',allowed);btn.style.display=allowed?'grid':'none';
     var count=relevantCount(),badge=document.getElementById('assalCardChangeRequestCount');if(badge){badge.textContent=String(Math.min(99,count));badge.hidden=!count;}
-    if(isAdmin()){btn.title='طلبات تعديل البطاقات';btn.setAttribute('aria-label','طلبات تعديل البطاقات');btn.querySelector('i').className='fa-solid fa-file-pen';}
+    if(isAdmin()){btn.title='طلبات التعديل';btn.setAttribute('aria-label','طلبات التعديل');btn.querySelector('i').className='fa-solid fa-file-pen';}
     else if(isMain()){btn.title='طلبات التعديل الواردة';btn.setAttribute('aria-label','طلبات التعديل الواردة');btn.querySelector('i').className='fa-solid fa-inbox';}
   }
 
@@ -39893,29 +40941,34 @@ html body .card .item.assal-smart-added-item-safe-final{
     var amount=Number(row.amount||0);try{amount=amount.toLocaleString('en-US');}catch(_){amount=safe(row.amount||0);}
     return '<div class="assal-cr-payment"><div class="assal-cr-payment-top"><div class="assal-cr-payment-title"><i class="fa-solid fa-money-bill-transfer"></i><span>'+esc(action)+'</span></div><span class="assal-cr-payment-kind">'+esc(row.kind||'حركة')+'</span></div><div class="assal-cr-payment-grid"><div class="assal-cr-payment-cell"><span>الزبون</span><b>'+esc(row.cust||rec.customer||'—')+'</b></div><div class="assal-cr-payment-cell amount"><span>المبلغ</span><b>'+esc(amount)+'</b></div><div class="assal-cr-payment-cell"><span>التاريخ</span><b>'+esc(row.date||rec.cardDay||'—')+'</b></div><div class="assal-cr-payment-cell"><span>الوقت</span><b>'+esc(row.time||'—')+'</b></div><div class="assal-cr-payment-cell assal-cr-payment-note"><span>الملاحظات</span><b>'+esc(row.notes||'لا توجد ملاحظات')+'</b></div></div></div>';
   }
+  function attendanceHalfDayRequestHtml(rec){
+    var field=attendanceHalfDayField(rec)||{},before=field.before||{},after=field.after||{},employee=safe(rec.customer||after.employee||before.employee||'—'),day=safe(rec.cardDay||after.day||before.day||'—');
+    var beforeText=safe(rec.attendanceBeforeLabel||'');if(!beforeText){if(before&&before.__assalMissing)beforeText='لا يوجد تسجيل';else if(before.halfDay||before.status==='half-day')beforeText='دوام نصف يوم';else if(before.leave||before.status==='leave')beforeText='مجاز';else if(before.duty||before.status==='duty')beforeText='واجب';else if(before.present)beforeText='حاضر'+(before.time?' • '+before.time:'');else beforeText='لا يوجد تسجيل';}
+    return '<div class="assal-cr-payment"><div class="assal-cr-payment-top"><div class="assal-cr-payment-title"><i class="fa-solid fa-circle-half-stroke"></i><span>طلب دوام نصف يوم</span></div><span class="assal-cr-payment-kind">حضور</span></div><div class="assal-cr-payment-grid"><div class="assal-cr-payment-cell"><span>الموظف</span><b>'+esc(employee)+'</b></div><div class="assal-cr-payment-cell"><span>التاريخ</span><b>'+esc(day)+'</b></div><div class="assal-cr-payment-cell assal-cr-payment-note"><span>الحالة الحالية</span><b>'+esc(beforeText)+'</b></div></div><div class="assal-cr-changes">'+changeHtml({scope:'card',field:'__attendance_half_day__',before:beforeText,after:'دوام نصف يوم'})+'</div></div>';
+  }
   function cardHtml(rec,mode){
-    var changes=Array.isArray(rec.changes)?rec.changes:summarizeOps(rec.ops||[]),isBundle=isNewCardBundle(rec),isPayment=isPaymentDraft(rec),bundleOp=isBundle?cardAddOperation(rec):null,bundleCard=isBundle?(clone(rec.afterCard)||(bundleOp&&clone(bundleOp.after))||{}):null;
+    var changes=Array.isArray(rec.changes)?rec.changes:summarizeOps(rec.ops||[]),isBundle=isNewCardBundle(rec),isPayment=isPaymentDraft(rec),isAttendance=isAttendanceHalfDayRequest(rec),bundleOp=isBundle?cardAddOperation(rec):null,bundleCard=isBundle?(clone(rec.afterCard)||(bundleOp&&clone(bundleOp.after))||{}):null;
     var bundleLines=isBundle&&Array.isArray(bundleCard.lines)?bundleCard.lines:[],shown=changes.slice(0,8),more=Math.max(0,changes.length-shown.length),status=safe(rec.status||'draft');
     var localPending=isMain()&&status==='pending_review'&&isAppliedLocal(rec.id);if(localPending)status='approved_pending_upload';
     var cls=status==='applied'?'applied':(status==='rejected'?'rejected':(status==='conflict'?'conflict':'pending'));
     var time=rec.sentAt||rec.createdAt||rec.updatedAt||'',isBusy=busyIds.has(safe(rec.id))||safe(activeUploadRequestId)===safe(rec.id),dis=isBusy?' disabled':'';
     var spin=isBusy?'fa-spinner':'fa-cloud-arrow-up',actions='';
-    if(mode==='draft')actions='<button class="assal-cr-btn send" data-cr-send="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-paper-plane')+'"></i> '+(isBusy?'جاري الإرسال':'إرسال')+'</button><button class="assal-cr-btn delete" data-cr-delete-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-solid fa-rotate-left"></i> '+(isBundle?'حذف البطاقة والتراجع':'حذف وإرجاع الأصل')+'</button><button class="assal-cr-btn delete-only" data-cr-dismiss-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-regular fa-trash-can"></i> حذف الحركة</button>';
+    if(mode==='draft')actions=isAttendance?'<button class="assal-cr-btn send" data-cr-send="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-paper-plane')+'"></i> '+(isBusy?'جاري الإرسال':'إرسال')+'</button><button class="assal-cr-btn delete-only" data-cr-dismiss-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-regular fa-trash-can"></i> حذف الطلب</button>':'<button class="assal-cr-btn send" data-cr-send="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-paper-plane')+'"></i> '+(isBusy?'جاري الإرسال':'إرسال')+'</button><button class="assal-cr-btn delete" data-cr-delete-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-solid fa-rotate-left"></i> '+(isBundle?'حذف البطاقة والتراجع':'حذف وإرجاع الأصل')+'</button><button class="assal-cr-btn delete-only" data-cr-dismiss-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-regular fa-trash-can"></i> حذف الحركة</button>';
     else if(mode==='admin-archive')actions='<button class="assal-cr-btn delete" data-cr-hide-archive="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-trash-can')+'"></i> '+(isBusy?'جاري الحذف':'حذف')+'</button>';
     else if(mode==='main-incoming'){
       if(status==='approved_pending_upload')actions='<button class="assal-cr-btn retry '+(isBusy?'is-busy':'')+'" data-cr-retry="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+spin+'"></i> '+(isBusy?'جاري الرفع':'إكمال الرفع')+'</button>';
       else actions='<button class="assal-cr-btn approve '+(isBusy?'is-busy':'')+'" data-cr-approve="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-check')+'"></i> '+(isBusy?'جاري التنفيذ':'موافقة')+'</button><button class="assal-cr-btn reject" data-cr-reject="'+esc(rec.id)+'"'+dis+'><i class="fa-solid fa-xmark"></i> رفض</button>';
     }
     var conflict=rec.conflictNote?'<div class="assal-cr-conflict"><i class="fa-solid fa-triangle-exclamation"></i> '+esc(rec.conflictNote)+'</div>':'';
-    var subtitle=esc(rec.cardDay||rec.afterDay||rec.beforeDay||'—')+' • '+esc(fmtDateTime(time))+' • '+(isBundle?'بطاقة جديدة — '+bundleLines.length+' مادة':(isPayment?'حركة حسابات مالية':changes.length+' تغيير'));
-    var body=isBundle?newCardBundleHtml(rec):(isPayment?paymentRequestHtml(rec):'<div class="assal-cr-changes">'+shown.map(changeHtml).join('')+'</div>'+(more?'<div class="assal-cr-more">ويوجد '+more+' تغييرات أخرى ضمن نفس الطلب</div>':''));
+    var subtitle=esc(rec.cardDay||rec.afterDay||rec.beforeDay||'—')+' • '+esc(fmtDateTime(time))+' • '+(isAttendance?'طلب حضور':(isBundle?'بطاقة جديدة — '+bundleLines.length+' مادة':(isPayment?'حركة حسابات مالية':changes.length+' تغيير')));
+    var body=isAttendance?attendanceHalfDayRequestHtml(rec):(isBundle?newCardBundleHtml(rec):(isPayment?paymentRequestHtml(rec):'<div class="assal-cr-changes">'+shown.map(changeHtml).join('')+'</div>'+(more?'<div class="assal-cr-more">ويوجد '+more+' تغييرات أخرى ضمن نفس الطلب</div>':'')));
     return '<article class="assal-cr-card '+cls+'"><div class="assal-cr-card-head"><div class="assal-cr-card-title"><b>'+esc(rec.customer||'بطاقة بدون اسم')+'</b><span>'+subtitle+'</span></div><span class="assal-cr-status '+esc(status)+'">'+esc(statusText(status))+'</span></div>'+body+conflict+(actions?'<div class="assal-cr-actions">'+actions+'</div>':'')+'</article>';
   }
 
   function renderModal(){
     var root=ensureModal(),tabs=root.querySelector('#assalCrTabs'),list=root.querySelector('#assalCrList'),sum=root.querySelector('#assalCrSummary'),sendAll=root.querySelector('#assalCrSendAll');
     if(isAdmin()){
-      root.querySelector('#assalCrTitle').textContent='طلبات تعديل البطاقات — الأدمن';root.querySelector('#assalCrSub').textContent='التعديلات الجديدة فقط؛ لا يتم جمع التعديلات القديمة';
+      root.querySelector('#assalCrTitle').textContent='طلبات التعديل — الأدمن';root.querySelector('#assalCrSub').textContent='تعديلات البطاقات والحسابات وطلبات الحضور بانتظار الإرسال';
       tabs.innerHTML='<button class="assal-cr-tab '+(activeTab==='drafts'?'active':'')+'" data-cr-tab="drafts"><i class="fa-solid fa-pen-ruler"></i> التعديلات ('+state.drafts.length+')</button><button class="assal-cr-tab '+(activeTab==='archive'?'active':'')+'" data-cr-tab="archive"><i class="fa-solid fa-box-archive"></i> الأرشيف ('+state.archive.length+')</button>';
       var arr=activeTab==='archive'?state.archive.slice().reverse():state.drafts.slice().reverse();
       sum.textContent=activeTab==='archive'?'الطلبات المرسلة وحالتها الحالية':'كل تعديل محفوظ جديد يظهر هنا تلقائياً';
@@ -39965,10 +41018,12 @@ html body .card .item.assal-smart-added-item-safe-final{
     if(!ok)return;
     state.drafts=state.drafts.filter(function(x){return safe(x.id)!==safe(reqId);});
     seedSnapshots();seedPaymentSnapshots();schedulePersist();renderModal();updateButton();
-    try{showToast('info','تم حذف الحركة من طلبات الإرسال وبقيت البيانات المحلية كما هي');}catch(_){ }
+    try{showToast('info',isAttendanceHalfDayRequest(d)?'تم حذف طلب نصف اليوم من طلبات الإرسال':'تم حذف الحركة من طلبات الإرسال وبقيت البيانات المحلية كما هي');}catch(_){ }
+    if(isAttendanceHalfDayRequest(d))notifyAttendanceHalfDayUi();
   }
   async function deleteDraft(reqId){
     var d=findDraft(reqId);if(!d)return;
+    if(isAttendanceHalfDayRequest(d)){await dismissDraftOnly(reqId);notifyAttendanceHalfDayUi();return;}
     var newer=state.drafts.some(function(x){return safe(x.cardId)===safe(d.cardId)&&new Date(x.createdAt||0)>new Date(d.createdAt||0);});
     if(newer){try{showToast('warn',d.specialType==='global-customer-rename'?'احذف أحدث تغيير اسم شامل أولاً':'احذف أحدث تعديل لهذه البطاقة أولاً');}catch(_){}return;}
     if(isPaymentDraft(d)){
@@ -40030,6 +41085,7 @@ html body .card .item.assal-smart-added-item-safe-final{
       state.drafts=state.drafts.filter(function(x){return safe(x.id)!==safe(reqId);});state.archive.push(record);schedulePersist();
       updateButton();if(isModalOpen())renderModal();
       if(!quiet)progressSuccess('تم إرسال طلب التعديل','انتقل الطلب إلى الأرشيف وبانتظار مراجعة الحاسبة الرئيسية');
+      if(isAttendanceHalfDayRequest(record))notifyAttendanceHalfDayUi();
       return true;
     }catch(err){if(!quiet)progressError('تعذر إرسال الطلب',safe(err&&err.message||err));return false;}
     finally{busyIds.delete(reqId);if(isModalOpen())renderModal();}
@@ -40058,7 +41114,14 @@ html body .card .item.assal-smart-added-item-safe-final{
   function findCard(day,cardId){var arr=Array.isArray(days&&days[day])?days[day]:[];return arr.find(function(c){return safe(c&&c.id)===safe(cardId);})||null;}
   function findCardAny(cardId){var out=null,day='';Object.keys(days||{}).some(function(d){var c=findCard(d,cardId);if(c){out=c;day=d;return true;}return false;});return {card:out,day:day};}
   function findEntity(arr,id,kind){var list=Array.isArray(arr)?arr:[];for(var i=0;i<list.length;i++){if(entityId(list[i],kind,i)===safe(id))return {value:list[i],index:i};}return null;}
+  function attendanceSnapshotFromLocal(day,employee){
+    try{var raw=localStorage.getItem('assal_attendance_state_v2'),st=raw?JSON.parse(raw):{},rec=st&&st.days&&st.days[day]&&st.days[day].employees&&st.days[day].employees[employee];if(!rec)return {__assalMissing:true};return {employee:employee,day:day,present:rec.present===true,leave:rec.leave===true,duty:rec.duty===true,halfDay:rec.halfDay===true||rec.status==='half-day',status:safe(rec.status),time:safe(rec.time)};}catch(_){return {__assalMissing:true};}
+  }
   function preflight(req){
+    if(isAttendanceHalfDayRequest(req)){
+      var af=attendanceHalfDayField(req)||{},expected=af.before||{__assalMissing:true},current=attendanceSnapshotFromLocal(safe(req.cardDay),safe(req.customer));
+      return deepEqual(current,expected)?[]:['حالة حضور الموظف تغيرت على الحاسبة الرئيسية منذ إنشاء الطلب'];
+    }
     var conflicts=[],found=findCardAny(req.cardId),card=found.card,currentDay=found.day;
     (req.ops||[]).forEach(function(op){
       if(isGlobalCustomerRenameOp(op)){
@@ -40095,7 +41158,18 @@ html body .card .item.assal-smart-added-item-safe-final{
     });
     return Array.from(new Set(conflicts));
   }
+  function applyAttendanceHalfDayRequest(req){
+    var day=safe(req.cardDay),employee=safe(req.customer),field=attendanceHalfDayField(req)||{},after=field.after||{};
+    if(!day||!employee)throw new Error('بيانات طلب نصف اليوم غير مكتملة');
+    var st={version:2,updatedAt:'',days:{}};try{var raw=localStorage.getItem('assal_attendance_state_v2');if(raw)st=JSON.parse(raw)||st;}catch(_){ }
+    if(!st.days||typeof st.days!=='object')st.days={};if(!st.days[day])st.days[day]={employees:{},timeouts:[]};if(!st.days[day].employees)st.days[day].employees={};if(!Array.isArray(st.days[day].timeouts))st.days[day].timeouts=[];
+    var current=st.days[day].employees[employee]||{},stamp=now(),next=Object.assign({},current);
+    next.employee=employee;next.day=day;next.present=true;next.leave=false;next.duty=false;next.halfDay=true;next.status='half-day';next.time=safe(current.time||after.time||'');next.originalAttendanceAt=safe(current.at||'');next.at=stamp;next.halfDayApprovedAt=stamp;next.halfDayApprovedBy=email();next.source='approved-attendance-half-day-request';
+    st.days[day].employees[employee]=next;st.updatedAt=stamp;localStorage.setItem('assal_attendance_state_v2',JSON.stringify(st));
+    try{window.dispatchEvent(new StorageEvent('storage',{key:'assal_attendance_state_v2',newValue:JSON.stringify(st)}));}catch(_){ }
+  }
   function applyRequestOps(req,force){
+    if(isAttendanceHalfDayRequest(req)){applyAttendanceHalfDayRequest(req);return;}
     var stamp=now(),found=findCardAny(req.cardId),card=found.card,currentDay=found.day,touchedPaymentDays=new Set();
     (req.ops||[]).forEach(function(op){
       if(isGlobalCustomerRenameOp(op)){
@@ -40167,7 +41241,7 @@ html body .card .item.assal-smart-added-item-safe-final{
     if(isUploadBusyForOther(reqId)){progressSet('warn','يوجد رفع طلب آخر','انتظر اكتمال العملية الحالية ثم أعد المحاولة',100,'fa-solid fa-hourglass-half');return;}
     var conflicts=preflight(req),force=false;
     if(conflicts.length){
-      var hardConflict=conflicts.some(function(x){return /غير موجودة|موجودة مسبقاً|مكان البطاقة الحالي مختلف/.test(safe(x));});
+      var hardConflict=isAttendanceHalfDayRequest(req)&&conflicts.length>0||conflicts.some(function(x){return /غير موجودة|موجودة مسبقاً|مكان البطاقة الحالي مختلف/.test(safe(x));});
       var extra='<div style="margin-top:9px;color:#fecaca">'+conflicts.slice(0,8).map(function(x){return '• '+esc(x);}).join('<br>')+'</div>';
       if(hardConflict){
         await requestConfirm('conflict',req,{title:'تعذر تطبيق الطلب بأمان',extra:extra,okText:'إغلاق',cancelText:'إغلاق'});
@@ -40255,7 +41329,7 @@ html body .card .item.assal-smart-added-item-safe-final{
           list.forEach(function(r){localById.set(safe(r.id),r);});state.archive=Array.from(localById.values()).filter(function(x){return !x.adminHidden;}).sort(function(a,b){return safe(a.sentAt||a.createdAt).localeCompare(safe(b.sentAt||b.createdAt));});schedulePersist();
         }
         if(refreshVisualRequested)progressSet('', 'جاري تحديث النافذة','ترتيب الحالات وعرض النتائج المحدثة',84,'fa-solid fa-list-check');
-        updateButton();if(isModalOpen())renderModal();
+        updateButton();if(isModalOpen())renderModal();notifyAttendanceHalfDayUi();
         if(refreshVisualRequested){
           var newCount=list.filter(function(x){return !beforeIds.has(safe(x&&x.id));}).length;
           var detail=newCount>0
@@ -40273,13 +41347,50 @@ html body .card .item.assal-smart-added-item-safe-final{
     })();return refreshPromise;
   }
 
+  window.ASSAL_ATTENDANCE_HALF_DAY_REQUEST_STATUS=function(day,employee){var rec=latestAttendanceHalfDayRequest(safe(day),safe(employee));return rec?{id:safe(rec.id),status:safe(rec.status||'draft'),updatedAt:attendanceRequestTime(rec)}:null;};
+  window.ASSAL_ATTENDANCE_HALF_DAY_REQUESTS_FOR_MONTH=function(mk){
+    mk=safe(mk).trim();if(!isAdmin()||!/^[0-9]{4}-[0-9]{2}$/.test(mk))return [];
+    var latest=new Map();
+    function take(rec){
+      if(!isAttendanceHalfDayRequest(rec))return;
+      var field=attendanceHalfDayField(rec)||{},after=field.after&&typeof field.after==='object'?field.after:{};
+      var day=safe(rec.cardDay||rec.afterDay||after.day).trim(),employee=safe(rec.customer||after.employee).trim();
+      if(day.indexOf(mk)!==0||!employee)return;
+      var key=attendanceHalfDayKey(day,employee),prev=latest.get(key);
+      if(!prev||attendanceRequestTime(prev).localeCompare(attendanceRequestTime(rec))<=0)latest.set(key,rec);
+    }
+    state.drafts.forEach(take);state.archive.forEach(take);requestCache.forEach(take);
+    return Array.from(latest.values()).map(function(rec){
+      var field=attendanceHalfDayField(rec)||{},after=field.after&&typeof field.after==='object'?field.after:{};
+      return {id:safe(rec.id),day:safe(rec.cardDay||rec.afterDay||after.day),employee:safe(rec.customer||after.employee),status:safe(rec.status||'draft'),updatedAt:attendanceRequestTime(rec)};
+    });
+  };
+  window.ASSAL_CANCEL_ATTENDANCE_HALF_DAY_DRAFT=async function(opts){
+    opts=opts||{};if(!isAdmin())return {ok:false,message:'هذه العملية متاحة لحاسبة الأدمن فقط'};if(!ready)return {ok:false,message:'نظام طلبات التعديل لم يكتمل تحميله بعد'};
+    var employee=safe(opts.employee).trim(),day=safe(opts.day).trim(),existing=latestAttendanceHalfDayRequest(day,employee),status=safe(existing&&existing.status);
+    if(!existing)return {ok:false,message:'لا توجد مسودة نصف يوم لهذا الموظف والتاريخ'};
+    if(status!=='draft')return {ok:false,message:'يمكن إلغاء التحديد من الزر قبل إرسال الطلب فقط'};
+    var requestId=safe(existing.id),beforeLength=state.drafts.length;state.drafts=state.drafts.filter(function(x){return safe(x.id)!==requestId;});
+    if(state.drafts.length===beforeLength)return {ok:false,message:'تعذر العثور على مسودة نصف اليوم المحلية'};
+    schedulePersist();updateButton();if(isModalOpen())renderModal();notifyAttendanceHalfDayUi();try{showToast('info','تم إلغاء تحديد نصف اليوم من طلبات التعديل');}catch(_){}return {ok:true,id:requestId,status:'cancelled'};
+  };
+  window.ASSAL_CREATE_ATTENDANCE_HALF_DAY_REQUEST=async function(opts){
+    opts=opts||{};if(!isAdmin())return {ok:false,message:'هذه العملية متاحة لحاسبة الأدمن فقط'};if(!ready)return {ok:false,message:'نظام طلبات التعديل لم يكتمل تحميله بعد'};
+    var employee=safe(opts.employee).trim(),day=safe(opts.day).trim(),key=attendanceHalfDayKey(day,employee);if(!employee||!/^\d{4}-\d{2}-\d{2}$/.test(day))return {ok:false,message:'اسم الموظف أو التاريخ غير صالح'};
+    var existing=latestAttendanceHalfDayRequest(day,employee),status=safe(existing&&existing.status);if(existing&&['draft','pending_review','approved_pending_upload','applied'].indexOf(status)>=0)return {ok:false,message:status==='applied'?'دوام نصف اليوم معتمد مسبقاً لهذا الموظف والتاريخ':'يوجد طلب نصف يوم محفوظ أو قيد المراجعة لهذا الموظف والتاريخ'};
+    var stamp=now(),before=clone(opts.before)||{__assalMissing:true},after={employee:employee,day:day,present:true,leave:false,duty:false,halfDay:true,status:'half-day',time:before&&before.time&&!before.__assalMissing?safe(before.time):''};
+    var op={scope:'card',action:'patch',fields:[{field:'__attendance_half_day__',before:before,after:after}]};
+    var draft={id:id(),version:VERSION,status:'draft',specialType:'attendance-half-day',createdAt:stamp,updatedAt:stamp,adminEmail:ADMIN_EMAIL,cardId:key,cardDay:day,beforeDay:day,afterDay:day,beforeIndex:-1,afterIndex:-1,customer:employee,billType:'attendance-half-day',attendanceBeforeLabel:safe(opts.beforeLabel||''),beforeCard:null,afterCard:null,ops:[op],changes:[{scope:'card',field:'__attendance_half_day__',before:safe(opts.beforeLabel||'لا يوجد تسجيل'),after:'دوام نصف يوم',lineId:'',noteId:'',item:''}]};
+    state.drafts.push(draft);schedulePersist();updateButton();if(isModalOpen())renderModal();notifyAttendanceHalfDayUi();try{showToast('success','تمت إضافة طلب نصف يوم إلى خانة طلبات التعديل');}catch(_){}return {ok:true,id:draft.id,status:'draft'};
+  };
+
   async function init(){
     try{await loadState();}catch(_){ }
     var bundledDraftGroups=0;
     try{bundledDraftGroups=consolidateNewCardDrafts();}catch(_){bundledDraftGroups=0;}
     if(legacyDraftsCleared||bundledDraftGroups){try{await persistState();}catch(_){ }}
     seedSnapshots();seedPaymentSnapshots();ready=true;wrapSave();wrapSavePayments();wrapImportFunction('smartImportFromServer');wrapImportFunction('importInvoicesFromFile');
-    ensureButton();updateButton();
+    ensureButton();updateButton();notifyAttendanceHalfDayUi();
     if(legacyDraftsCleared){try{showToast('info','تم تنظيف '+legacyDraftsCleared+' مسودة خاطئة من النسخة السابقة');}catch(_){ }}
     if(bundledDraftGroups){try{showToast('success','تم تجميع إضافات البطاقات الجديدة ضمن طلب واحد لكل بطاقة');}catch(_){ }}
     try{window.addEventListener('online',function(){if(!activeUploadRequestId)refreshFromServer(false);},false);window.addEventListener('focus',function(){if(!activeUploadRequestId)refreshFromServer(false);},false);document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&!activeUploadRequestId)refreshFromServer(false);},false);document.addEventListener('click',blockSensitiveWhileUpload,true);document.addEventListener('change',blockSensitiveWhileUpload,true);}catch(_){ }
@@ -44038,6 +45149,8 @@ body.assal-owner-exclusive > #modal.active{
 })();
 </script>
 <!-- ===== /ASSAL OWNER READ-ONLY HUB + COLORED COMPACT CARDS + ATTENDANCE FINAL ===== -->
+
+
 
 </body>
 </html>
