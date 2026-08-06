@@ -21314,7 +21314,9 @@ function cleanupEmptyCardsOnce(){
 ===================================================================== */
 const ASSAL_FULL_EXPORT_VERSION = 4;
 const ASSAL_FULL_EXPORT_MODE = 'full-system';
-const ASSAL_FULL_EXPORT_AUDIT_BATCH = 24;
+const ASSAL_FULL_EXPORT_AUDIT_BATCH = 6;
+const ASSAL_FULL_EXPORT_FETCH_RETRIES = 3;
+const ASSAL_FULL_EXPORT_FETCH_RETRY_DELAYS = [700, 1500, 2800];
 
 function assalFullExportClone(value){
   try{ return JSON.parse(JSON.stringify(value)); }catch(_){ return value; }
@@ -21525,23 +21527,42 @@ function assalFullExportServerUrl(section, params){
 }
 
 async function assalFullExportFetchServerSection(section, params){
-  const resp = await fetch(assalFullExportServerUrl(section, params), {
-    method:'GET',
-    cache:'no-store',
-    headers:{ 'Authorization':'Bearer ' + String(SYNC.TOKEN || '') }
-  });
-  const text = await resp.text();
-  let json = null;
-  try{ json = JSON.parse(text); }catch(_){ }
-  if(!resp.ok){
-    const detail = String(json?.message || json?.hint || '').trim();
-    throw new Error('فشل جلب قسم ' + section + ' من السيرفر (' + resp.status + ')' + (detail ? ': ' + detail : ''));
+  const retryableStatuses = new Set([404,408,425,429,500,502,503,504]);
+  let lastError = null;
+
+  for(let attempt=0; attempt<ASSAL_FULL_EXPORT_FETCH_RETRIES; attempt++){
+    try{
+      const resp = await fetch(assalFullExportServerUrl(section, params), {
+        method:'GET',
+        cache:'no-store',
+        headers:{ 'Authorization':'Bearer ' + String(SYNC.TOKEN || '') }
+      });
+      const text = await resp.text();
+      let json = null;
+      try{ json = JSON.parse(text); }catch(_){ }
+
+      if(resp.ok){
+        if(!json) throw new Error('استجابة غير صالحة من قسم ' + section);
+        if(json.status !== 'ok') throw new Error(String(json?.message || ('فشل قسم ' + section)));
+        return json;
+      }
+
+      const detail = String(json?.message || json?.hint || '').trim();
+      lastError = new Error('فشل جلب قسم ' + section + ' من السيرفر (' + resp.status + ')' + (detail ? ': ' + detail : ''));
+      if(!retryableStatuses.has(Number(resp.status)) || attempt + 1 >= ASSAL_FULL_EXPORT_FETCH_RETRIES){
+        throw lastError;
+      }
+    }catch(err){
+      lastError = err instanceof Error ? err : new Error(String(err || 'تعذر الاتصال بالسيرفر'));
+      if(attempt + 1 >= ASSAL_FULL_EXPORT_FETCH_RETRIES) throw lastError;
+    }
+
+    const delay = ASSAL_FULL_EXPORT_FETCH_RETRY_DELAYS[Math.min(attempt, ASSAL_FULL_EXPORT_FETCH_RETRY_DELAYS.length - 1)] || 1000;
+    try{ console.warn('[ASSAL FULL SYSTEM EXPORT] retry', section, 'attempt', attempt + 2); }catch(_){ }
+    await new Promise(resolve=>setTimeout(resolve, delay));
   }
-  if(!json) throw new Error('استجابة غير صالحة من قسم ' + section);
-  if(!json || json.status !== 'ok'){
-    throw new Error(String(json?.message || ('فشل قسم ' + section)));
-  }
-  return json;
+
+  throw lastError || new Error('تعذر جلب قسم ' + section + ' من السيرفر');
 }
 
 async function assalFullExportFetchServerBundle(onProgress){
