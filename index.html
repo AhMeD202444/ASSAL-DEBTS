@@ -21308,8 +21308,8 @@ function cleanupEmptyCardsOnce(){
 /* =====================================================================
    ASSAL FULL SYSTEM EXPORT V4 — تعديل محصور بزر التصدير المحلي الموجود
    - لا يغيّر الرفع أو السحب أو الدمج أو الحفظ أو واجهة النظام.
-   - يجمع الحالة المحلية الخام + IndexedDB + صور الحضور + أرشيف اليوم/البطاقة
-     وطلبات التعديل من Apps Script في ملف JSON واحد.
+   - يجمع الحالة المحلية الخام + IndexedDB الرئيسي + معلومات كشف الحضور بدون الصور
+     + أرشيف اليوم/البطاقة وطلبات التعديل من Apps Script في ملف JSON واحد.
    - لا يصدّر كلمات المرور أو توكن المزامنة أو جلسات Firebase أو أقفال التبويبات.
 ===================================================================== */
 const ASSAL_FULL_EXPORT_VERSION = 4;
@@ -21325,6 +21325,40 @@ function assalFullExportParseJSON(raw, fallback){
     if(raw == null || raw === '') return fallback;
     return JSON.parse(raw);
   }catch(_){ return fallback; }
+}
+
+function assalFullExportStripAttendancePhotos(value){
+  const blocked = /^(photo|photoKey|photoSaved|photoLocalOnly|photoData|photoBlob|photoUrl|image|imageData|imageUrl|dataUrl|base64|blob)$/i;
+  const seen = new WeakSet();
+  function walk(input){
+    if(input == null) return input;
+    if(typeof input === 'string'){
+      return /^data:image\//i.test(input.trim()) ? '' : input;
+    }
+    if(typeof input !== 'object') return input;
+    if(seen.has(input)) return null;
+    seen.add(input);
+    if(Array.isArray(input)) return input.map(walk);
+    const out = {};
+    Object.keys(input).forEach(key=>{
+      if(blocked.test(String(key))) return;
+      out[key] = walk(input[key]);
+    });
+    return out;
+  }
+  try{ return walk(assalFullExportClone(value)); }
+  catch(_){ return value; }
+}
+
+function assalFullExportSanitizeAttendanceStorage(rawMap){
+  const out = Object.assign({}, rawMap || {});
+  ['assal_attendance_state_v2','assal_attendance_test_log_v1','assal_attendance_timeout_log_v1'].forEach(key=>{
+    if(!Object.prototype.hasOwnProperty.call(out,key)) return;
+    const parsed = assalFullExportParseJSON(out[key], null);
+    if(parsed == null) return;
+    out[key] = JSON.stringify(assalFullExportStripAttendancePhotos(parsed));
+  });
+  return out;
 }
 
 function assalFullExportKnownLocalStorage(){
@@ -21365,7 +21399,7 @@ function assalFullExportKnownLocalStorage(){
   }catch(err){
     throw new Error('تعذر قراءة مخازن النظام المحلية: ' + (err?.message || err));
   }
-  return out;
+  return assalFullExportSanitizeAttendanceStorage(out);
 }
 
 function assalFullExportStructuredLocalStorage(rawMap){
@@ -21382,9 +21416,9 @@ function assalFullExportStructuredLocalStorage(rawMap){
   dayRecords.sort((a,b)=> String(a.key).localeCompare(String(b.key)));
   cardRecords.sort((a,b)=> String(a.key).localeCompare(String(b.key)));
   return {
-    attendanceState:get('assal_attendance_state_v2', {version:2,updatedAt:'',days:{}}),
-    attendanceLegacy:get('assal_attendance_test_log_v1', []),
-    attendanceTimeoutLegacy:get('assal_attendance_timeout_log_v1', []),
+    attendanceState:assalFullExportStripAttendancePhotos(get('assal_attendance_state_v2', {version:2,updatedAt:'',days:{}})),
+    attendanceLegacy:assalFullExportStripAttendancePhotos(get('assal_attendance_test_log_v1', [])),
+    attendanceTimeoutLegacy:assalFullExportStripAttendancePhotos(get('assal_attendance_timeout_log_v1', [])),
     transferDate:String(rawMap?.ASSAL_TRANSFER_DATE || ''),
     alerts:get('assal.debts.alerts.v1', null),
     openingBalanceHistory:get('ASSAL_DEBTS_OPENING_BALANCE_HISTORY_V1', null),
@@ -21497,22 +21531,38 @@ async function assalFullExportFetchServerSection(section, params){
     headers:{ 'Authorization':'Bearer ' + String(SYNC.TOKEN || '') }
   });
   const text = await resp.text();
-  if(!resp.ok) throw new Error('فشل جلب قسم ' + section + ' من السيرفر (' + resp.status + ')');
-  let json;
-  try{ json = JSON.parse(text); }
-  catch(_){ throw new Error('استجابة غير صالحة من قسم ' + section); }
+  let json = null;
+  try{ json = JSON.parse(text); }catch(_){ }
+  if(!resp.ok){
+    const detail = String(json?.message || json?.hint || '').trim();
+    throw new Error('فشل جلب قسم ' + section + ' من السيرفر (' + resp.status + ')' + (detail ? ': ' + detail : ''));
+  }
+  if(!json) throw new Error('استجابة غير صالحة من قسم ' + section);
   if(!json || json.status !== 'ok'){
     throw new Error(String(json?.message || ('فشل قسم ' + section)));
   }
   return json;
 }
 
-async function assalFullExportFetchServerBundle(){
+async function assalFullExportFetchServerBundle(onProgress){
+  const notify = (stage, data)=>{
+    try{ if(typeof onProgress === 'function') onProgress(stage, data || {}); }catch(_){ }
+  };
+
   const backupRes = await assalFullExportFetchServerSection('backup');
+  notify('backup', {done:1,total:1});
+
   const requestsRes = await assalFullExportFetchServerSection('card-requests');
+  notify('card-requests', {
+    done:1,
+    total:1,
+    requests:Array.isArray(requestsRes?.cardRequests?.requests) ? requestsRes.cardRequests.requests.length : 0
+  });
+
   const manifestRes = await assalFullExportFetchServerSection('audit-manifest');
   const manifest = Array.isArray(manifestRes.files) ? manifestRes.files : [];
   const auditFiles = [];
+  notify('audit-manifest', {done:0,total:manifest.length});
 
   for(let offset=0; offset<manifest.length; offset += ASSAL_FULL_EXPORT_AUDIT_BATCH){
     const batch = await assalFullExportFetchServerSection('audit-batch', {
@@ -21521,6 +21571,7 @@ async function assalFullExportFetchServerBundle(){
     });
     const files = Array.isArray(batch.files) ? batch.files : [];
     auditFiles.push(...files);
+    notify('audit-batch', {done:auditFiles.length,total:manifest.length});
   }
 
   if(auditFiles.length !== manifest.length){
@@ -21531,9 +21582,15 @@ async function assalFullExportFetchServerBundle(){
   if(expectedIds.size !== receivedIds.size || Array.from(expectedIds).some(id=>!receivedIds.has(id))){
     throw new Error('تعذر مطابقة ملفات أرشيف اليوم والبطاقة مع فهرس السيرفر');
   }
+  notify('audit-complete', {done:auditFiles.length,total:manifest.length});
+
+  const safeBackup = assalFullExportClone(backupRes.backup || {});
+  if(safeBackup && typeof safeBackup === 'object'){
+    safeBackup.attendance = assalFullExportStripAttendancePhotos(safeBackup.attendance || {version:2,updatedAt:'',days:{}});
+  }
 
   return {
-    backup:backupRes.backup || {},
+    backup:safeBackup,
     backupSource:String(backupRes.source || ''),
     cardRequests:requestsRes.cardRequests || {},
     cardRequestFiles:requestsRes.files || [],
@@ -21541,7 +21598,6 @@ async function assalFullExportFetchServerBundle(){
     auditFiles
   };
 }
-
 function assalFullExportCoreSnapshot(localStorageRaw){
   let customerNames = [];
   try{
@@ -21559,7 +21615,7 @@ function assalFullExportCoreSnapshot(localStorageRaw){
     names:assalFullExportClone(customerNames),
     transferDate:(typeof getTransferDateIso === 'function') ? String(getTransferDateIso() || '') : String(localStorageRaw?.ASSAL_TRANSFER_DATE || ''),
     payments:assalFullExportClone(payments || {}),
-    attendance:assalFullExportClone(attendance || {version:2,updatedAt:'',days:{}}),
+    attendance:assalFullExportStripAttendancePhotos(attendance || {version:2,updatedAt:'',days:{}}),
     attendanceUpdatedAt:String(attendance?.updatedAt || '')
   };
 }
@@ -21622,21 +21678,408 @@ async function assalFullExportDownload(payload, filename){
   return {ok:true, bytes:new TextEncoder().encode(text).length};
 }
 
+/* =====================================================================
+   ASSAL FULL EXPORT PROGRESS TOAST — واجهة تقدم خفيفة وغير حاجبة
+   - مثبتة في منتصف الصفحة تحت الهيدر.
+   - pointer-events:none حتى يبقى النظام قابلاً للاستخدام أثناء التصدير.
+   - تمنع فقط تشغيل تصدير ثانٍ إلى أن تنتهي العملية الحالية.
+===================================================================== */
+const ASSAL_FULL_EXPORT_PROGRESS_TOTAL = 10;
+let assalFullExportInProgress = false;
+let assalFullExportProgressHideTimer = 0;
+let assalFullExportCurrentStage = 'تهيئة التصدير';
+let assalFullExportCurrentProgress = {step:0, percent:0};
+
+function assalFullExportYield(){
+  return new Promise(resolve=>{
+    if(typeof requestAnimationFrame === 'function'){
+      requestAnimationFrame(()=> setTimeout(resolve,0));
+    }else{
+      setTimeout(resolve,0);
+    }
+  });
+}
+
+function assalFullExportFormatBytes(bytes){
+  const value = Number(bytes || 0);
+  if(value < 1024) return value.toLocaleString('en-US') + ' بايت';
+  if(value < 1024 * 1024) return (value / 1024).toFixed(1) + ' KB';
+  return (value / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+function assalFullExportEnsureProgressToast(){
+  let host = document.getElementById('assalFullExportProgressHost');
+  if(host) return host;
+
+  if(!document.getElementById('assalFullExportProgressStyle')){
+    const style = document.createElement('style');
+    style.id = 'assalFullExportProgressStyle';
+    style.textContent = `
+#assalFullExportProgressHost{
+  position:fixed;
+  top:calc(var(--hdr-h, 54px) + 12px);
+  left:50%;
+  transform:translateX(-50%);
+  width:min(720px, calc(100vw - 28px));
+  z-index:2147483600;
+  pointer-events:none;
+  direction:rtl;
+  font-family:var(--ui-font, "Cairo", system-ui) !important;
+  contain:layout style paint;
+}
+#assalFullExportProgressToast{
+  display:none;
+  position:relative;
+  overflow:hidden;
+  border-radius:17px;
+  border:1px solid rgba(125,211,252,.26);
+  background:
+    radial-gradient(420px 150px at 100% 0%, rgba(14,165,233,.14), transparent 68%),
+    radial-gradient(340px 130px at 0% 100%, rgba(124,58,237,.12), transparent 70%),
+    linear-gradient(180deg, rgba(15,29,53,.96), rgba(7,18,37,.97));
+  box-shadow:0 18px 48px rgba(0,0,0,.48), inset 0 1px 0 rgba(255,255,255,.055);
+  color:#eef7ff;
+  backdrop-filter:blur(13px);
+  -webkit-backdrop-filter:blur(13px);
+  opacity:0;
+  transform:translateY(-7px) scale(.992);
+}
+#assalFullExportProgressToast.is-visible{
+  display:block;
+  opacity:1;
+  transform:translateY(0) scale(1);
+  animation:assalFullExportToastIn .20s ease-out both;
+}
+#assalFullExportProgressToast.is-success{border-color:rgba(74,222,128,.34)}
+#assalFullExportProgressToast.is-error{border-color:rgba(251,113,133,.42)}
+.assal-full-export-progress-main{
+  display:grid;
+  grid-template-columns:46px minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+  padding:12px 14px 11px;
+}
+.assal-full-export-progress-icon{
+  width:46px;
+  height:46px;
+  display:grid;
+  place-items:center;
+  border-radius:14px;
+  color:#fff;
+  font-size:17px;
+  background:linear-gradient(135deg,#0891b2,#6d28d9);
+  box-shadow:0 10px 24px rgba(14,165,233,.18), inset 0 1px 0 rgba(255,255,255,.13);
+}
+#assalFullExportProgressToast.is-success .assal-full-export-progress-icon{
+  background:linear-gradient(135deg,#059669,#15803d);
+}
+#assalFullExportProgressToast.is-error .assal-full-export-progress-icon{
+  background:linear-gradient(135deg,#dc2626,#9f1239);
+}
+.assal-full-export-progress-copy{min-width:0;text-align:right}
+.assal-full-export-progress-copy b{
+  display:block;
+  color:#fff;
+  font-size:14px;
+  line-height:1.35;
+  font-weight:950;
+  letter-spacing:.1px;
+}
+.assal-full-export-progress-copy span{
+  display:block;
+  margin-top:4px;
+  color:#b9c8dc;
+  font-size:11.5px;
+  line-height:1.45;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.assal-full-export-progress-meta{
+  min-width:76px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:2px;
+  padding:5px 8px;
+  border-radius:11px;
+  border:1px solid rgba(125,211,252,.15);
+  background:rgba(2,6,23,.25);
+}
+.assal-full-export-progress-meta strong{
+  color:#bae6fd;
+  font-size:13px;
+  font-weight:950;
+  font-variant-numeric:tabular-nums;
+}
+.assal-full-export-progress-meta span{
+  color:#8fa4be;
+  font-size:9.5px;
+  white-space:nowrap;
+}
+.assal-full-export-progress-track{
+  height:5px;
+  overflow:hidden;
+  background:rgba(148,163,184,.13);
+  border-top:1px solid rgba(148,163,184,.08);
+}
+#assalFullExportProgressBar{
+  position:relative;
+  width:0%;
+  height:100%;
+  background:linear-gradient(90deg,#22d3ee,#8b5cf6,#38bdf8);
+  background-size:180% 100%;
+  box-shadow:0 0 14px rgba(34,211,238,.30);
+  transition:width .30s ease;
+  animation:assalFullExportBarFlow 2.3s linear infinite;
+}
+#assalFullExportProgressToast.is-success #assalFullExportProgressBar{
+  background:linear-gradient(90deg,#34d399,#22c55e);
+  animation:none;
+}
+#assalFullExportProgressToast.is-error #assalFullExportProgressBar{
+  background:linear-gradient(90deg,#fb7185,#ef4444);
+  animation:none;
+}
+@keyframes assalFullExportToastIn{
+  from{opacity:0;transform:translateY(-7px) scale(.992)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes assalFullExportBarFlow{
+  from{background-position:0 0}
+  to{background-position:180% 0}
+}
+@media(max-width:700px){
+  #assalFullExportProgressHost{
+    top:calc(var(--hdr-h, 54px) + 9px);
+    width:calc(100vw - 18px);
+  }
+  .assal-full-export-progress-main{
+    grid-template-columns:40px minmax(0,1fr) 66px;
+    gap:9px;
+    padding:10px 11px 9px;
+  }
+  .assal-full-export-progress-icon{width:40px;height:40px;border-radius:12px;font-size:15px}
+  .assal-full-export-progress-copy b{font-size:12.5px}
+  .assal-full-export-progress-copy span{font-size:10.5px}
+  .assal-full-export-progress-meta{min-width:66px;padding-inline:5px}
+}
+@media(prefers-reduced-motion:reduce){
+  #assalFullExportProgressToast.is-visible,
+  #assalFullExportProgressBar{animation:none !important;transition:none !important}
+}
+`;
+    document.head.appendChild(style);
+  }
+
+  host = document.createElement('div');
+  host.id = 'assalFullExportProgressHost';
+  host.innerHTML = `
+    <div id="assalFullExportProgressToast" role="status" aria-live="polite" aria-atomic="true" aria-hidden="true">
+      <div class="assal-full-export-progress-main">
+        <div class="assal-full-export-progress-icon"><i id="assalFullExportProgressIcon" class="fa-solid fa-box-archive"></i></div>
+        <div class="assal-full-export-progress-copy">
+          <b id="assalFullExportProgressTitle">جاري تجهيز النسخة الشاملة</b>
+          <span id="assalFullExportProgressDetail">تهيئة التصدير الآمن</span>
+        </div>
+        <div class="assal-full-export-progress-meta">
+          <strong id="assalFullExportProgressPct">0%</strong>
+          <span id="assalFullExportProgressStep">مرحلة 0 من ${ASSAL_FULL_EXPORT_PROGRESS_TOTAL}</span>
+        </div>
+      </div>
+      <div class="assal-full-export-progress-track"><div id="assalFullExportProgressBar"></div></div>
+    </div>`;
+  document.body.appendChild(host);
+  return host;
+}
+
+function assalFullExportProgressSet(options){
+  const opt = options || {};
+  clearTimeout(assalFullExportProgressHideTimer);
+  const host = assalFullExportEnsureProgressToast();
+  const toast = host.querySelector('#assalFullExportProgressToast');
+  const state = String(opt.state || 'working');
+  const percent = Math.max(0, Math.min(100, Number(opt.percent || 0)));
+  const step = Math.max(0, Math.min(ASSAL_FULL_EXPORT_PROGRESS_TOTAL, Number(opt.step || 0)));
+  assalFullExportCurrentProgress = {step, percent};
+
+  toast.classList.remove('is-success','is-error');
+  if(state === 'success') toast.classList.add('is-success');
+  if(state === 'error') toast.classList.add('is-error');
+  toast.classList.add('is-visible');
+  toast.setAttribute('aria-hidden','false');
+
+  host.querySelector('#assalFullExportProgressTitle').textContent = String(opt.title || 'جاري تجهيز النسخة الشاملة');
+  host.querySelector('#assalFullExportProgressDetail').textContent = String(opt.detail || 'يرجى الانتظار');
+  host.querySelector('#assalFullExportProgressPct').textContent = Math.round(percent) + '%';
+  host.querySelector('#assalFullExportProgressStep').textContent = state === 'success'
+    ? 'اكتمل التصدير'
+    : (state === 'error' ? 'توقف التصدير' : ('مرحلة ' + step + ' من ' + ASSAL_FULL_EXPORT_PROGRESS_TOTAL));
+  host.querySelector('#assalFullExportProgressBar').style.width = percent + '%';
+  host.querySelector('#assalFullExportProgressIcon').className = String(opt.icon || 'fa-solid fa-spinner fa-spin');
+}
+
+function assalFullExportProgressHide(delay){
+  clearTimeout(assalFullExportProgressHideTimer);
+  assalFullExportProgressHideTimer = setTimeout(()=>{
+    const host = document.getElementById('assalFullExportProgressHost');
+    const toast = host?.querySelector('#assalFullExportProgressToast');
+    if(!toast) return;
+    toast.classList.remove('is-visible','is-success','is-error');
+    toast.setAttribute('aria-hidden','true');
+  }, Math.max(0, Number(delay || 0)));
+}
+
+function assalFullExportProgressSuccess(filename, bytes){
+  assalFullExportProgressSet({
+    state:'success', step:ASSAL_FULL_EXPORT_PROGRESS_TOTAL, percent:100,
+    title:'اكتمل تصدير النسخة الشاملة بنجاح',
+    detail:String(filename || '') + ' • ' + assalFullExportFormatBytes(bytes),
+    icon:'fa-solid fa-circle-check'
+  });
+  assalFullExportProgressHide(5200);
+}
+
+function assalFullExportProgressError(stage, err){
+  const last = assalFullExportCurrentProgress || {step:0,percent:0};
+  assalFullExportProgressSet({
+    state:'error', step:last.step, percent:last.percent,
+    title:'تعذر إكمال تصدير النسخة الشاملة',
+    detail:String(stage || 'مرحلة غير محددة') + ' — ' + String(err?.message || err || 'خطأ غير معروف'),
+    icon:'fa-solid fa-triangle-exclamation'
+  });
+  assalFullExportProgressHide(10000);
+}
+
 // نفس زر التصدير المحلي الموجود، لكن بمحتوى شامل وغير منظّف.
 async function exportInvoices(){
   const btn = document.getElementById('btnExportLocal');
+  if(assalFullExportInProgress){
+    assalFullExportProgressSet({
+      step:1, percent:8,
+      title:'التصدير الشامل قيد التنفيذ',
+      detail:'تستطيع متابعة العمل؛ انتظر اكتمال العملية الحالية قبل تشغيل تصدير جديد',
+      icon:'fa-solid fa-hourglass-half'
+    });
+    return;
+  }
+
   const oldDisabled = !!btn?.disabled;
+  assalFullExportInProgress = true;
+  assalFullExportCurrentStage = 'تهيئة التصدير';
+
   try{
     if(btn){ btn.disabled = true; btn.setAttribute('aria-busy','true'); }
-    showToast?.('info','جارٍ جمع نسخة النظام الشاملة من الحاسبة والسيرفر…');
 
+    assalFullExportProgressSet({
+      step:1, percent:4,
+      title:'جاري تجهيز النسخة الشاملة',
+      detail:'تهيئة لقطة آمنة من بيانات النظام بدون إيقاف العمل',
+      icon:'fa-solid fa-box-archive'
+    });
+    await assalFullExportYield();
+
+    assalFullExportCurrentStage = 'جمع البطاقات والحسابات والحضور';
     const localStorageRaw = assalFullExportKnownLocalStorage();
     const localStructured = assalFullExportStructuredLocalStorage(localStorageRaw);
     const localCore = assalFullExportCoreSnapshot(localStorageRaw);
+    assalFullExportProgressSet({
+      step:2, percent:15,
+      title:'تم تثبيت بيانات النظام المحلية',
+      detail:'البطاقات والذمم والحسابات المالية والحضور جاهزة للتجميع',
+      icon:'fa-solid fa-database'
+    });
+    await assalFullExportYield();
 
+    assalFullExportCurrentStage = 'قراءة قاعدة IndexedDB الرئيسية';
+    assalFullExportProgressSet({
+      step:3, percent:22,
+      title:'قراءة مخزن النظام المحلي',
+      detail:'جلب السجلات التشغيلية والأرشيفات المحلية المحفوظة',
+      icon:'fa-solid fa-hard-drive'
+    });
     const mainIDB = await assalFullExportReadIDBStore('ASSAL_DEBTS_LOCAL_DB_V1','kv');
-    const attendancePhotosIDB = await assalFullExportReadIDBStore('assal_attendance_photos_db_v1','photos');
-    const server = await assalFullExportFetchServerBundle();
+    assalFullExportProgressSet({
+      step:3, percent:29,
+      title:'اكتملت قراءة مخزن النظام المحلي',
+      detail:(Array.isArray(mainIDB.records) ? mainIDB.records.length : 0).toLocaleString('en-US') + ' سجل جاهز',
+      icon:'fa-solid fa-hard-drive'
+    });
+    await assalFullExportYield();
+
+    assalFullExportCurrentStage = 'تهيئة معلومات كشف الحضور بدون الصور';
+    assalFullExportProgressSet({
+      step:4, percent:33,
+      title:'تهيئة معلومات كشف الحضور',
+      detail:'الاحتفاظ بالأسماء والأيام والأوقات والحالات مع استبعاد ملفات الصور',
+      icon:'fa-solid fa-user-check'
+    });
+    localCore.attendance = assalFullExportStripAttendancePhotos(localCore.attendance || {version:2,updatedAt:'',days:{}});
+    localStructured.attendanceState = assalFullExportStripAttendancePhotos(localStructured.attendanceState || {version:2,updatedAt:'',days:{}});
+    assalFullExportProgressSet({
+      step:4, percent:39,
+      title:'اكتملت معلومات كشف الحضور',
+      detail:'تم استبعاد الصور ومراجعها من ملف التصدير لتقليل الحجم',
+      icon:'fa-solid fa-user-check'
+    });
+    await assalFullExportYield();
+
+    assalFullExportCurrentStage = 'جلب نسخة السيرفر والأرشيفات';
+    const server = await assalFullExportFetchServerBundle((stage, data)=>{
+      if(stage === 'backup'){
+        assalFullExportCurrentStage = 'جلب نسخة السيرفر المحمية';
+        assalFullExportProgressSet({
+          step:5, percent:47,
+          title:'تم جلب نسخة السيرفر المحمية',
+          detail:'النسخة الرئيسية السليمة أُضيفت إلى ملف التصدير',
+          icon:'fa-solid fa-cloud-arrow-down'
+        });
+      }else if(stage === 'card-requests'){
+        assalFullExportCurrentStage = 'جلب طلبات تعديل البطاقات';
+        assalFullExportProgressSet({
+          step:6, percent:55,
+          title:'تم جلب طلبات تعديل البطاقات',
+          detail:Number(data?.requests || 0).toLocaleString('en-US') + ' طلب محفوظ ضمن النسخة',
+          icon:'fa-solid fa-file-signature'
+        });
+      }else if(stage === 'audit-manifest'){
+        assalFullExportCurrentStage = 'قراءة فهرس أرشيف اليوم والبطاقة';
+        assalFullExportProgressSet({
+          step:7, percent:60,
+          title:'جلب أرشيف اليوم وأرشيف البطاقة',
+          detail:'تم العثور على ' + Number(data?.total || 0).toLocaleString('en-US') + ' ملف أرشيف',
+          icon:'fa-solid fa-clock-rotate-left'
+        });
+      }else if(stage === 'audit-batch'){
+        const total = Math.max(0, Number(data?.total || 0));
+        const done = Math.max(0, Number(data?.done || 0));
+        const ratio = total > 0 ? Math.min(1, done / total) : 1;
+        assalFullExportProgressSet({
+          step:7, percent:60 + (ratio * 18),
+          title:'جلب أرشيف اليوم وأرشيف البطاقة',
+          detail:'تم جلب ' + done.toLocaleString('en-US') + ' من ' + total.toLocaleString('en-US') + ' ملف',
+          icon:'fa-solid fa-clock-rotate-left'
+        });
+      }else if(stage === 'audit-complete'){
+        assalFullExportCurrentStage = 'مطابقة أرشيف اليوم والبطاقة';
+        assalFullExportProgressSet({
+          step:7, percent:79,
+          title:'اكتمل أرشيف اليوم والبطاقة',
+          detail:Number(data?.done || 0).toLocaleString('en-US') + ' ملف تمت مطابقته بنجاح',
+          icon:'fa-solid fa-circle-check'
+        });
+      }
+    });
+    await assalFullExportYield();
+
+    assalFullExportCurrentStage = 'تجميع أقسام النسخة الشاملة';
+    assalFullExportProgressSet({
+      step:8, percent:83,
+      title:'تجميع أقسام النسخة الشاملة',
+      detail:'ترتيب البيانات المحلية والسيرفر والأرشيفات في ملف واحد',
+      icon:'fa-solid fa-layer-group'
+    });
 
     localStructured.advancedServerUploadArchive = assalFullExportFindIDBValue(
       mainIDB,
@@ -21658,8 +22101,7 @@ async function exportInvoices(){
         localStorageRaw,
         structured:localStructured,
         indexedDB:{
-          main:mainIDB,
-          attendancePhotos:attendancePhotosIDB
+          main:mainIDB
         }
       },
       server,
@@ -21667,13 +22109,24 @@ async function exportInvoices(){
         localCore:assalFullExportCountCore(localCore),
         localStorageKeys:Object.keys(localStorageRaw).length,
         mainIndexedDBRecords:Array.isArray(mainIDB.records) ? mainIDB.records.length : 0,
-        attendancePhotos:Array.isArray(attendancePhotosIDB.records) ? attendancePhotosIDB.records.length : 0,
+        attendancePhotosIncluded:0,
+        attendancePhotosExcluded:true,
         localAuditDayRecords:localStructured.cardAudit.dayRecords.length,
         localAuditCardRecords:localStructured.cardAudit.cardRecords.length,
         serverAuditFiles:Array.isArray(server.auditFiles) ? server.auditFiles.length : 0,
         serverCardRequests:Array.isArray(server.cardRequests?.requests) ? server.cardRequests.requests.length : 0
       }
     };
+    await assalFullExportYield();
+
+    assalFullExportCurrentStage = 'حساب بصمة التحقق SHA-256';
+    assalFullExportProgressSet({
+      step:9, percent:90,
+      title:'فحص سلامة النسخة الشاملة',
+      detail:'حساب بصمة SHA-256 قبل إنشاء الملف النهائي',
+      icon:'fa-solid fa-fingerprint'
+    });
+    await assalFullExportYield();
 
     const contentText = JSON.stringify(content);
     const contentHash = (typeof sha256 === 'function') ? await sha256(contentText) : '';
@@ -21689,17 +22142,27 @@ async function exportInvoices(){
       }
     };
 
+    assalFullExportCurrentStage = 'إنشاء وتنزيل ملف النسخة';
+    assalFullExportProgressSet({
+      step:10, percent:97,
+      title:'إنشاء ملف النسخة الشاملة',
+      detail:'التحقق اكتمل؛ جاري تجهيز الملف للتنزيل',
+      icon:'fa-solid fa-file-arrow-down'
+    });
+    await assalFullExportYield();
+
     const day = exportedAt.slice(0,10);
-    const result = await assalFullExportDownload(payload, `assal-full-system-backup-${day}.json`);
-    showToast?.('success','تم تصدير نسخة النظام الشاملة بنجاح (' + Number(result.bytes || 0).toLocaleString('en-US') + ' بايت)');
+    const filename = `assal-full-system-backup-${day}.json`;
+    const result = await assalFullExportDownload(payload, filename);
+    assalFullExportProgressSuccess(filename, result.bytes || 0);
   }catch(err){
     console.error('[ASSAL FULL SYSTEM EXPORT]',err);
-    showToast?.('error','تعذر التصدير الشامل: ' + (err?.message || err));
+    assalFullExportProgressError(assalFullExportCurrentStage, err);
   }finally{
+    assalFullExportInProgress = false;
     if(btn){ btn.disabled = oldDisabled; btn.removeAttribute('aria-busy'); }
   }
 }
-
 
 
 
@@ -43535,7 +43998,7 @@ body.assal-owner-exclusive > #modal.active{
     });
     root.addEventListener('input',function(e){if(e.target&&e.target.id==='assalOwnerDailySearch'){ui.dailyQuery=e.target.value||'';renderDaily();}if(e.target&&e.target.id==='assalOwnerFinanceSearch'){ui.financeQuery=e.target.value||'';renderFinance();}});
     root.addEventListener('change',function(e){if(e.target&&e.target.id==='assalOwnerDailyDate'){ui.dailyDay=e.target.value||localISO(new Date());ui.expanded.clear();renderDaily();}if(e.target&&e.target.id==='assalOwnerFinanceDate'){ui.financeDay=e.target.value||localISO(new Date());renderFinance();}if(e.target&&e.target.id==='assalOwnerAttendanceDate'){ui.attendanceDay=e.target.value||localISO(new Date());renderAttendance();}});
-    [['assalOwn-erDailyView','daily'],['assalOwnerFinanceView','finance'],['assalOwnerAttendanceView','attendance']].forEach(function(pair){var view=byId(pair[0]);if(!view)return;view.addEventListener('scroll',function(){if(ui.view!==pair[1])return;root.classList.toggle('assal-owner-header-compact',view.scrollTop>8);},{passive:true});});
+    [['assalOwnerDailyView','daily'],['assalOwnerFinanceView','finance'],['assalOwnerAttendanceView','attendance']].forEach(function(pair){var view=byId(pair[0]);if(!view)return;view.addEventListener('scroll',function(){if(ui.view!==pair[1])return;root.classList.toggle('assal-owner-header-compact',view.scrollTop>8);},{passive:true});});
     window.addEventListener('assal:payments-saved',refreshVisible);
     window.addEventListener('storage',function(e){if(!e||!e.key||e.key==='assal.payments.v1'||e.key==='assal_attendance_state_v2')refreshVisible();});
   }
