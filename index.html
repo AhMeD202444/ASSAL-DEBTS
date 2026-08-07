@@ -18842,10 +18842,16 @@ function renderRail(){
       const daysInMonth = groups[monthKey].sort().reverse();
       daysInMonth.forEach(k => {
         const row = CE('div','day' + (k === selectedDay ? ' active' : ''));
+        row.setAttribute('data-assal-day', k);
         row.innerHTML = `
           <div class="title">${arDateWithDay(k)}</div>
           <div class="meta">${visibleCardsOfDay(k).length} بطاقة</div>
         `;
+        try{
+          if(window.ASSAL_DEBT_TRANSFER_LOCK && typeof window.ASSAL_DEBT_TRANSFER_LOCK.decorateRailDay === 'function'){
+            window.ASSAL_DEBT_TRANSFER_LOCK.decorateRailDay(row, k);
+          }
+        }catch(_){ }
         row.onclick = () => {
           selectedDay = k;
           renderBoard();
@@ -23349,9 +23355,30 @@ function __dedupePaymentsObject__(payObj){
 
 
 
+// [ASSAL ATTENDANCE ALL SYNC PATHS FIX FINAL]
+// لقطة حضور طازجة وموحّدة لكل مسارات الرفع. لا تغيّر بيانات الحضور ولا الذمم؛ قراءة فقط.
+function __assalAttendanceSnapshotForBackup__(){
+  const empty = { version:2, updatedAt:'', days:{} };
+  try{
+    if(typeof window.ASSAL_ATTENDANCE_EXPORT === 'function'){
+      const state = window.ASSAL_ATTENDANCE_EXPORT();
+      if(state && typeof state === 'object') return state;
+    }
+  }catch(_){ }
+  try{
+    const raw = localStorage.getItem('assal_attendance_state_v2');
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(parsed && typeof parsed === 'object') return parsed;
+    }
+  }catch(_){ }
+  return empty;
+}
+
 // حضّر بايلود النسخة الاحتياطية (نفس فورماتك + updatedAtMax + transferDate)
-// (REPLACED) حضّر بايلود النسخة الاحتياطية (نفس فورماتك + updatedAtMax + transferDate + payments)
+// (REPLACED) حضّر بايلود النسخة الاحتياطية (نفس فورماتك + updatedAtMax + transferDate + payments + attendance)
 function buildBackupPayload(){
+  const attendance = __assalAttendanceSnapshotForBackup__();
   const payload = {
     version      : 3,
     exportedAt   : new Date().toISOString(),
@@ -23364,7 +23391,9 @@ function buildBackupPayload(){
         const obj = loadPaymentsStore();
         return (obj && typeof obj === 'object') ? obj : {};
       }catch{ return {}; }
-    })()
+    })(),
+    attendance          : attendance,
+    attendanceUpdatedAt : String(attendance?.updatedAt || '')
   };
   return payload;
 }
@@ -25358,6 +25387,9 @@ async function smartExportToServer(){
         return (obj && typeof obj === 'object') ? obj : {};
       }catch{ return {}; }
     })();
+    // [ASSAL ATTENDANCE ALL SYNC PATHS FIX FINAL]
+    // serverGetBackup أعلاه يدمج حضور السيرفر بالمحلي عبر الهوك الحالي؛ بعدها نأخذ لقطة طازجة للإرسال اليدوي.
+    const latestAttendance = __assalAttendanceSnapshotForBackup__();
 
     // [NEW] أدوات إزالة التكرار لتسديدات قائمة الحسابات المالية
     const __paymentKey__ = function(p){
@@ -25403,8 +25435,16 @@ async function smartExportToServer(){
       names: cleanNames,
       updatedAt: Date.now(),
       transferDate: getTransferDateIso() || '',
-      payments: latestPays                              // [NEW] أضفنا الحسابات المالية للبايلود
+      payments: latestPays,                             // [NEW] أضفنا الحسابات المالية للبايلود
+      attendance: latestAttendance,
+      attendanceUpdatedAt: String(latestAttendance?.updatedAt || '')
     };
+
+    // [ASSAL ATTENDANCE ALL SYNC PATHS FIX FINAL]
+    // حتى لو كانت هناك محاولة pending قديمة أُنشئت قبل دعم الحضور، لا نعيد إرسالها بلا كشف حضور.
+    // نحدّث قسم الحضور وحده فقط؛ لا نلمس days/names/payments ولا requestId ولا منطق الدمج الحالي.
+    payload.attendance = latestAttendance;
+    payload.attendanceUpdatedAt = String(latestAttendance?.updatedAt || '');
 
     let report = [];
 
@@ -25917,6 +25957,19 @@ async function smartImportFromServer(options){
     }
 
     emit('validate', {mode:subMode ? 'sub' : 'main'});
+
+    // [ASSAL ATTENDANCE PRELOADED PULL IMPORT FIX FINAL]
+    // مسار سحب الأدمن السريع يمرّر نسخة السيرفر مباشرة عبر preloadedServer،
+    // لذلك لا يمرّ عبر serverGetBackup المغلّف بهوك الحضور.
+    // نستورد الحضور هنا فقط لذلك المسار، من نفس النسخة المستلمة، بدون أي رفع أو تعديل لبيانات الديون.
+    if(subMode && hasPreloadedServer && server.attendance && typeof window.ASSAL_ATTENDANCE_IMPORT === 'function'){
+      emit('attendance-import', {mode:'sub'});
+      try{
+        window.ASSAL_ATTENDANCE_IMPORT(server.attendance, {silent:true});
+      }catch(__assalAttendancePreloadedPullErr){
+        console.warn('[ASSAL attendance] preloaded admin pull import skipped', __assalAttendancePreloadedPullErr);
+      }
+    }
 
     // [NEW] أدوات إزالة التكرار لتسديدات قائمة الحسابات المالية
     const __paymentKey__ = function(p){
@@ -40282,6 +40335,18 @@ html body .card .item.assal-smart-added-item-safe-final{
       applied:'تم التطبيق والرفع',rejected:'مرفوض',conflict:'تعارض',cancelled:'ملغى'
     })[safe(s)] || safe(s||'—');
   }
+  function isDebtTransferLockRequest(req){
+    try{
+      if(safe(req&&req.billType).trim()==='debt-transfer-lock') return true;
+      var ops=Array.isArray(req&&req.ops)?req.ops:[];
+      return ops.some(function(op){
+        if(!op||op.scope!=='card') return false;
+        if(safe(op.field).trim()==='__debt_transfer_lock__') return true;
+        return (Array.isArray(op.fields)?op.fields:[]).some(function(f){return safe(f&&f.field).trim()==='__debt_transfer_lock__';});
+      });
+    }catch(_){ return false; }
+  }
+
   function fieldLabel(scope, field){
     var map={customer:'اسم الزبون',billType:'نوع الفاتورة',paidAll:'تسديد الكل',deletedAt:'حذف',cat:'الصنف',item:'اسم المادة',price:'السعر',qty:'العدد',note:'الملاحظات',paid:'التسديد',returned:'الراجع',partialPayments:'التسديد الجزئي',notes:'ملاحظات البطاقة',__global_customer_rename__:'تغيير اسم الزبون بكل السجلات'};
     if(scope==='line' && field==='__add__') return 'إضافة مادة';
@@ -41321,7 +41386,8 @@ html body .card .item.assal-smart-added-item-safe-final{
     refreshPromise=(async function(){
       try{
         if(refreshVisualRequested)progressSet('', 'جاري الاتصال بالسيرفر','طلب أحدث قائمة لطلبات التعديل',26,'fa-solid fa-cloud-arrow-down');
-        var list=await serverGetList();
+        var allServerRequests=await serverGetList();
+        var list=allServerRequests.filter(function(x){return !isDebtTransferLockRequest(x);});
         if(refreshVisualRequested)progressSet('', 'تم جلب الطلبات','مقارنة الطلبات الجديدة مع القائمة المحلية',58,'fa-solid fa-code-compare');
         requestCache=list;
         if(isAdmin()){
@@ -45151,6 +45217,527 @@ body.assal-owner-exclusive > #modal.active{
 <!-- ===== /ASSAL OWNER READ-ONLY HUB + COLORED COMPACT CARDS + ATTENDANCE FINAL ===== -->
 
 
+
+
+
+<!-- ===== ASSAL DEBT TRANSFER AUTO LOCK FINAL - START ===== -->
+<style id="assal-debt-transfer-auto-lock-final-style">
+  /* لا يوجد زر قفل ظاهر: بادج عدد البطاقات نفسه هو مفتاح القفل السري بالضغط المزدوج. */
+  .rail .day .meta.assal-debt-lock-badge{
+    position:relative;
+    display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;
+    border-radius:999px;
+    padding:2px 7px;
+    border:1px solid transparent;
+    transition:background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease,filter .16s ease;
+    user-select:none;-webkit-user-select:none;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;
+    cursor:pointer;
+  }
+  .rail .day .meta.assal-debt-lock-badge.is-locked{
+    color:#2b2103 !important;
+    border-color:rgba(251,191,36,.88);
+    background:linear-gradient(135deg,#fde047,#f59e0b);
+    box-shadow:0 4px 12px rgba(245,158,11,.22),inset 0 1px 0 rgba(255,255,255,.42);
+    font-weight:950;
+  }
+  .rail .day .meta.assal-debt-lock-badge.is-boundary{
+    border-color:#fef08a;
+    box-shadow:0 0 0 2px rgba(251,191,36,.16),0 5px 14px rgba(245,158,11,.24),inset 0 1px 0 rgba(255,255,255,.48);
+  }
+  .rail .day .meta.assal-debt-lock-badge.is-pending{
+    color:#fff7ed !important;
+    border-color:rgba(251,146,60,.58);
+    background:linear-gradient(135deg,#ea580c,#c2410c);
+    box-shadow:0 4px 12px rgba(194,65,12,.22),inset 0 1px 0 rgba(255,255,255,.16);
+    font-weight:950;
+  }
+  .rail .day .meta.assal-debt-lock-badge.is-busy{filter:brightness(.86);pointer-events:none}
+
+  /* نفس روح نافذة احتساب الراجع. */
+  #modal.assal-debt-lock-confirm-modal .modal-card{
+    width:min(590px,calc(100vw - 24px)) !important;
+    border-color:rgba(251,191,36,.25) !important;
+    background:radial-gradient(circle at 12% 0%,rgba(245,158,11,.15),transparent 36%),linear-gradient(180deg,#171b2d,#0b1222) !important;
+  }
+  #modal.assal-debt-lock-confirm-modal #modal-confirm{
+    background:linear-gradient(135deg,#f59e0b,#ea580c) !important;color:#fff !important;
+    border:1px solid rgba(251,191,36,.35) !important;box-shadow:0 12px 28px rgba(234,88,12,.22) !important;
+  }
+  #modal.assal-debt-lock-confirm-modal.assal-debt-lock-unlock-confirm #modal-confirm{
+    background:linear-gradient(135deg,#dc2626,#9f1239) !important;
+    border-color:rgba(251,113,133,.38) !important;box-shadow:0 12px 28px rgba(190,24,93,.23) !important;
+  }
+  .assal-return-pop--debt-lock .assal-return-pop__icon{background:linear-gradient(135deg,#f59e0b,#ea580c)}
+  .assal-return-pop--debt-lock.assal-is-unlock .assal-return-pop__icon{background:linear-gradient(135deg,#e11d48,#7f1d1d)}
+  .assal-return-pop--debt-lock .assal-return-pop__box{border-color:rgba(251,191,36,.27);background:linear-gradient(135deg,rgba(245,158,11,.10),rgba(15,23,42,.62))}
+  .assal-return-pop--debt-lock.assal-is-unlock .assal-return-pop__box{border-color:rgba(251,113,133,.27);background:linear-gradient(135deg,rgba(190,24,93,.11),rgba(15,23,42,.62))}
+  .assal-debt-lock-date-pill{display:inline-flex;align-items:center;gap:6px;direction:ltr;padding:4px 9px;margin:0 3px;border-radius:999px;color:#fde68a;background:rgba(245,158,11,.16);border:1px solid rgba(251,191,36,.31);font-weight:950}
+  .assal-debt-lock-secret-wrap{margin-top:10px;display:grid;gap:6px}
+  .assal-debt-lock-secret-input{height:42px;width:100%;border-radius:12px;border:1px solid rgba(148,163,184,.28);background:rgba(2,6,23,.72);color:#fff;outline:none;text-align:center;direction:ltr;letter-spacing:4px;font:950 15px/1 Cairo,Arial,sans-serif}
+  .assal-debt-lock-secret-input:focus{border-color:rgba(251,191,36,.72);box-shadow:0 0 0 3px rgba(245,158,11,.14)}
+  .assal-debt-lock-secret-error{min-height:17px;color:#fca5a5;text-align:center;font-size:10.5px;font-weight:900}
+  .assal-debt-lock-secret-error:empty{visibility:hidden}
+
+  /* توست القفل القديم نفسه، مع نص تاريخ نقل الدين. */
+  #assalDebtTransferLockHost{
+    position:fixed;top:calc(var(--hdr-h,54px) + 12px);left:50%;width:min(790px,calc(100vw - 24px));
+    transform:translateX(-50%) translateY(-12px);z-index:26050;pointer-events:none;opacity:0;visibility:hidden;
+    transition:opacity .2s ease,transform .2s ease,visibility .2s ease;direction:rtl;
+  }
+  #assalDebtTransferLockHost.is-visible{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+  .assal-debt-transfer-lock-toast{
+    pointer-events:auto;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:8px 12px;border-radius:19px;color:#e5e7eb;
+    background:radial-gradient(circle at 12% 0%,rgba(245,158,11,.15),transparent 42%),linear-gradient(145deg,rgba(15,23,42,.97),rgba(7,12,26,.97));
+    border:1px solid rgba(251,191,36,.30);box-shadow:0 22px 58px rgba(0,0,0,.42),0 0 0 1px rgba(255,255,255,.025) inset;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)
+  }
+  .assal-debt-transfer-lock-mark{width:42px;height:42px;display:grid;place-items:center;border-radius:14px;color:#fff;font-size:17px;background:linear-gradient(135deg,#f59e0b,#ea580c);box-shadow:0 13px 28px rgba(234,88,12,.25)}
+  .assal-debt-transfer-lock-copy{min-width:0;display:grid;gap:1px;align-content:center;align-self:center}
+  .assal-debt-transfer-lock-title{font-size:14.5px;font-weight:950;color:#fff;line-height:1.3}
+  .assal-debt-transfer-lock-text{font-size:11.2px;font-weight:800;color:#cbd5e1;line-height:1.5}
+  .assal-debt-transfer-lock-actions{display:grid;grid-template-columns:minmax(112px,145px) auto;gap:7px;align-items:center}
+  .assal-debt-transfer-lock-code{width:100%;height:36px;border-radius:12px;border:1px solid rgba(148,163,184,.28);background:rgba(2,6,23,.72);color:#fff;outline:none;text-align:center;direction:ltr;font:900 14px/1.2 Cairo,Arial,sans-serif;letter-spacing:3px;padding:0 10px}
+  .assal-debt-transfer-lock-code:focus{border-color:rgba(251,191,36,.72);box-shadow:0 0 0 3px rgba(245,158,11,.15);background:rgba(15,23,42,.94)}
+  .assal-debt-transfer-lock-open{height:36px;border:0;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:0 14px;white-space:nowrap;cursor:pointer;color:#fff;background:linear-gradient(135deg,#f59e0b,#ea580c);box-shadow:0 9px 20px rgba(234,88,12,.20);font:950 11.5px/1 Cairo,Arial,sans-serif}
+  .assal-debt-transfer-lock-error{grid-column:1/-1;color:#fca5a5;font-size:10.5px;font-weight:900;text-align:center}.assal-debt-transfer-lock-error:empty{display:none}
+  #assalDebtTransferLockHost.is-wrong .assal-debt-transfer-lock-toast{animation:assalDebtTransferLockShake .28s ease}
+  @keyframes assalDebtTransferLockShake{0%,100%{transform:translateX(0)}30%{transform:translateX(6px)}65%{transform:translateX(-6px)}}
+  #assalDebtTransferLockHost.is-success .assal-debt-transfer-lock-toast{border-color:rgba(74,222,128,.36);background:radial-gradient(circle at 12% 0%,rgba(34,197,94,.16),transparent 42%),linear-gradient(145deg,rgba(15,23,42,.97),rgba(6,20,18,.97))}
+  #assalDebtTransferLockHost.is-success .assal-debt-transfer-lock-mark{background:linear-gradient(135deg,#22c55e,#15803d)}
+  #assalDebtTransferLockHost.is-success .assal-debt-transfer-lock-actions,#assalDebtTransferLockHost.is-success .assal-debt-transfer-lock-error{display:none}
+
+  body.assal-debt-transfer-day-locked .assal-customer-rename-btn,
+  body.assal-debt-transfer-day-locked .badge-type,
+  body.assal-debt-transfer-day-locked .assal-wholesale-to-credit-btn,
+  body.assal-debt-transfer-day-locked .btn-return,
+  body.assal-debt-transfer-day-locked .btn-pay,
+  body.assal-debt-transfer-day-locked .btn-del,
+  body.assal-debt-transfer-day-locked .btn-edit,
+  body.assal-debt-transfer-day-locked .note-add-mini,
+  body.assal-debt-transfer-day-locked .note-del-out,
+  body.assal-debt-transfer-day-locked .card-pay-all-btn,
+  body.assal-debt-transfer-day-locked .card-delete-btn,
+  body.assal-debt-transfer-day-locked .partial-pay-card-btn,
+  body.assal-debt-transfer-day-locked #btnAdd,
+  body.assal-debt-transfer-day-locked #notesModalAdd{opacity:.56 !important;filter:saturate(.55) !important;cursor:not-allowed !important}
+
+  @media(max-width:760px){
+    #assalDebtTransferLockHost{top:calc(var(--hdr-h,54px) + 8px);width:calc(100vw - 14px)}
+    .assal-debt-transfer-lock-toast{grid-template-columns:auto minmax(0,1fr);gap:8px;padding:8px 9px;border-radius:15px}
+    .assal-debt-transfer-lock-mark{width:38px;height:38px;border-radius:13px;font-size:16px}
+    .assal-debt-transfer-lock-actions{grid-column:1/-1;grid-template-columns:minmax(0,1fr) auto;width:100%}
+  }
+  @media(max-width:430px){.assal-debt-transfer-lock-actions{grid-template-columns:1fr}.assal-debt-transfer-lock-open{width:100%}}
+  @media(prefers-reduced-motion:reduce){#assalDebtTransferLockHost,.assal-debt-lock-badge{transition:none!important}#assalDebtTransferLockHost.is-wrong .assal-debt-transfer-lock-toast{animation:none!important}}
+</style>
+<script id="assal-debt-transfer-auto-lock-final-script">
+(function(){
+  'use strict';
+  if(window.ASSAL_DEBT_TRANSFER_LOCK && window.ASSAL_DEBT_TRANSFER_LOCK.version) return;
+
+  var VERSION='1.1.1-badge-full-hit-double-tap-fix-final';
+  var ADMIN_EMAIL='admin-debts@assal.com';
+  var MAIN_EMAIL='assal-debts@assal.com';
+  var LOCK_CODE='12345';
+  var LOCAL_STATE_KEY='ASSAL_DEBT_TRANSFER_LOCK_STATE_V1';
+  var COMMAND_BILL_TYPE='debt-transfer-lock';
+  var COMMAND_FIELD='__debt_transfer_lock__';
+  var POLL_MAIN_MS=8000;
+  var POLL_ADMIN_IDLE_MS=30000;
+  var POLL_ADMIN_FAST_MS=3000;
+  var ADMIN_FAST_WINDOW_MS=90000;
+
+  var serverCommands=[];
+  var confirmedLockDay='';
+  var confirmedSourceRequestId='';
+  var serverHasAppliedCommand=false;
+  var pendingCommand=null;
+  var pollBusy=false;
+  var applyBusy=false;
+  var lastPollAt=0;
+  var adminFastUntil=0;
+  var pollTimer=0;
+  var stateRevision=0;
+  var localState=readLocalState();
+  var viewState={selectedDay:'',unlockedDay:'',locked:false,lockDay:'',modeTimer:0,renderQueued:false};
+
+  function safe(v){return String(v==null?'':v)}
+  function esc(v){return safe(v).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]})}
+  function email(){return safe(window.ASSAL_LOGIN_EMAIL||'').trim().toLowerCase()}
+  function isAdmin(){try{return window.ASSAL_IS_ADMIN_DEBTS===true||email()===ADMIN_EMAIL}catch(_){return false}}
+  function isMain(){try{return window.ASSAL_IS_MAIN_DEBTS===true||email()===MAIN_EMAIL}catch(_){return false}}
+  function isAuthorized(){return isAdmin()||isMain()}
+  function validDay(v){return /^\d{4}-\d{2}-\d{2}$/.test(safe(v))}
+  function now(){return new Date().toISOString()}
+  function id(){return 'cr_debt_lock_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10)}
+  function fmtDay(day){if(!validDay(day))return safe(day);var p=day.split('-');return p[2]+'-'+p[1]+'-'+p[0]}
+  function selectedDayValue(){try{return safe(typeof selectedDay!=='undefined'?selectedDay:window.selectedDay)}catch(_){return safe(window.selectedDay)}}
+  function online(){try{return !!(navigator.onLine&&typeof fetch==='function'&&typeof SYNC==='object'&&SYNC.BASE_URL&&SYNC.TOKEN)}catch(_){return false}}
+  function toast(kind,msg){try{if(typeof showToast==='function')showToast(kind,msg)}catch(_){}}
+  function clone(v){try{return JSON.parse(JSON.stringify(v))}catch(_){return null}}
+
+  function readLocalState(){
+    try{
+      var raw=JSON.parse(localStorage.getItem(LOCAL_STATE_KEY)||'{}');
+      return {version:1,lockDay:validDay(raw.lockDay)?raw.lockDay:'',sourceRequestId:safe(raw.sourceRequestId),updatedAt:safe(raw.updatedAt),processedIds:Array.isArray(raw.processedIds)?raw.processedIds.slice(-300):[]};
+    }catch(_){return {version:1,lockDay:'',sourceRequestId:'',updatedAt:'',processedIds:[]}}
+  }
+  function writeLocalState(next){
+    localState={version:1,lockDay:validDay(next&&next.lockDay)?next.lockDay:'',sourceRequestId:safe(next&&next.sourceRequestId),updatedAt:safe(next&&next.updatedAt||now()),processedIds:Array.isArray(next&&next.processedIds)?next.processedIds.slice(-300):[]};
+    try{localStorage.setItem(LOCAL_STATE_KEY,JSON.stringify(localState))}catch(_){ }
+    stateRevision++;
+  }
+
+  function serverUrl(mode,params){
+    var base=SYNC.BASE_URL,q={mode:mode,token:SYNC.TOKEN,_:Date.now()};Object.keys(params||{}).forEach(function(k){q[k]=params[k]});
+    return base+(base.indexOf('?')>=0?'&':'?')+Object.keys(q).map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(q[k])}).join('&');
+  }
+  async function fetchTimed(url,options,timeoutMs){
+    var ctrl=new AbortController(),timer=setTimeout(function(){try{ctrl.abort()}catch(_){ }},Math.max(3000,Number(timeoutMs)||25000));
+    try{return await fetch(url,Object.assign({},options||{},{signal:ctrl.signal}))}
+    catch(err){if(err&&err.name==='AbortError')throw new Error('انتهت مهلة الاتصال');throw err}
+    finally{clearTimeout(timer)}
+  }
+  async function serverGetList(){
+    if(!online())throw new Error('لا يوجد اتصال');
+    var role=isAdmin()?'admin':(isMain()?'main':'');if(!role)throw new Error('الحساب غير مخول');
+    var resp=await fetchTimed(serverUrl('card-request-list',{actor:role,email:email()}),{method:'GET',cache:'no-store'},30000);
+    if(!resp.ok)throw new Error('فشل قراءة أوامر القفل');var j=await resp.json();if(!j||j.status==='error')throw new Error(safe(j&&j.message||'فشل قراءة أوامر القفل'));return Array.isArray(j.requests)?j.requests:[];
+  }
+  async function serverPost(mode,body){
+    if(!online())throw new Error('لا يوجد اتصال');
+    var resp=await fetchTimed(serverUrl(mode,{}),{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SYNC.TOKEN},body:JSON.stringify(body||{})},40000);
+    if(!resp.ok)throw new Error('فشل إرسال أمر القفل');var j=await resp.json();if(!j||j.status==='error')throw new Error(safe(j&&j.message||'فشل إرسال أمر القفل'));return j;
+  }
+
+  function commandField(req){
+    var ops=Array.isArray(req&&req.ops)?req.ops:[];
+    for(var i=0;i<ops.length;i++){
+      var op=ops[i]||{};
+      if(safe(op.field).trim()===COMMAND_FIELD)return {before:op.before,after:op.after};
+      var fields=Array.isArray(op.fields)?op.fields:[];
+      for(var j=0;j<fields.length;j++){if(safe(fields[j]&&fields[j].field).trim()===COMMAND_FIELD)return fields[j]}
+    }
+    return null;
+  }
+  function isCommand(req){
+    if(!req||safe(req.adminEmail).trim().toLowerCase()!==ADMIN_EMAIL)return false;
+    if(safe(req.billType).trim()===COMMAND_BILL_TYPE)return !!commandField(req);
+    return false;
+  }
+  function commandData(req){
+    var f=commandField(req)||{},a=f.after&&typeof f.after==='object'?f.after:{},b=f.before&&typeof f.before==='object'?f.before:{};
+    var action=safe(a.action).trim()==='unlock'?'unlock':'lock';
+    var day=validDay(a.lockDay)?a.lockDay:(validDay(a.targetDay)?a.targetDay:(validDay(req&&req.cardDay)?safe(req.cardDay):''));
+    if(action==='unlock')day='';
+    return {id:safe(req&&req.id),status:safe(req&&req.status),action:action,day:day,targetDay:validDay(a.targetDay)?safe(a.targetDay):(validDay(req&&req.cardDay)?safe(req.cardDay):''),beforeLockDay:validDay(b.lockDay)?safe(b.lockDay):'',updatedAt:safe(req&&req.appliedAt||req&&req.updatedAt||req&&req.sentAt||req&&req.createdAt),request:req};
+  }
+  function deriveServerState(list){
+    serverCommands=(Array.isArray(list)?list:[]).filter(isCommand);
+    var applied=serverCommands.filter(function(r){return safe(r.status)==='applied'}).sort(function(a,b){return commandData(a).updatedAt.localeCompare(commandData(b).updatedAt)});
+    var current='',source='';
+    applied.forEach(function(r){var d=commandData(r);current=d.action==='unlock'?'':d.day;source=d.id});
+    serverHasAppliedCommand=applied.length>0;
+    confirmedLockDay=validDay(current)?current:'';
+    confirmedSourceRequestId=source;
+    var pend=serverCommands.filter(function(r){return ['pending_review','approved_pending_upload'].indexOf(safe(r.status))>=0}).sort(function(a,b){return commandData(b).updatedAt.localeCompare(commandData(a).updatedAt)});
+    pendingCommand=pend.length?commandData(pend[0]):null;
+  }
+
+  function refreshRail(){try{if(typeof renderRail==='function')renderRail()}catch(_){ }}
+  var BADGE_DOUBLE_TAP_MS=520;
+  var badgeTapState=(typeof WeakMap==='function')?new WeakMap():null;
+  var badgeGestureGuard={day:'',at:0};
+  function stopBadgeEvent(ev,prevent){
+    if(!ev)return;
+    if(prevent!==false&&ev.cancelable){try{ev.preventDefault()}catch(_){ }}
+    try{ev.stopPropagation()}catch(_){ }
+    try{if(ev.stopImmediatePropagation)ev.stopImmediatePropagation()}catch(_){ }
+  }
+  function runBadgeLockGesture(day,badge){
+    if(!isAdmin()||!validDay(day)||!badge)return;
+    var t=Date.now();
+    if(badgeGestureGuard.day===day&&(t-badgeGestureGuard.at)<800)return;
+    badgeGestureGuard.day=day;badgeGestureGuard.at=t;
+    handleRailButton(day,badge);
+  }
+  function registerBadgeTap(day,badge,ev){
+    if(!badge||!validDay(day)||!isAdmin())return;
+    if(ev&&ev.isPrimary===false)return;
+    if(ev&&ev.pointerType==='mouse'&&typeof ev.button==='number'&&ev.button!==0)return;
+    var t=Date.now();
+    var state=badgeTapState?badgeTapState.get(badge):badge.__assalDebtLockTapState;
+    if(state&&state.day===day&&(t-state.at)<=BADGE_DOUBLE_TAP_MS){
+      if(badgeTapState)badgeTapState.delete(badge);else badge.__assalDebtLockTapState=null;
+      runBadgeLockGesture(day,badge);
+      return;
+    }
+    state={day:day,at:t};
+    if(badgeTapState)badgeTapState.set(badge,state);else badge.__assalDebtLockTapState=state;
+  }
+  function decorateRailDay(row,day){
+    if(!row||!validDay(day)||!isAdmin())return;
+    var badge=row.querySelector('.meta');
+    if(!badge)return;
+    badge.classList.add('assal-debt-lock-badge');
+    badge.classList.remove('is-locked','is-boundary','is-pending','is-busy');
+
+    var pendingHere=!!(pendingCommand&&pendingCommand.targetDay===day);
+    var lockedHere=!!(confirmedLockDay&&day<=confirmedLockDay);
+    if(pendingHere)badge.classList.add('is-pending');
+    else if(lockedHere){
+      badge.classList.add('is-locked');
+      if(day===confirmedLockDay)badge.classList.add('is-boundary');
+    }
+
+    if(pendingHere){
+      badge.title='أمر نقل الدين بانتظار تطبيق الحاسبة الرئيسية';
+    }else if(lockedHere){
+      badge.title='تم نقل الدين لغاية تاريخ '+fmtDay(confirmedLockDay);
+    }else{
+      badge.removeAttribute('title');
+    }
+
+    /* كل مساحة البادج منطقة ضغط واحدة. نستخدم pointerup للماوس واللمس والقلم
+       بدلاً من dblclick الطبيعي حتى تعمل الضغطتان حتى لو اختلف موضعهما داخل نفس البادج. */
+    badge.addEventListener('pointerdown',function(ev){
+      if(!ev||ev.isPrimary===false)return;
+      if(ev.pointerType==='mouse'&&typeof ev.button==='number'&&ev.button!==0)return;
+      stopBadgeEvent(ev,false);
+    });
+    badge.addEventListener('pointerup',function(ev){
+      if(!ev||ev.isPrimary===false)return;
+      if(ev.pointerType==='mouse'&&typeof ev.button==='number'&&ev.button!==0)return;
+      stopBadgeEvent(ev,true);
+      registerBadgeTap(day,badge,ev);
+    });
+    badge.addEventListener('pointercancel',function(){
+      if(badgeTapState)badgeTapState.delete(badge);else badge.__assalDebtLockTapState=null;
+    });
+    /* نبتلع click/dblclick فقط لمنع فتح بطاقة اليوم أو تنفيذ الحركة مرتين. */
+    badge.addEventListener('click',function(ev){stopBadgeEvent(ev,true)});
+    badge.addEventListener('dblclick',function(ev){stopBadgeEvent(ev,true)});
+  }
+
+  function confirmHtml(kind,day,current,withCode){
+    var unlock=kind==='unlock'||kind==='backward';
+    var title=kind==='cancel'?'إلغاء أمر القفل المعلّق':(kind==='unlock'?'إلغاء قفل الدين':(kind==='advance'?'تقديم تاريخ قفل الدين':(kind==='backward'?'إرجاع تاريخ قفل الدين':'قفل الدين لغاية هذا اليوم')));
+    var sub=kind==='cancel'?'سيُحفظ الرجوع كأمر معاكس آمن بدلاً من حذف الأمر الأول':(unlock?'هذه العملية تعيد السماح بالتعديل على أيام كانت مقفلة':'سيُطبق الأمر تلقائياً على الحاسبة الرئيسية');
+    var box='';
+    if(kind==='cancel')box='سيتم إرسال أمر معاكس بعد الأمر المعلّق للتاريخ <span class="assal-debt-lock-date-pill">'+esc(fmtDay(day))+'</span>. إذا استلمت الرئيسية الأمرين فستطبقهما بالترتيب وتنتهي بالحالة السابقة من دون فقدان أو كتابة فوق الديون.';
+    else if(kind==='unlock')box='سيتم إرسال أمر فتح إلى الحاسبة الرئيسية وإلغاء القفل المعتمد لغاية <span class="assal-debt-lock-date-pill">'+esc(fmtDay(current))+'</span>.';
+    else if(kind==='advance')box='سيتم نقل حد القفل من <span class="assal-debt-lock-date-pill">'+esc(fmtDay(current))+'</span> إلى <span class="assal-debt-lock-date-pill">'+esc(fmtDay(day))+'</span>، وستُقفل جميع الأيام لغاية التاريخ الجديد.';
+    else if(kind==='backward')box='سيتم إرجاع حد القفل من <span class="assal-debt-lock-date-pill">'+esc(fmtDay(current))+'</span> إلى <span class="assal-debt-lock-date-pill">'+esc(fmtDay(day))+'</span>، وهذا سيفتح الأيام الأحدث من التاريخ الجديد.';
+    else box='سيتم قفل يوم <span class="assal-debt-lock-date-pill">'+esc(fmtDay(day))+'</span> وجميع الأيام الأقدم منه ضد التعديل على الحاسبة الرئيسية.';
+    var code=withCode?'<div class="assal-debt-lock-secret-wrap"><input id="assalDebtLockSecretInput" class="assal-debt-lock-secret-input" type="password" inputmode="numeric" maxlength="5" autocomplete="off" placeholder="أدخل الرمز السري"><div id="assalDebtLockSecretError" class="assal-debt-lock-secret-error"></div></div>':'';
+    return '<div class="assal-return-pop assal-return-pop--debt-lock '+(unlock?'assal-is-unlock':'')+'"><div class="assal-return-pop__hero"><span class="assal-return-pop__icon"><i class="fa-solid '+(unlock?'fa-lock-open':'fa-lock')+'"></i></span><div><div class="assal-return-pop__title">'+esc(title)+'</div><div class="assal-return-pop__sub">'+esc(sub)+'</div></div></div><div class="assal-return-pop__box">'+box+code+'</div><div class="assal-return-pop__hint"><span>هذا الأمر لا يغيّر مبالغ الديون ولا البطاقات ولا يرفع نسخة ديون؛ يغيّر حالة السماح بالتعديل فقط.</span></div></div>';
+  }
+  async function askConfirm(kind,day,current,withCode){
+    var fallback=kind==='unlock'?'إلغاء قفل الدين؟':'تأكيد العملية؟';
+    if(typeof showConfirm!=='function'){
+      if(!window.confirm(fallback))return false;
+      if(withCode)return safe(window.prompt('أدخل الرمز السري')||'')===LOCK_CODE;
+      return true;
+    }
+    var p=showConfirm({title:'تأكيد قفل الدين',message:confirmHtml(kind,day,current,withCode),okText:kind==='cancel'?'نعم، إرسال أمر الرجوع':(kind==='unlock'?'نعم، إلغاء القفل':'نعم، إرسال الأمر'),cancelText:'تراجع',danger:kind==='unlock'||kind==='backward',modalClass:'assal-debt-lock-confirm-modal',pointerOnly:true});
+    var modal=document.getElementById('modal'),ok=document.getElementById('modal-confirm'),input=document.getElementById('assalDebtLockSecretInput'),err=document.getElementById('assalDebtLockSecretError');
+    if(modal){modal.classList.add('assal-return-confirm-modal');modal.classList.toggle('assal-debt-lock-unlock-confirm',!!withCode)}
+    var guard=null;
+    if(input){
+      input.addEventListener('input',function(){input.value=safe(input.value).replace(/[^0-9]/g,'').slice(0,5);if(err)err.textContent=''});
+      input.addEventListener('keydown',function(ev){if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();ev.stopPropagation()}});
+      guard=function(ev){
+        if(safe(input.value)!==LOCK_CODE){ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();if(err)err.textContent='الرمز السري غير صحيح.';input.value='';try{input.focus()}catch(_){ }return}
+        try{ok.removeEventListener('click',guard,true)}catch(_){ }
+      };
+      if(ok)ok.addEventListener('click',guard,true);
+      setTimeout(function(){try{input.focus()}catch(_){ }},60);
+    }
+    try{return await p}
+    finally{
+      if(ok&&guard)try{ok.removeEventListener('click',guard,true)}catch(_){ }
+      if(modal)modal.classList.remove('assal-return-confirm-modal','assal-debt-lock-unlock-confirm');
+    }
+  }
+
+  function makeRequest(action,targetDay){
+    var stamp=now(),rid=id(),after={action:action,lockDay:action==='lock'?targetDay:'',targetDay:targetDay,issuedAt:stamp,issuedBy:ADMIN_EMAIL};
+    return {id:rid,version:2,status:'draft',createdAt:stamp,updatedAt:stamp,adminEmail:ADMIN_EMAIL,cardId:'debt-transfer-lock:'+rid,cardDay:targetDay,beforeDay:targetDay,afterDay:targetDay,beforeIndex:-1,afterIndex:-1,customer:'قفل الدين',billType:COMMAND_BILL_TYPE,ops:[{scope:'card',action:'patch',fields:[{field:COMMAND_FIELD,before:{lockDay:confirmedLockDay||''},after:after}]}],changes:[{scope:'card',field:COMMAND_FIELD,before:confirmedLockDay||'غير مقفول',after:action==='lock'?('مقفول لغاية '+targetDay):'إلغاء القفل',lineId:'',noteId:'',item:''}]};
+  }
+  async function submitCommand(action,targetDay){
+    if(!isAdmin())throw new Error('هذه العملية متاحة لحاسبة الأدمن فقط');
+    var req=makeRequest(action,targetDay),res=await serverPost('card-request-submit',{version:2,actorEmail:email(),request:req});
+    var saved=res&&res.request?res.request:req;serverCommands.unshift(saved);deriveServerState(serverCommands);adminFastUntil=Date.now()+ADMIN_FAST_WINDOW_MS;refreshRail();return saved;
+  }
+  async function reversePendingCommand(){
+    if(!pendingCommand||!pendingCommand.id)return false;
+    var prior=validDay(pendingCommand.beforeLockDay)?pendingCommand.beforeLockDay:'';
+    var reverseAction=prior?'lock':'unlock';
+    var reverseTarget=prior||pendingCommand.targetDay;
+    await submitCommand(reverseAction,reverseTarget);
+    return true;
+  }
+
+  async function handleRailButton(day,btn){
+    if(!isAdmin()||!validDay(day))return;
+    if(btn)btn.classList.add('is-busy');
+    try{
+      if(pendingCommand){
+        if(pendingCommand.targetDay!==day){toast('warn','يوجد أمر قفل آخر بانتظار الحاسبة الرئيسية');return}
+        var cancelOk=await askConfirm('cancel',day,confirmedLockDay,false);if(!cancelOk)return;
+        await reversePendingCommand();toast('info','تم إرسال أمر معاكس لضمان رجوع حالة القفل بأمان');return;
+      }
+      var kind='lock',withCode=false,action='lock',target=day;
+      if(confirmedLockDay){
+        if(day===confirmedLockDay){kind='unlock';withCode=true;action='unlock';target=confirmedLockDay}
+        else if(day>confirmedLockDay){kind='advance'}
+        else{kind='backward';withCode=true}
+      }
+      var ok=await askConfirm(kind,day,confirmedLockDay,withCode);if(!ok)return;
+      await submitCommand(action,target);
+      toast('success',action==='unlock'?'تم إرسال أمر إلغاء القفل إلى الحاسبة الرئيسية':'تم إرسال أمر القفل إلى الحاسبة الرئيسية');
+    }catch(err){toast('error','تعذر إرسال أمر القفل: '+safe(err&&err.message||err))}
+    finally{if(btn)btn.classList.remove('is-busy');refreshRail()}
+  }
+
+  function reconcileMainFromServer(){
+    if(!isMain()||!serverHasAppliedCommand)return;
+    var serverDay=validDay(confirmedLockDay)?confirmedLockDay:'';
+    if(localState.lockDay===serverDay&&safe(localState.sourceRequestId)===safe(confirmedSourceRequestId))return;
+    writeLocalState({lockDay:serverDay,sourceRequestId:confirmedSourceRequestId,updatedAt:now(),processedIds:localState.processedIds});
+    syncLockUi('server-reconcile');
+  }
+
+  async function applyPendingOnMain(list){
+    if(!isMain()||applyBusy)return;
+    var pending=(Array.isArray(list)?list:[]).filter(function(r){return isCommand(r)&&['pending_review','approved_pending_upload'].indexOf(safe(r.status))>=0}).sort(function(a,b){return commandData(a).updatedAt.localeCompare(commandData(b).updatedAt)});
+    if(!pending.length)return;
+    applyBusy=true;
+    try{
+      for(var i=0;i<pending.length;i++){
+        var req=pending[i],cmd=commandData(req);
+        var processed=localState.processedIds.indexOf(cmd.id)>=0;
+        if(!processed){
+          var ids=localState.processedIds.slice();ids.push(cmd.id);
+          writeLocalState({lockDay:cmd.action==='unlock'?'':cmd.day,sourceRequestId:cmd.id,updatedAt:now(),processedIds:ids});
+          syncLockUi('auto-command');
+        }
+        try{
+          var res=await serverPost('card-request-action',{version:2,action:'applied',requestId:cmd.id,actorEmail:email(),appliedAt:now()});
+          if(res&&res.request)req=res.request;else req.status='applied';
+        }catch(err){
+          /* التطبيق المحلي معزول ومكرر بأمان؛ نبقي الأمر معلّقاً كي تعاد محاولة تثبيت حالته على السيرفر. */
+          try{console.warn('[ASSAL debt lock] state applied locally; server acknowledgement pending',err)}catch(_){ }
+        }
+      }
+      deriveServerState(list);
+      syncLockUi('auto-complete');
+    }finally{applyBusy=false}
+  }
+
+  async function pollServer(force){
+    if(!isAuthorized()||pollBusy||!online())return;
+    var interval=isMain()?POLL_MAIN_MS:(Date.now()<adminFastUntil?POLL_ADMIN_FAST_MS:POLL_ADMIN_IDLE_MS);
+    if(!force&&Date.now()-lastPollAt<interval)return;
+    pollBusy=true;lastPollAt=Date.now();
+    try{
+      var list=await serverGetList();
+      deriveServerState(list);
+      if(isMain()){reconcileMainFromServer();await applyPendingOnMain(list);}
+      refreshRail();
+    }catch(err){if(force)toast('error','تعذر تحديث حالة قفل الدين: '+safe(err&&err.message||err))}
+    finally{pollBusy=false}
+  }
+
+  var WRITE_SELECTOR=['#btnAdd','.assal-customer-rename-btn','.badge-type','.assal-wholesale-to-credit-btn','.btn-return','.btn-pay','.btn-del','.btn-edit','.note-add-mini','.note-del-out','.card-pay-all-btn','.card-delete-btn','.partial-pay-card-btn','#notesModalAdd'].join(',');
+  function byId(id){return document.getElementById(id)}
+  function ensureLockPanel(){
+    var host=byId('assalDebtTransferLockHost');if(host)return host;
+    host=document.createElement('div');host.id='assalDebtTransferLockHost';host.setAttribute('role','status');host.setAttribute('aria-live','polite');host.setAttribute('aria-atomic','true');
+    host.innerHTML='<div class="assal-debt-transfer-lock-toast"><div class="assal-debt-transfer-lock-mark"><i class="fa-solid fa-lock"></i></div><div class="assal-debt-transfer-lock-copy"><div class="assal-debt-transfer-lock-title" id="assalDebtTransferLockTitle">تم نقل الدين</div><div class="assal-debt-transfer-lock-text" id="assalDebtTransferLockText">بطاقات هذا اليوم مقفلة ضد التعديل.</div></div><div class="assal-debt-transfer-lock-actions"><input id="assalDebtTransferLockCode" class="assal-debt-transfer-lock-code" type="password" inputmode="numeric" maxlength="5" autocomplete="off" placeholder="الرمز السري" aria-label="الرمز السري لفتح تعديل يوم مقفول"><button id="assalDebtTransferLockOpen" class="assal-debt-transfer-lock-open" type="button"><i class="fa-solid fa-lock-open"></i><span>فتح التعديل</span></button></div><div class="assal-debt-transfer-lock-error" id="assalDebtTransferLockError"></div></div>';
+    document.body.appendChild(host);
+    var input=byId('assalDebtTransferLockCode'),btn=byId('assalDebtTransferLockOpen');
+    if(btn)btn.addEventListener('click',tryUnlockDay);
+    if(input){input.addEventListener('input',function(){input.value=safe(input.value).replace(/[^0-9]/g,'').slice(0,5);setLockError('')});input.addEventListener('keydown',function(ev){if(ev.key==='Enter'){ev.preventDefault();ev.stopPropagation();tryUnlockDay()}})}
+    return host;
+  }
+  function setLockError(msg){var e=byId('assalDebtTransferLockError');if(e)e.textContent=msg||''}
+  function hideLockPanel(){var h=byId('assalDebtTransferLockHost');if(h)h.classList.remove('is-visible','is-success','is-wrong');setLockError('');var i=byId('assalDebtTransferLockCode');if(i)i.value=''}
+  function setBodyLockMode(mode,day){if(!document.body)return;document.body.classList.toggle('assal-debt-transfer-day-locked',mode==='locked');document.body.classList.toggle('assal-debt-transfer-day-unlocked',mode==='unlocked');if(day)document.body.setAttribute('data-assal-debt-transfer-day',day);else document.body.removeAttribute('data-assal-debt-transfer-day')}
+  function showLockPanel(day,focus){
+    var host=ensureLockPanel(),title=byId('assalDebtTransferLockTitle'),text=byId('assalDebtTransferLockText'),icon=host.querySelector('.assal-debt-transfer-lock-mark i');host.classList.remove('is-success','is-wrong');
+    if(title)title.textContent='تم نقل الدين لغاية تاريخ '+fmtDay(localState.lockDay);
+    if(text)text.textContent='بطاقات هذا اليوم مقفلة ضد التعديل. للتعديل أدخل الرمز السري.';
+    if(icon)icon.className='fa-solid fa-lock';host.classList.add('is-visible');setBodyLockMode('locked',day);
+    if(focus)setTimeout(function(){var input=byId('assalDebtTransferLockCode');try{input.focus();input.select()}catch(_){ }},0);
+  }
+  function clearInlineEdit(){
+    var had=false;try{had=!!(window.__assalInlineLineEdit&&window.__assalInlineLineEdit.key);if(had)window.__assalInlineLineEdit=null}catch(_){ }
+    if(had&&!viewState.renderQueued){viewState.renderQueued=true;setTimeout(function(){viewState.renderQueued=false;try{if(typeof renderBoard==='function')renderBoard()}catch(_){ }},0)}
+  }
+  function syncLockUi(reason){
+    if(!isMain()){hideLockPanel();setBodyLockMode('current','');return false}
+    var day=selectedDayValue(),lockDay=validDay(localState.lockDay)?localState.lockDay:'';
+    var changed=day!==viewState.selectedDay||lockDay!==viewState.lockDay;
+    if(changed){clearInlineEdit();if(day!==viewState.selectedDay)viewState.unlockedDay='';if(lockDay!==viewState.lockDay)viewState.unlockedDay=''}
+    viewState.selectedDay=day;viewState.lockDay=lockDay;
+    var locked=validDay(day)&&validDay(lockDay)&&day<=lockDay&&viewState.unlockedDay!==day;
+    viewState.locked=locked;
+    if(!locked){hideLockPanel();setBodyLockMode(viewState.unlockedDay===day?'unlocked':'current',viewState.unlockedDay===day?day:'');return false}
+    showLockPanel(day,false);return true;
+  }
+  function tryUnlockDay(){
+    syncLockUi('unlock');if(!viewState.locked)return;
+    var input=byId('assalDebtTransferLockCode'),value=safe(input&&input.value).trim();
+    if(value!==LOCK_CODE){setLockError('الرمز السري غير صحيح. حاول مرة أخرى.');var h=ensureLockPanel();h.classList.remove('is-wrong');void h.offsetWidth;h.classList.add('is-wrong');if(input){input.value='';try{input.focus()}catch(_){ }}return}
+    viewState.unlockedDay=selectedDayValue();viewState.locked=false;setBodyLockMode('unlocked',viewState.unlockedDay);setLockError('');
+    var host=ensureLockPanel(),title=byId('assalDebtTransferLockTitle'),text=byId('assalDebtTransferLockText'),icon=host.querySelector('.assal-debt-transfer-lock-mark i');host.classList.add('is-success');
+    if(title)title.textContent='تم فتح التعديل مؤقتاً';if(text)text.textContent='يمكنك تعديل بطاقات هذا اليوم. ينتهي الفتح عند الانتقال إلى يوم آخر أو تحديث الصفحة.';if(icon)icon.className='fa-solid fa-lock-open';
+    clearTimeout(viewState.modeTimer);viewState.modeTimer=setTimeout(function(){if(viewState.unlockedDay===selectedDayValue())hideLockPanel()},650);
+  }
+  function isLockedNow(){return !!(isMain()&&viewState.locked&&validDay(localState.lockDay)&&validDay(selectedDayValue())&&selectedDayValue()<=localState.lockDay&&viewState.unlockedDay!==selectedDayValue())}
+  function closest(el,selector){try{return el&&el.closest?el.closest(selector):null}catch(_){return null}}
+  function sensitiveModalConfirm(target){
+    if(!target||!target.closest||!target.closest('#modal-confirm'))return false;var modal=byId('modal');if(!modal)return false;
+    var classes=['assal-return-confirm-modal','assal-wholesale-credit-confirm','assal-cash-credit-conflict-modal','assal-cash-credit-badge-convert','assal-cash-credit-line-convert','assal-cash-credit-card-convert','assal-action-confirm-delete-line','assal-action-confirm-delete-card','assal-action-confirm-past-day','assal-inline-edit-start-confirm','assal-payment-confirm-modal','assal-payment-return-confirm-pay','assal-payment-return-confirm-undo','assal-customer-rename-confirm-modal'];
+    if(modal.classList.contains('assal-auth-logout-confirm-modal')||modal.classList.contains('assal-owner-logout-confirm-modal')||modal.classList.contains('assal-debt-lock-confirm-modal'))return false;
+    return classes.some(function(c){return modal.classList.contains(c)})
+  }
+  function blockEvent(ev){try{ev.preventDefault()}catch(_){ }try{ev.stopPropagation()}catch(_){ }try{ev.stopImmediatePropagation()}catch(_){ }showLockPanel(selectedDayValue(),true)}
+
+  document.addEventListener('click',function(ev){
+    if(!isLockedNow())return;var host=byId('assalDebtTransferLockHost');if(host&&host.contains(ev.target))return;
+    var write=closest(ev.target,WRITE_SELECTOR);if(!write&&!sensitiveModalConfirm(ev.target))return;
+    if(write&&write.classList&&write.classList.contains('btn-edit')&&write.classList.contains('is-active'))return;blockEvent(ev);
+  },true);
+  document.addEventListener('keydown',function(ev){
+    if(!isLockedNow())return;var host=byId('assalDebtTransferLockHost');if(host&&host.contains(ev.target))return;var key=safe(ev.key);if(key!=='Enter'&&key!==' ')return;
+    if(closest(ev.target,WRITE_SELECTOR)||sensitiveModalConfirm(ev.target)||(key==='Enter'&&(closest(ev.target,'.dock')||closest(ev.target,'#notesModal')||closest(ev.target,'.note-input-sm')||closest(ev.target,'.item.assal-line-editing'))))blockEvent(ev);
+  },true);
+
+  function boot(){
+    clearInterval(pollTimer);pollTimer=setInterval(function(){pollServer(false);syncLockUi('timer')},1000);
+    setTimeout(function(){pollServer(true);syncLockUi('boot');refreshRail()},700);
+  }
+  window.addEventListener('online',function(){lastPollAt=0;pollServer(true)},false);
+  window.addEventListener('focus',function(){lastPollAt=0;pollServer(false);syncLockUi('focus')},false);
+  window.addEventListener('pageshow',function(){syncLockUi('pageshow')},false);
+  document.addEventListener('visibilitychange',function(){if(!document.hidden){lastPollAt=0;pollServer(false);syncLockUi('visibility')}},false);
+  window.addEventListener('assal:auth-ready',function(){lastPollAt=0;setTimeout(boot,250)},false);
+
+  window.ASSAL_DEBT_TRANSFER_LOCK={
+    version:VERSION,
+    decorateRailDay:decorateRailDay,
+    syncNow:syncLockUi,
+    refresh:function(){lastPollAt=0;return pollServer(true)},
+    getState:function(){return {role:isAdmin()?'admin':(isMain()?'main':''),confirmedLockDay:confirmedLockDay,pending:pendingCommand?clone(pendingCommand):null,localLockDay:localState.lockDay,selectedDay:selectedDayValue(),locked:isLockedNow(),unlockedDay:viewState.unlockedDay}}
+  };
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,false);else boot();
+})();
+</script>
+<!-- ===== ASSAL DEBT TRANSFER AUTO LOCK FINAL - END ===== -->
 
 </body>
 </html>
