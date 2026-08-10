@@ -15591,11 +15591,22 @@ function assalDebtDisplayLimitISO(){
   if(shownISO && shownISO > todayISO) return shownISO;
   return todayISO || shownISO || '';
 }
-function assalDebtMovementAfterOpening(rawName, dayKey, obj){
+function assalDebtMovementAfterOpening(rawName, dayKey, obj, options){
   const info = assalDebtOpeningInfoForCustomer(rawName || '');
   // بدون تاريخ تحديث للرصيد لا نحسب حركات؛ حتى لا تتكرر ذمم أنت أدخلتها بالرصيد الافتتاحي
   if(!info || !info.startISO) return false;
-  const iso = assalDebtMovementISO(dayKey, obj);
+
+  // ACCOUNTING DAYKEY FIX FINAL:
+  // افتراضياً يبقى السلوك القديم كما هو لكل الحركات المستقلة (تسديد جزئي/حسابات مالية وغيرها).
+  // فقط عندما يطلب المستدعي preferDayKey — ويُستخدم حصراً للبطاقة نفسها — يكون يوم التخزين
+  // days[dayKey] هو تاريخها المحاسبي الرسمي، حتى لو createdAt كان في اليوم التالي بسبب إدخال رجعي.
+  let iso = '';
+  try{
+    if(options && options.preferDayKey === true){
+      iso = assalDebtExtractISODate(dayKey) || '';
+    }
+  }catch{}
+  if(!iso) iso = assalDebtMovementISO(dayKey, obj);
   if(!iso) return false;
   const limitISO = assalDebtDisplayLimitISO();
   const inLimit = (!limitISO || iso <= limitISO);
@@ -15724,7 +15735,7 @@ function assalBuildCustomerDebtMap(){
 
         // بيع/راجع البطاقة يُحسب حسب تاريخ البطاقة/اليوم، إذا كان بعد تاريخ D
         const includeCardLines = (typeof assalDebtMovementAfterOpening === 'function')
-          ? assalDebtMovementAfterOpening(customer, dayKey, card)
+          ? assalDebtMovementAfterOpening(customer, dayKey, card, { preferDayKey:true })
           : true;
 
         if(includeCardLines){
@@ -15873,7 +15884,7 @@ function assalGetCustomerDebtBreakdown(customer){
         const cust = card.customer || card.cust || card.name || '';
         const realName = (typeof assalSheetCustomerDisplayName === 'function') ? (assalSheetCustomerDisplayName(cust) || cust) : cust;
         if(assalDebtBadgeNrm(realName || '') !== key) return;
-        if(typeof assalDebtMovementAfterOpening === 'function' && !assalDebtMovementAfterOpening(realName, dayKey, card)) return;
+        if(typeof assalDebtMovementAfterOpening === 'function' && !assalDebtMovementAfterOpening(realName, dayKey, card, { preferDayKey:true })) return;
         try{
           out.cards += (typeof assalDebtCardEffectForLedger === 'function') ? assalDebtCardEffectForLedger(card) : 0;
         }catch{}
@@ -29511,7 +29522,7 @@ clearAlertsBtn.addEventListener('click', function(){
         var includeCardLines = true;
         try{
           if(typeof window.assalDebtMovementAfterOpening === 'function'){
-            includeCardLines = window.assalDebtMovementAfterOpening(customer, dayKey, card);
+            includeCardLines = window.assalDebtMovementAfterOpening(customer, dayKey, card, { preferDayKey:true });
           }
         }catch(_){ includeCardLines = false; }
 
@@ -30803,10 +30814,10 @@ async function assalAdvGetTodayLocalRecords(){
     return null;
   }
 
-  function includeMovement(name, dayKey, obj){
+  function includeMovement(name, dayKey, obj, options){
     try{
       if(typeof window.assalDebtMovementAfterOpening === 'function'){
-        return !!window.assalDebtMovementAfterOpening(name, dayKey, obj || {});
+        return !!window.assalDebtMovementAfterOpening(name, dayKey, obj || {}, options || null);
       }
     }catch(_){ return false; }
     return true;
@@ -30957,7 +30968,9 @@ async function assalAdvGetTodayLocalRecords(){
           var raw = card.customer || card.cust || card.name || '';
           var display = resolveName(raw);
           if(!display) return;
-          if(!includeMovement(display, dayKey, card)) return;
+          // CUSTOMER ACCOUNT DAYKEY CUTOFF FIX FINAL:
+          // البطاقة تعتمد يوم التخزين فقط عند تحديد هل هي بعد الرصيد الافتتاحي؛ لا نغيّر أي حركة مالية مستقلة.
+          if(!includeMovement(display, dayKey, card, { preferDayKey:true })) return;
           var eff = cardEffect(card);
           if(!eff) return;
           var row = ensureRow(map, display);
@@ -32486,7 +32499,15 @@ html body .card .card-foot > .card-sums .assal-partial-debt-toggle.debt-zero .as
     }
     return '';
   }
-  function movementISO(dayKey, obj){
+  function movementISO(dayKey, obj, options){
+    // CUSTOMER ACCOUNT DAYKEY CUTOFF FIX FINAL:
+    // للبطاقة فقط، يوم التخزين هو التاريخ المحاسبي؛ بقية الحركات تبقى على ترتيب تواريخها السابق.
+    try{
+      if(options && options.preferDayKey === true){
+        var accountingDayISO = extractISO(dayKey);
+        if(accountingDayISO) return accountingDayISO;
+      }
+    }catch(_){ }
     var arr = [];
     try{ if(obj) arr = [obj.date,obj.day,obj.createdAt,obj.updatedAt,obj.at,obj.timestamp,obj.created,obj.time]; }catch(_){ }
     arr.push(dayKey);
@@ -32508,8 +32529,8 @@ html body .card .card-foot > .card-sums .assal-partial-debt-toggle.debt-zero .as
       return d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
     }catch(_){ return ''; }
   }
-  function includeMovement(customer, dayKey, obj){
-    try{ if(typeof window.assalDebtMovementAfterOpening === 'function') return !!window.assalDebtMovementAfterOpening(customer, dayKey, obj || {}); }catch(_){ return false; }
+  function includeMovement(customer, dayKey, obj, options){
+    try{ if(typeof window.assalDebtMovementAfterOpening === 'function') return !!window.assalDebtMovementAfterOpening(customer, dayKey, obj || {}, options || null); }catch(_){ return false; }
     return true;
   }
   function getBreakdown(customer){
@@ -32576,10 +32597,11 @@ html body .card .card-foot > .card-sums .assal-partial-debt-toggle.debt-zero .as
           var raw = card.customer || card.cust || card.name || '';
           var dn = resolveName(raw) || raw;
           if(cmp(dn) !== target) return;
-          if(!includeMovement(display, dayKey, card)) return;
+          // نفس قاعدة الحاسبة الحية: البطاقة الموجودة في يوم الإقفال لا تدخل ضمن الحركات بعد الرصيد.
+          if(!includeMovement(display, dayKey, card, { preferDayKey:true })) return;
           var p = cardParts(card);
           if(!p.unpaid && !p.returned && !p.partial && !p.net) return;
-          var iso = movementISO(dayKey, card) || dayKey;
+          var iso = movementISO(dayKey, card, { preferDayKey:true }) || dayKey;
           entries.push({
             kind:'card', iso:iso, time:fmtTime(card.createdAt || card.at || card.updatedAt), order:sortKey(iso, card.createdAt || card.at || card.updatedAt),
             title:'بطاقة', parts:p, net:p.net, id:card.id || ''
@@ -33251,7 +33273,17 @@ html body .card .card-foot > .card-sums .assal-toggle-face{
     }catch(_){ return ''; }
   }
 
-  function movementISO(dayKey, obj){
+  function movementISO(dayKey, obj, options){
+    // LIVE DEBT DAYKEY OVERRIDE FIX FINAL:
+    // فقط للبطاقة التي يطلب مستدعيها preferDayKey نعتمد يوم التخزين كمصدر التاريخ المحاسبي.
+    // بقية الحركات المستقلة تبقى على ترتيب التاريخ القديم بدون أي تغيير.
+    try{
+      if(options && options.preferDayKey === true){
+        var accountingDayISO = isoFrom(dayKey);
+        if(accountingDayISO) return accountingDayISO;
+      }
+    }catch(_){ }
+
     var candidates = [];
     try{
       if(obj){
@@ -33283,9 +33315,9 @@ html body .card .card-foot > .card-sums .assal-toggle-face{
     return null;
   }
 
-  window.assalDebtMovementAfterOpening = function(rawName, dayKey, obj){
+  window.assalDebtMovementAfterOpening = function(rawName, dayKey, obj, options){
     var info = openingInfo(rawName || '');
-    var iso = movementISO(dayKey, obj || {});
+    var iso = movementISO(dayKey, obj || {}, options || null);
     if(!iso) return false;
 
     var limit = displayLimitISO();
@@ -33303,7 +33335,7 @@ html body .card .card-foot > .card-sums .assal-toggle-face{
 
     // الأسماء غير الموجودة في DEBTS تبقى على سلوك الزبون الجديد السابق كما هو.
     if(typeof previousMovementAfterOpening === 'function'){
-      try{ return !!previousMovementAfterOpening(rawName, dayKey, obj || {}); }catch(_){ return false; }
+      try{ return !!previousMovementAfterOpening(rawName, dayKey, obj || {}, options || null); }catch(_){ return false; }
     }
     return true;
   };
@@ -34301,7 +34333,7 @@ html body .card .card-foot > .card-sums .assal-toggle-face{
           var dn=resolveName(raw)||raw;
           if(nrm(dn)!==target) return;
           if(!includeMovement(display, dayKey, card, includeBeforeOpening)) return;
-          var iso=movementISO(dayKey, card)||dayKey;
+          var iso=isoFrom(dayKey)||movementISO(dayKey, card)||dayKey;
           var time=fmtTime(card.createdAt||card.at||card.updatedAt);
           var cardType=typeNorm(card.billType||card.type||card.kind||'');
           var lines=Array.isArray(card.lines)?card.lines:[];
