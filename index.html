@@ -37919,7 +37919,7 @@ html body .card .card-head .cust.assal-customer-rename-enabled::before{
   cursor:pointer;
   flex:0 0 auto;
   padding:0;
-  margin-inline-end:6px;
+  margin-inline-end:0;
 }
 .assal-customer-rename-btn:hover{
   filter:brightness(1.06);
@@ -38410,6 +38410,9 @@ html body .card .card-head .cust.assal-customer-rename-enabled::before{
       }catch(_){ resolve(false); }
     });
   }
+
+  /* جسر قراءة فقط لسلوك رمز تعديل الاسم الحالي؛ الزر القديم لا يتغير. */
+  window.assalAskCustomerRenamePassword = assalAskCustomerRenamePassword;
 
   window.assalStartCustomerRename = async function(card, nameEl){
     try{
@@ -40565,6 +40568,74 @@ html body .card .item.assal-smart-added-item-safe-final{
   function isGlobalCustomerRenameOp(op){
     return !!(op && op.scope==='card' && op.action==='field' && op.field==='__global_customer_rename__');
   }
+
+  /* ===== ASSAL: تغيير زبون بطاقة واحدة — طلب عرضي على الأدمن، وتطبيق رسمي على الرئيسية فقط ===== */
+  function isSingleCardCustomerChangeRequest(rec){
+    return !!(rec && (safe(rec.specialType)==='single-card-customer-change' || safe(rec.billType)==='تغيير زبون البطاقة'));
+  }
+  function singleCardCustomerChangeOp(rec){
+    if(!isSingleCardCustomerChangeRequest(rec))return null;
+    return (Array.isArray(rec.ops)?rec.ops:[]).find(function(op){
+      return op && op.scope==='card' && op.action==='field' && op.field==='customer';
+    })||null;
+  }
+  function singleCardCustomerChangeTime(rec){
+    return safe(rec && (rec.updatedAt||rec.appliedAt||rec.reviewedAt||rec.sentAt||rec.createdAt));
+  }
+  function latestSingleCardCustomerChange(cardId){
+    var key=safe(cardId),byId=new Map();
+    function take(rec){
+      if(!isSingleCardCustomerChangeRequest(rec)||safe(rec.cardId)!==key)return;
+      var rid=safe(rec.id),prev=byId.get(rid);
+      if(!prev||singleCardCustomerChangeTime(prev).localeCompare(singleCardCustomerChangeTime(rec))<=0)byId.set(rid,rec);
+    }
+    state.drafts.forEach(take);state.archive.forEach(take);requestCache.forEach(take);
+    var all=Array.from(byId.values()).sort(function(a,b){return singleCardCustomerChangeTime(a).localeCompare(singleCardCustomerChangeTime(b));});
+    return all.length?all[all.length-1]:null;
+  }
+  function notifySingleCardCustomerChangeUi(){
+    try{window.dispatchEvent(new CustomEvent('assal:card-customer-change-requests-updated'));}catch(_){try{window.dispatchEvent(new Event('assal:card-customer-change-requests-updated'));}catch(__){}}
+    try{setTimeout(function(){if(typeof renderBoard==='function')renderBoard();},0);}catch(_){ }
+  }
+  window.ASSAL_CARD_CUSTOMER_CHANGE_DISPLAY=function(cardId,actualName){
+    if(!ready||!isAdmin())return null;
+    var rec=latestSingleCardCustomerChange(cardId);if(!rec)return null;
+    var op=singleCardCustomerChangeOp(rec);if(!op)return null;
+    var status=safe(rec.status||'draft');
+    if(['draft','pending_review','approved_pending_upload'].indexOf(status)>=0){
+      return {id:safe(rec.id),status:status,oldName:safe(op.before),newName:safe(op.after),displayName:safe(op.after),pending:true};
+    }
+    if(status==='applied' && safe(actualName).trim()!==safe(op.after).trim()){
+      return {id:safe(rec.id),status:status,oldName:safe(op.before),newName:safe(op.after),displayName:safe(op.after),pending:false,appliedWaitingSync:true};
+    }
+    return null;
+  };
+  window.ASSAL_CREATE_CARD_CUSTOMER_CHANGE_REQUEST=function(opts){
+    opts=opts||{};
+    if(!ready)return {ok:false,message:'نظام طلبات التعديل لم يكتمل تحميله بعد'};
+    if(!isAdmin())return {ok:false,message:'هذه العملية مخصصة لحاسبة الأدمن'};
+    var cardId=safe(opts.cardId),oldName=safe(opts.oldName).trim(),newName=safe(opts.newName).trim();
+    if(!cardId||!oldName||!newName)return {ok:false,message:'بيانات البطاقة أو الاسم غير مكتملة'};
+    if(oldName===newName)return {ok:false,message:'الاسم الجديد مطابق للاسم الحالي'};
+    var existing=latestSingleCardCustomerChange(cardId),existingStatus=safe(existing&&existing.status);
+    if(existing&&['draft','pending_review','approved_pending_upload'].indexOf(existingStatus)>=0)return {ok:false,message:'يوجد طلب تغيير زبون محفوظ أو قيد المراجعة لهذه البطاقة'};
+    var cur=currentCardRecord(cardId);if(!cur||!cur.card)return {ok:false,message:'تعذر العثور على البطاقة الأصلية'};
+    var currentName=safe(cur.card.customer).trim();
+    if(currentName!==oldName)return {ok:false,message:'اسم الزبون تغيّر في البطاقة قبل إنشاء الطلب؛ أعد فتح البطاقة'};
+    var stamp=now(),beforeCard=clone(cur.card)||{},afterCard=clone(cur.card)||{};afterCard.customer=newName;
+    var op={scope:'card',action:'field',field:'customer',before:oldName,after:newName};
+    var draft={
+      id:id(),version:VERSION,status:'draft',specialType:'single-card-customer-change',createdAt:stamp,updatedAt:stamp,adminEmail:ADMIN_EMAIL,
+      cardId:cardId,cardDay:safe(cur.day),beforeDay:safe(cur.day),afterDay:safe(cur.day),beforeIndex:Number(cur.index),afterIndex:Number(cur.index),
+      customer:newName,billType:'تغيير زبون البطاقة',beforeCard:beforeCard,afterCard:afterCard,ops:[op],
+      changes:[{scope:'card',field:'customer',before:oldName,after:newName,lineId:'',noteId:'',item:''}]
+    };
+    state.drafts.push(draft);schedulePersist();updateButton();if(isModalOpen())renderModal();notifySingleCardCustomerChangeUi();
+    try{showToast('success','تمت إضافة تغيير زبون البطاقة إلى طلبات التعديل');}catch(_){ }
+    return {ok:true,id:safe(draft.id),status:'draft',oldName:oldName,newName:newName};
+  };
+  /* ===== /ASSAL: تغيير زبون بطاقة واحدة ===== */
+
   function currentLocalDay(){
     try{ if(typeof localDay==='function') return localDay(); }catch(_){ }
     var d=new Date(),y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');
@@ -40925,7 +40996,10 @@ html body .card .item.assal-smart-added-item-safe-final{
           if((op.fields||[]).some(function(f){return ['price','qty','paid','returned'].indexOf(f.field)>=0;}))financial=true;
         }
         if(op.scope==='card'&&op.action==='field'){
-          if(op.field==='customer'){var el=cardEl&&cardEl.querySelector('.cust span');if(el)el.textContent=safe(op.after);}
+          if(op.field==='customer'){
+            var el=cardEl&&cardEl.querySelector('.cust span');if(el)el.textContent=safe(op.after);
+            if(isSingleCardCustomerChangeRequest(req)){needsVisibleBoardRefresh=true;financial=true;}
+          }
           else if(['billType','paidAll','partialPayments'].indexOf(op.field)>=0&&cardEl)needsVisibleBoardRefresh=true;
           if(['paidAll','partialPayments'].indexOf(op.field)>=0)financial=true;
         }
@@ -41044,20 +41118,20 @@ html body .card .item.assal-smart-added-item-safe-final{
     return '<div class="assal-cr-payment"><div class="assal-cr-payment-top"><div class="assal-cr-payment-title"><i class="fa-solid fa-circle-half-stroke"></i><span>طلب دوام نصف يوم</span></div><span class="assal-cr-payment-kind">حضور</span></div><div class="assal-cr-payment-grid"><div class="assal-cr-payment-cell"><span>الموظف</span><b>'+esc(employee)+'</b></div><div class="assal-cr-payment-cell"><span>التاريخ</span><b>'+esc(day)+'</b></div><div class="assal-cr-payment-cell assal-cr-payment-note"><span>الحالة الحالية</span><b>'+esc(beforeText)+'</b></div></div><div class="assal-cr-changes">'+changeHtml({scope:'card',field:'__attendance_half_day__',before:beforeText,after:'دوام نصف يوم'})+'</div></div>';
   }
   function cardHtml(rec,mode){
-    var changes=Array.isArray(rec.changes)?rec.changes:summarizeOps(rec.ops||[]),isBundle=isNewCardBundle(rec),isPayment=isPaymentDraft(rec),isAttendance=isAttendanceHalfDayRequest(rec),bundleOp=isBundle?cardAddOperation(rec):null,bundleCard=isBundle?(clone(rec.afterCard)||(bundleOp&&clone(bundleOp.after))||{}):null;
+    var changes=Array.isArray(rec.changes)?rec.changes:summarizeOps(rec.ops||[]),isBundle=isNewCardBundle(rec),isPayment=isPaymentDraft(rec),isAttendance=isAttendanceHalfDayRequest(rec),isSingleCustomerChange=isSingleCardCustomerChangeRequest(rec),bundleOp=isBundle?cardAddOperation(rec):null,bundleCard=isBundle?(clone(rec.afterCard)||(bundleOp&&clone(bundleOp.after))||{}):null;
     var bundleLines=isBundle&&Array.isArray(bundleCard.lines)?bundleCard.lines:[],shown=changes.slice(0,8),more=Math.max(0,changes.length-shown.length),status=safe(rec.status||'draft');
     var localPending=isMain()&&status==='pending_review'&&isAppliedLocal(rec.id);if(localPending)status='approved_pending_upload';
     var cls=status==='applied'?'applied':(status==='rejected'?'rejected':(status==='conflict'?'conflict':'pending'));
     var time=rec.sentAt||rec.createdAt||rec.updatedAt||'',isBusy=busyIds.has(safe(rec.id))||safe(activeUploadRequestId)===safe(rec.id),dis=isBusy?' disabled':'';
     var spin=isBusy?'fa-spinner':'fa-cloud-arrow-up',actions='';
-    if(mode==='draft')actions=isAttendance?'<button class="assal-cr-btn send" data-cr-send="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-paper-plane')+'"></i> '+(isBusy?'جاري الإرسال':'إرسال')+'</button><button class="assal-cr-btn delete-only" data-cr-dismiss-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-regular fa-trash-can"></i> حذف الطلب</button>':'<button class="assal-cr-btn send" data-cr-send="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-paper-plane')+'"></i> '+(isBusy?'جاري الإرسال':'إرسال')+'</button><button class="assal-cr-btn delete" data-cr-delete-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-solid fa-rotate-left"></i> '+(isBundle?'حذف البطاقة والتراجع':'حذف وإرجاع الأصل')+'</button><button class="assal-cr-btn delete-only" data-cr-dismiss-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-regular fa-trash-can"></i> حذف الحركة</button>';
+    if(mode==='draft')actions=(isAttendance||isSingleCustomerChange)?'<button class="assal-cr-btn send" data-cr-send="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-paper-plane')+'"></i> '+(isBusy?'جاري الإرسال':'إرسال')+'</button><button class="assal-cr-btn delete-only" data-cr-dismiss-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-regular fa-trash-can"></i> حذف الطلب</button>':'<button class="assal-cr-btn send" data-cr-send="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-paper-plane')+'"></i> '+(isBusy?'جاري الإرسال':'إرسال')+'</button><button class="assal-cr-btn delete" data-cr-delete-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-solid fa-rotate-left"></i> '+(isBundle?'حذف البطاقة والتراجع':'حذف وإرجاع الأصل')+'</button><button class="assal-cr-btn delete-only" data-cr-dismiss-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-regular fa-trash-can"></i> حذف الحركة</button>';
     else if(mode==='admin-archive')actions='<button class="assal-cr-btn delete" data-cr-hide-archive="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-trash-can')+'"></i> '+(isBusy?'جاري الحذف':'حذف')+'</button>';
     else if(mode==='main-incoming'){
       if(status==='approved_pending_upload')actions='<button class="assal-cr-btn retry '+(isBusy?'is-busy':'')+'" data-cr-retry="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+spin+'"></i> '+(isBusy?'جاري الرفع':'إكمال الرفع')+'</button>';
       else actions='<button class="assal-cr-btn approve '+(isBusy?'is-busy':'')+'" data-cr-approve="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-check')+'"></i> '+(isBusy?'جاري التنفيذ':'موافقة')+'</button><button class="assal-cr-btn reject" data-cr-reject="'+esc(rec.id)+'"'+dis+'><i class="fa-solid fa-xmark"></i> رفض</button>';
     }
     var conflict=rec.conflictNote?'<div class="assal-cr-conflict"><i class="fa-solid fa-triangle-exclamation"></i> '+esc(rec.conflictNote)+'</div>':'';
-    var subtitle=esc(rec.cardDay||rec.afterDay||rec.beforeDay||'—')+' • '+esc(fmtDateTime(time))+' • '+(isAttendance?'طلب حضور':(isBundle?'بطاقة جديدة — '+bundleLines.length+' مادة':(isPayment?'حركة حسابات مالية':changes.length+' تغيير')));
+    var subtitle=esc(rec.cardDay||rec.afterDay||rec.beforeDay||'—')+' • '+esc(fmtDateTime(time))+' • '+(isAttendance?'طلب حضور':(isSingleCustomerChange?'تغيير زبون البطاقة':(isBundle?'بطاقة جديدة — '+bundleLines.length+' مادة':(isPayment?'حركة حسابات مالية':changes.length+' تغيير'))));
     var body=isAttendance?attendanceHalfDayRequestHtml(rec):(isBundle?newCardBundleHtml(rec):(isPayment?paymentRequestHtml(rec):'<div class="assal-cr-changes">'+shown.map(changeHtml).join('')+'</div>'+(more?'<div class="assal-cr-more">ويوجد '+more+' تغييرات أخرى ضمن نفس الطلب</div>':'')));
     return '<article class="assal-cr-card '+cls+'"><div class="assal-cr-card-head"><div class="assal-cr-card-title"><b>'+esc(rec.customer||'بطاقة بدون اسم')+'</b><span>'+subtitle+'</span></div><span class="assal-cr-status '+esc(status)+'">'+esc(statusText(status))+'</span></div>'+body+conflict+(actions?'<div class="assal-cr-actions">'+actions+'</div>':'')+'</article>';
   }
@@ -41111,12 +41185,14 @@ html body .card .item.assal-smart-added-item-safe-final{
     var d=findDraft(reqId);if(!d||busyIds.has(reqId))return;
     var newer=state.drafts.some(function(x){return safe(x.cardId)===safe(d.cardId)&&new Date(x.createdAt||0)>new Date(d.createdAt||0);});
     if(newer){try{showToast('warn',d.specialType==='global-customer-rename'?'احذف أحدث تغيير اسم شامل أولاً':'احذف أحدث تعديل لنفس البطاقة أو الحركة أولاً');}catch(_){ }return;}
-    var ok=typeof showConfirm==='function'?await showConfirm({title:'حذف الحركة فقط',message:'سيُحذف هذا الطلب من قائمة التعديلات فقط، وتبقى القيمة الحالية في البطاقة أو الحسابات كما هي من دون إرجاع الأصل.',okText:'حذف الحركة',cancelText:'تراجع',danger:true}):confirm('حذف الحركة فقط؟');
+    var singleCustomerChange=isSingleCardCustomerChangeRequest(d);
+    var ok=typeof showConfirm==='function'?await showConfirm({title:singleCustomerChange?'حذف طلب تغيير زبون البطاقة':'حذف الحركة فقط',message:singleCustomerChange?'سيُحذف طلب تغيير زبون هذه البطاقة، وتبقى البطاقة على اسمها الرسمي الحالي من دون أي تعديل للذمة.':'سيُحذف هذا الطلب من قائمة التعديلات فقط، وتبقى القيمة الحالية في البطاقة أو الحسابات كما هي من دون إرجاع الأصل.',okText:singleCustomerChange?'حذف الطلب':'حذف الحركة',cancelText:'تراجع',danger:true}):confirm(singleCustomerChange?'حذف طلب تغيير زبون البطاقة؟':'حذف الحركة فقط؟');
     if(!ok)return;
     state.drafts=state.drafts.filter(function(x){return safe(x.id)!==safe(reqId);});
     seedSnapshots();seedPaymentSnapshots();schedulePersist();renderModal();updateButton();
     try{showToast('info',isAttendanceHalfDayRequest(d)?'تم حذف طلب نصف اليوم من طلبات الإرسال':'تم حذف الحركة من طلبات الإرسال وبقيت البيانات المحلية كما هي');}catch(_){ }
     if(isAttendanceHalfDayRequest(d))notifyAttendanceHalfDayUi();
+    if(singleCustomerChange)notifySingleCardCustomerChangeUi();
   }
   async function deleteDraft(reqId){
     var d=findDraft(reqId);if(!d)return;
@@ -41183,6 +41259,7 @@ html body .card .item.assal-smart-added-item-safe-final{
       updateButton();if(isModalOpen())renderModal();
       if(!quiet)progressSuccess('تم إرسال طلب التعديل','انتقل الطلب إلى الأرشيف وبانتظار مراجعة الحاسبة الرئيسية');
       if(isAttendanceHalfDayRequest(record))notifyAttendanceHalfDayUi();
+      if(isSingleCardCustomerChangeRequest(record))notifySingleCardCustomerChangeUi();
       return true;
     }catch(err){if(!quiet)progressError('تعذر إرسال الطلب',safe(err&&err.message||err));return false;}
     finally{busyIds.delete(reqId);if(isModalOpen())renderModal();}
@@ -41201,9 +41278,9 @@ html body .card .item.assal-smart-added-item-safe-final{
     if(oldIndex>=0)state.archive.splice(oldIndex,1);if(isModalOpen())renderModal();updateButton();
     try{
       await serverPost('card-request-action',{version:VERSION,action:action,requestId:reqId,actorEmail:email()});
-      schedulePersist();try{showToast('info',status==='pending_review'?'تم سحب الطلب':'تم حذف سجل الأرشيف');}catch(_){} 
+      schedulePersist();if(isSingleCardCustomerChangeRequest(rec))notifySingleCardCustomerChangeUi();try{showToast('info',status==='pending_review'?'تم سحب الطلب':'تم حذف سجل الأرشيف');}catch(_){} 
     }catch(err){
-      if(backup){var idx=Math.max(0,Math.min(state.archive.length,oldIndex<0?state.archive.length:oldIndex));state.archive.splice(idx,0,backup);}if(isModalOpen())renderModal();updateButton();
+      if(backup){var idx=Math.max(0,Math.min(state.archive.length,oldIndex<0?state.archive.length:oldIndex));state.archive.splice(idx,0,backup);}if(isModalOpen())renderModal();updateButton();if(isSingleCardCustomerChangeRequest(rec))notifySingleCardCustomerChangeUi();
       try{showToast('error','تعذر حذف الطلب: '+safe(err&&err.message||err));}catch(_){} 
     }finally{busyIds.delete(reqId);if(isModalOpen())renderModal();}
   }
@@ -41427,7 +41504,7 @@ html body .card .item.assal-smart-added-item-safe-final{
           list.forEach(function(r){localById.set(safe(r.id),r);});state.archive=Array.from(localById.values()).filter(function(x){return !x.adminHidden;}).sort(function(a,b){return safe(a.sentAt||a.createdAt).localeCompare(safe(b.sentAt||b.createdAt));});schedulePersist();
         }
         if(refreshVisualRequested)progressSet('', 'جاري تحديث النافذة','ترتيب الحالات وعرض النتائج المحدثة',84,'fa-solid fa-list-check');
-        updateButton();if(isModalOpen())renderModal();notifyAttendanceHalfDayUi();
+        updateButton();if(isModalOpen())renderModal();notifyAttendanceHalfDayUi();notifySingleCardCustomerChangeUi();
         if(refreshVisualRequested){
           var newCount=list.filter(function(x){return !beforeIds.has(safe(x&&x.id));}).length;
           var detail=newCount>0
@@ -41488,7 +41565,7 @@ html body .card .item.assal-smart-added-item-safe-final{
     try{bundledDraftGroups=consolidateNewCardDrafts();}catch(_){bundledDraftGroups=0;}
     if(legacyDraftsCleared||bundledDraftGroups){try{await persistState();}catch(_){ }}
     seedSnapshots();seedPaymentSnapshots();ready=true;wrapSave();wrapSavePayments();wrapImportFunction('smartImportFromServer');wrapImportFunction('importInvoicesFromFile');
-    ensureButton();updateButton();notifyAttendanceHalfDayUi();
+    ensureButton();updateButton();notifyAttendanceHalfDayUi();notifySingleCardCustomerChangeUi();
     if(legacyDraftsCleared){try{showToast('info','تم تنظيف '+legacyDraftsCleared+' مسودة خاطئة من النسخة السابقة');}catch(_){ }}
     if(bundledDraftGroups){try{showToast('success','تم تجميع إضافات البطاقات الجديدة ضمن طلب واحد لكل بطاقة');}catch(_){ }}
     try{window.addEventListener('online',function(){if(!activeUploadRequestId)refreshFromServer(false);},false);window.addEventListener('focus',function(){if(!activeUploadRequestId)refreshFromServer(false);},false);document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&!activeUploadRequestId)refreshFromServer(false);},false);document.addEventListener('click',blockSensitiveWhileUpload,true);document.addEventListener('change',blockSensitiveWhileUpload,true);}catch(_){ }
@@ -45400,6 +45477,7 @@ body.assal-owner-exclusive > #modal.active{
   #assalDebtTransferLockHost.is-success .assal-debt-transfer-lock-actions,#assalDebtTransferLockHost.is-success .assal-debt-transfer-lock-error{display:none}
 
   body.assal-debt-transfer-day-locked .assal-customer-rename-btn,
+  body.assal-debt-transfer-day-locked .assal-card-customer-switch-btn,
   body.assal-debt-transfer-day-locked .badge-type,
   body.assal-debt-transfer-day-locked .assal-wholesale-to-credit-btn,
   body.assal-debt-transfer-day-locked .btn-return,
@@ -45769,7 +45847,7 @@ body.assal-owner-exclusive > #modal.active{
     finally{pollBusy=false}
   }
 
-  var WRITE_SELECTOR=['#btnAdd','.assal-customer-rename-btn','.badge-type','.assal-wholesale-to-credit-btn','.btn-return','.btn-pay','.btn-del','.btn-edit','.note-add-mini','.note-del-out','.card-pay-all-btn','.card-delete-btn','.partial-pay-card-btn','#notesModalAdd'].join(',');
+  var WRITE_SELECTOR=['#btnAdd','.assal-customer-rename-btn','.assal-card-customer-switch-btn','.badge-type','.assal-wholesale-to-credit-btn','.btn-return','.btn-pay','.btn-del','.btn-edit','.note-add-mini','.note-del-out','.card-pay-all-btn','.card-delete-btn','.partial-pay-card-btn','#notesModalAdd'].join(',');
   function byId(id){return document.getElementById(id)}
   function mountLockPanel(host){
     if(!host)return null;
@@ -45892,6 +45970,190 @@ body.assal-owner-exclusive > #modal.active{
 })();
 </script>
 <!-- ===== ASSAL DEBT TRANSFER AUTO LOCK FINAL - END ===== -->
+
+
+<!-- ===== ASSAL SINGLE CARD CUSTOMER SWITCH + REQUESTS FINAL - START ===== -->
+<style id="assal-single-card-customer-switch-final-style">
+.assal-card-customer-switch-btn{
+  width:26px;height:26px;border:0;border-radius:8px;display:grid;place-items:center;flex:0 0 auto;padding:0;margin-inline-end:0;
+  cursor:pointer;color:#e6fffb;background:linear-gradient(135deg,#0f766e,#0e7490);box-shadow:0 6px 16px rgba(8,145,178,.24);
+}
+.assal-card-customer-switch-btn:hover{filter:brightness(1.07);transform:translateY(-1px)}
+.assal-card-customer-switch-btn:disabled,.assal-customer-rename-btn:disabled{opacity:.48!important;filter:saturate(.55)!important;cursor:not-allowed!important;transform:none!important}
+.assal-card-customer-switch-pending{
+  display:inline-flex;align-items:center;gap:5px;white-space:nowrap;padding:3px 7px;border-radius:999px;
+  font-size:9.5px;font-weight:950;color:#fde68a;background:rgba(180,83,9,.15);border:1px solid rgba(251,191,36,.26)
+}
+.assal-card-customer-switch-pending.is-applied{color:#bbf7d0;background:rgba(22,101,52,.14);border-color:rgba(74,222,128,.28)}
+.assal-card-customer-switch-edit-wrap{position:relative;display:inline-flex;align-items:center;gap:6px;min-width:0;z-index:3300}
+.assal-card-customer-switch-edit-wrap .assal-customer-rename-input{width:min(340px,50vw)}
+.assal-card-customer-switch-suggestions{
+  display:none;position:absolute;inset-inline:0;top:calc(100% + 6px);z-index:2147481000;max-height:260px;overflow:auto;overscroll-behavior:contain;
+  margin:0;padding:6px 0;list-style:none;border:1px solid rgba(18,209,180,.30);border-radius:13px;background:#0b1327;
+  box-shadow:0 18px 42px rgba(0,0,0,.52);min-width:min(360px,78vw)
+}
+.assal-card-customer-switch-suggestions .sugg-item{position:relative;display:block;cursor:pointer;padding:9px 11px;line-height:1.45;font-size:12px;font-weight:900;color:#e7eef9;border-radius:9px;white-space:normal;word-break:break-word}
+.assal-card-customer-switch-suggestions .sugg-item:hover,.assal-card-customer-switch-suggestions .sugg-item.is-active{background:linear-gradient(135deg,rgba(18,209,180,.17),rgba(124,58,237,.14))}
+#modal.assal-card-customer-switch-confirm-modal .modal-card{
+  width:min(590px,calc(100vw - 28px))!important;padding:18px!important;border-radius:23px!important;
+  background:radial-gradient(circle at 14% 0%,rgba(14,165,233,.16),transparent 36%),linear-gradient(180deg,#111a30,#081122)!important;
+  border:1px solid rgba(45,212,191,.22)!important;box-shadow:0 26px 78px rgba(0,0,0,.60),inset 0 1px 0 rgba(255,255,255,.06)!important
+}
+#modal.assal-card-customer-switch-confirm-modal #modal-confirm{background:linear-gradient(135deg,#0f766e,#2563eb)!important;color:#fff!important;border:1px solid rgba(94,234,212,.30)!important;box-shadow:0 13px 30px rgba(8,145,178,.23)!important}
+.assal-return-pop--card-customer-switch .assal-return-pop__icon{background:linear-gradient(135deg,#0f766e,#2563eb)}
+.assal-return-pop--card-customer-switch .assal-return-pop__box{border-color:rgba(45,212,191,.25);background:linear-gradient(135deg,rgba(13,148,136,.10),rgba(15,23,42,.62))}
+.assal-card-customer-switch-flow{display:grid;gap:8px;margin-top:8px}.assal-card-customer-switch-line{display:grid;grid-template-columns:42px minmax(0,1fr);align-items:center;gap:8px;padding:7px 9px;border-radius:11px;background:rgba(2,6,23,.28);border:1px solid rgba(148,163,184,.12)}
+.assal-card-customer-switch-line small{color:#94a3b8;font-weight:850}.assal-card-customer-switch-line b{min-width:0;color:#f8fafc;font-weight:950;word-break:break-word}
+</style>
+<script id="assal-single-card-customer-switch-final-script">
+(function(){
+  'use strict';
+  if(window.__ASSAL_SINGLE_CARD_CUSTOMER_SWITCH_FINAL__)return;
+  window.__ASSAL_SINGLE_CARD_CUSTOMER_SWITCH_FINAL__=true;
+
+  var ADMIN_EMAIL='admin-debts@assal.com',MAIN_EMAIL='assal-debts@assal.com';
+  function safe(v){return String(v==null?'':v)}
+  function esc(v){return safe(v).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]})}
+  function email(){return safe(window.ASSAL_LOGIN_EMAIL||'').trim().toLowerCase()}
+  function role(){try{if(window.ASSAL_IS_ADMIN_DEBTS===true||email()===ADMIN_EMAIL)return 'admin';if(window.ASSAL_IS_MAIN_DEBTS===true||email()===MAIN_EMAIL)return 'main'}catch(_){}return ''}
+  function normName(v){return safe(v).replace(/\s+/g,' ').trim()}
+  function dayOf(card){return safe(card&&card.__day||'').trim()||safe(typeof selectedDay==='string'?selectedDay:'').trim()}
+  function findStoredCard(cardId,dayHint){
+    var key=safe(cardId),store=(typeof days==='object'&&days)?days:{};
+    var ds=[];if(dayHint)ds.push(safe(dayHint));Object.keys(store).forEach(function(d){if(ds.indexOf(d)<0)ds.push(d)});
+    for(var di=0;di<ds.length;di++){var d=ds[di],arr=Array.isArray(store[d])?store[d]:[];for(var i=0;i<arr.length;i++){if(safe(arr[i]&&arr[i].id)===key)return {card:arr[i],day:d,index:i}}}
+    return null;
+  }
+  function allCustomers(){try{return Array.isArray(CUSTOMERS)?CUSTOMERS.slice():[]}catch(_){return []}}
+  function searchCustomers(q){
+    var all=allCustomers();
+    try{if(typeof assalSmartCustomerSearchList==='function')return assalSmartCustomerSearchList(all,q,35)}catch(_){}
+    var k=normName(q).toLowerCase();return all.filter(function(n){return safe(n).toLowerCase().indexOf(k)>=0}).slice(0,35)
+  }
+  function exactCustomer(v){
+    var raw=normName(v),all=allCustomers(),key='';try{key=typeof assalCustomerSmartNormalize==='function'?assalCustomerSmartNormalize(raw):raw.toLowerCase()}catch(_){key=raw.toLowerCase()}
+    for(var i=0;i<all.length;i++){var k='';try{k=typeof assalCustomerSmartNormalize==='function'?assalCustomerSmartNormalize(all[i]):normName(all[i]).toLowerCase()}catch(_){k=normName(all[i]).toLowerCase()}if(k===key)return normName(all[i])}
+    return '';
+  }
+  function statusLabel(info){
+    var s=safe(info&&info.status);if(s==='draft')return 'طلب غير مرسل';if(s==='pending_review')return 'قيد المراجعة';if(s==='approved_pending_upload')return 'تمت الموافقة — بانتظار الرفع';if(s==='applied')return 'تم الاعتماد — بانتظار المزامنة';return 'قيد المراجعة'
+  }
+  function startConfirmHtml(oldName){
+    return '<div class="assal-return-pop assal-return-pop--card-customer-switch"><div class="assal-return-pop__hero"><span class="assal-return-pop__icon"><i class="fa-solid fa-right-left"></i></span><div><div class="assal-return-pop__title">تغيير زبون البطاقة؟</div><div class="assal-return-pop__sub">هذه العملية تخص البطاقة الحالية فقط</div></div></div><div class="assal-return-pop__box">هل أنت متأكد أنك تريد اختيار زبون آخر للبطاقة الحالية باسم <b>'+esc(oldName)+'</b>؟</div><div class="assal-return-pop__hint"><span>لن يغيّر هذا الزر أي تسديد أو سحب أو حركة مالية مستقلة.</span></div></div>'
+  }
+  function finalConfirmHtml(oldName,newName,currentRole){
+    var note=currentRole==='admin'?'سيظهر الاسم الجديد فوراً على حاسبة الأدمن كطلب قيد المراجعة، ولن يصبح معتمداً على البيانات الرسمية إلا بعد موافقة الحاسبة الرئيسية.':'أنت على الحاسبة الرئيسية؛ عند التأكيد سيتغير زبون هذه البطاقة فوراً ويُحفظ عبر مسار الحفظ الحالي.';
+    return '<div class="assal-return-pop assal-return-pop--card-customer-switch"><div class="assal-return-pop__hero"><span class="assal-return-pop__icon"><i class="fa-solid fa-user-pen"></i></span><div><div class="assal-return-pop__title">تأكيد تغيير زبون البطاقة</div><div class="assal-return-pop__sub">راجع الاسمين قبل الاعتماد</div></div></div><div class="assal-return-pop__box"><div class="assal-card-customer-switch-flow"><div class="assal-card-customer-switch-line"><small>من</small><b>'+esc(oldName)+'</b></div><div class="assal-card-customer-switch-line"><small>إلى</small><b>'+esc(newName)+'</b></div></div></div><div class="assal-return-pop__hint"><span>'+esc(note)+'</span></div></div>'
+  }
+  async function confirmBox(title,message,okText){
+    if(typeof showConfirm==='function')return await showConfirm({title:title,message:message,okText:okText||'تأكيد',cancelText:'إلغاء',danger:false,modalClass:'assal-card-customer-switch-confirm-modal'});
+    return confirm(title+'؟')
+  }
+  function refreshFinancialUi(){
+    try{if(typeof assalInvalidateDebtBadgeCache==='function')assalInvalidateDebtBadgeCache()}catch(_){}
+    try{if(typeof refreshStats==='function')refreshStats()}catch(_){}
+    try{window.assalRequestFastDebtBadgeRefresh&&window.assalRequestFastDebtBadgeRefresh()}catch(_){}
+    try{window.refreshDebtsUI&&window.refreshDebtsUI()}catch(_){}
+    try{window.assalRefreshCustomerDebtBadges&&window.assalRefreshCustomerDebtBadges()}catch(_){}
+  }
+  function applyOnMain(cardId,dayHint,oldName,newName){
+    var hit=findStoredCard(cardId,dayHint);if(!hit||!hit.card)return {ok:false,message:'تعذر العثور على البطاقة الأصلية'};
+    var card=hit.card,current=normName(card.customer);if(current!==oldName)return {ok:false,message:'اسم الزبون تغيّر قبل الحفظ؛ أعد فتح البطاقة'};
+    var oldUpdated=card.updatedAt,stamp=(typeof nowISO==='function')?nowISO():new Date().toISOString();
+    card.customer=newName;card.updatedAt=stamp;
+    try{
+      var res=(typeof save==='function')?save():(window.save?window.save():null);
+      if(res&&res.ok===false)throw new Error('فشل الحفظ المحلي');
+    }catch(err){card.customer=oldName;if(oldUpdated===undefined)delete card.updatedAt;else card.updatedAt=oldUpdated;return {ok:false,message:safe(err&&err.message||'تعذر حفظ التغيير')}}
+    try{if(typeof renderBoard==='function')renderBoard()}catch(_){}
+    try{if(typeof renderRail==='function')renderRail()}catch(_){}
+    refreshFinancialUi();
+    return {ok:true,day:hit.day};
+  }
+  async function commit(cardId,dayHint,oldName,newName){
+    var currentRole=role();
+    if(currentRole==='admin'){
+      if(typeof window.ASSAL_CREATE_CARD_CUSTOMER_CHANGE_REQUEST!=='function')return {ok:false,message:'نظام طلبات التعديل لم يكتمل تحميله بعد'};
+      return window.ASSAL_CREATE_CARD_CUSTOMER_CHANGE_REQUEST({cardId:cardId,day:dayHint,oldName:oldName,newName:newName});
+    }
+    if(currentRole==='main')return applyOnMain(cardId,dayHint,oldName,newName);
+    return {ok:false,message:'هذا الحساب غير مخول لتغيير زبون البطاقة'};
+  }
+  async function openEditor(cardId,dayHint,nameEl){
+    var hit=findStoredCard(cardId,dayHint);if(!hit||!hit.card||!nameEl)return;
+    var oldName=normName(hit.card.customer);if(!oldName)return;
+    if(nameEl.__assalCardSwitchOpen)return;
+    var firstOk=await confirmBox('تغيير زبون البطاقة',startConfirmHtml(oldName),'نعم، متابعة');if(!firstOk)return;
+    nameEl.__assalCardSwitchOpen=true;
+    var parent=nameEl.parentNode,wrap=document.createElement('span');wrap.className='assal-card-customer-switch-edit-wrap';
+    var input=document.createElement('input');input.className='assal-customer-rename-input';input.type='text';input.value=oldName;input.dir='rtl';input.lang='ar';input.autocomplete='off';input.spellcheck=false;
+    var cancel=document.createElement('button');cancel.type='button';cancel.className='assal-customer-rename-cancel-x';cancel.title='إلغاء تغيير زبون البطاقة';cancel.setAttribute('aria-label','إلغاء تغيير زبون البطاقة');cancel.innerHTML='<i class="fa-solid fa-xmark"></i>';
+    var list=document.createElement('ul');list.className='assal-card-customer-switch-suggestions nice-scroll';
+    wrap.append(input,cancel,list);parent.replaceChild(wrap,nameEl);
+    var idx=-1,selected='',done=false;
+    function paint(){var items=Array.from(list.querySelectorAll('.sugg-item'));items.forEach(function(el,i){el.classList.toggle('is-active',i===idx)});if(idx>=0&&items[idx])items[idx].scrollIntoView({block:'nearest'})}
+    function hide(){list.style.display='none';idx=-1;paint()}
+    function renderSuggestions(){
+      selected='';list.innerHTML='';idx=-1;var q=normName(input.value);if(!q){hide();return}var rows=searchCustomers(q);
+      rows.forEach(function(name,i){var li=document.createElement('li');li.className='sugg-item';li.textContent=name;li.addEventListener('pointerdown',function(e){e.preventDefault()});li.addEventListener('click',function(e){e.preventDefault();selected=normName(name);input.value=selected;hide();try{input.focus({preventScroll:true})}catch(_){input.focus()}});li.addEventListener('mousemove',function(){idx=i;paint()});list.appendChild(li)});
+      if(rows.length){list.style.display='block';idx=0;paint()}else hide();
+    }
+    function cancelEdit(){if(done)return;done=true;try{if(typeof renderBoard==='function')renderBoard()}catch(_){try{parent.replaceChild(nameEl,wrap)}catch(__){}}}
+    async function finish(){
+      if(done)return;
+      var items=Array.from(list.querySelectorAll('.sugg-item'));
+      if(list.style.display==='block'&&idx>=0&&items[idx]){selected=normName(items[idx].textContent);input.value=selected;hide()}
+      var newName=selected||exactCustomer(input.value);
+      if(!newName){try{showToast('warn','اختر اسم زبون من الاقتراحات الموجودة')}catch(_){}try{input.focus({preventScroll:true})}catch(_){input.focus()}renderSuggestions();return}
+      if(newName===oldName){cancelEdit();return}
+      done=true;
+      var ok=await confirmBox('تأكيد تغيير زبون البطاقة',finalConfirmHtml(oldName,newName,role()),role()==='admin'?'إضافة إلى طلبات التعديل':'تغيير الاسم الآن');
+      if(!ok){try{if(typeof renderBoard==='function')renderBoard()}catch(_){}return}
+      var result=await commit(cardId,dayHint,oldName,newName);
+      if(!result||!result.ok){try{showToast('error',safe(result&&result.message||'تعذر تغيير زبون البطاقة'))}catch(_){}try{if(typeof renderBoard==='function')renderBoard()}catch(_){}return}
+      if(role()==='main'){try{showToast('success','تم تغيير زبون البطاقة وحفظه على الحاسبة الرئيسية')}catch(_){} }
+      try{if(typeof renderBoard==='function')renderBoard()}catch(_){}
+    }
+    cancel.addEventListener('pointerdown',function(e){e.preventDefault()});cancel.addEventListener('click',function(e){e.preventDefault();cancelEdit()});
+    input.addEventListener('input',renderSuggestions);
+    input.addEventListener('keydown',function(e){
+      e.stopPropagation();
+      if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+        if(list.style.display!=='block')renderSuggestions();var items=Array.from(list.querySelectorAll('.sugg-item'));if(!items.length)return;e.preventDefault();var step=e.key==='ArrowDown'?1:-1;idx=idx<0?(step>0?0:items.length-1):Math.max(0,Math.min(items.length-1,idx+step));paint();return
+      }
+      if(e.key==='Enter'){e.preventDefault();e.stopImmediatePropagation();finish();return}
+      if(e.key==='Escape'){e.preventDefault();cancelEdit()}
+    });
+    input.addEventListener('blur',function(){setTimeout(function(){if(!done&&document.activeElement!==input&&!wrap.contains(document.activeElement))cancelEdit()},180)});
+    try{input.focus({preventScroll:true});input.select()}catch(_){input.focus()}
+    renderSuggestions();
+  }
+  function decorateCard(box){
+    if(!box||!box.id||box.id.indexOf('card-')!==0)return;var cardId=box.id.slice(5),hit=findStoredCard(cardId,'');if(!hit||!hit.card)return;
+    var cust=box.querySelector('.cust.assal-customer-rename-enabled');if(!cust)return;var nameEl=cust.querySelector('.assal-main-card-statement-link');if(!nameEl)return;
+    var oldBtn=cust.querySelector('.assal-customer-rename-btn'),btn=cust.querySelector('.assal-card-customer-switch-btn');
+    if(!btn){btn=document.createElement('button');btn.type='button';btn.className='assal-card-customer-switch-btn';btn.title='تغيير زبون هذه البطاقة';btn.setAttribute('aria-label','تغيير زبون هذه البطاقة');btn.innerHTML='<i class="fa-solid fa-right-left"></i>';if(oldBtn&&oldBtn.parentNode===cust)oldBtn.insertAdjacentElement('afterend',btn);else cust.insertBefore(btn,nameEl);btn.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();var fresh=findStoredCard(cardId,hit.day);if(!fresh||!fresh.card)return;openEditor(cardId,fresh.day,nameEl)})}
+    var info=null;try{if(typeof window.ASSAL_CARD_CUSTOMER_CHANGE_DISPLAY==='function')info=window.ASSAL_CARD_CUSTOMER_CHANGE_DISPLAY(cardId,hit.card.customer)}catch(_){}
+    var badge=cust.querySelector('.assal-card-customer-switch-pending');
+    if(info){
+      nameEl.textContent=info.displayName||info.newName||hit.card.customer;nameEl.title='الاسم الرسمي حالياً: '+safe(hit.card.customer)+' — '+statusLabel(info);
+      if(!badge){badge=document.createElement('span');badge.className='assal-card-customer-switch-pending';cust.appendChild(badge)}badge.textContent=statusLabel(info);badge.classList.toggle('is-applied',safe(info.status)==='applied');
+      btn.disabled=true;btn.title=statusLabel(info);if(oldBtn){oldBtn.disabled=true;oldBtn.title='يوجد طلب تغيير زبون لهذه البطاقة '+statusLabel(info)}
+    }else{
+      nameEl.textContent=safe(hit.card.customer);nameEl.title='فتح كشف حساب الزبون: '+safe(hit.card.customer);if(badge)badge.remove();btn.disabled=false;btn.title='تغيير زبون هذه البطاقة';if(oldBtn){oldBtn.disabled=false;oldBtn.title='تعديل اسم الزبون في كل السجلات المطابقة'}
+    }
+  }
+  function decorateAll(){try{document.querySelectorAll('.masonry > .card[id^="card-"]').forEach(decorateCard)}catch(_){} }
+  function wrapRender(){
+    try{var current=window.renderBoard;if(typeof current!=='function'||current.__assalCardCustomerSwitchWrapped)return;var wrapped=function(){var r=current.apply(this,arguments);try{queueMicrotask(decorateAll)}catch(_){setTimeout(decorateAll,0)}return r};wrapped.__assalCardCustomerSwitchWrapped=true;wrapped.__assalCardCustomerSwitchOriginal=current;window.renderBoard=wrapped;try{renderBoard=wrapped}catch(_){} }catch(_){}
+  }
+  function boot(){wrapRender();decorateAll();setTimeout(decorateAll,400)}
+  window.addEventListener('assal:card-customer-change-requests-updated',function(){setTimeout(decorateAll,0)},false);
+  window.addEventListener('assal:auth-ready',function(){setTimeout(boot,350)},false);
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,false);else boot();
+})();
+</script>
+<!-- ===== ASSAL SINGLE CARD CUSTOMER SWITCH + REQUESTS FINAL - END ===== -->
 
 </body>
 </html>
