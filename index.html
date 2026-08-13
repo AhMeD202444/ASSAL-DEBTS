@@ -17403,6 +17403,8 @@ function renderBoard() {
 
     const box = CE('div', 'card');
     box.id = 'card-' + card.id;
+    // ASSAL CARD-DAY LOCK: احتفظ بيوم البطاقة الحقيقي داخل الـ DOM حتى يبقى القفل صحيحاً حتى في البحث الشامل.
+    box.dataset.assalCardDay = card.__day || selectedDay;
 
     /* ===== الهيدر مال البطاقة ===== */
     const head = CE('div', 'card-head');
@@ -17412,6 +17414,11 @@ function renderBoard() {
     custEditBtn.type = 'button';
     custEditBtn.title = 'تعديل اسم الزبون في كل السجلات المطابقة';
     custEditBtn.innerHTML = '<i class="fa-solid fa-user"></i>';
+    const custSwitchBtn = CE('button', 'assal-card-customer-switch-btn');
+    custSwitchBtn.type = 'button';
+    custSwitchBtn.title = 'تغيير زبون هذه البطاقة';
+    custSwitchBtn.setAttribute('aria-label', 'تغيير زبون هذه البطاقة');
+    custSwitchBtn.innerHTML = '<i class="fa-solid fa-right-left"></i>';
     const custName = CE('span', 'assal-main-card-statement-link');
     custName.textContent = card.customer;
     custName.title = 'فتح كشف حساب الزبون: ' + card.customer;
@@ -17422,6 +17429,28 @@ function renderBoard() {
       ev.preventDefault();
       ev.stopPropagation();
       if(typeof assalStartCustomerRename === 'function') assalStartCustomerRename(card, custName);
+    };
+    custSwitchBtn.onclick = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const dayKey = card.__day || selectedDay;
+      try{
+        if(window.ASSAL_DEBT_TRANSFER_LOCK){
+          const lockApi = window.ASSAL_DEBT_TRANSFER_LOCK;
+          const locked = (typeof lockApi.isCardLocked === 'function') ? lockApi.isCardLocked(dayKey, card.id) : (typeof lockApi.isDayLocked === 'function' && lockApi.isDayLocked(dayKey));
+          if(locked){
+            const fromAllDaysSearch = !!document.getElementById('globalSearch')?.checked;
+            if(fromAllDaysSearch && typeof lockApi.showForCard === 'function') lockApi.showForCard(dayKey, card.id, true);
+            else lockApi.showForDay && lockApi.showForDay(dayKey, true);
+            return;
+          }
+        }
+      }catch(_){ }
+      if(typeof window.ASSAL_OPEN_CARD_CUSTOMER_SWITCH === 'function'){
+        window.ASSAL_OPEN_CARD_CUSTOMER_SWITCH(card.id, dayKey, custName);
+      }else{
+        try{ window.showToast && window.showToast('warn','ميزة تبديل زبون البطاقة لم تكتمل تهيئتها بعد'); }catch(_){ }
+      }
     };
     const assalOpenMainCardStatement = (ev) => {
       if(ev){
@@ -17445,7 +17474,7 @@ function renderBoard() {
         assalOpenMainCardStatement(ev);
       }
     });
-    custWrap.append(custEditBtn, custName);
+    custWrap.append(custEditBtn, custSwitchBtn, custName);
 
     // بادج "زبون جديد" إذا مو ضمن القائمة المعروفة CUSTOMERS
     const isKnownCustomer = (typeof assalIsSheetCustomerName === 'function')
@@ -18335,6 +18364,50 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
 
 // حالة المودال الحالية
 let __activeNotesCard = null;
+let __activeNotesDay = '';
+let __activeNotesCardId = '';
+
+function assalNotesResolveDay(card, hint){
+  const direct = String(hint || (card && card.__day) || '').trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(direct)) return direct;
+  const id = String(card && card.id || '').trim();
+  try{
+    for(const d of Object.keys(days || {})){
+      const arr = Array.isArray(days[d]) ? days[d] : [];
+      if(arr.some(c => c && String(c.id) === id)) return d;
+    }
+  }catch(_){ }
+  return (typeof selectedDay === 'string') ? selectedDay : '';
+}
+function assalNotesCardLocked(card, dayHint){
+  try{
+    const day = assalNotesResolveDay(card, dayHint), id = String(card && card.id || __activeNotesCardId || '');
+    const api = window.ASSAL_DEBT_TRANSFER_LOCK;
+    if(!api) return false;
+    if(typeof api.isCardLocked === 'function') return !!api.isCardLocked(day,id);
+    return !!(typeof api.isDayLocked === 'function' && api.isDayLocked(day));
+  }catch(_){ return false; }
+}
+function assalShowNotesCardLock(card, dayHint){
+  try{
+    const day=assalNotesResolveDay(card,dayHint),id=String(card&&card.id||__activeNotesCardId||''),api=window.ASSAL_DEBT_TRANSFER_LOCK;
+    const fromSearch=!!(document.getElementById('globalSearch')&&document.getElementById('globalSearch').checked);
+    if(api&&fromSearch&&typeof api.showForCard==='function') api.showForCard(day,id,true);
+    else if(api&&typeof api.showForDay==='function') api.showForDay(day,true);
+  }catch(_){ }
+}
+function assalSyncNotesModalLockUi(){
+  const modal=document.getElementById('notesModal'); if(!modal) return;
+  const locked=!!(__activeNotesCard&&assalNotesCardLocked(__activeNotesCard,__activeNotesDay));
+  modal.classList.toggle('assal-notes-card-readonly',locked);
+  const input=document.getElementById('notesModalInput'),add=document.getElementById('notesModalAdd');
+  if(input){input.disabled=locked;input.placeholder=locked?'البطاقة مقفولة — الملاحظات للقراءة فقط':'اكتب الملاحظة…'}
+  if(add){add.disabled=locked;add.title=locked?'البطاقة مقفولة ضد تعديل الملاحظات':''}
+  let hint=modal.querySelector('.assal-notes-card-lock-hint');
+  if(!hint){hint=document.createElement('div');hint.className='assal-notes-card-lock-hint';hint.innerHTML='<i class="fa-solid fa-lock"></i> البطاقة مقفولة؛ الملاحظات للقراءة فقط. أغلق النافذة واضغط بادج «مقفولة» لفتح تعديل هذه البطاقة فقط.';const body=modal.querySelector('.modal-body');if(body)body.insertBefore(hint,body.firstChild)}
+  modal.querySelectorAll('.note-del-out').forEach(btn=>{btn.disabled=locked;btn.title=locked?'البطاقة مقفولة ضد حذف الملاحظات':'حذف الملاحظة'});
+}
+window.assalSyncActiveNotesLockUi = assalSyncNotesModalLockUi;
 
 // تنسيقات عنصر واحد (نفس ستايل الكبسولة داخل البطاقة)
 function makeNoteRow(n, idx){
@@ -18352,7 +18425,14 @@ function makeNoteRow(n, idx){
   const del = CE('button','note-del-out');
   del.innerHTML = '<i class="fa-regular fa-trash-can"></i>';
   del.title = 'حذف الملاحظة';
+  const notesLocked = assalNotesCardLocked(__activeNotesCard, __activeNotesDay);
+  del.disabled = notesLocked;
+  if(notesLocked) del.title = 'البطاقة مقفولة ضد حذف الملاحظات';
   del.onclick = () => {
+    if(assalNotesCardLocked(__activeNotesCard, __activeNotesDay)){
+      try{ showToast('warn','البطاقة مقفولة — افتحها من بادج «مقفولة» قبل تعديل الملاحظات'); }catch(_){ }
+      return;
+    }
     n.deletedAt = nowISO();
     save();
     renderNotesModalList();
@@ -18371,6 +18451,11 @@ function tinyTime(d){
 
 // افتح المودال على بطاقة معيّنة
 function openNotesModal(card){
+  // احتفظ بهوية البطاقة الحقيقية قبل تحويل نسخة البحث إلى الأصل المخزن.
+  __activeNotesDay = assalNotesResolveDay(card, card && card.__day);
+  __activeNotesCardId = String(card && card.id || '');
+  try{window.ASSAL_DEBT_TRANSFER_LOCK&&window.ASSAL_DEBT_TRANSFER_LOCK.setModalCardContext&&window.ASSAL_DEBT_TRANSFER_LOCK.setModalCardContext(__activeNotesDay,__activeNotesCardId)}catch(_){ }
+
   // اربط على الأصل المخزّن داخل days (حتى لو اللي ظاهر نسخة بحث)
   const real = (typeof getMutableCard === 'function' ? getMutableCard(card) : null) || card;
 
@@ -18378,6 +18463,7 @@ function openNotesModal(card){
   if (!Array.isArray(__activeNotesCard.notes)) __activeNotesCard.notes = [];
 
   renderNotesModalList();
+  assalSyncNotesModalLockUi();
 
   document.getElementById('notesModalBackdrop').classList.add('active');
   document.getElementById('notesModal').classList.add('active');
@@ -18385,7 +18471,7 @@ function openNotesModal(card){
   // فوكس مؤكد بعد عرض المودال
   requestAnimationFrame(() => {
     const inp = document.getElementById('notesModalInput');
-    if (inp) { inp.focus(); inp.select(); }
+    if (inp && !inp.disabled) { inp.focus(); inp.select(); }
   });
 
   // قفل تمرير الخلفية
@@ -18401,6 +18487,7 @@ function renderNotesModalList(){
     .sort((a,b)=> new Date(b.at || b.createdAt) - new Date(a.at || a.createdAt)); // تأكيد الترتيب
   list.innerHTML = '';
   arr.forEach((n, i)=> list.appendChild(makeNoteRow(n, arr.length - i)));
+  assalSyncNotesModalLockUi();
 }
 
 // إغلاق المودال
@@ -18408,6 +18495,10 @@ function closeNotesModal(){
   document.getElementById('notesModalBackdrop').classList.remove('active');
   document.getElementById('notesModal').classList.remove('active');
   __activeNotesCard = null;
+  __activeNotesDay = '';
+  __activeNotesCardId = '';
+  try{window.ASSAL_DEBT_TRANSFER_LOCK&&window.ASSAL_DEBT_TRANSFER_LOCK.clearModalCardContext&&window.ASSAL_DEBT_TRANSFER_LOCK.clearModalCardContext()}catch(_){ }
+  try{document.getElementById('notesModal')?.classList.remove('assal-notes-card-readonly')}catch(_){ }
 
   // رجّع تمرير الخلفية طبيعي
   document.body.classList.remove('modal-open');
@@ -18418,6 +18509,11 @@ function addNoteFromModal(){
   const inp  = document.getElementById('notesModalInput');
   const text = (inp && inp.value ? inp.value : '').trim();
   if (!text || !__activeNotesCard) return;
+  if(assalNotesCardLocked(__activeNotesCard,__activeNotesDay)){
+    try{ showToast('warn','البطاقة مقفولة — افتحها من بادج «مقفولة» قبل تعديل الملاحظات'); }catch(_){ }
+    assalSyncNotesModalLockUi();
+    return;
+  }
 
   // اشتغل على الأصل داخل days حتى تبقى الملاحظة بعد الإغلاق
   const real = (typeof getMutableCard === 'function' ? getMutableCard(__activeNotesCard) : null) || __activeNotesCard;
@@ -18579,6 +18675,11 @@ function getMutableCard(viewCard){
 
 function addCardNote(viewCard, text){
   if(!viewCard || !text) return false;
+  const noteDay = assalNotesResolveDay(viewCard, viewCard && viewCard.__day);
+  if(assalNotesCardLocked(viewCard,noteDay)){
+    try{ showToast('warn','البطاقة مقفولة ضد تعديل الملاحظات'); }catch(_){ }
+    return false;
+  }
 
   // اشتغل على الأصل داخل days (حتى ينحفظ فعليًا)
   const real = getMutableCard(viewCard);
@@ -18608,6 +18709,11 @@ real.updatedAt = t;
 
 function deleteCardNote(viewCard, noteId){
   if(!viewCard) return false;
+  const noteDay = assalNotesResolveDay(viewCard, viewCard && viewCard.__day);
+  if(assalNotesCardLocked(viewCard,noteDay)){
+    try{ showToast('warn','البطاقة مقفولة ضد حذف الملاحظات'); }catch(_){ }
+    return false;
+  }
 
   const real = getMutableCard(viewCard);
   if(!real || !Array.isArray(real.notes)) return false;
@@ -45492,6 +45598,40 @@ body.assal-owner-exclusive > #modal.active{
   body.assal-debt-transfer-day-locked #btnAdd,
   body.assal-debt-transfer-day-locked #notesModalAdd{opacity:.56 !important;filter:saturate(.55) !important;cursor:not-allowed !important}
 
+  /* ASSAL CARD-DAY LOCK SEARCH SAFE: البطاقة نفسها تبقى قراءة فقط إذا كان يومها مقفولاً، حتى لو ظهرت من البحث الشامل. */
+  .masonry > .card.assal-card-day-locked{
+    border-color:rgba(245,158,11,.58) !important;
+    box-shadow:0 0 0 1px rgba(245,158,11,.10),var(--shadow) !important;
+  }
+  .masonry > .card.assal-card-day-locked .assal-customer-rename-btn,
+  .masonry > .card.assal-card-day-locked .assal-card-customer-switch-btn,
+  .masonry > .card.assal-card-day-locked .badge-type,
+  .masonry > .card.assal-card-day-locked .assal-wholesale-to-credit-btn,
+  .masonry > .card.assal-card-day-locked .btn-return,
+  .masonry > .card.assal-card-day-locked .btn-pay,
+  .masonry > .card.assal-card-day-locked .btn-del,
+  .masonry > .card.assal-card-day-locked .btn-edit,
+  .masonry > .card.assal-card-day-locked .note-add-mini,
+  .masonry > .card.assal-card-day-locked .note-del-out,
+  .masonry > .card.assal-card-day-locked .card-pay-all-btn,
+  .masonry > .card.assal-card-day-locked .card-delete-btn,
+  .masonry > .card.assal-card-day-locked .partial-pay-card-btn{
+    opacity:.48 !important;filter:saturate(.45) !important;cursor:not-allowed !important;
+  }
+  .assal-card-day-lock-badge{
+    display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;
+    color:#fde68a;background:rgba(146,64,14,.28);border:1px solid rgba(245,158,11,.42);
+    font-size:10px;font-weight:950;white-space:nowrap;pointer-events:none;user-select:none;
+  }
+  .assal-card-day-lock-badge.is-card-unlock{pointer-events:auto;cursor:pointer;box-shadow:0 0 0 1px rgba(245,158,11,.10),0 6px 16px rgba(146,64,14,.16)}
+  .assal-card-day-lock-badge.is-card-unlock:hover{filter:brightness(1.08);border-color:rgba(251,191,36,.72)}
+  .assal-card-day-lock-badge.is-card-unlock:focus-visible{outline:0;box-shadow:0 0 0 3px rgba(245,158,11,.18)}
+  #notesModal.assal-notes-card-readonly #notesModalInput,
+  #notesModal.assal-notes-card-readonly #notesModalAdd{opacity:.46!important;filter:saturate(.45)!important;cursor:not-allowed!important;pointer-events:none!important}
+  #notesModal.assal-notes-card-readonly .note-del-out{opacity:.30!important;filter:saturate(.35)!important;cursor:not-allowed!important;pointer-events:none!important}
+  .assal-notes-card-lock-hint{display:none;width:100%;padding:7px 10px;border-radius:10px;color:#fde68a;background:rgba(146,64,14,.16);border:1px solid rgba(245,158,11,.25);font-size:10.5px;font-weight:900;line-height:1.55;text-align:center}
+  #notesModal.assal-notes-card-readonly .assal-notes-card-lock-hint{display:block}
+
   @media(max-width:760px){
     #assalDebtTransferLockHost{top:calc(var(--hdr-h,54px) + 10px + var(--assal-lock-board-head-h,58px) + 6px)}
     .assal-debt-transfer-lock-toast{grid-template-columns:auto minmax(0,1fr);gap:7px;padding:5px 7px;border-radius:13px}
@@ -45506,7 +45646,7 @@ body.assal-owner-exclusive > #modal.active{
   'use strict';
   if(window.ASSAL_DEBT_TRANSFER_LOCK && window.ASSAL_DEBT_TRANSFER_LOCK.version) return;
 
-  var VERSION='1.3.0-main-badge-instant-compact-bar-final';
+  var VERSION='1.5.0-search-card-single-unlock-notes-lock-final';
   var ADMIN_EMAIL='admin-debts@assal.com';
   var MAIN_EMAIL='assal-debts@assal.com';
   var LOCK_CODE='12345';
@@ -45530,7 +45670,7 @@ body.assal-owner-exclusive > #modal.active{
   var pollTimer=0;
   var stateRevision=0;
   var localState=readLocalState();
-  var viewState={selectedDay:'',unlockedDay:'',locked:false,lockDay:'',modeTimer:0,renderQueued:false};
+  var viewState={selectedDay:'',unlockedDay:'',unlockedCardKey:'',promptDay:'',promptCardKey:'',contextDay:'',contextCardId:'',actionDay:'',actionCardId:'',locked:false,lockDay:'',modeTimer:0,renderQueued:false};
 
   function safe(v){return String(v==null?'':v)}
   function esc(v){return safe(v).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]})}
@@ -45543,6 +45683,30 @@ body.assal-owner-exclusive > #modal.active{
   function id(){return 'cr_debt_lock_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10)}
   function fmtDay(day){if(!validDay(day))return safe(day);var p=day.split('-');return p[2]+'-'+p[1]+'-'+p[0]}
   function selectedDayValue(){try{return safe(typeof selectedDay!=='undefined'?selectedDay:window.selectedDay)}catch(_){return safe(window.selectedDay)}}
+  function currentLockDay(){return validDay(localState.lockDay)?localState.lockDay:''}
+  function cardUnlockKey(day,cardId){var d=safe(day).trim(),c=safe(cardId).trim();return validDay(d)&&c?d+'::'+c:''}
+  function parseCardUnlockKey(key){var s=safe(key),p=s.indexOf('::');if(p<0)return {day:'',cardId:''};return {day:s.slice(0,p),cardId:s.slice(p+2)}}
+  function globalSearchMode(){try{return !!(document.getElementById('globalSearch')&&document.getElementById('globalSearch').checked)}catch(_){return false}}
+  function isDayLocked(day){var d=safe(day),lockDay=currentLockDay();return !!(isMain()&&validDay(d)&&validDay(lockDay)&&d<=lockDay&&viewState.unlockedDay!==d)}
+  function isCardLocked(day,cardId){var d=safe(day).trim(),c=safe(cardId).trim();if(!isDayLocked(d))return false;var k=cardUnlockKey(d,c);return !(k&&viewState.unlockedCardKey===k)}
+  function cardDayFromTarget(target){
+    try{
+      var card=target&&target.closest?target.closest('.masonry > .card[id^="card-"]'):null;if(!card)return '';
+      var day=safe(card.getAttribute('data-assal-card-day')||'');if(validDay(day))return day;
+      var cardId=safe(card.id).replace(/^card-/,'');
+      if(cardId&&typeof days==='object'&&days){var keys=Object.keys(days);for(var i=0;i<keys.length;i++){var arr=days[keys[i]]||[];if(arr.some(function(c){return c&&safe(c.id)===cardId})){return keys[i]}}}
+    }catch(_){ }
+    return '';
+  }
+  function cardIdFromTarget(target){
+    try{var card=target&&target.closest?target.closest('.masonry > .card[id^="card-"]'):null;if(!card)return '';return safe(card.id).replace(/^card-/,'').trim()}catch(_){return ''}
+  }
+  function operationContextFromTarget(target){
+    var d=cardDayFromTarget(target),c=cardIdFromTarget(target);if(validDay(d))return {day:d,cardId:c};
+    if(target&&target.closest&&target.closest('#notesModal')&&validDay(viewState.contextDay))return {day:viewState.contextDay,cardId:safe(viewState.contextCardId)};
+    return {day:selectedDayValue(),cardId:''};
+  }
+  function contextLocked(ctx){ctx=ctx||{};return safe(ctx.cardId)?isCardLocked(ctx.day,ctx.cardId):isDayLocked(ctx.day)}
   function online(){try{return !!(navigator.onLine&&typeof fetch==='function'&&typeof SYNC==='object'&&SYNC.BASE_URL&&SYNC.TOKEN)}catch(_){return false}}
   function toast(kind,msg){try{if(typeof showToast==='function')showToast(kind,msg)}catch(_){}}
   function clone(v){try{return JSON.parse(JSON.stringify(v))}catch(_){return null}}
@@ -45849,6 +46013,26 @@ body.assal-owner-exclusive > #modal.active{
 
   var WRITE_SELECTOR=['#btnAdd','.assal-customer-rename-btn','.assal-card-customer-switch-btn','.badge-type','.assal-wholesale-to-credit-btn','.btn-return','.btn-pay','.btn-del','.btn-edit','.note-add-mini','.note-del-out','.card-pay-all-btn','.card-delete-btn','.partial-pay-card-btn','#notesModalAdd'].join(',');
   function byId(id){return document.getElementById(id)}
+  function refreshVisibleCardLocks(){
+    try{
+      var searchMode=globalSearchMode();
+      document.querySelectorAll('.masonry > .card[id^="card-"]').forEach(function(card){
+        var day=safe(card.getAttribute('data-assal-card-day')||''),cardId=safe(card.id).replace(/^card-/,'');
+        var locked=isCardLocked(day,cardId);card.classList.toggle('assal-card-day-locked',locked);
+        var head=card.querySelector('.card-head'),badge=head&&head.querySelector('.assal-card-day-lock-badge'),badgeHost=head&&(head.querySelector('.cust')||head);
+        if(locked){
+          if(!badge&&badgeHost){badge=document.createElement('span');badge.className='assal-card-day-lock-badge';badge.innerHTML='<i class="fa-solid fa-lock"></i><span>مقفولة</span>';badgeHost.appendChild(badge)}
+          var cardUnlockable=!!(searchMode&&validDay(day)&&cardId);
+          if(badge){
+            badge.classList.toggle('is-card-unlock',cardUnlockable);badge.setAttribute('data-assal-lock-day',day);badge.setAttribute('data-assal-lock-card-id',cardId);
+            if(cardUnlockable){badge.setAttribute('role','button');badge.setAttribute('tabindex','0');badge.setAttribute('title','فتح تعديل هذه البطاقة فقط');badge.setAttribute('aria-label','فتح تعديل هذه البطاقة فقط')}
+            else{badge.removeAttribute('role');badge.removeAttribute('tabindex');badge.setAttribute('title','هذه البطاقة مقفولة ضد التعديل');badge.removeAttribute('aria-label')}
+          }
+          card.setAttribute('aria-readonly','true');
+        }else{if(badge)badge.remove();card.removeAttribute('aria-readonly')}
+      });
+    }catch(_){ }
+  }
   function mountLockPanel(host){
     if(!host)return null;
     var head=document.querySelector('.board .board-head')||document.querySelector('.board-head');
@@ -45879,10 +46063,21 @@ body.assal-owner-exclusive > #modal.active{
   function hideLockPanel(){var h=byId('assalDebtTransferLockHost');if(h)h.classList.remove('is-visible','is-success','is-wrong');setLockError('');var i=byId('assalDebtTransferLockCode');if(i)i.value=''}
   function setBodyLockMode(mode,day){if(!document.body)return;document.body.classList.toggle('assal-debt-transfer-day-locked',mode==='locked');document.body.classList.toggle('assal-debt-transfer-day-unlocked',mode==='unlocked');if(day)document.body.setAttribute('data-assal-debt-transfer-day',day);else document.body.removeAttribute('data-assal-debt-transfer-day')}
   function showLockPanel(day,focus){
+    day=validDay(day)?day:selectedDayValue();viewState.promptDay=day;viewState.promptCardKey='';
     var host=ensureLockPanel(),title=byId('assalDebtTransferLockTitle'),text=byId('assalDebtTransferLockText'),icon=host.querySelector('.assal-debt-transfer-lock-mark i');host.classList.remove('is-success','is-wrong');
     if(title)title.textContent='تم نقل الدين لغاية تاريخ '+fmtDay(localState.lockDay);
-    if(text)text.textContent='بطاقات هذا اليوم مقفلة ضد التعديل. للتعديل أدخل الرمز السري.';
-    if(icon)icon.className='fa-solid fa-lock';host.classList.add('is-visible');setBodyLockMode('locked',day);
+    if(text)text.textContent='بطاقة تاريخ '+fmtDay(day)+' مقفلة ضد التعديل. للتعديل أدخل الرمز السري.';
+    if(icon)icon.className='fa-solid fa-lock';host.classList.add('is-visible');if(day===selectedDayValue())setBodyLockMode('locked',day);
+    if(focus)setTimeout(function(){var input=byId('assalDebtTransferLockCode');try{input.focus();input.select()}catch(_){ }},0);
+  }
+  function showLockPanelForCard(day,cardId,focus){
+    day=safe(day).trim();cardId=safe(cardId).trim();var k=cardUnlockKey(day,cardId);if(!k)return showLockPanel(day,focus);
+    if(!isCardLocked(day,cardId)){hideLockPanel();refreshVisibleCardLocks();return}
+    viewState.promptDay=day;viewState.promptCardKey=k;
+    var host=ensureLockPanel(),title=byId('assalDebtTransferLockTitle'),text=byId('assalDebtTransferLockText'),icon=host.querySelector('.assal-debt-transfer-lock-mark i');host.classList.remove('is-success','is-wrong');
+    if(title)title.textContent='فتح تعديل بطاقة واحدة — '+fmtDay(day);
+    if(text)text.textContent='هذه البطاقة ظهرت من البحث وهي مقفولة. أدخل الرمز لفتح هذه البطاقة فقط، وتبقى بقية بطاقات اليوم مقفولة.';
+    if(icon)icon.className='fa-solid fa-lock';host.classList.add('is-visible');
     if(focus)setTimeout(function(){var input=byId('assalDebtTransferLockCode');try{input.focus();input.select()}catch(_){ }},0);
   }
   function clearInlineEdit(){
@@ -45894,40 +46089,63 @@ body.assal-owner-exclusive > #modal.active{
     var existingHost=byId('assalDebtTransferLockHost');if(existingHost)mountLockPanel(existingHost);
     var day=selectedDayValue(),lockDay=validDay(localState.lockDay)?localState.lockDay:'';
     var changed=day!==viewState.selectedDay||lockDay!==viewState.lockDay;
-    if(changed){clearInlineEdit();if(day!==viewState.selectedDay)viewState.unlockedDay='';if(lockDay!==viewState.lockDay)viewState.unlockedDay=''}
+    if(changed){clearInlineEdit();if(day!==viewState.selectedDay){viewState.unlockedDay='';viewState.unlockedCardKey='';viewState.promptCardKey='';viewState.actionDay='';viewState.actionCardId=''}if(lockDay!==viewState.lockDay){viewState.unlockedDay='';viewState.unlockedCardKey='';viewState.promptCardKey='';viewState.actionDay='';viewState.actionCardId=''}}
     viewState.selectedDay=day;viewState.lockDay=lockDay;
-    var locked=validDay(day)&&validDay(lockDay)&&day<=lockDay&&viewState.unlockedDay!==day;
-    viewState.locked=locked;
-    if(!locked){hideLockPanel();setBodyLockMode(viewState.unlockedDay===day?'unlocked':'current',viewState.unlockedDay===day?day:'');return false}
+    var locked=isDayLocked(day);
+    viewState.locked=locked;refreshVisibleCardLocks();
+    var lockHost=byId('assalDebtTransferLockHost'),promptCard=parseCardUnlockKey(viewState.promptCardKey);
+    if(promptCard.cardId&&isCardLocked(promptCard.day,promptCard.cardId)&&lockHost&&lockHost.classList.contains('is-visible')){setBodyLockMode(locked?'locked':'current',locked?day:'');return locked}
+    if(!locked){if(viewState.promptDay===day||!isDayLocked(viewState.promptDay))hideLockPanel();setBodyLockMode(viewState.unlockedDay===day?'unlocked':'current',viewState.unlockedDay===day?day:'');return false}
+    if(validDay(viewState.promptDay)&&viewState.promptDay!==day&&isDayLocked(viewState.promptDay)&&lockHost&&lockHost.classList.contains('is-visible')){setBodyLockMode('locked',day);return true}
     showLockPanel(day,false);return true;
   }
   function tryUnlockDay(){
-    syncLockUi('unlock');if(!viewState.locked)return;
+    var targetDay=validDay(viewState.promptDay)?viewState.promptDay:selectedDayValue(),promptCard=parseCardUnlockKey(viewState.promptCardKey),cardMode=!!(promptCard.cardId&&validDay(promptCard.day));
+    if(cardMode){targetDay=promptCard.day;if(!isCardLocked(promptCard.day,promptCard.cardId)){hideLockPanel();refreshVisibleCardLocks();return}}
+    else if(!isDayLocked(targetDay)){hideLockPanel();refreshVisibleCardLocks();return}
     var input=byId('assalDebtTransferLockCode'),value=safe(input&&input.value).trim();
     if(value!==LOCK_CODE){setLockError('الرمز السري غير صحيح. حاول مرة أخرى.');var h=ensureLockPanel();h.classList.remove('is-wrong');void h.offsetWidth;h.classList.add('is-wrong');if(input){input.value='';try{input.focus()}catch(_){ }}return}
-    viewState.unlockedDay=selectedDayValue();viewState.locked=false;setBodyLockMode('unlocked',viewState.unlockedDay);setLockError('');
+    if(cardMode){
+      viewState.unlockedCardKey=cardUnlockKey(promptCard.day,promptCard.cardId);viewState.unlockedDay='';viewState.promptDay=promptCard.day;viewState.promptCardKey=viewState.unlockedCardKey;
+    }else{
+      viewState.unlockedDay=targetDay;viewState.unlockedCardKey='';viewState.promptCardKey='';viewState.promptDay=targetDay;
+    }
+    viewState.locked=isDayLocked(selectedDayValue());if(!cardMode&&targetDay===selectedDayValue())setBodyLockMode('unlocked',targetDay);setLockError('');refreshVisibleCardLocks();
+    try{if(typeof window.assalSyncActiveNotesLockUi==='function')window.assalSyncActiveNotesLockUi()}catch(_){ }
     var host=ensureLockPanel(),title=byId('assalDebtTransferLockTitle'),text=byId('assalDebtTransferLockText'),icon=host.querySelector('.assal-debt-transfer-lock-mark i');host.classList.add('is-success');
-    if(title)title.textContent='تم فتح التعديل مؤقتاً';if(text)text.textContent='يمكنك تعديل بطاقات هذا اليوم. ينتهي الفتح عند الانتقال إلى يوم آخر أو تحديث الصفحة.';if(icon)icon.className='fa-solid fa-lock-open';
-    clearTimeout(viewState.modeTimer);viewState.modeTimer=setTimeout(function(){if(viewState.unlockedDay===selectedDayValue())hideLockPanel()},650);
+    if(title)title.textContent=cardMode?'تم فتح هذه البطاقة فقط':'تم فتح التعديل مؤقتاً';
+    if(text)text.textContent=cardMode?'يمكنك تعديل هذه البطاقة وحدها مؤقتاً، وتبقى بقية بطاقات تاريخ '+fmtDay(targetDay)+' مقفولة. ينتهي الفتح عند تغيير البحث أو الانتقال أو تحديث الصفحة.':'يمكنك تعديل بطاقات تاريخ '+fmtDay(targetDay)+' مؤقتاً. ينتهي الفتح عند الانتقال أو تحديث الصفحة.';
+    if(icon)icon.className='fa-solid fa-lock-open';
+    clearTimeout(viewState.modeTimer);viewState.modeTimer=setTimeout(function(){hideLockPanel()},850);
   }
-  function isLockedNow(){var day=selectedDayValue(),lockDay=validDay(localState.lockDay)?localState.lockDay:'';return !!(isMain()&&validDay(day)&&validDay(lockDay)&&day<=lockDay&&viewState.unlockedDay!==day)}
+  function isLockedNow(){return isDayLocked(selectedDayValue())}
   function closest(el,selector){try{return el&&el.closest?el.closest(selector):null}catch(_){return null}}
   function sensitiveModalConfirm(target){
     if(!target||!target.closest||!target.closest('#modal-confirm'))return false;var modal=byId('modal');if(!modal)return false;
-    var classes=['assal-return-confirm-modal','assal-wholesale-credit-confirm','assal-cash-credit-conflict-modal','assal-cash-credit-badge-convert','assal-cash-credit-line-convert','assal-cash-credit-card-convert','assal-action-confirm-delete-line','assal-action-confirm-delete-card','assal-action-confirm-past-day','assal-inline-edit-start-confirm','assal-payment-confirm-modal','assal-payment-return-confirm-pay','assal-payment-return-confirm-undo','assal-customer-rename-confirm-modal'];
+    var classes=['assal-return-confirm-modal','assal-wholesale-credit-confirm','assal-cash-credit-conflict-modal','assal-cash-credit-badge-convert','assal-cash-credit-line-convert','assal-cash-credit-card-convert','assal-action-confirm-delete-line','assal-action-confirm-delete-card','assal-action-confirm-past-day','assal-inline-edit-start-confirm','assal-payment-confirm-modal','assal-payment-return-confirm-pay','assal-payment-return-confirm-undo','assal-customer-rename-confirm-modal','assal-card-customer-switch-confirm-modal'];
     if(modal.classList.contains('assal-auth-logout-confirm-modal')||modal.classList.contains('assal-owner-logout-confirm-modal')||modal.classList.contains('assal-debt-lock-confirm-modal'))return false;
     return classes.some(function(c){return modal.classList.contains(c)})
   }
-  function blockEvent(ev){try{ev.preventDefault()}catch(_){ }try{ev.stopPropagation()}catch(_){ }try{ev.stopImmediatePropagation()}catch(_){ }showLockPanel(selectedDayValue(),true)}
+  function blockEvent(ev,ctx){ctx=ctx||{};try{ev.preventDefault()}catch(_){ }try{ev.stopPropagation()}catch(_){ }try{ev.stopImmediatePropagation()}catch(_){ }
+    if(ctx.cardId&&globalSearchMode())showLockPanelForCard(ctx.day,ctx.cardId,true);else showLockPanel(validDay(ctx.day)?ctx.day:selectedDayValue(),true)
+  }
 
   document.addEventListener('click',function(ev){
-    if(!isLockedNow())return;var host=byId('assalDebtTransferLockHost');if(host&&host.contains(ev.target))return;
-    var write=closest(ev.target,WRITE_SELECTOR);if(!write&&!sensitiveModalConfirm(ev.target))return;
-    if(write&&write.classList&&write.classList.contains('btn-edit')&&write.classList.contains('is-active'))return;blockEvent(ev);
+    var host=byId('assalDebtTransferLockHost');if(host&&host.contains(ev.target))return;
+    var lockBadge=closest(ev.target,'.assal-card-day-lock-badge.is-card-unlock');if(lockBadge){var bd=safe(lockBadge.getAttribute('data-assal-lock-day')),bc=safe(lockBadge.getAttribute('data-assal-lock-card-id'));try{ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation()}catch(_){ }showLockPanelForCard(bd,bc,true);return}
+    var notesBtn=closest(ev.target,'.card-notes-btn');if(notesBtn){var notesDay=cardDayFromTarget(notesBtn),notesCardId=cardIdFromTarget(notesBtn);if(validDay(notesDay)){viewState.contextDay=notesDay;viewState.contextCardId=notesCardId}return}
+    if(closest(ev.target,'#notesModalClose')||closest(ev.target,'#notesModalBackdrop')){viewState.contextDay='';viewState.contextCardId=''}
+    var write=closest(ev.target,WRITE_SELECTOR),sensitive=sensitiveModalConfirm(ev.target);if(!write&&!sensitive)return;
+    var ctx=sensitive&&validDay(viewState.actionDay)?{day:viewState.actionDay,cardId:viewState.actionCardId}:operationContextFromTarget(ev.target);
+    if(write&&ctx.cardId){viewState.actionDay=ctx.day;viewState.actionCardId=ctx.cardId}
+    if(!contextLocked(ctx)){if(sensitive)setTimeout(function(){viewState.actionDay='';viewState.actionCardId=''},0);return}
+    if(write&&write.classList&&write.classList.contains('btn-edit')&&write.classList.contains('is-active'))return;blockEvent(ev,ctx);
   },true);
   document.addEventListener('keydown',function(ev){
-    if(!isLockedNow())return;var host=byId('assalDebtTransferLockHost');if(host&&host.contains(ev.target))return;var key=safe(ev.key);if(key!=='Enter'&&key!==' ')return;
-    if(closest(ev.target,WRITE_SELECTOR)||sensitiveModalConfirm(ev.target)||(key==='Enter'&&(closest(ev.target,'.dock')||closest(ev.target,'#notesModal')||closest(ev.target,'.note-input-sm')||closest(ev.target,'.item.assal-line-editing'))))blockEvent(ev);
+    var host=byId('assalDebtTransferLockHost');if(host&&host.contains(ev.target))return;var key=safe(ev.key);if(key!=='Enter'&&key!==' ')return;
+    var lockBadge=closest(ev.target,'.assal-card-day-lock-badge.is-card-unlock');if(lockBadge){ev.preventDefault();ev.stopPropagation();showLockPanelForCard(safe(lockBadge.getAttribute('data-assal-lock-day')),safe(lockBadge.getAttribute('data-assal-lock-card-id')),true);return}
+    var sensitive=sensitiveModalConfirm(ev.target),isWrite=closest(ev.target,WRITE_SELECTOR)||sensitive||(key==='Enter'&&(closest(ev.target,'.dock')||closest(ev.target,'#notesModal')||closest(ev.target,'.note-input-sm')||closest(ev.target,'.item.assal-line-editing')));if(!isWrite)return;
+    var ctx=sensitive&&validDay(viewState.actionDay)?{day:viewState.actionDay,cardId:viewState.actionCardId}:operationContextFromTarget(ev.target);if(contextLocked(ctx))blockEvent(ev,ctx);
   },true);
 
   function installImmediateRenderSync(){
@@ -45936,7 +46154,9 @@ body.assal-owner-exclusive > #modal.active{
       if(typeof current!=='function'||current.__assalDebtLockImmediateSync)return;
       var wrapped=function(){
         try{syncLockUi('before-render-board')}catch(_){ }
-        return current.apply(this,arguments);
+        var r=current.apply(this,arguments);
+        try{queueMicrotask(refreshVisibleCardLocks)}catch(_){setTimeout(refreshVisibleCardLocks,0)}
+        return r;
       };
       wrapped.__assalDebtLockImmediateSync=true;
       wrapped.__assalDebtLockOriginal=current;
@@ -45944,8 +46164,14 @@ body.assal-owner-exclusive > #modal.active{
     }catch(_){ }
   }
 
+  function installSearchCardUnlockReset(){
+    try{
+      ['cardSearch','itemSearch'].forEach(function(id){var el=byId(id);if(el&&!el.__assalCardUnlockResetBound){el.__assalCardUnlockResetBound=true;el.addEventListener('input',function(){if(!viewState.unlockedCardKey&&!viewState.promptCardKey)return;viewState.unlockedCardKey='';viewState.promptCardKey='';viewState.actionDay='';viewState.actionCardId='';hideLockPanel();refreshVisibleCardLocks()},true)}});
+      var global=byId('globalSearch');if(global&&!global.__assalCardUnlockResetBound){global.__assalCardUnlockResetBound=true;global.addEventListener('change',function(){viewState.unlockedCardKey='';viewState.promptCardKey='';viewState.actionDay='';viewState.actionCardId='';hideLockPanel();setTimeout(refreshVisibleCardLocks,0)},true)}
+    }catch(_){ }
+  }
   function boot(){
-    installImmediateRenderSync();
+    installImmediateRenderSync();installSearchCardUnlockReset();
     syncLockUi('boot-local');
     refreshRail();
     clearInterval(pollTimer);pollTimer=setInterval(function(){pollServer(false);syncLockUi('timer')},1000);
@@ -45962,8 +46188,15 @@ body.assal-owner-exclusive > #modal.active{
     version:VERSION,
     decorateRailDay:decorateRailDay,
     syncNow:syncLockUi,
+    isDayLocked:isDayLocked,
+    isCardLocked:isCardLocked,
+    showForDay:function(day,focus){if(isDayLocked(day))showLockPanel(day,focus!==false)},
+    showForCard:function(day,cardId,focus){if(isCardLocked(day,cardId))showLockPanelForCard(day,cardId,focus!==false)},
+    setModalCardContext:function(day,cardId){if(validDay(day)){viewState.contextDay=day;viewState.contextCardId=safe(cardId)}},
+    clearModalCardContext:function(){viewState.contextDay='';viewState.contextCardId=''},
+    refreshVisibleCards:refreshVisibleCardLocks,
     refresh:function(){lastPollAt=0;return pollServer(true)},
-    getState:function(){return {role:isAdmin()?'admin':(isMain()?'main':''),confirmedLockDay:confirmedLockDay,pending:pendingCommand?clone(pendingCommand):null,localLockDay:localState.lockDay,selectedDay:selectedDayValue(),locked:isLockedNow(),unlockedDay:viewState.unlockedDay}}
+    getState:function(){return {role:isAdmin()?'admin':(isMain()?'main':''),confirmedLockDay:confirmedLockDay,pending:pendingCommand?clone(pendingCommand):null,localLockDay:localState.lockDay,selectedDay:selectedDayValue(),locked:isLockedNow(),unlockedDay:viewState.unlockedDay,unlockedCardKey:viewState.unlockedCardKey,promptDay:viewState.promptDay,promptCardKey:viewState.promptCardKey}}
   };
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,false);else boot();
@@ -46018,6 +46251,9 @@ body.assal-owner-exclusive > #modal.active{
   function role(){try{if(window.ASSAL_IS_ADMIN_DEBTS===true||email()===ADMIN_EMAIL)return 'admin';if(window.ASSAL_IS_MAIN_DEBTS===true||email()===MAIN_EMAIL)return 'main'}catch(_){}return ''}
   function normName(v){return safe(v).replace(/\s+/g,' ').trim()}
   function dayOf(card){return safe(card&&card.__day||'').trim()||safe(typeof selectedDay==='string'?selectedDay:'').trim()}
+  var activeEditState=null;
+  function switchCardLocked(day,cardId){try{var api=window.ASSAL_DEBT_TRANSFER_LOCK;if(!api)return false;if(typeof api.isCardLocked==='function')return !!api.isCardLocked(day,cardId);return !!(typeof api.isDayLocked==='function'&&api.isDayLocked(day))}catch(_){return false}}
+  function showSwitchCardLock(day,cardId){try{var api=window.ASSAL_DEBT_TRANSFER_LOCK;if(!api)return;var fromSearch=!!(document.getElementById('globalSearch')&&document.getElementById('globalSearch').checked);if(fromSearch&&typeof api.showForCard==='function')api.showForCard(day,cardId,true);else api.showForDay&&api.showForDay(day,true)}catch(_){}}
   function findStoredCard(cardId,dayHint){
     var key=safe(cardId),store=(typeof days==='object'&&days)?days:{};
     var ds=[];if(dayHint)ds.push(safe(dayHint));Object.keys(store).forEach(function(d){if(ds.indexOf(d)<0)ds.push(d)});
@@ -46071,6 +46307,7 @@ body.assal-owner-exclusive > #modal.active{
     return {ok:true,day:hit.day};
   }
   async function commit(cardId,dayHint,oldName,newName){
+    if(switchCardLocked(dayHint,cardId)){showSwitchCardLock(dayHint,cardId);return {ok:false,message:'هذه البطاقة مقفلة ضد التعديل حتى فتح قفل البطاقة'}}
     var currentRole=role();
     if(currentRole==='admin'){
       if(typeof window.ASSAL_CREATE_CARD_CUSTOMER_CHANGE_REQUEST!=='function')return {ok:false,message:'نظام طلبات التعديل لم يكتمل تحميله بعد'};
@@ -46079,37 +46316,43 @@ body.assal-owner-exclusive > #modal.active{
     if(currentRole==='main')return applyOnMain(cardId,dayHint,oldName,newName);
     return {ok:false,message:'هذا الحساب غير مخول لتغيير زبون البطاقة'};
   }
-  async function openEditor(cardId,dayHint,nameEl){
+  async function openEditor(cardId,dayHint,nameEl,opts){
     var hit=findStoredCard(cardId,dayHint);if(!hit||!hit.card||!nameEl)return;
+    var realDay=hit.day||dayHint;if(switchCardLocked(realDay,cardId)){showSwitchCardLock(realDay,cardId);return}
     var oldName=normName(hit.card.customer);if(!oldName)return;
     if(nameEl.__assalCardSwitchOpen)return;
-    var firstOk=await confirmBox('تغيير زبون البطاقة',startConfirmHtml(oldName),'نعم، متابعة');if(!firstOk)return;
+    var restoring=!!(opts&&opts.restore);
+    if(!restoring){
+      var firstOk=await confirmBox('تغيير زبون البطاقة',startConfirmHtml(oldName),'نعم، متابعة');if(!firstOk)return;
+      activeEditState={cardId:safe(cardId),day:realDay,oldName:oldName,value:oldName,selected:'',busy:false};
+      try{var liveBox=document.getElementById('card-'+safe(cardId)),liveName=liveBox&&liveBox.querySelector('.cust.assal-customer-rename-enabled .assal-main-card-statement-link');if(liveName)nameEl=liveName}catch(_){ }
+    }else if(!activeEditState||activeEditState.cardId!==safe(cardId))return;
     nameEl.__assalCardSwitchOpen=true;
     var parent=nameEl.parentNode,wrap=document.createElement('span');wrap.className='assal-card-customer-switch-edit-wrap';
-    var input=document.createElement('input');input.className='assal-customer-rename-input';input.type='text';input.value=oldName;input.dir='rtl';input.lang='ar';input.autocomplete='off';input.spellcheck=false;
+    var input=document.createElement('input');input.className='assal-customer-rename-input';input.type='text';input.value=(activeEditState&&activeEditState.value)||oldName;input.dir='rtl';input.lang='ar';input.autocomplete='off';input.spellcheck=false;
     var cancel=document.createElement('button');cancel.type='button';cancel.className='assal-customer-rename-cancel-x';cancel.title='إلغاء تغيير زبون البطاقة';cancel.setAttribute('aria-label','إلغاء تغيير زبون البطاقة');cancel.innerHTML='<i class="fa-solid fa-xmark"></i>';
     var list=document.createElement('ul');list.className='assal-card-customer-switch-suggestions nice-scroll';
     wrap.append(input,cancel,list);parent.replaceChild(wrap,nameEl);
-    var idx=-1,selected='',done=false;
+    var idx=-1,selected=(activeEditState&&activeEditState.selected)||'',done=false;
     function paint(){var items=Array.from(list.querySelectorAll('.sugg-item'));items.forEach(function(el,i){el.classList.toggle('is-active',i===idx)});if(idx>=0&&items[idx])items[idx].scrollIntoView({block:'nearest'})}
     function hide(){list.style.display='none';idx=-1;paint()}
     function renderSuggestions(){
-      selected='';list.innerHTML='';idx=-1;var q=normName(input.value);if(!q){hide();return}var rows=searchCustomers(q);
-      rows.forEach(function(name,i){var li=document.createElement('li');li.className='sugg-item';li.textContent=name;li.addEventListener('pointerdown',function(e){e.preventDefault()});li.addEventListener('click',function(e){e.preventDefault();selected=normName(name);input.value=selected;hide();try{input.focus({preventScroll:true})}catch(_){input.focus()}});li.addEventListener('mousemove',function(){idx=i;paint()});list.appendChild(li)});
+      selected='';if(activeEditState){activeEditState.value=input.value;activeEditState.selected=''}list.innerHTML='';idx=-1;var q=normName(input.value);if(!q){hide();return}var rows=searchCustomers(q);
+      rows.forEach(function(name,i){var li=document.createElement('li');li.className='sugg-item';li.textContent=name;li.addEventListener('pointerdown',function(e){e.preventDefault()});li.addEventListener('click',function(e){e.preventDefault();selected=normName(name);input.value=selected;if(activeEditState){activeEditState.value=selected;activeEditState.selected=selected}hide();try{input.focus({preventScroll:true})}catch(_){input.focus()}});li.addEventListener('mousemove',function(){idx=i;paint()});list.appendChild(li)});
       if(rows.length){list.style.display='block';idx=0;paint()}else hide();
     }
-    function cancelEdit(){if(done)return;done=true;try{if(typeof renderBoard==='function')renderBoard()}catch(_){try{parent.replaceChild(nameEl,wrap)}catch(__){}}}
+    function cancelEdit(){if(done)return;done=true;activeEditState=null;try{if(typeof renderBoard==='function')renderBoard()}catch(_){try{parent.replaceChild(nameEl,wrap)}catch(__){}}}
     async function finish(){
-      if(done)return;
+      if(done)return;if(switchCardLocked(realDay,cardId)){activeEditState=null;done=true;showSwitchCardLock(realDay,cardId);try{if(typeof renderBoard==='function')renderBoard()}catch(_){}return}
       var items=Array.from(list.querySelectorAll('.sugg-item'));
       if(list.style.display==='block'&&idx>=0&&items[idx]){selected=normName(items[idx].textContent);input.value=selected;hide()}
       var newName=selected||exactCustomer(input.value);
       if(!newName){try{showToast('warn','اختر اسم زبون من الاقتراحات الموجودة')}catch(_){}try{input.focus({preventScroll:true})}catch(_){input.focus()}renderSuggestions();return}
       if(newName===oldName){cancelEdit();return}
-      done=true;
+      done=true;if(activeEditState){activeEditState.busy=true;activeEditState.value=input.value;activeEditState.selected=selected}
       var ok=await confirmBox('تأكيد تغيير زبون البطاقة',finalConfirmHtml(oldName,newName,role()),role()==='admin'?'إضافة إلى طلبات التعديل':'تغيير الاسم الآن');
-      if(!ok){try{if(typeof renderBoard==='function')renderBoard()}catch(_){}return}
-      var result=await commit(cardId,dayHint,oldName,newName);
+      if(!ok){activeEditState=null;try{if(typeof renderBoard==='function')renderBoard()}catch(_){}return}
+      var result=await commit(cardId,realDay,oldName,newName);activeEditState=null;
       if(!result||!result.ok){try{showToast('error',safe(result&&result.message||'تعذر تغيير زبون البطاقة'))}catch(_){}try{if(typeof renderBoard==='function')renderBoard()}catch(_){}return}
       if(role()==='main'){try{showToast('success','تم تغيير زبون البطاقة وحفظه على الحاسبة الرئيسية')}catch(_){} }
       try{if(typeof renderBoard==='function')renderBoard()}catch(_){}
@@ -46124,7 +46367,7 @@ body.assal-owner-exclusive > #modal.active{
       if(e.key==='Enter'){e.preventDefault();e.stopImmediatePropagation();finish();return}
       if(e.key==='Escape'){e.preventDefault();cancelEdit()}
     });
-    input.addEventListener('blur',function(){setTimeout(function(){if(!done&&document.activeElement!==input&&!wrap.contains(document.activeElement))cancelEdit()},180)});
+    input.addEventListener('blur',function(){setTimeout(function(){if(!done&&document.activeElement!==input&&!wrap.contains(document.activeElement))hide()},180)});
     try{input.focus({preventScroll:true});input.select()}catch(_){input.focus()}
     renderSuggestions();
   }
@@ -46132,7 +46375,8 @@ body.assal-owner-exclusive > #modal.active{
     if(!box||!box.id||box.id.indexOf('card-')!==0)return;var cardId=box.id.slice(5),hit=findStoredCard(cardId,'');if(!hit||!hit.card)return;
     var cust=box.querySelector('.cust.assal-customer-rename-enabled');if(!cust)return;var nameEl=cust.querySelector('.assal-main-card-statement-link');if(!nameEl)return;
     var oldBtn=cust.querySelector('.assal-customer-rename-btn'),btn=cust.querySelector('.assal-card-customer-switch-btn');
-    if(!btn){btn=document.createElement('button');btn.type='button';btn.className='assal-card-customer-switch-btn';btn.title='تغيير زبون هذه البطاقة';btn.setAttribute('aria-label','تغيير زبون هذه البطاقة');btn.innerHTML='<i class="fa-solid fa-right-left"></i>';if(oldBtn&&oldBtn.parentNode===cust)oldBtn.insertAdjacentElement('afterend',btn);else cust.insertBefore(btn,nameEl);btn.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();var fresh=findStoredCard(cardId,hit.day);if(!fresh||!fresh.card)return;openEditor(cardId,fresh.day,nameEl)})}
+    if(!btn){btn=document.createElement('button');btn.type='button';btn.className='assal-card-customer-switch-btn';btn.title='تغيير زبون هذه البطاقة';btn.setAttribute('aria-label','تغيير زبون هذه البطاقة');btn.innerHTML='<i class="fa-solid fa-right-left"></i>';if(oldBtn&&oldBtn.parentNode===cust)oldBtn.insertAdjacentElement('afterend',btn);else cust.insertBefore(btn,nameEl)}
+    if(btn&&!btn.__assalCardSwitchBound&&!btn.onclick){btn.__assalCardSwitchBound=true;btn.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();var fresh=findStoredCard(cardId,hit.day);if(!fresh||!fresh.card)return;if(switchCardLocked(fresh.day,cardId)){showSwitchCardLock(fresh.day,cardId);return}openEditor(cardId,fresh.day,nameEl)})}
     var info=null;try{if(typeof window.ASSAL_CARD_CUSTOMER_CHANGE_DISPLAY==='function')info=window.ASSAL_CARD_CUSTOMER_CHANGE_DISPLAY(cardId,hit.card.customer)}catch(_){}
     var badge=cust.querySelector('.assal-card-customer-switch-pending');
     if(info){
@@ -46140,16 +46384,20 @@ body.assal-owner-exclusive > #modal.active{
       if(!badge){badge=document.createElement('span');badge.className='assal-card-customer-switch-pending';cust.appendChild(badge)}badge.textContent=statusLabel(info);badge.classList.toggle('is-applied',safe(info.status)==='applied');
       btn.disabled=true;btn.title=statusLabel(info);if(oldBtn){oldBtn.disabled=true;oldBtn.title='يوجد طلب تغيير زبون لهذه البطاقة '+statusLabel(info)}
     }else{
-      nameEl.textContent=safe(hit.card.customer);nameEl.title='فتح كشف حساب الزبون: '+safe(hit.card.customer);if(badge)badge.remove();btn.disabled=false;btn.title='تغيير زبون هذه البطاقة';if(oldBtn){oldBtn.disabled=false;oldBtn.title='تعديل اسم الزبون في كل السجلات المطابقة'}
+      nameEl.textContent=safe(hit.card.customer);nameEl.title='فتح كشف حساب الزبون: '+safe(hit.card.customer);if(badge)badge.remove();var dayLocked=switchCardLocked(hit.day,cardId);btn.disabled=false;btn.title=dayLocked?'هذه البطاقة مقفلة ضد التعديل — اضغط لفتح القفل':'تغيير زبون هذه البطاقة';if(oldBtn){oldBtn.disabled=false;oldBtn.title=dayLocked?'هذه البطاقة مقفلة ضد التعديل — اضغط لفتح القفل':'تعديل اسم الزبون في كل السجلات المطابقة'}
     }
   }
-  function decorateAll(){try{document.querySelectorAll('.masonry > .card[id^="card-"]').forEach(decorateCard)}catch(_){} }
+  function restoreActiveEditor(){
+    try{if(!activeEditState||activeEditState.busy)return;if(document.querySelector('.assal-card-customer-switch-edit-wrap'))return;var box=document.getElementById('card-'+activeEditState.cardId);if(!box)return;var nameEl=box.querySelector('.cust.assal-customer-rename-enabled .assal-main-card-statement-link');if(nameEl)openEditor(activeEditState.cardId,activeEditState.day,nameEl,{restore:true})}catch(_){ }
+  }
+  function decorateAll(){try{document.querySelectorAll('.masonry > .card[id^="card-"]').forEach(decorateCard);restoreActiveEditor()}catch(_){} }
   function wrapRender(){
     try{var current=window.renderBoard;if(typeof current!=='function'||current.__assalCardCustomerSwitchWrapped)return;var wrapped=function(){var r=current.apply(this,arguments);try{queueMicrotask(decorateAll)}catch(_){setTimeout(decorateAll,0)}return r};wrapped.__assalCardCustomerSwitchWrapped=true;wrapped.__assalCardCustomerSwitchOriginal=current;window.renderBoard=wrapped;try{renderBoard=wrapped}catch(_){} }catch(_){}
   }
-  function boot(){wrapRender();decorateAll();setTimeout(decorateAll,400)}
+  window.ASSAL_OPEN_CARD_CUSTOMER_SWITCH=openEditor;
+  function boot(){wrapRender();decorateAll()}
   window.addEventListener('assal:card-customer-change-requests-updated',function(){setTimeout(decorateAll,0)},false);
-  window.addEventListener('assal:auth-ready',function(){setTimeout(boot,350)},false);
+  window.addEventListener('assal:auth-ready',boot,false);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,false);else boot();
 })();
 </script>
