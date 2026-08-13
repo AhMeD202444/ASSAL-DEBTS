@@ -22002,24 +22002,16 @@ async function assalServerPullFetchSubBackupOnce(timeoutMs){
   }
 }
 
-function assalServerPullValidateBackupShape(server){
-  if(!server || typeof server !== 'object' || Array.isArray(server)) throw new Error('استجابة السيرفر لا تحتوي نسخة قابلة للقراءة');
-  if(!server.days || typeof server.days !== 'object' || Array.isArray(server.days)) throw new Error('نسخة السيرفر لا تحتوي مخزن الأيام الصحيح');
-  if(server.names != null && !Array.isArray(server.names)) throw new Error('نسخة السيرفر تحتوي قائمة أسماء غير صالحة');
-  if(server.payments != null && (typeof server.payments !== 'object' || Array.isArray(server.payments))) throw new Error('نسخة السيرفر تحتوي مخزن حسابات مالية غير صالح');
-  return server;
-}
-
 async function assalServerPullGetSubBackupWithRetry(){
-  const maxAttempts = 3;
-  const waits = [0, 1500, 3000];
+  const maxAttempts = 4;
+  const waits = [0, 1200, 2400, 4000];
   let lastError = null;
 
-  async function runAttempt(attempt){
+  for(let attempt = 1; attempt <= maxAttempts; attempt++){
     assalServerPullCurrentStage = 'سحب نسخة السيرفر — المحاولة ' + attempt + ' من ' + maxAttempts;
     assalServerPullProgressSet({
       step:3,
-      percent:attempt === 1 ? 27 : (attempt === 2 ? 33 : 38),
+      percent:attempt === 1 ? 27 : (attempt === 2 ? 31 : (attempt === 3 ? 35 : 38)),
       title:'سحب نسخة السيرفر',
       detail:'محاولة الاتصال ' + attempt + ' من ' + maxAttempts + ' — بدون رفع أي بيانات من حاسبة الأدمن',
       icon:'fa-solid fa-cloud-arrow-down'
@@ -22028,7 +22020,7 @@ async function assalServerPullGetSubBackupWithRetry(){
 
     try{
       const server = await assalServerPullFetchSubBackupOnce(50000);
-      return assalServerPullValidateBackupShape(server);
+      return server;
     }catch(err){
       lastError = err;
       console.warn('[ASSAL ADMIN SERVER PULL] GET attempt failed', attempt, {
@@ -22036,26 +22028,21 @@ async function assalServerPullGetSubBackupWithRetry(){
         status:Number(err?.httpStatus || 0),
         retryable:err?.retryable === true
       });
-      if(attempt >= maxAttempts || err?.retryable === false) throw lastError;
 
+      if(attempt >= maxAttempts || err?.retryable === false) break;
       assalServerPullCurrentStage = 'انتظار إعادة محاولة سحب نسخة السيرفر';
       assalServerPullProgressSet({
         step:3,
-        percent:attempt === 1 ? 30 : 36,
+        percent:attempt === 1 ? 29 : (attempt === 2 ? 33 : 37),
         title:'تعذر الاتصال مؤقتاً',
-        detail:'ستتم محاولة مستقلة جديدة (' + (attempt + 1) + ' من ' + maxAttempts + ') — ' + String(err?.message || 'خطأ اتصال'),
+        detail:'ستتم إعادة المحاولة تلقائياً (' + (attempt + 1) + ' من ' + maxAttempts + ') — ' + String(err?.message || 'خطأ اتصال'),
         icon:'fa-solid fa-clock-rotate-left'
       });
-
-      // لا نستخدم for/while هنا حتى لا تعتبر OneCompiler سلسلة الانتظار Loop طويل.
-      return await new Promise((resolve,reject)=>{
-        setTimeout(()=>{ runAttempt(attempt + 1).then(resolve,reject); }, waits[attempt] || 1500);
-      });
+      await assalServerPullWait(waits[attempt] || 1500);
     }
   }
 
-  try{return await runAttempt(1);}
-  catch(err){throw err || lastError || new Error('تعذر سحب نسخة السيرفر بعد المحاولات التلقائية');}
+  throw lastError || new Error('تعذر سحب نسخة السيرفر بعد المحاولات التلقائية');
 }
 
 btnImportAll && (btnImportAll.onclick = async () => {
@@ -27276,21 +27263,7 @@ function listPayments(day){
 // حفظ يوم معيّن
 function savePayments(day, arr){
   const k = getDayKey(day);
-
-  /*
-    ASSAL FINANCIAL STORE GUARD:
-    لا نحفظ مخزن paymentsStore الموجود بالذاكرة كما هو؛ قد يكون أقدم من مخزن IndexedDB/الكاش.
-    نقرأ أولاً النسخة الكاملة الحالية من المصدر المركزي، ثم نستبدل اليوم المقصود فقط.
-    بهذه الطريقة لا يمكن لحفظ يوم واحد أن يسقط أياماً مالية أخرى من المخزن.
-  */
-  let canonical = {};
-  try{
-    canonical = (typeof loadPaymentsStore === 'function') ? (loadPaymentsStore() || {}) : {};
-  }catch(_){ canonical = {}; }
-  if(!canonical || typeof canonical !== 'object' || Array.isArray(canonical)) canonical = {};
-  canonical = cloneDataSafe(canonical);
-  canonical[k] = cloneDataSafe(Array.isArray(arr) ? arr : []);
-  paymentsStore = canonical;
+  paymentsStore[k] = arr;
 
   // FIX لايف: خَلّي دين الزبون يقرأ آخر حركات الحسابات فوراً من ذاكرة النافذة،
   // قبل اكتمال حفظ IndexedDB، بدون تغيير طريقة الحفظ/الرفع/الدمج.
@@ -40474,13 +40447,6 @@ html body .card .item.assal-smart-added-item-safe-final{
   var refreshPromise = null;
   var refreshVisualRequested = false;
 
-  /* ASSAL MAIN-AUTHORITY AUTO PATCH: حالة تنفيذ محلية صغيرة فقط، لا تحتوي بيانات الأيام أو الحسابات. */
-  var AUTO_TXN_KEY = 'ASSAL_CARD_CHANGE_REQUESTS_AUTO_TXN_V1';
-  var autoProcessPromise = null;
-  var autoWakeTimer = 0;
-  var autoCommitActive = false;
-  var autoLastCommitTs = 0;
-
   function safe(v){ return String(v == null ? '' : v); }
   function clone(v){ try{ return JSON.parse(JSON.stringify(v)); }catch(_){ return null; } }
   function esc(v){ return safe(v).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];}); }
@@ -40506,7 +40472,7 @@ html body .card .item.assal-smart-added-item-safe-final{
   function fmtDateTime(v){ try{ return new Date(v).toLocaleString('ar-IQ',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(_){ return safe(v||'—'); } }
   function statusText(s){
     return ({
-      draft:'غير مرسل',pending_review:'مرسل — بانتظار التطبيق التلقائي',approved_pending_upload:'تم التطبيق — بانتظار الرفع',
+      draft:'غير مرسل',pending_review:'مرسل — بانتظار المراجعة',approved_pending_upload:'مقبول — بانتظار الرفع',
       applied:'تم التطبيق والرفع',rejected:'مرفوض',conflict:'تعارض',cancelled:'ملغى'
     })[safe(s)] || safe(s||'—');
   }
@@ -40610,10 +40576,9 @@ html body .card .item.assal-smart-added-item-safe-final{
   function seedSnapshots(){ snapshotMap=cardMapFromDays(); }
 
   function paymentStoreRef(){
-    /* المرجع الأول دائماً هو الكاش المركزي الذي يمثل مخزن IndexedDB الحالي. */
-    try{ if(typeof window.loadPaymentsStore==='function'){var loaded=window.loadPaymentsStore();if(loaded&&typeof loaded==='object'&&!Array.isArray(loaded))return loaded;} }catch(_){ }
-    try{ if(window.__assalPaymentsLiveStore&&typeof window.__assalPaymentsLiveStore==='object'&&!Array.isArray(window.__assalPaymentsLiveStore)) return window.__assalPaymentsLiveStore; }catch(_){ }
     try{ if(typeof paymentsStore==='object'&&paymentsStore&&!Array.isArray(paymentsStore)) return paymentsStore; }catch(_){ }
+    try{ if(window.__assalPaymentsLiveStore&&typeof window.__assalPaymentsLiveStore==='object') return window.__assalPaymentsLiveStore; }catch(_){ }
+    try{ if(typeof window.loadPaymentsStore==='function'){var loaded=window.loadPaymentsStore();if(loaded&&typeof loaded==='object')return loaded;} }catch(_){ }
     return {};
   }
   function paymentIdentity(row,index){
@@ -41002,84 +40967,18 @@ html body .card .item.assal-smart-added-item-safe-final{
       throw err;
     }finally{clearTimeout(timer);}
   }
-  /* ASSAL TRANSPORT VERIFY FINAL: non-JSON success responses are treated as unknown until verified by request ID. */
-  function transportPreview(raw){return safe(raw).replace(/\s+/g,' ').trim().slice(0,180);}
-  function parseTransportJson(raw,label){
-    var txt=safe(raw);
-    if(!txt.trim()){
-      var emptyErr=new Error((label||'رد السيرفر')+' فارغ وغير قابل للتحقق');
-      emptyErr.assalResponseUncertain=true;emptyErr.code='ASSAL_EMPTY_RESPONSE';throw emptyErr;
-    }
-    try{return JSON.parse(txt);}catch(parseErr){
-      var e=new Error((label||'رد السيرفر')+' ليس JSON صالحاً؛ سيتم التحقق من حالة الطلب قبل أي إعادة إرسال');
-      e.assalResponseUncertain=true;e.code='ASSAL_NON_JSON_RESPONSE';e.responsePreview=transportPreview(txt);throw e;
-    }
-  }
-  function isUncertainTransportError(err){return safe(err&&err.message)==='انتهت مهلة الاتصال'||!!(err&&err.assalResponseUncertain);}
-  async function serverGetList(timeoutMs){
+  async function serverGetList(){
     if(!online())throw new Error('لا يوجد اتصال');
     var role=isAdmin()?'admin':(isMain()?'main':''); if(!role)throw new Error('الحساب غير مخول');
-    var wait=Math.max(8000,Number(timeoutMs)||30000);
-    var resp=await fetchTimed(serverUrl('card-request-list',{actor:role,email:email()}),{method:'GET',cache:'no-store'},wait);
-    var raw=await resp.text();
-    if(!resp.ok){
-      var httpErr=new Error('فشل قراءة الطلبات (HTTP '+resp.status+')'+(transportPreview(raw)?' — '+transportPreview(raw):''));
-      httpErr.httpStatus=resp.status;throw httpErr;
-    }
-    var j;
-    try{j=parseTransportJson(raw,'استجابة قائمة الطلبات');}
-    catch(e){e.assalResponseUncertain=false;throw e;}
-    if(!j||j.status==='error')throw new Error((j&&j.message)||'فشل قراءة الطلبات');
-    return Array.isArray(j.requests)?j.requests:[];
+    var resp=await fetchTimed(serverUrl('card-request-list',{actor:role,email:email()}),{method:'GET',cache:'no-store'},30000);
+    if(!resp.ok)throw new Error('فشل قراءة الطلبات'); var j=await resp.json(); if(!j||j.status==='error')throw new Error((j&&j.message)||'فشل قراءة الطلبات'); return Array.isArray(j.requests)?j.requests:[];
   }
-  async function serverPost(mode,body,timeoutMs){
+  async function serverPost(mode,body){
     if(!online())throw new Error('لا يوجد اتصال');
-    var resp=await fetchTimed(serverUrl(mode,{}),{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SYNC.TOKEN},body:JSON.stringify(body||{})},Number(timeoutMs)||40000);
-    var raw=await resp.text();
-    if(!resp.ok){
-      var parsed=null;try{parsed=JSON.parse(raw);}catch(_){ }
-      var msg=(parsed&&parsed.message)||('فشل إرسال الطلب (HTTP '+resp.status+')');
-      var httpErr=new Error(msg+(transportPreview(raw)&&!parsed?' — '+transportPreview(raw):''));
-      httpErr.httpStatus=resp.status;httpErr.assalExplicitHttp=true;throw httpErr;
-    }
-    var j=parseTransportJson(raw,'استجابة إرسال الطلب');
-    if(!j||j.status==='error')throw new Error((j&&j.message)||'فشل إرسال الطلب');
-    return j;
+    var resp=await fetchTimed(serverUrl(mode,{}),{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SYNC.TOKEN},body:JSON.stringify(body||{})},40000);
+    if(!resp.ok)throw new Error('فشل إرسال الطلب'); var j=await resp.json(); if(!j||j.status==='error')throw new Error((j&&j.message)||'فشل إرسال الطلب'); return j;
   }
 
-
-  function autoSleep(ms){return new Promise(function(resolve){setTimeout(resolve,Math.max(0,Number(ms)||0));});}
-  function requestWireEquivalent(a,b){
-    if(!a||!b)return false;
-    return safe(a.id)===safe(b.id) && safe(a.cardId)===safe(b.cardId) && safe(a.specialType)===safe(b.specialType) && deepEqual(a.ops||[],b.ops||[]);
-  }
-  async function findSubmittedRequestById(payload){
-    var list=await serverGetList(),hit=list.find(function(x){return safe(x&&x.id)===safe(payload&&payload.id);})||null;
-    if(hit&&!requestWireEquivalent(hit,payload))throw new Error('يوجد طلب بنفس المعرف لكن محتواه مختلف؛ تم إيقاف الإرسال للحماية');
-    return hit;
-  }
-  async function submitDraftSafely(payload,quiet){
-    var body={version:VERSION,actorEmail:email(),request:payload};
-    try{ return await serverPost('card-request-submit',body,90000); }
-    catch(err){
-      if(!isUncertainTransportError(err))throw err;
-      if(!quiet){progressSet('warn','رد الإرسال غير مؤكد','جارٍ التحقق من وصول نفس الطلب إلى السيرفر قبل أي إعادة إرسال',64,'fa-solid fa-magnifying-glass');await nextPaint();}
-      var found=null;
-      try{found=await findSubmittedRequestById(payload);}catch(checkErr){throw new Error('تعذر تأكيد نتيجة الإرسال وتعذر التحقق من وصول الطلب؛ لم تتم إعادة الإرسال للحماية — '+safe(checkErr&&checkErr.message||checkErr));}
-      if(found)return {status:'ok',request:found,recoveredAfterTimeout:true};
-      await autoSleep(3000);
-      try{found=await findSubmittedRequestById(payload);}catch(checkErr2){throw new Error('تعذر التحقق الثاني من وصول الطلب؛ لم تتم إعادة الإرسال للحماية — '+safe(checkErr2&&checkErr2.message||checkErr2));}
-      if(found)return {status:'ok',request:found,recoveredAfterTimeout:true};
-      if(!quiet){progressSet('warn','إعادة إرسال واحدة','تأكدنا أن الطلب غير موجود؛ ستتم محاولة ثانية واحدة بنفس المعرف والمحتوى',72,'fa-solid fa-rotate');await nextPaint();}
-      try{ return await serverPost('card-request-submit',body,90000); }
-      catch(retryErr){
-        if(!isUncertainTransportError(retryErr))throw retryErr;
-        try{found=await findSubmittedRequestById(payload);}catch(finalCheckErr){throw new Error('تعذرت معرفة نتيجة المحاولة الثانية وتعذر التحقق منها؛ لن تتم أي محاولة إضافية — '+safe(finalCheckErr&&finalCheckErr.message||finalCheckErr));}
-        if(found)return {status:'ok',request:found,recoveredAfterTimeout:true};
-        throw new Error('تعذرت معرفة نتيجة المحاولة الثانية والطلب غير موجود في السيرفر؛ لم تتم أي محاولة إضافية');
-      }
-    }
-  }
 
   function nextPaint(){return new Promise(function(resolve){try{requestAnimationFrame(function(){requestAnimationFrame(resolve);});}catch(_){setTimeout(resolve,0);}});}
   function ensureProgressToast(){
@@ -41228,124 +41127,16 @@ html body .card .item.assal-smart-added-item-safe-final{
     };
     followupSyncTimer=setTimeout(attempt,12000);
   }
-  function autoTransientError(message){var e=new Error(message);e.assalAutoTransient=true;return e;}
-  function claimStatusResolved(rec){var s=safe(rec&&rec.status);return s==='approved_pending_upload'||s==='applied';}
-  async function findServerRequestExact(req,timeoutMs){
-    var list=await serverGetList(timeoutMs||30000),hit=list.find(function(x){return safe(x&&x.id)===safe(req&&req.id);})||null;
-    if(hit&&!requestWireEquivalent(hit,req))throw new Error('السيرفر أعاد طلباً بنفس المعرف لكن بمحتوى مختلف؛ تم إيقاف التطبيق للحماية');
-    return hit;
-  }
   async function claimRequestForUpload(req,force,conflicts){
-    var body={version:VERSION,action:'approve-pending',requestId:req.id,actorEmail:email(),force:!!force,conflicts:Array.isArray(conflicts)?conflicts:[]};
-    async function acceptResponse(res){if(res&&res.request){mergeRequestCache(res.request);return res.request;}return req;}
-    try{
-      return await acceptResponse(await serverPost('card-request-action',body,90000));
-    }catch(err){
-      if(!isUncertainTransportError(err))throw err;
-      progressSet('warn','رد تثبيت الطلب غير مؤكد — لا يوجد تعديل محلي بعد','جارٍ التحقق من حالة نفس الطلب على السيرفر قبل أي إعادة محاولة',18,'fa-solid fa-magnifying-glass');
-      var found=null;
-      try{found=await findServerRequestExact(req,30000);}catch(checkErr){throw autoTransientError('تعذر التحقق من حالة الطلب بعد رد غير مؤكد؛ لم يتم تطبيق أي تعديل محلي — '+safe(checkErr&&checkErr.message||checkErr));}
-      if(found){
-        if(claimStatusResolved(found)){mergeRequestCache(found);return found;}
-        if(['conflict','rejected'].indexOf(safe(found.status))>=0){mergeRequestCache(found);throw new Error('تغيّرت حالة الطلب على السيرفر إلى '+safe(found.status));}
-      }
-      /* لا نعيد POST مباشرة: قد تكون المحاولة الأولى ما زالت تنتهي على السيرفر بعد انقطاع الرد. */
-      await autoSleep(3000);
-      try{found=await findServerRequestExact(req,30000);}catch(checkErr2){throw autoTransientError('تعذر التحقق الثاني من حالة الطلب؛ لم تتم إعادة الطلب ولم يتم أي تعديل محلي — '+safe(checkErr2&&checkErr2.message||checkErr2));}
-      if(found){
-        if(claimStatusResolved(found)){mergeRequestCache(found);return found;}
-        if(['conflict','rejected'].indexOf(safe(found.status))>=0){mergeRequestCache(found);throw new Error('تغيّرت حالة الطلب على السيرفر إلى '+safe(found.status));}
-      }
-      if(!found||safe(found.status)!=='pending_review')throw autoTransientError('تعذر إثبات أن الطلب ما زال بانتظار التطبيق؛ تم إيقاف المحاولة بدون أي كتابة محلية');
-      progressSet('warn','محاولة تثبيت أخيرة','تأكدنا أن الطلب ما زال بانتظار التطبيق؛ ستتم إعادة واحدة فقط بنفس المعرف',22,'fa-solid fa-rotate');
-      try{
-        return await acceptResponse(await serverPost('card-request-action',body,90000));
-      }catch(retryErr){
-        if(!isUncertainTransportError(retryErr))throw retryErr;
-        try{found=await findServerRequestExact(req,30000);}catch(finalCheckErr){throw autoTransientError('تعذرت معرفة نتيجة المحاولة الأخيرة وتعذر التحقق منها؛ لا توجد محاولة إضافية ولا تعديل محلي — '+safe(finalCheckErr&&finalCheckErr.message||finalCheckErr));}
-        if(found&&claimStatusResolved(found)){mergeRequestCache(found);return found;}
-        if(found&&['conflict','rejected'].indexOf(safe(found.status))>=0){mergeRequestCache(found);throw new Error('تغيّرت حالة الطلب على السيرفر إلى '+safe(found.status));}
-        throw autoTransientError('لم يتم تأكيد تثبيت الطلب على السيرفر؛ تم تأجيله بأمان بدون تطبيق محلي');
-      }
-    }
-  }
-  /* ASSAL BOUNDED UPLOAD FINAL
-     بعد التطبيق المحلي: محاولتا رفع فقط كحد أقصى، مع تحقق بالـ request ID قبل إعادة الرفع.
-     إذا انتهت المحاولات يتوقف الرفع التلقائي لهذا الطلب حتى يضغط المستخدم "إكمال الرفع"؛
-     لا يعاد تطبيق التعديل المحلي نهائياً. */
-  var AUTO_UPLOAD_HOLD_KEY='assal.card.requests.auto.upload.hold.v1';
-  function autoUploadHoldRead(){
-    try{var x=JSON.parse(localStorage.getItem(AUTO_UPLOAD_HOLD_KEY)||'{}');return x&&typeof x==='object'&&!Array.isArray(x)?x:{};}catch(_){return {};}
-  }
-  function isAutoUploadHeld(reqId){var all=autoUploadHoldRead();return !!all[safe(reqId)];}
-  function setAutoUploadHold(reqId,reason){
-    try{var id=safe(reqId);if(!id)return;var all=autoUploadHoldRead();all[id]={at:now(),reason:safe(reason)};var keys=Object.keys(all);if(keys.length>80)keys.sort(function(a,b){return safe(all[a]&&all[a].at).localeCompare(safe(all[b]&&all[b].at));}).slice(0,keys.length-80).forEach(function(k){delete all[k];});localStorage.setItem(AUTO_UPLOAD_HOLD_KEY,JSON.stringify(all));}catch(_){ }
-  }
-  function clearAutoUploadHold(reqId){
-    try{var id=safe(reqId),all=autoUploadHoldRead();if(Object.prototype.hasOwnProperty.call(all,id)){delete all[id];localStorage.setItem(AUTO_UPLOAD_HOLD_KEY,JSON.stringify(all));}}catch(_){ }
-  }
-  async function autoCheckAppliedOnServer(req,timeoutMs){
-    var found=await findServerRequestExact(req,timeoutMs||30000);if(found)mergeRequestCache(found);return found&&safe(found.status)==='applied'?found:null;
-  }
-  async function autoCheckAppliedTwice(req){
-    var applied=null;
-    try{applied=await autoCheckAppliedOnServer(req,30000);}catch(err){throw autoTransientError('تعذر التحقق من حالة الطلب بعد محاولة الرفع؛ لن تتم إعادة رفع عمياء — '+safe(err&&err.message||err));}
-    if(applied)return applied;
-    await autoSleep(3000);
-    try{return await autoCheckAppliedOnServer(req,30000);}catch(err2){throw autoTransientError('تعذر التحقق الثاني من حالة الطلب؛ تم إيقاف إعادة الرفع للحماية — '+safe(err2&&err2.message||err2));}
-  }
-  function isBackupTransportUncertain(err){
-    if(!err)return false;
-    if(err.assalResponseUncertain||err.name==='AbortError'||err.name==='SyntaxError'||err.name==='TypeError')return true;
-    var m=safe(err.message).toLowerCase();return m.indexOf('مهلة')>=0||m.indexOf('json')>=0||m.indexOf('fetch')>=0||m.indexOf('network')>=0||m.indexOf('failed to fetch')>=0;
-  }
-  async function autoUploadBackupBounded(req,payload,prepared){
-    var meta={requestId:req.id,actorEmail:email(),appliedAt:now()},firstErr=null;
-    try{
-      var first=await postRequestBackupTimed(payload,prepared,meta);
-      return {response:first,completed:first&&first.cardRequest&&first.cardRequest.ok&&first.cardRequest.request?first.cardRequest.request:null,attempts:1};
-    }catch(err){firstErr=err;}
-
-    /* قبل أي Retry نتأكد أن المحاولة الأولى لم تنجح على السيرفر رغم ضياع/تشوه الرد. */
-    var recovered=await autoCheckAppliedTwice(req);
-    if(recovered)return {response:null,completed:recovered,attempts:1,recovered:true};
-
-    /* إذا الخطأ صريح وليس انقطاع/رد غير مؤكد، لا نكرر POST تلقائياً. */
-    if(!isBackupTransportUncertain(firstErr))throw firstErr;
-
-    progressSet('warn','محاولة رفع أخيرة','التعديل محفوظ على الرئيسية؛ تأكدنا أن الطلب لم يكتمل وسيتم Retry واحد فقط للنسخة',76,'fa-solid fa-cloud-arrow-up');await nextPaint();
-    try{
-      var second=await postRequestBackupTimed(payload,prepared,meta);
-      return {response:second,completed:second&&second.cardRequest&&second.cardRequest.ok&&second.cardRequest.request?second.cardRequest.request:null,attempts:2};
-    }catch(secondErr){
-      /* بعد المحاولة الثانية: تحقق أخير فقط، ولا توجد محاولة ثالثة. */
-      var finalApplied=null;
-      try{finalApplied=await autoCheckAppliedTwice(req);}catch(checkErr){
-        var unknown=new Error('فشلت محاولتا الرفع وتعذر التحقق من النتيجة الأخيرة؛ لن تتم أي محاولة تلقائية إضافية — '+safe(checkErr&&checkErr.message||checkErr));unknown.assalUploadExhausted=true;throw unknown;
-      }
-      if(finalApplied)return {response:null,completed:finalApplied,attempts:2,recovered:true};
-      var exhausted=new Error('فشلت محاولتا رفع النسخة؛ التعديل محفوظ محلياً ولن يعاد تطبيقه. استخدم «إكمال الرفع» لاحقاً فقط. آخر خطأ: '+safe(secondErr&&secondErr.message||secondErr));exhausted.assalUploadExhausted=true;throw exhausted;
-    }
-  }
-  async function autoFinalizeAppliedStatus(req){
-    var body={version:VERSION,action:'applied',requestId:req.id,actorEmail:email(),appliedAt:now()};
-    try{var res=await serverPost('card-request-action',body,90000);if(res&&res.request){mergeRequestCache(res.request);return res.request;}}
-    catch(err){
-      if(!isUncertainTransportError(err))throw err;
-      var hit=await autoCheckAppliedTwice(req);if(hit)return hit;
-      throw autoTransientError('تم رفع النسخة لكن تعذر تثبيت حالة الطلب على السيرفر؛ لن تعاد النسخة، وسيقتصر الإكمال القادم على تثبيت الحالة');
-    }
-    var hit2=await autoCheckAppliedTwice(req);if(hit2)return hit2;
-    throw autoTransientError('تم رفع النسخة لكن لم يتم تأكيد حالة applied على السيرفر؛ لن تعاد النسخة تلقائياً');
+    var res=await serverPost('card-request-action',{version:VERSION,action:'approve-pending',requestId:req.id,actorEmail:email(),force:!!force,conflicts:Array.isArray(conflicts)?conflicts:[]});
+    if(res&&res.request)mergeRequestCache(res.request);
+    return (res&&res.request)||req;
   }
   async function postRequestBackupTimed(payload,prepared,requestMeta){
     var ctrl=new AbortController(),timer=setTimeout(function(){try{ctrl.abort();}catch(_){ }},180000);
     try{return await serverPostBackup(payload,ctrl.signal,prepared,requestMeta);}
-    catch(err){
-      if(err&&err.name==='AbortError'){var te=new Error('انتهت مهلة رفع النسخة؛ قد يكون السيرفر أكملها وسيتم التحقق قبل أي Retry');te.assalResponseUncertain=true;throw te;}
-      if(err&&(err.name==='SyntaxError'||err.name==='TypeError')){err.assalResponseUncertain=true;}
-      throw err;
-    }finally{clearTimeout(timer);}
+    catch(err){if(err&&err.name==='AbortError')throw new Error('انتهت مهلة رفع النسخة؛ قد يكون السيرفر أكملها وسيتم التحقق عند تحديث الطلبات');throw err;}
+    finally{clearTimeout(timer);}
   }
 
   function ensureButton(){
@@ -41443,7 +41234,7 @@ html body .card .item.assal-smart-added-item-safe-final{
     else if(mode==='admin-archive')actions='<button class="assal-cr-btn delete" data-cr-hide-archive="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-trash-can')+'"></i> '+(isBusy?'جاري الحذف':'حذف')+'</button>';
     else if(mode==='main-incoming'){
       if(status==='approved_pending_upload')actions='<button class="assal-cr-btn retry '+(isBusy?'is-busy':'')+'" data-cr-retry="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+spin+'"></i> '+(isBusy?'جاري الرفع':'إكمال الرفع')+'</button>';
-      else actions='<button class="assal-cr-btn approve '+(isBusy?'is-busy':'')+'" data-cr-approve="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-check')+'"></i> '+(isBusy?'جاري التنفيذ':'تطبيق آمن الآن')+'</button><button class="assal-cr-btn reject" data-cr-reject="'+esc(rec.id)+'"'+dis+'><i class="fa-solid fa-xmark"></i> رفض</button>';
+      else actions='<button class="assal-cr-btn approve '+(isBusy?'is-busy':'')+'" data-cr-approve="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-check')+'"></i> '+(isBusy?'جاري التنفيذ':'موافقة')+'</button><button class="assal-cr-btn reject" data-cr-reject="'+esc(rec.id)+'"'+dis+'><i class="fa-solid fa-xmark"></i> رفض</button>';
     }
     var conflict=rec.conflictNote?'<div class="assal-cr-conflict"><i class="fa-solid fa-triangle-exclamation"></i> '+esc(rec.conflictNote)+'</div>':'';
     var subtitle=esc(rec.cardDay||rec.afterDay||rec.beforeDay||'—')+' • '+esc(fmtDateTime(time))+' • '+(isAttendance?'طلب حضور':(isSingleCustomerChange?'تغيير زبون البطاقة':(isBundle?'بطاقة جديدة — '+bundleLines.length+' مادة':(isPayment?'حركة حسابات مالية':changes.length+' تغيير'))));
@@ -41461,11 +41252,11 @@ html body .card .item.assal-smart-added-item-safe-final{
       sendAll.style.display=activeTab==='drafts'?'inline-flex':'none';sendAll.disabled=!state.drafts.length;
       list.innerHTML=arr.length?arr.map(function(x){return cardHtml(x,activeTab==='archive'?'admin-archive':'draft');}).join(''):'<div class="assal-cr-empty"><div><i class="fa-regular fa-folder-open"></i>'+(activeTab==='archive'?'لا توجد طلبات في الأرشيف حالياً':'لا توجد تعديلات جديدة بانتظار الإرسال')+'</div></div>';
     }else{
-      root.querySelector('#assalCrTitle').textContent='طلبات التعديل الواردة — الحاسبة الرئيسية';root.querySelector('#assalCrSub').textContent='التطبيق تلقائي وآمن: الرئيسية وحدها تفحص وتحفظ وترفع';
+      root.querySelector('#assalCrTitle').textContent='طلبات التعديل الواردة — الحاسبة الرئيسية';root.querySelector('#assalCrSub').textContent='الموافقة تطبق التعديل محلياً ثم ترفع نسخة الرئيسية المحمية';
       var incoming=requestCache.filter(function(x){return safe(x.status)==='pending_review'||safe(x.status)==='approved_pending_upload';});
       var history=requestCache.filter(function(x){return safe(x.status)!=='pending_review'&&safe(x.status)!=='approved_pending_upload';});
       tabs.innerHTML='<button class="assal-cr-tab '+(activeTab==='incoming'?'active':'')+'" data-cr-tab="incoming"><i class="fa-solid fa-inbox"></i> الواردة ('+incoming.length+')</button><button class="assal-cr-tab '+(activeTab==='main-history'?'active':'')+'" data-cr-tab="main-history"><i class="fa-solid fa-clock-rotate-left"></i> السجل ('+history.length+')</button>';
-      var arr2=activeTab==='main-history'?history:incoming;sum.textContent=activeTab==='main-history'?'سجل القرارات السابقة':'الطلبات تطبق تلقائياً؛ زر التطبيق اليدوي احتياط آمن فقط';sendAll.style.display='none';
+      var arr2=activeTab==='main-history'?history:incoming;sum.textContent=activeTab==='main-history'?'سجل القرارات السابقة':'راجع التغييرات قبل الموافقة';sendAll.style.display='none';
       list.innerHTML=arr2.length?arr2.map(function(x){return cardHtml(x,activeTab==='main-history'?'main-history':'main-incoming');}).join(''):'<div class="assal-cr-empty"><div><i class="fa-solid fa-circle-check"></i>'+(activeTab==='main-history'?'لا يوجد سجل طلبات حالياً':'لا توجد طلبات تعديل بانتظار المراجعة')+'</div></div>';
     }
     updateButton();
@@ -41567,12 +41358,12 @@ html body .card .item.assal-smart-added-item-safe-final{
       delete payload.beforeCard; delete payload.afterCard;
       delete payload.beforePayment; delete payload.afterPayment;
       if(!quiet){progressSet('','إرسال طلب التعديل','إرسال الطلب إلى الحاسبة الرئيسية',58,'fa-solid fa-paper-plane');await nextPaint();}
-      var res=await submitDraftSafely(payload,quiet);
+      var res=await serverPost('card-request-submit',{version:VERSION,actorEmail:email(),request:payload});
       if(!quiet){progressSet('','إرسال طلب التعديل','تثبيت الطلب في الأرشيف المحلي',86,'fa-solid fa-box-archive');await nextPaint();}
       var record=(res&&res.request)||payload;record.status=record.status||'pending_review';record.sentAt=record.sentAt||payload.sentAt;
       state.drafts=state.drafts.filter(function(x){return safe(x.id)!==safe(reqId);});state.archive.push(record);schedulePersist();
       updateButton();if(isModalOpen())renderModal();
-      if(!quiet)progressSuccess('تم إرسال طلب التعديل','انتقل الطلب إلى الأرشيف وسيتم تطبيقه تلقائياً على الحاسبة الرئيسية');
+      if(!quiet)progressSuccess('تم إرسال طلب التعديل','انتقل الطلب إلى الأرشيف وبانتظار مراجعة الحاسبة الرئيسية');
       if(isAttendanceHalfDayRequest(record))notifyAttendanceHalfDayUi();
       if(isSingleCardCustomerChangeRequest(record))notifySingleCardCustomerChangeUi();
       return true;
@@ -41697,363 +41488,75 @@ html body .card .item.assal-smart-added-item-safe-final{
     if(card){card.updatedAt=stamp;if(card.customer){try{if(Array.isArray(names)&&names.indexOf(card.customer)<0)names.push(card.customer);}catch(_){}}}
     touchedPaymentDays.forEach(function(day){savePaymentDayLocal(day);});
   }
-  /* =========================================================
-     ASSAL MAIN AUTHORITY AUTO PATCH — ATOMIC / FAIL-CLOSED
-     الأدمن يرسل ops فقط. الرئيسية تقرأ مخازنها الرسمية، تفحص، تطبق على Clone،
-     تتحقق أن لا شيء خارج الهدف تغيّر، ثم تكتب المخازن المطلوبة بصفقة IndexedDB واحدة.
-     ممنوع استخدام savePayments(day,arr) داخل التطبيق التلقائي المالي.
-  ========================================================= */
-  function autoJournalRead(){try{var x=JSON.parse(localStorage.getItem(AUTO_TXN_KEY)||'null');return x&&typeof x==='object'?x:null;}catch(_){return null;}}
-  function autoJournalWrite(reqId,phase){try{localStorage.setItem(AUTO_TXN_KEY,JSON.stringify({requestId:safe(reqId),phase:safe(phase),updatedAt:now()}));}catch(_){}}
-  function autoJournalClear(reqId){try{var j=autoJournalRead();if(!j||!reqId||safe(j.requestId)===safe(reqId))localStorage.removeItem(AUTO_TXN_KEY);}catch(_){}}
-  function autoTransientError(message){var e=new Error(message||'بيانات الرئيسية مشغولة الآن');e.assalAutoTransient=true;return e;}
-  function autoHasPaymentOps(req){return (req&&Array.isArray(req.ops)?req.ops:[]).some(function(op){return op&&op.scope==='payment';});}
-  function autoHasGlobalRename(req){return (req&&Array.isArray(req.ops)?req.ops:[]).some(isGlobalCustomerRenameOp);}
-  function autoNeedsDays(req){return !isPaymentDraft(req)||autoHasGlobalRename(req);}
-  function autoCloneStore(v,fallback){var c=clone(v);return c&&typeof c==='object'?c:clone(fallback||{});}
-  function autoLiveDaysMatch(cache){try{return deepEqual(days||{},cache||{});}catch(_){return false;}}
-  async function autoReadStableStore(key,fallback,checkLiveDays){
-    for(var attempt=0;attempt<18;attempt++){
-      var cache=null,idb=null;
-      try{cache=(typeof loadBigStoreSync==='function')?loadBigStoreSync(key,fallback):clone(fallback);}catch(_){cache=clone(fallback);}
-      try{idb=await assalIDBGet(key,null);}catch(_){idb=null;}
-      if(idb!=null&&deepEqual(idb,cache)&&(!checkLiveDays||autoLiveDaysMatch(cache)))return autoCloneStore(idb,fallback);
-      await autoSleep(220);
-    }
-    throw autoTransientError('بيانات الحاسبة الرئيسية تتغير الآن؛ تم تأجيل الطلب بدون أي كتابة');
-  }
-  async function autoReadBundle(req){
-    if(window.__ASSAL_SERVER_PULL_ACTIVE__===true||window.__ASSAL_MANUAL_EXPORT_ACTIVE__===true)throw autoTransientError('هناك مزامنة أو سحب جارٍ على الرئيسية؛ تم تأجيل الطلب');
-    try{
-      var last=Number(typeof LAST_EDIT_TS!=='undefined'?LAST_EDIT_TS:0)||0;
-      if(last&&last!==autoLastCommitTs&&Date.now()-last<1200)throw autoTransientError('يوجد حفظ حديث على الرئيسية؛ تم تأجيل الطلب لحين استقرار البيانات');
-    }catch(err){if(err&&err.assalAutoTransient)throw err;}
-    var bundle={days:null,payments:null,names:null};
-    if(autoNeedsDays(req))bundle.days=await autoReadStableStore(STORAGE,{},true);
-    if(autoHasPaymentOps(req)||autoHasGlobalRename(req))bundle.payments=await autoReadStableStore(PAYMENTS_STORE_KEY,{},false);
-    if(autoHasGlobalRename(req))bundle.names=await autoReadStableStore(NAMES,[],false);
-    return bundle;
-  }
-  function autoFindCardIn(daysObj,cardId){
-    var hits=[];Object.keys(daysObj||{}).forEach(function(day){(Array.isArray(daysObj[day])?daysObj[day]:[]).forEach(function(card,index){if(safe(card&&card.id)===safe(cardId))hits.push({day:safe(day),index:index,card:card});});});
-    if(hits.length>1)throw new Error('توجد أكثر من بطاقة بنفس المعرف على الرئيسية؛ أوقف التطبيق للحماية');
-    return hits[0]||null;
-  }
-  function autoFindEntityIn(arr,targetId,kind,sample,itemHint){
-    var list=Array.isArray(arr)?arr:[],idv=safe(targetId),hits=[];
-    if(idv&&idv.indexOf('index:')!==0){for(var i=0;i<list.length;i++){if(entityId(list[i],kind,i)===idv)hits.push({value:list[i],index:i});}}
-    else if(sample&&typeof sample==='object'){
-      for(var j=0;j<list.length;j++){if(deepEqual(cleanValue(list[j],true),cleanValue(sample,true)))hits.push({value:list[j],index:j});}
-    }else if(idv.indexOf('index:')===0){
-      var idx=Number(idv.slice(6));if(Number.isInteger(idx)&&idx>=0&&idx<list.length){var row=list[idx];if(!itemHint||safe(row&&row.item)===safe(itemHint))hits.push({value:row,index:idx});}
-    }
-    if(hits.length>1)throw new Error('تعذر تحديد السطر بشكل فريد؛ لم يتم التطبيق');
-    return hits[0]||null;
-  }
-  function autoPaymentDirectId(row){return safe(row&&((row.id)||(row._id))).trim();}
-  function autoPaymentFingerprint(row){
-    row=row&&typeof row==='object'?row:{};
-    return JSON.stringify({cust:safe(row.cust??row.customer).trim(),date:safe(row.date??row.day),time:safe(row.time),kind:safe(row.kind??row.type),amount:safe(row.amount??row.value??row.qty),notes:safe(row.notes??row.note??row.desc??row.text).trim()});
-  }
-  function autoPaymentSamples(op){var a=[];if(op&&op.before&&typeof op.before==='object')a.push(op.before);if(op&&op.after&&typeof op.after==='object')a.push(op.after);return a;}
-  function autoFindPaymentIn(store,op,allowMissing){
-    var directIds=new Set(),fps=new Set();
-    var pid=safe(op&&op.paymentId).trim();
-    autoPaymentSamples(op).forEach(function(r){var d=autoPaymentDirectId(r);if(d)directIds.add(d);fps.add(autoPaymentFingerprint(r));});
-    if(pid&&pid.charAt(0)!=='{'&&pid.indexOf('legacy-pay:')!==0)directIds.add(pid);
-    var directHits=[],fpHits=[];
-    Object.keys(store||{}).forEach(function(day){(Array.isArray(store[day])?store[day]:[]).forEach(function(row,index){
-      var d=autoPaymentDirectId(row);if(d&&directIds.has(d))directHits.push({day:safe(day),index:index,row:row,arr:store[day]});
-      else if(fps.has(autoPaymentFingerprint(row)))fpHits.push({day:safe(day),index:index,row:row,arr:store[day]});
-    });});
-    var hits=directHits.length?directHits:fpHits;
-    if(hits.length>1)throw new Error('الحركة المالية غير فريدة على الرئيسية؛ تم إيقاف الطلب دون أي كتابة');
-    if(!hits.length&&!allowMissing)throw new Error('الحركة المالية المطلوبة غير موجودة على الرئيسية');
-    return hits[0]||null;
-  }
-  function autoCountNameRefsInDays(daysObj,name){
-    var target=safe(name).trim(),count=0,keysCard=['customer','cust','name','customerName','اسم الزبون','الزبون','العميل','اسم العميل'],keysNested=['customer','cust','customerName','اسم الزبون','الزبون','العميل','اسم العميل'];
-    if(!target)return 0;Object.keys(daysObj||{}).forEach(function(day){(Array.isArray(daysObj[day])?daysObj[day]:[]).forEach(function(card){if(!card||typeof card!=='object')return;keysCard.forEach(function(k){if(Object.prototype.hasOwnProperty.call(card,k)&&safe(card[k]).trim()===target)count++;});(Array.isArray(card.lines)?card.lines:[]).forEach(function(line){keysNested.forEach(function(k){if(line&&Object.prototype.hasOwnProperty.call(line,k)&&safe(line[k]).trim()===target)count++;});});(Array.isArray(card.partialPayments)?card.partialPayments:[]).forEach(function(pp){keysNested.forEach(function(k){if(pp&&Object.prototype.hasOwnProperty.call(pp,k)&&safe(pp[k]).trim()===target)count++;});});});});return count;
-  }
-  function autoPreflightSafe(req,bundle){
-    if(isAttendanceHalfDayRequest(req)){var af=attendanceHalfDayField(req)||{},expected=af.before||{__assalMissing:true},current=attendanceSnapshotFromLocal(safe(req.cardDay),safe(req.customer));return deepEqual(current,expected)?[]:['حالة حضور الموظف تغيرت على الحاسبة الرئيسية منذ إنشاء الطلب'];}
-    var conflicts=[],daysObj=bundle.days||{},payStore=bundle.payments||{},found=autoNeedsDays(req)?autoFindCardIn(daysObj,req.cardId):null,card=found&&found.card,currentDay=found&&found.day;
-    (req.ops||[]).forEach(function(op){
-      try{
-        if(isGlobalCustomerRenameOp(op)){var currentRefs=autoCountNameRefsInDays(daysObj,op.before),expectedRefs=Math.max(0,Number(op.itemBefore||0));if(currentRefs===0)conflicts.push('سجلات الاسم الأصلي غير موجودة على الحاسبة الرئيسية');else if(expectedRefs&&currentRefs!==expectedRefs)conflicts.push('عدد سجلات الاسم الأصلي تغير على الرئيسية: '+currentRefs+' بدلاً من '+expectedRefs);return;}
-        if(op.scope==='payment'){
-          var ph=autoFindPaymentIn(payStore,op,op.action==='add');
-          if(op.action==='add'){if(ph&&!deepEqual(comparePayment(ph.row),comparePayment(op.after)))conflicts.push('الحركة المالية موجودة مسبقاً بشكل مختلف');return;}
-          if(!ph){conflicts.push('الحركة المالية المطلوبة غير موجودة');return;}
-          if(op.action==='remove'){if(ph.row.deletedAt){conflicts.push('الحركة المالية محذوفة مسبقاً');return;}if(!deepEqual(comparePayment(ph.row),comparePayment(op.before)))conflicts.push('الحركة المالية تغيرت على الرئيسية قبل الحذف');return;}
-          if(op.action==='patch'){(op.fields||[]).forEach(function(f){var has=Object.prototype.hasOwnProperty.call(ph.row,f.field),cur=has?cleanValue(ph.row[f.field],true):{__assalMissing:true};if(!deepEqual(cur,f.before))conflicts.push('حقل '+fieldLabel('payment',f.field)+' تغير في الحسابات المالية');});return;}
-        }
-        if(op.scope==='card'&&op.action==='add'){if(card&&!deepEqual(compareCard(card),compareCard(op.after)))conflicts.push('البطاقة موجودة مسبقاً بشكل مختلف');return;}
-        if(op.scope==='card'&&op.action==='remove'){if(!card){conflicts.push('البطاقة المراد حذفها غير موجودة');return;}if(!deepEqual(compareCard(card),compareCard(op.before)))conflicts.push('محتوى البطاقة الحالية يختلف قبل الحذف');return;}
-        if(op.scope==='card'&&op.action==='move'){if(!card){conflicts.push('البطاقة المراد نقلها غير موجودة');return;}if(currentDay!==safe(op.before))conflicts.push('مكان البطاقة الحالي مختلف');return;}
-        if(!card){conflicts.push('البطاقة غير موجودة على الحاسبة الرئيسية');return;}
-        if(op.scope==='card'&&op.action==='field'){var hasCardField=Object.prototype.hasOwnProperty.call(card,op.field),curCardField=hasCardField?cleanValue(card[op.field],true):{__assalMissing:true};if(!deepEqual(curCardField,op.before))conflicts.push('حقل '+fieldLabel('card',op.field)+' تغير على الرئيسية');return;}
-        if(op.scope==='line'){
-          var hit=autoFindEntityIn(card.lines,op.lineId,'line',op.before||op.after,op.itemBefore||op.itemAfter);
-          if(op.action==='add'){if(hit&&!deepEqual(cleanValue(hit.value,true),cleanValue(op.after,true)))conflicts.push('المادة المضافة موجودة بشكل مختلف');return;}
-          if(op.action==='remove'){if(!hit){conflicts.push('المادة المراد حذفها غير موجودة');return;}if(!deepEqual(cleanValue(hit.value,true),cleanValue(op.before,true)))conflicts.push('المادة المراد حذفها تغيرت');return;}
-          if(!hit){conflicts.push('المادة المطلوبة غير موجودة');return;}
-          (op.fields||[]).forEach(function(f){var has=Object.prototype.hasOwnProperty.call(hit.value,f.field),cur=has?cleanValue(hit.value[f.field],true):{__assalMissing:true};if(!deepEqual(cur,f.before))conflicts.push('حقل '+fieldLabel('line',f.field)+' للمادة '+safe(hit.value.item)+' تغير');});return;
-        }
-        if(op.scope==='note'){
-          var nh=autoFindEntityIn(card.notes,op.noteId,'note',op.before||op.after,'');
-          if(op.action==='add'){if(nh&&!deepEqual(cleanValue(nh.value,true),cleanValue(op.after,true)))conflicts.push('الملاحظة موجودة بشكل مختلف');return;}
-          if(op.action==='remove'){if(!nh){conflicts.push('الملاحظة المراد حذفها غير موجودة');return;}if(!deepEqual(cleanValue(nh.value,true),cleanValue(op.before,true)))conflicts.push('الملاحظة المراد حذفها تغيرت');return;}
-          if(!nh){conflicts.push('الملاحظة المطلوبة غير موجودة');return;}
-          (op.fields||[]).forEach(function(f){var has=Object.prototype.hasOwnProperty.call(nh.value,f.field),cur=has?cleanValue(nh.value[f.field],true):{__assalMissing:true};if(!deepEqual(cur,f.before))conflicts.push('حقل ملاحظة تغير على الرئيسية');});
-        }
-      }catch(err){conflicts.push(safe(err&&err.message||err));}
-    });
-    return Array.from(new Set(conflicts));
-  }
-  function autoRenameExactInBundle(daysObj,payStore,namesArr,oldName,newName){
-    var oldV=safe(oldName).trim(),newV=safe(newName),cardKeys=['customer','cust','name','customerName','اسم الزبون','الزبون','العميل','اسم العميل'],nestedKeys=['customer','cust','customerName','اسم الزبون','الزبون','العميل','اسم العميل'],payKeys=['cust','customer','name','customerName','اسم الزبون','الزبون','العميل','اسم العميل'];
-    Object.keys(daysObj||{}).forEach(function(day){(Array.isArray(daysObj[day])?daysObj[day]:[]).forEach(function(card){if(!card||typeof card!=='object')return;cardKeys.forEach(function(k){if(Object.prototype.hasOwnProperty.call(card,k)&&safe(card[k]).trim()===oldV)card[k]=newV;});(Array.isArray(card.lines)?card.lines:[]).forEach(function(line){nestedKeys.forEach(function(k){if(line&&Object.prototype.hasOwnProperty.call(line,k)&&safe(line[k]).trim()===oldV)line[k]=newV;});});(Array.isArray(card.partialPayments)?card.partialPayments:[]).forEach(function(pp){nestedKeys.forEach(function(k){if(pp&&Object.prototype.hasOwnProperty.call(pp,k)&&safe(pp[k]).trim()===oldV)pp[k]=newV;});});});});
-    Object.keys(payStore||{}).forEach(function(day){(Array.isArray(payStore[day])?payStore[day]:[]).forEach(function(row){payKeys.forEach(function(k){if(row&&Object.prototype.hasOwnProperty.call(row,k)&&safe(row[k]).trim()===oldV)row[k]=newV;});});});
-    if(Array.isArray(namesArr)){for(var i=0;i<namesArr.length;i++){if(safe(namesArr[i]).trim()===oldV)namesArr[i]=newV;}}
-  }
-  function autoApplyOpsToClone(req,bundle){
-    var next={days:bundle.days?autoCloneStore(bundle.days,{}):null,payments:bundle.payments?autoCloneStore(bundle.payments,{}):null,names:Array.isArray(bundle.names)?clone(bundle.names):null,changedDays:false,changedPayments:false,changedNames:false};
-    var stamp=now();
-    (req.ops||[]).forEach(function(op){
-      if(isGlobalCustomerRenameOp(op)){autoRenameExactInBundle(next.days,next.payments,next.names,op.before,op.after);next.changedDays=true;next.changedPayments=true;next.changedNames=true;return;}
-      if(op.scope==='payment'){
-        var ph=autoFindPaymentIn(next.payments,op,op.action==='add'),pday=safe(op.afterDay||op.beforeDay||req.cardDay);
-        if(op.action==='add'){if(!ph){if(!Array.isArray(next.payments[pday]))next.payments[pday]=[];next.payments[pday].push(clone(op.after)||{});}next.changedPayments=true;return;}
-        if(!ph)throw new Error('الحركة المالية المطلوبة اختفت قبل التطبيق');
-        if(op.action==='remove'){var tomb=ph.row;if(op.after&&op.after.deletedAt)tomb.deletedAt=clone(op.after.deletedAt);else tomb.deletedAt=stamp;tomb.updatedAt=(op.after&&op.after.updatedAt)?clone(op.after.updatedAt):stamp;next.changedPayments=true;return;}
-        if(op.action==='patch'){(op.fields||[]).forEach(function(f){if(isMissingValue(f.after))delete ph.row[f.field];else ph.row[f.field]=clone(f.after);});ph.row.updatedAt=stamp;next.changedPayments=true;return;}
-        throw new Error('عملية مالية غير مدعومة');
-      }
-      var found=autoFindCardIn(next.days,req.cardId),card=found&&found.card;
-      if(op.scope==='card'&&op.action==='add'){
-        if(!card){var d=safe(op.afterDay||req.afterDay||req.cardDay);if(!Array.isArray(next.days[d]))next.days[d]=[];var nc=clone(op.after)||{};nc.updatedAt=stamp;var pos=Number(req.afterIndex);if(Number.isInteger(pos)&&pos>=0&&pos<=next.days[d].length)next.days[d].splice(pos,0,nc);else next.days[d].push(nc);}next.changedDays=true;return;
-      }
-      if(op.scope==='card'&&op.action==='remove'){
-        if(card){next.days[found.day].splice(found.index,1);if(!next.days[found.day].length)delete next.days[found.day];}next.changedDays=true;return;
-      }
-      if(op.scope==='card'&&op.action==='move'){
-        if(!card)throw new Error('البطاقة المراد نقلها غير موجودة');var moving=card;next.days[found.day].splice(found.index,1);if(!next.days[found.day].length)delete next.days[found.day];var nd=safe(op.after);if(!Array.isArray(next.days[nd]))next.days[nd]=[];var np=Number(req.afterIndex);if(Number.isInteger(np)&&np>=0&&np<=next.days[nd].length)next.days[nd].splice(np,0,moving);else next.days[nd].push(moving);next.changedDays=true;return;
-      }
-      found=autoFindCardIn(next.days,req.cardId);card=found&&found.card;if(!card)throw new Error('البطاقة المطلوبة غير موجودة أثناء التطبيق');
-      if(op.scope==='card'&&op.action==='field'){if(isMissingValue(op.after))delete card[op.field];else card[op.field]=clone(op.after);card.updatedAt=stamp;next.changedDays=true;return;}
-      if(op.scope==='line'){
-        if(!Array.isArray(card.lines))card.lines=[];var hit=autoFindEntityIn(card.lines,op.lineId,'line',op.before||op.after,op.itemBefore||op.itemAfter);
-        if(op.action==='add'){if(!hit){var nl=clone(op.after)||{};nl.updatedAt=stamp;card.lines.push(nl);}card.updatedAt=stamp;next.changedDays=true;return;}
-        if(op.action==='remove'){if(!hit)throw new Error('المادة المراد حذفها اختفت قبل التطبيق');card.lines.splice(hit.index,1);card.updatedAt=stamp;next.changedDays=true;return;}
-        if(!hit)throw new Error('المادة المطلوبة اختفت قبل التطبيق');(op.fields||[]).forEach(function(f){if(isMissingValue(f.after))delete hit.value[f.field];else hit.value[f.field]=clone(f.after);});hit.value.updatedAt=stamp;card.updatedAt=stamp;next.changedDays=true;return;
-      }
-      if(op.scope==='note'){
-        if(!Array.isArray(card.notes))card.notes=[];var nh=autoFindEntityIn(card.notes,op.noteId,'note',op.before||op.after,'');
-        if(op.action==='add'){if(!nh){var nn=clone(op.after)||{};nn.updatedAt=stamp;card.notes.push(nn);}card.updatedAt=stamp;next.changedDays=true;return;}
-        if(op.action==='remove'){if(!nh)throw new Error('الملاحظة المراد حذفها اختفت قبل التطبيق');card.notes.splice(nh.index,1);card.updatedAt=stamp;next.changedDays=true;return;}
-        if(!nh)throw new Error('الملاحظة المطلوبة اختفت قبل التطبيق');(op.fields||[]).forEach(function(f){if(isMissingValue(f.after))delete nh.value[f.field];else nh.value[f.field]=clone(f.after);});nh.value.updatedAt=stamp;card.updatedAt=stamp;next.changedDays=true;return;
-      }
-      throw new Error('نوع تعديل غير مدعوم في التطبيق التلقائي');
-    });
-    return next;
-  }
-  function autoCardOpsMeta(req){
-    var fields=new Set(),lineRules=new Map(),noteRules=new Map(),hasAdd=false,hasRemove=false;
-    (req.ops||[]).forEach(function(op){
-      if(op.scope==='card'&&op.action==='field')fields.add(safe(op.field));
-      if(op.scope==='card'&&op.action==='add')hasAdd=true;if(op.scope==='card'&&op.action==='remove')hasRemove=true;
-      if(op.scope==='line'){var lr={action:safe(op.action),fields:new Set()};(op.fields||[]).forEach(function(f){lr.fields.add(safe(f.field));});lineRules.set(safe(op.lineId),lr);}
-      if(op.scope==='note'){var nr={action:safe(op.action),fields:new Set()};(op.fields||[]).forEach(function(f){nr.fields.add(safe(f.field));});noteRules.set(safe(op.noteId),nr);}
-    });
-    return {fields:fields,lineRules:lineRules,noteRules:noteRules,hasAdd:hasAdd,hasRemove:hasRemove};
-  }
-  function autoStripCardFromDays(daysObj,cardId){var out=autoCloneStore(daysObj,{});Object.keys(out).forEach(function(day){if(!Array.isArray(out[day]))return;out[day]=out[day].filter(function(c){return safe(c&&c.id)!==safe(cardId);});if(!out[day].length)delete out[day];});return out;}
-  function autoSanitizeTargetCard(card,meta){
-    if(!card)return null;var c=clone(card)||{};delete c.updatedAt;meta.fields.forEach(function(f){delete c[f];});
-    if(Array.isArray(c.lines)){var kept=[];c.lines.forEach(function(line,i){var idv=entityId(line,'line',i),rule=meta.lineRules.get(idv);if(!rule){kept.push(clone(line));return;}if(rule.action==='add'||rule.action==='remove')return;var z=clone(line)||{};delete z.updatedAt;rule.fields.forEach(function(f){delete z[f];});kept.push(z);});c.lines=kept;}
-    if(Array.isArray(c.notes)){var keptNotes=[];c.notes.forEach(function(note,i){var idv=entityId(note,'note',i),rule=meta.noteRules.get(idv);if(!rule){keptNotes.push(clone(note));return;}if(rule.action==='add'||rule.action==='remove')return;var z=clone(note)||{};delete z.updatedAt;rule.fields.forEach(function(f){delete z[f];});keptNotes.push(z);});c.notes=keptNotes;}
-    return c;
-  }
-  function autoIsPaymentTarget(row,op){var d=autoPaymentDirectId(row),ids=new Set(),fps=new Set();var pid=safe(op&&op.paymentId).trim();autoPaymentSamples(op).forEach(function(r){var x=autoPaymentDirectId(r);if(x)ids.add(x);fps.add(autoPaymentFingerprint(r));});if(pid&&pid.charAt(0)!=='{'&&pid.indexOf('legacy-pay:')!==0)ids.add(pid);return (!!d&&ids.has(d))||fps.has(autoPaymentFingerprint(row));}
-  function autoNormalizePaymentsForIsolation(store,ops){
-    var out=autoCloneStore(store,{});Object.keys(out).forEach(function(day){if(!Array.isArray(out[day]))return;var rows=[];out[day].forEach(function(row){var op=(ops||[]).find(function(x){return x.scope==='payment'&&autoIsPaymentTarget(row,x);})||null;if(!op){rows.push(clone(row));return;}if(op.action==='add'||op.action==='remove')return;var z=clone(row)||{};delete z.updatedAt;(op.fields||[]).forEach(function(f){delete z[f.field];});rows.push(z);});out[day]=rows;if(!rows.length)delete out[day];});return out;
-  }
-  function autoRequestMatchesAfter(req,bundle){
-    if(isAttendanceHalfDayRequest(req)){var f=attendanceHalfDayField(req)||{},cur=attendanceSnapshotFromLocal(safe(req.cardDay),safe(req.customer)),after=f.after||{};return !!(cur&&cur.halfDay===true&&safe(cur.day)===safe(after.day||req.cardDay)&&safe(cur.employee)===safe(after.employee||req.customer));}
-    var daysObj=bundle.days||{},payStore=bundle.payments||{};
-    for(var oi=0;oi<(req.ops||[]).length;oi++){
-      var op=req.ops[oi];
-      if(isGlobalCustomerRenameOp(op)){if(autoCountNameRefsInDays(daysObj,op.before)!==0)return false;continue;}
-      if(op.scope==='payment'){
-        var ph;try{ph=autoFindPaymentIn(payStore,op,op.action==='add');}catch(_){return false;}
-        if(op.action==='add'){if(!ph||!deepEqual(comparePayment(ph.row),comparePayment(op.after)))return false;continue;}
-        if(!ph)return false;
-        if(op.action==='remove'){if(!ph.row.deletedAt)return false;continue;}
-        if(op.action==='patch'){for(var fi=0;fi<(op.fields||[]).length;fi++){var f2=op.fields[fi],has=Object.prototype.hasOwnProperty.call(ph.row,f2.field),cur=has?cleanValue(ph.row[f2.field],true):{__assalMissing:true};if(!deepEqual(cur,f2.after))return false;}continue;}
-      }
-      var found=autoFindCardIn(daysObj,req.cardId),card=found&&found.card;
-      if(op.scope==='card'&&op.action==='add'){if(!card||!deepEqual(compareCard(card),compareCard(op.after)))return false;continue;}
-      if(op.scope==='card'&&op.action==='remove'){if(card)return false;continue;}
-      if(op.scope==='card'&&op.action==='move'){if(!card||found.day!==safe(op.after))return false;continue;}
-      if(!card)return false;
-      if(op.scope==='card'&&op.action==='field'){var hc=Object.prototype.hasOwnProperty.call(card,op.field),cv=hc?cleanValue(card[op.field],true):{__assalMissing:true};if(!deepEqual(cv,op.after))return false;continue;}
-      if(op.scope==='line'){var lh;try{lh=autoFindEntityIn(card.lines,op.lineId,'line',op.after||op.before,op.itemAfter||op.itemBefore);}catch(_){return false;}if(op.action==='add'){if(!lh||!deepEqual(cleanValue(lh.value,true),cleanValue(op.after,true)))return false;continue;}if(op.action==='remove'){if(lh)return false;continue;}if(!lh)return false;for(var lf=0;lf<(op.fields||[]).length;lf++){var lff=op.fields[lf],hl=Object.prototype.hasOwnProperty.call(lh.value,lff.field),lv=hl?cleanValue(lh.value[lff.field],true):{__assalMissing:true};if(!deepEqual(lv,lff.after))return false;}continue;}
-      if(op.scope==='note'){var nh;try{nh=autoFindEntityIn(card.notes,op.noteId,'note',op.after||op.before,'');}catch(_){return false;}if(op.action==='add'){if(!nh||!deepEqual(cleanValue(nh.value,true),cleanValue(op.after,true)))return false;continue;}if(op.action==='remove'){if(nh)return false;continue;}if(!nh)return false;for(var nf=0;nf<(op.fields||[]).length;nf++){var nff=op.fields[nf],hn=Object.prototype.hasOwnProperty.call(nh.value,nff.field),nv=hn?cleanValue(nh.value[nff.field],true):{__assalMissing:true};if(!deepEqual(nv,nff.after))return false;}continue;}
-    }
-    return true;
-  }
-  function autoValidateGlobalRename(before,next,req){
-    var op=(req.ops||[]).find(isGlobalCustomerRenameOp);if(!op)return;var oldV=safe(op.before).trim(),newV=safe(op.after).trim();
-    function walk(a,b,path){if(deepEqual(a,b))return;if(a==null||b==null||typeof a!=='object'||typeof b!=='object'){var key=safe(path[path.length-1]);var allowed=['customer','cust','name','customerName','اسم الزبون','الزبون','العميل','اسم العميل'].indexOf(key)>=0;if(!(allowed&&safe(a).trim()===oldV&&safe(b).trim()===newV))throw new Error('فحص تغيير الاسم اكتشف فرقاً خارج الاسم المستهدف');return;}if(Array.isArray(a)||Array.isArray(b)){if(!Array.isArray(a)||!Array.isArray(b)||a.length!==b.length)throw new Error('فحص تغيير الاسم اكتشف تغييراً في عدد السجلات');for(var i=0;i<a.length;i++)walk(a[i],b[i],path.concat(String(i)));return;}var keys=new Set(Object.keys(a).concat(Object.keys(b)));keys.forEach(function(k){if(!Object.prototype.hasOwnProperty.call(a,k)||!Object.prototype.hasOwnProperty.call(b,k))throw new Error('فحص تغيير الاسم اكتشف إضافة أو حذف حقل');walk(a[k],b[k],path.concat(k));});}
-    walk(before.days||{},next.days||{},['days']);walk(before.payments||{},next.payments||{},['payments']);
-    var bn=Array.isArray(before.names)?before.names:[],an=Array.isArray(next.names)?next.names:[];if(bn.length!==an.length)throw new Error('فحص تغيير الاسم اكتشف تغييراً بعدد الأسماء');for(var i=0;i<bn.length;i++){if(deepEqual(bn[i],an[i]))continue;if(!(safe(bn[i]).trim()===oldV&&safe(an[i]).trim()===newV))throw new Error('فحص تغيير الاسم اكتشف تغييراً باسم آخر');}
-  }
-  function autoValidateIsolation(req,before,next){
-    if(autoHasGlobalRename(req)){autoValidateGlobalRename(before,next,req);if(!autoRequestMatchesAfter(req,{days:next.days,payments:next.payments,names:next.names}))throw new Error('تعذر إثبات نتيجة تغيير الاسم بعد التطبيق');return true;}
-    var paymentOps=(req.ops||[]).filter(function(op){return op.scope==='payment';}),hasCardOps=(req.ops||[]).some(function(op){return op.scope!=='payment';});
-    if(paymentOps.length){if(hasCardOps&&before.days&&next.days&&!deepEqual(before.days,next.days))throw new Error('التعديل المالي حاول تغيير بيانات البطاقات');if(!deepEqual(autoNormalizePaymentsForIsolation(before.payments||{},paymentOps),autoNormalizePaymentsForIsolation(next.payments||{},paymentOps)))throw new Error('فحص الحماية اكتشف تغييراً في حركة مالية أو يوم مالي غير مستهدف');}
-    if(hasCardOps&&before.days){
-      if(!deepEqual(autoStripCardFromDays(before.days,req.cardId),autoStripCardFromDays(next.days,req.cardId)))throw new Error('فحص الحماية اكتشف تغييراً في بطاقة أو يوم غير مستهدف');
-      var meta=autoCardOpsMeta(req),b=autoFindCardIn(before.days,req.cardId),a=autoFindCardIn(next.days,req.cardId);
-      if(!meta.hasAdd&&!meta.hasRemove&&b&&a&&!deepEqual(autoSanitizeTargetCard(b.card,meta),autoSanitizeTargetCard(a.card,meta)))throw new Error('فحص الحماية اكتشف تغييراً إضافياً داخل البطاقة المستهدفة');
-    }
-    if(!autoRequestMatchesAfter(req,{days:next.days||before.days,payments:next.payments||before.payments,names:next.names||before.names}))throw new Error('النتيجة النهائية لا تطابق التعديل المطلوب؛ تم إلغاء الحفظ');
-    return true;
-  }
-  async function autoAtomicCommit(entries){
-    if(!entries.length)return true;
-    var db=await assalOpenIDB();
-    await new Promise(function(resolve,reject){var tx=db.transaction(ASSAL_IDB_STORE,'readwrite'),store=tx.objectStore(ASSAL_IDB_STORE),ts=Date.now();entries.forEach(function(ent){store.put({key:ent.key,value:clone(ent.value),updatedAt:ts});});tx.oncomplete=function(){resolve(true);};tx.onerror=function(){reject(tx.error||new Error('فشل الحفظ الذري في IndexedDB'));};tx.onabort=function(){reject(tx.error||new Error('تم إلغاء الحفظ الذري في IndexedDB'));};});
-    entries.forEach(function(ent){ASSAL_BIG_CACHE[ent.key]=clone(ent.value);});return true;
-  }
-  function autoRefreshGlobalRenameAux(req){
-    var op=(req.ops||[]).find(isGlobalCustomerRenameOp);if(!op)return;var oldV=safe(op.before).trim(),newV=safe(op.after),dbKeys=['NAME','Name','name','CUSTOMER','Customer','customer','CUST','Cust','cust','الاسم','اسم','اسم الزبون','الزبون','العميل','اسم العميل','الاسم الكامل','زبون','customer name'];
-    try{if(typeof CUSTOMERS!=='undefined'&&Array.isArray(CUSTOMERS)){for(var i=0;i<CUSTOMERS.length;i++)if(safe(CUSTOMERS[i]).trim()===oldV)CUSTOMERS[i]=newV;CUSTOMERS=Array.from(new Set(CUSTOMERS.map(function(x){return safe(x).trim();}).filter(Boolean))).sort(function(a,b){return a.localeCompare(b,'ar');});}}catch(_){ }
-    try{if(typeof database!=='undefined'&&database&&Array.isArray(database.CUSTOMER)){database.CUSTOMER.forEach(function(row){if(!row||typeof row!=='object')return;dbKeys.forEach(function(k){if(Object.prototype.hasOwnProperty.call(row,k)&&safe(row[k]).trim()===oldV)row[k]=newV;});});if(typeof rebuildCustomersFromDB==='function')rebuildCustomersFromDB();}}catch(_){ }
-    try{window.assalInvalidateSheetCustomerCache&&window.assalInvalidateSheetCustomerCache();}catch(_){ }
-  }
-  function autoBlockInputDuringCommit(ev){if(!autoCommitActive||!ev||ev.isTrusted!==true)return;try{ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation();}catch(_){}}
-  async function autoCommitSafeRequest(req,bundle){
-    if(isAttendanceHalfDayRequest(req)){
-      var conflicts=autoPreflightSafe(req,bundle);if(conflicts.length)throw new Error(conflicts.join(' | '));autoJournalWrite(req.id,'prepared');applyAttendanceHalfDayRequest(req);autoJournalWrite(req.id,'committed');markAppliedLocal(req.id);localRevision++;refreshAffectedUi(req);return true;
-    }
-    var next=autoApplyOpsToClone(req,bundle);autoValidateIsolation(req,bundle,next);
-    /* إعادة فحص المصدر قبل الكتابة مباشرة: إذا تغيرت الرئيسية منذ القراءة ننسحب بلا كتابة. */
-    if(next.changedDays){var curDays=await autoReadStableStore(STORAGE,{},true);if(!deepEqual(curDays,bundle.days))throw autoTransientError('تغيرت بيانات البطاقات أثناء تجهيز الطلب؛ سيعاد فحصه تلقائياً');}
-    if(next.changedPayments){var curPays=await autoReadStableStore(PAYMENTS_STORE_KEY,{},false);if(!deepEqual(curPays,bundle.payments))throw autoTransientError('تغيرت الحسابات المالية أثناء تجهيز الطلب؛ سيعاد فحصه تلقائياً');}
-    if(next.changedNames){var curNames=await autoReadStableStore(NAMES,[],false);if(!deepEqual(curNames,bundle.names))throw autoTransientError('تغيرت قائمة الأسماء أثناء تجهيز الطلب؛ سيعاد فحصه تلقائياً');}
-    var entries=[];if(next.changedDays)entries.push({key:STORAGE,value:next.days});if(next.changedPayments)entries.push({key:PAYMENTS_STORE_KEY,value:next.payments});if(next.changedNames)entries.push({key:NAMES,value:next.names});
-    autoJournalWrite(req.id,'prepared');autoCommitActive=true;window.__ASSAL_AUTO_PATCH_COMMIT_ACTIVE__=true;
-    try{await autoAtomicCommit(entries);if(next.changedDays)days=clone(next.days);if(next.changedPayments){try{paymentsStore=clone(next.payments);}catch(_){ }try{window.__assalPaymentsLiveStore=clone(next.payments);}catch(_){ }}if(next.changedNames)names=clone(next.names);if(autoHasGlobalRename(req))autoRefreshGlobalRenameAux(req);autoLastCommitTs=Date.now();try{LAST_EDIT_TS=autoLastCommitTs;SYNC_BLOCK_UNTIL=Date.now()+20000;}catch(_){ }localRevision++;seedSnapshots();seedPaymentSnapshots();autoJournalWrite(req.id,'committed');markAppliedLocal(req.id);refreshAffectedUi(req);return true;}finally{autoCommitActive=false;window.__ASSAL_AUTO_PATCH_COMMIT_ACTIVE__=false;}
-  }
-  async function autoMarkConflict(req,conflicts){
-    var note=(conflicts||[]).join(' | ')||'تعذر تطبيق الطلب بأمان';
-    try{var cr=await serverPost('card-request-action',{version:VERSION,action:'conflict',requestId:req.id,actorEmail:email(),note:note});if(cr&&cr.request)mergeRequestCache(cr.request);else{var local=clone(req)||{};local.status='conflict';local.conflictNote=note;mergeRequestCache(local);}}catch(_){var local2=clone(req)||{};local2.conflictNote=note;mergeRequestCache(local2);}return false;
-  }
-  function autoScheduleWake(ms){clearTimeout(autoWakeTimer);autoWakeTimer=setTimeout(function(){if(isMain()&&!activeUploadRequestId&&!busyIds.size){refreshFromServer(false);}},Math.max(3000,Number(ms)||7000));}
-  async function autoHandleIncomingRequest(req,opts){
-    opts=opts||{};if(!req||!isMain())return false;var reqId=safe(req.id);if(!reqId)return false;
-    var manual=opts.manual===true,wasBusy=busyIds.has(reqId);if(wasBusy&&!manual)return false;
-    /* بعد استنفاد رفع طلب مطبق محلياً لا يعيده الـFast Watch كل 4 ثوانٍ. الطلب يبقى قابلاً لـ«إكمال الرفع» يدوياً. */
-    if(!manual&&safe(req.status)==='approved_pending_upload'&&isAutoUploadHeld(reqId))return true;
-    if(!wasBusy)busyIds.add(reqId);if(isModalOpen())renderModal();
-    try{
-      var bundle=await autoReadBundle(req),journal=autoJournalRead(),targetAlready=autoRequestMatchesAfter(req,bundle),markedApplied=isAppliedLocal(reqId)||(journal&&safe(journal.requestId)===reqId&&['committed','backup_uploaded'].indexOf(safe(journal.phase))>=0);
-      if(markedApplied&&!targetAlready){await autoMarkConflict(req,['الطلب مسجل كمطبق محلياً لكن بيانات الرئيسية الحالية لا تطابق نتيجته؛ تم منع إعادة التطبيق والرفع']);return false;}
-      if(targetAlready){
-        markAppliedLocal(reqId);if(!(journal&&safe(journal.requestId)===reqId&&safe(journal.phase)==='backup_uploaded'))autoJournalWrite(reqId,'committed');
-        if(safe(req.status)==='pending_review')req=await claimRequestForUpload(req,false,[]);
-        return await uploadAndComplete(req,manual?'retry':'auto');
-      }
-      var conflicts=autoPreflightSafe(req,bundle);
-      if(conflicts.length){if(manual)await requestConfirm('conflict',req,{title:'تعذر تطبيق الطلب بأمان',extra:'<div style="margin-top:9px;color:#fecaca">'+conflicts.slice(0,8).map(function(x){return '• '+esc(x);}).join('<br>')+'</div>',okText:'إغلاق',cancelText:'إغلاق'});await autoMarkConflict(req,conflicts);return false;}
-      if(manual){var ok=await requestConfirm('approve',req,{title:'تطبيق الطلب الآمن',okText:'تطبيق الآن',cancelText:'تراجع'});if(!ok)return false;}
-      if(safe(req.status)==='pending_review')req=await claimRequestForUpload(req,false,[]);
-      bundle=await autoReadBundle(req);conflicts=autoPreflightSafe(req,bundle);if(conflicts.length){await autoMarkConflict(req,conflicts);return false;}
-      setRequestUploadActive(reqId,true);
-      await autoCommitSafeRequest(req,bundle);
-      /* التطبيق المحلي انتهى هنا. نحدّث الحالة ونمنح المتصفح Paint قبل أي رفع بطيء. */
-      var localApplied=clone(findRequest(reqId)||req)||{};localApplied.status='approved_pending_upload';mergeRequestCache(localApplied);updateButton();if(isModalOpen())renderModal();
-      progressSet('','تم تطبيق التعديل على الرئيسية','تم حفظ الجزء المطلوب فقط بأمان؛ جارٍ الآن رفع النسخة الاحتياطية',31,'fa-solid fa-circle-check');await nextPaint();
-      return await uploadAndComplete(req,manual?'approve':'auto');
-    }catch(err){
-      if(err&&err.assalAutoTransient){if(manual)progressSet('warn','الرئيسية مشغولة حالياً',safe(err.message),100,'fa-solid fa-hourglass-half');autoScheduleWake(7000);return false;}
-      progressError(manual?'تعذر تطبيق الطلب':'توقف التطبيق التلقائي بأمان',safe(err&&err.message||err));autoScheduleWake(15000);return false;
-    }finally{if(safe(activeUploadRequestId)===reqId)setRequestUploadActive(reqId,false);if(!wasBusy)busyIds.delete(reqId);if(isModalOpen())renderModal();}
-  }
-  async function autoProcessIncoming(){
-    if(!isMain()||autoProcessPromise||activeUploadRequestId||busyIds.size)return autoProcessPromise||false;
-    autoProcessPromise=(async function(){
-      try{
-        var list=requestCache.filter(function(x){var s=safe(x&&x.status);return s==='pending_review'||s==='approved_pending_upload';}).sort(function(a,b){return safe(a.sentAt||a.createdAt).localeCompare(safe(b.sentAt||b.createdAt));});
-        for(var i=0;i<list.length;i++){if(activeUploadRequestId||window.__ASSAL_SERVER_PULL_ACTIVE__===true)break;var ok=await autoHandleIncomingRequest(list[i],{manual:false});if(!ok){var latest=findRequest(list[i].id);if(latest&&safe(latest.status)==='conflict')continue;break;}}
-      }finally{autoProcessPromise=null;}
-    })();return autoProcessPromise;
-  }
-  /* ===== END ASSAL MAIN AUTHORITY AUTO PATCH ===== */
-
   async function uploadAndComplete(req,mode){
     if(isUploadBusyForOther(req.id))throw new Error('يوجد رفع طلب آخر قيد التنفيذ');
     setRequestUploadActive(req.id,true);
     var snapshotRevision=localRevision;
     try{
-      var journal=autoJournalRead(),backupAlreadyUploaded=!!(journal&&safe(journal.requestId)===safe(req.id)&&safe(journal.phase)==='backup_uploaded');
-      var completed=null,response=null;
-
-      if(!backupAlreadyUploaded){
-        progressSet('',mode==='retry'?'إكمال رفع طلب التعديل':'تطبيق طلب التعديل','التعديل محفوظ على الرئيسية — تجهيز نسخة ثابتة للرفع',38,'fa-solid fa-database');await nextPaint();
-        var payload=buildBackupPayload();
-        progressSet('',mode==='retry'?'إكمال رفع طلب التعديل':'تطبيق طلب التعديل','تحويل النسخة وحساب التحقق بالخلفية',52,'fa-solid fa-fingerprint');
-        var prepared=await prepareBackupPayloadAsync(payload);
-        progressSet('',mode==='retry'?'إكمال رفع طلب التعديل':'تطبيق طلب التعديل','رفع النسخة المحمية والتحقق منها في Google Drive',73,'fa-solid fa-cloud-arrow-up');
-        var up=await autoUploadBackupBounded(req,payload,prepared);
-        response=up&&up.response;completed=up&&up.completed;
-        if(response&&response.status==='error')throw new Error(response.message||'فشل رفع النسخة');
-        /* نجاح الرفع مؤكد؛ من هذه اللحظة أي فشل لاحق لا يجوز أن يعيد رفع النسخة. */
-        autoJournalWrite(req.id,'backup_uploaded');
-      }else{
-        progressSet('',mode==='retry'?'إكمال حالة طلب التعديل':'تطبيق طلب التعديل','النسخة مرفوعة مسبقاً — لن يتم رفعها مرة ثانية',82,'fa-solid fa-shield-check');await nextPaint();
-      }
-
-      progressSet('',mode==='retry'?'إكمال حالة طلب التعديل':'تطبيق طلب التعديل','تثبيت حالة الطلب وتحديث المتابعة',92,'fa-solid fa-list-check');
-      if(!completed)completed=await autoFinalizeAppliedStatus(req);
-
-      markAppliedLocal(req.id);clearAutoUploadHold(req.id);autoJournalClear(req.id);
-      if(completed)mergeRequestCache(completed);else{var localRec=clone(req)||{};localRec.status='applied';localRec.appliedAt=now();mergeRequestCache(localRec);}
+      progressSet('',mode==='retry'?'إكمال رفع طلب التعديل':'تطبيق طلب التعديل','تجهيز نسخة ثابتة من بيانات الرئيسية',38,'fa-solid fa-database');await nextPaint();
+      var payload=buildBackupPayload();
+      progressSet('',mode==='retry'?'إكمال رفع طلب التعديل':'تطبيق طلب التعديل','تحويل النسخة وحساب التحقق بالخلفية',52,'fa-solid fa-fingerprint');
+      var prepared=await prepareBackupPayloadAsync(payload);
+      progressSet('',mode==='retry'?'إكمال رفع طلب التعديل':'تطبيق طلب التعديل','رفع النسخة المحمية والتحقق منها في Google Drive',73,'fa-solid fa-cloud-arrow-up');
+      var response=await postRequestBackupTimed(payload,prepared,{requestId:req.id,actorEmail:email(),appliedAt:now()});
+      if(!response||response.status==='error')throw new Error((response&&response.message)||'فشل رفع النسخة');
+      progressSet('',mode==='retry'?'إكمال رفع طلب التعديل':'تطبيق طلب التعديل','تثبيت حالة الطلب وتحديث المتابعة',92,'fa-solid fa-list-check');
+      var completed=response.cardRequest&&response.cardRequest.ok&&response.cardRequest.request?response.cardRequest.request:null;
+      if(!completed){var finalRes=await serverPost('card-request-action',{version:VERSION,action:'applied',requestId:req.id,actorEmail:email(),appliedAt:now()});completed=finalRes&&finalRes.request;}
+      markAppliedLocal(req.id);if(completed)mergeRequestCache(completed);else{var localRec=clone(req)||{};localRec.status='applied';localRec.appliedAt=now();mergeRequestCache(localRec);}
       var newer=localRevision>snapshotRevision;
       progressSuccess('تم تطبيق الطلب ورفع النسخة بنجاح',newer?'توجد تعديلات أحدث محفوظة محلياً وستدخل بالمزامنة التالية':'تم التحقق من النسخة وتثبيت حالة الطلب');
       scheduleFollowupSyncIfNeeded(snapshotRevision);return true;
     }catch(err){
+      /* الطلب تم حجزه كـ بانتظار الرفع قبل التطبيق؛ لا نكرر كتابة الحالة عند كل فشل. */
       var fallback=clone(findRequest(req.id)||req)||{};fallback.status='approved_pending_upload';mergeRequestCache(fallback);
-      if(mode==='auto'){
-        setAutoUploadHold(req.id,safe(err&&err.message||err));
-        progressSet('warn','التعديل محفوظ على الرئيسية — توقف الرفع التلقائي','لن يعاد تطبيق التعديل ولن توجد محاولات رفع تلقائية إضافية لهذا الطلب. يمكن إكمال الرفع لاحقاً من متابعة الطلبات — '+safe(err&&err.message||err),100,'fa-solid fa-cloud-arrow-up');
-        clearTimeout(progressHideTimer);progressHideTimer=setTimeout(progressHide,6500);
-        return false;
-      }
-      progressNeedFollowup(req,'التعديل محفوظ على الرئيسية. لن يعاد تطبيقه؛ حاول «إكمال الرفع» لاحقاً فقط — '+safe(err&&err.message||err));return false;
+      progressNeedFollowup(req,'يرجى فتح متابعة الطلبات وإكمال الرفع — '+safe(err&&err.message||err));return false;
     }finally{
       setRequestUploadActive(req.id,false);
     }
   }
   async function approveRequest(reqId){
     var req=findRequest(reqId);if(!req||busyIds.has(reqId))return;
-    return await autoHandleIncomingRequest(req,{manual:true});
+    if(isAppliedLocal(req.id)){await retryUpload(reqId);return;}
+    if(isUploadBusyForOther(reqId)){progressSet('warn','يوجد رفع طلب آخر','انتظر اكتمال العملية الحالية ثم أعد المحاولة',100,'fa-solid fa-hourglass-half');return;}
+    var conflicts=preflight(req),force=false;
+    if(conflicts.length){
+      var hardConflict=isAttendanceHalfDayRequest(req)&&conflicts.length>0||conflicts.some(function(x){return /غير موجودة|موجودة مسبقاً|مكان البطاقة الحالي مختلف/.test(safe(x));});
+      var extra='<div style="margin-top:9px;color:#fecaca">'+conflicts.slice(0,8).map(function(x){return '• '+esc(x);}).join('<br>')+'</div>';
+      if(hardConflict){
+        await requestConfirm('conflict',req,{title:'تعذر تطبيق الطلب بأمان',extra:extra,okText:'إغلاق',cancelText:'إغلاق'});
+        try{var cr=await serverPost('card-request-action',{version:VERSION,action:'conflict',requestId:req.id,actorEmail:email(),note:conflicts.join(' | ')});if(cr&&cr.request)mergeRequestCache(cr.request);}catch(_){ }
+        return;
+      }
+      var forceOk=await requestConfirm('conflict',req,{title:'تعارض في طلب التعديل',extra:extra+'<div style="margin-top:9px">التطبيق بالقوة سيغيّر الحقول المطلوبة فقط.</div>',okText:'تطبيق الحقول رغم التعارض',cancelText:'تراجع'});if(!forceOk)return;force=true;
+    }else{
+      var ok=await requestConfirm('approve',req,{title:'اعتماد طلب التعديل',okText:'موافقة وتطبيق',cancelText:'تراجع'});if(!ok)return;
+    }
+    busyIds.add(reqId);setRequestUploadActive(reqId,true);renderModal();
+    try{
+      progressSet('','تطبيق طلب التعديل','تثبيت قبول الطلب ومنع أي قرار متعارض',10,'fa-solid fa-shield-halved');await nextPaint();
+      req=await claimRequestForUpload(req,force,conflicts);
+      if(!isAppliedLocal(req.id)){
+        progressSet('','تطبيق طلب التعديل','تطبيق التغيير المحدد وحفظه محلياً',25,'fa-solid fa-pen-to-square');await nextPaint();
+        withSuppressedCapture(function(){applyRequestOps(req,force);var r=window.save();if(r&&r.ok===false)throw new Error('فشل الحفظ المحلي');});
+        markAppliedLocal(req.id);refreshAffectedUi(req);
+      }
+      await uploadAndComplete(req,'approve');
+    }catch(err){progressError('تعذر تطبيق الطلب',safe(err&&err.message||err));}
+    finally{if(safe(activeUploadRequestId)===safe(reqId))setRequestUploadActive(reqId,false);busyIds.delete(reqId);if(isModalOpen())renderModal();}
   }
   async function retryUpload(reqId){
     var req=findRequest(reqId);if(!req||busyIds.has(reqId))return;
     if(!isAppliedLocal(req.id)){await approveRequest(reqId);return;}
     if(isUploadBusyForOther(reqId)){progressSet('warn','يوجد رفع طلب آخر','انتظر اكتمال العملية الحالية ثم أعد المحاولة',100,'fa-solid fa-hourglass-half');return;}
     var ok=await requestConfirm('retry',req,{title:'إكمال رفع الطلب',okText:'نعم، إكمال الرفع',cancelText:'تراجع'});if(!ok)return;
-    clearAutoUploadHold(reqId);
     busyIds.add(reqId);setRequestUploadActive(reqId,true);if(isModalOpen())renderModal();
     try{
       progressSet('','إكمال رفع طلب التعديل','التحقق من حالة الطلب والتعديل المحلي',14,'fa-solid fa-hard-drive');await nextPaint();
       if(safe(req.status)==='pending_review')req=await claimRequestForUpload(req,!!req.forceApplied,req.conflicts||[]);
       await uploadAndComplete(req,'retry');
     }
-    catch(err){progressNeedFollowup(req,'التعديل محفوظ على الرئيسية ولن يعاد تطبيقه — '+safe(err&&err.message||err));}
+    catch(err){progressNeedFollowup(req,'يرجى فتح متابعة الطلبات وإكمال الرفع — '+safe(err&&err.message||err));}
     finally{if(safe(activeUploadRequestId)===safe(reqId))setRequestUploadActive(reqId,false);busyIds.delete(reqId);if(isModalOpen())renderModal();}
   }
   async function rejectRequest(reqId){
@@ -42098,26 +41601,16 @@ html body .card .item.assal-smart-added-item-safe-final{
     refreshPromise=(async function(){
       try{
         if(refreshVisualRequested)progressSet('', 'جاري الاتصال بالسيرفر','طلب أحدث قائمة لطلبات التعديل',26,'fa-solid fa-cloud-arrow-down');
-        /* التحديث اليدوي يحتمل اتصالاً أطول؛ المراقبة الخلفية للرئيسية أقصر حتى لا تتجمد دورة الالتقاط. */
-        var allServerRequests=await serverGetList(refreshVisualRequested?30000:(isMain()?15000:30000));
+        var allServerRequests=await serverGetList();
         var list=allServerRequests.filter(function(x){return !isDebtTransferLockRequest(x);});
         if(refreshVisualRequested)progressSet('', 'تم جلب الطلبات','مقارنة الطلبات الجديدة مع القائمة المحلية',58,'fa-solid fa-code-compare');
         requestCache=list;
         if(isAdmin()){
-          /* إذا الـPOST وصل للسيرفر لكن رده رجع HTML/انقطع، نطابق بالـID+ops وننقل المسودة تلقائياً إلى الأرشيف بدون إعادة إرسال. */
-          var serverById=new Map(list.map(function(x){return [safe(x&&x.id),x];}));
-          var confirmedDraftIds=new Set();
-          state.drafts.forEach(function(d){
-            var hit=serverById.get(safe(d&&d.id));
-            if(hit&&requestWireEquivalent(hit,d))confirmedDraftIds.add(safe(d.id));
-          });
-          if(confirmedDraftIds.size)state.drafts=state.drafts.filter(function(d){return !confirmedDraftIds.has(safe(d&&d.id));});
           var localById=new Map(state.archive.map(function(x){return [safe(x.id),x];}));
           list.forEach(function(r){localById.set(safe(r.id),r);});state.archive=Array.from(localById.values()).filter(function(x){return !x.adminHidden;}).sort(function(a,b){return safe(a.sentAt||a.createdAt).localeCompare(safe(b.sentAt||b.createdAt));});schedulePersist();
         }
         if(refreshVisualRequested)progressSet('', 'جاري تحديث النافذة','ترتيب الحالات وعرض النتائج المحدثة',84,'fa-solid fa-list-check');
         updateButton();if(isModalOpen())renderModal();notifyAttendanceHalfDayUi();notifySingleCardCustomerChangeUi();
-        if(isMain())setTimeout(function(){autoProcessIncoming();},0);
         if(refreshVisualRequested){
           var newCount=list.filter(function(x){return !beforeIds.has(safe(x&&x.id));}).length;
           var detail=newCount>0
@@ -42181,13 +41674,9 @@ html body .card .item.assal-smart-added-item-safe-final{
     ensureButton();updateButton();notifyAttendanceHalfDayUi();notifySingleCardCustomerChangeUi();
     if(legacyDraftsCleared){try{showToast('info','تم تنظيف '+legacyDraftsCleared+' مسودة خاطئة من النسخة السابقة');}catch(_){ }}
     if(bundledDraftGroups){try{showToast('success','تم تجميع إضافات البطاقات الجديدة ضمن طلب واحد لكل بطاقة');}catch(_){ }}
-    try{window.addEventListener('online',function(){if(!activeUploadRequestId)refreshFromServer(false);},false);window.addEventListener('focus',function(){if(!activeUploadRequestId)refreshFromServer(false);},false);document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&!activeUploadRequestId)refreshFromServer(false);},false);document.addEventListener('click',blockSensitiveWhileUpload,true);document.addEventListener('change',blockSensitiveWhileUpload,true);['pointerdown','click','keydown','input','change'].forEach(function(evt){document.addEventListener(evt,autoBlockInputDuringCommit,true);});}catch(_){ }
-    /* مراقبة سريعة للرئيسية فقط: Single-flight عبر refreshPromise، لذلك لا تتداخل طلبات الشبكة.
-       الأدمن يبقى على 30 ثانية لأنه لا يحتاج التقاطاً لحظياً للطلبات الواردة. */
-    clearInterval(refreshTimer);
-    var refreshEveryMs=isMain()?4000:30000;
-    refreshTimer=setInterval(function(){if(document.visibilityState==='visible'&&!activeUploadRequestId&&!busyIds.size&&!autoProcessPromise)refreshFromServer(false);},refreshEveryMs);
-    setTimeout(function(){refreshFromServer(false);},500);
+    try{window.addEventListener('online',function(){if(!activeUploadRequestId)refreshFromServer(false);},false);window.addEventListener('focus',function(){if(!activeUploadRequestId)refreshFromServer(false);},false);document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&!activeUploadRequestId)refreshFromServer(false);},false);document.addEventListener('click',blockSensitiveWhileUpload,true);document.addEventListener('change',blockSensitiveWhileUpload,true);}catch(_){ }
+    clearInterval(refreshTimer);refreshTimer=setInterval(function(){if(document.visibilityState==='visible'&&!activeUploadRequestId&&!busyIds.size)refreshFromServer(false);},30000);
+    setTimeout(function(){refreshFromServer(false);},1200);
   }
   function boot(){
     var tries=0;
@@ -42208,7 +41697,6 @@ html body .card .item.assal-smart-added-item-safe-final{
   window.assalCardChangeRequestsRefresh=refreshFromServer;
   window.assalCardChangeRequestsOpen=openModal;
   window.assalCardChangeRequestsCapturePayments=capturePaymentChanges;
-  window.assalCardChangeRequestsAutoStatus=function(){return {running:!!autoProcessPromise,commitActive:!!autoCommitActive,uploadActive:!!activeUploadRequestId,journal:autoJournalRead()};};
 })();
 </script>
 <!-- ASSAL CARD REQUESTS NEW CARD BUNDLE FINAL - END -->
