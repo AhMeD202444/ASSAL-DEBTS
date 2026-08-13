@@ -40362,17 +40362,17 @@ html body .card .item.assal-smart-added-item-safe-final{
 .assal-cr-progress-action{height:36px;padding:0 13px;border-radius:11px;border:1px solid rgba(125,211,252,.27);background:linear-gradient(135deg,#075985,#2563eb);color:#fff;font-weight:950;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
 
 /* نوافذ قرارات الرئيسية — نفس روح فتح تعديل السطر وتعليم الراجع */
-#modal.assal-cr-confirm-approve .modal-card,#modal.assal-cr-confirm-reject .modal-card,#modal.assal-cr-confirm-retry .modal-card,#modal.assal-cr-confirm-conflict .modal-card{
+#modal.assal-cr-confirm-send .modal-card,#modal.assal-cr-confirm-approve .modal-card,#modal.assal-cr-confirm-reject .modal-card,#modal.assal-cr-confirm-retry .modal-card,#modal.assal-cr-confirm-conflict .modal-card{
   width:min(570px,calc(100vw - 28px)) !important;padding:18px !important;border-radius:23px !important;
   background:radial-gradient(circle at 15% 0%,rgba(14,165,233,.17),transparent 35%),linear-gradient(180deg,#111a30,#081122) !important;
   border:1px solid rgba(125,211,252,.20) !important;box-shadow:0 26px 78px rgba(0,0,0,.62),inset 0 1px 0 rgba(255,255,255,.06) !important;
 }
 #modal.assal-cr-confirm-reject .modal-card,#modal.assal-cr-confirm-conflict .modal-card{background:radial-gradient(circle at 15% 0%,rgba(244,63,94,.17),transparent 35%),linear-gradient(180deg,#201329,#0e1020) !important;border-color:rgba(251,113,133,.22) !important}
 #modal.assal-cr-confirm-retry .modal-card{background:radial-gradient(circle at 15% 0%,rgba(245,158,11,.18),transparent 35%),linear-gradient(180deg,#211a24,#0d1220) !important;border-color:rgba(251,191,36,.22) !important}
-#modal.assal-cr-confirm-approve #modal-confirm{background:linear-gradient(135deg,#2563eb,#0f766e) !important;color:#fff !important;border:1px solid rgba(96,165,250,.36) !important;box-shadow:0 13px 30px rgba(37,99,235,.24) !important}
+#modal.assal-cr-confirm-send #modal-confirm,#modal.assal-cr-confirm-approve #modal-confirm{background:linear-gradient(135deg,#2563eb,#0f766e) !important;color:#fff !important;border:1px solid rgba(96,165,250,.36) !important;box-shadow:0 13px 30px rgba(37,99,235,.24) !important}
 #modal.assal-cr-confirm-retry #modal-confirm{background:linear-gradient(135deg,#d97706,#b45309) !important;color:#fff !important;border:1px solid rgba(251,191,36,.33) !important;box-shadow:0 13px 30px rgba(217,119,6,.23) !important}
 #modal.assal-cr-confirm-reject #modal-confirm,#modal.assal-cr-confirm-conflict #modal-confirm{background:linear-gradient(135deg,#be123c,#7f1d1d) !important;color:#fff !important;border:1px solid rgba(251,113,133,.34) !important;box-shadow:0 13px 30px rgba(190,18,60,.24) !important}
-#modal.assal-cr-confirm-approve #modal-cancel,#modal.assal-cr-confirm-reject #modal-cancel,#modal.assal-cr-confirm-retry #modal-cancel,#modal.assal-cr-confirm-conflict #modal-cancel{background:linear-gradient(135deg,#334155,#1e293b) !important;color:#e2e8f0 !important;border:1px solid rgba(148,163,184,.24) !important;box-shadow:0 12px 28px rgba(15,23,42,.22) !important}
+#modal.assal-cr-confirm-send #modal-cancel,#modal.assal-cr-confirm-approve #modal-cancel,#modal.assal-cr-confirm-reject #modal-cancel,#modal.assal-cr-confirm-retry #modal-cancel,#modal.assal-cr-confirm-conflict #modal-cancel{background:linear-gradient(135deg,#334155,#1e293b) !important;color:#e2e8f0 !important;border:1px solid rgba(148,163,184,.24) !important;box-shadow:0 12px 28px rgba(15,23,42,.22) !important}
 .assal-cr-confirm-pop{width:100%;display:grid;gap:12px;text-align:right}.assal-cr-confirm-hero{display:flex;align-items:center;gap:12px;padding:12px;border-radius:18px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08)}
 .assal-cr-confirm-icon{width:46px;height:46px;flex:0 0 auto;display:grid;place-items:center;border-radius:16px;color:#fff;font-size:19px;background:linear-gradient(135deg,#06b6d4,#7c3aed);box-shadow:0 14px 30px rgba(14,165,233,.18)}
 .assal-cr-confirm-pop.reject .assal-cr-confirm-icon,.assal-cr-confirm-pop.conflict .assal-cr-confirm-icon{background:linear-gradient(135deg,#e11d48,#7f1d1d)}.assal-cr-confirm-pop.retry .assal-cr-confirm-icon{background:linear-gradient(135deg,#f59e0b,#b45309)}
@@ -40446,6 +40446,7 @@ html body .card .item.assal-smart-added-item-safe-final{
   var followupSyncTimer = 0;
   var refreshPromise = null;
   var refreshVisualRequested = false;
+  var simpleAutoApplyBusy = false;
 
   function safe(v){ return String(v == null ? '' : v); }
   function clone(v){ try{ return JSON.parse(JSON.stringify(v)); }catch(_){ return null; } }
@@ -40472,8 +40473,8 @@ html body .card .item.assal-smart-added-item-safe-final{
   function fmtDateTime(v){ try{ return new Date(v).toLocaleString('ar-IQ',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(_){ return safe(v||'—'); } }
   function statusText(s){
     return ({
-      draft:'غير مرسل',pending_review:'مرسل — بانتظار المراجعة',approved_pending_upload:'مقبول — بانتظار الرفع',
-      applied:'تم التطبيق والرفع',rejected:'مرفوض',conflict:'تعارض',cancelled:'ملغى'
+      draft:'غير مرسل',pending_review:'قيد المعالجة',approved_pending_upload:'مقبول — بانتظار الرفع',
+      applied:'تم التطبيق',rejected:'مرفوض',conflict:'تعارض',cancelled:'ملغى'
     })[safe(s)] || safe(s||'—');
   }
   function isDebtTransferLockRequest(req){
@@ -40486,6 +40487,17 @@ html body .card .item.assal-smart-added-item-safe-final{
         return (Array.isArray(op.fields)?op.fields:[]).some(function(f){return safe(f&&f.field).trim()==='__debt_transfer_lock__';});
       });
     }catch(_){ return false; }
+  }
+
+  /* التطبيق التلقائي البسيط يخص فقط العمليات المحددة على بطاقة/مادة/ملاحظة/حركة مالية.
+     الطلبات الخاصة (قفل الدين، نصف يوم، تغيير اسم شامل) تبقى على مسارها الأصلي ولا تدخل هنا. */
+  function isSimpleAutoApplyEligible(req){
+    try{
+      if(!req||isDebtTransferLockRequest(req)||isAttendanceHalfDayRequest(req))return false;
+      var ops=Array.isArray(req.ops)?req.ops:[];
+      if(!ops.length||ops.some(isGlobalCustomerRenameOp))return false;
+      return ops.every(function(op){return !!op&&['card','line','note','payment'].indexOf(safe(op.scope))>=0;});
+    }catch(_){return false;}
   }
 
   function fieldLabel(scope, field){
@@ -40979,6 +40991,40 @@ html body .card .item.assal-smart-added-item-safe-final{
     if(!resp.ok)throw new Error('فشل إرسال الطلب'); var j=await resp.json(); if(!j||j.status==='error')throw new Error((j&&j.message)||'فشل إرسال الطلب'); return j;
   }
 
+  // إرسال طلب التعديل فقط: مهلة أطول + تحقق بالـ ID بعد الـ timeout + Retry واحد لا أكثر.
+  // لا يغيّر serverPost العام ولا يمس الحفظ/التطبيق/النسخ الاحتياطي.
+  function waitMs(ms){return new Promise(function(resolve){setTimeout(resolve,Math.max(0,Number(ms)||0));});}
+  async function submitCardRequestOnce(body){
+    if(!online())throw new Error('لا يوجد اتصال');
+    var resp=await fetchTimed(serverUrl('card-request-submit',{}),{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SYNC.TOKEN},body:JSON.stringify(body||{})},90000);
+    if(!resp.ok)throw new Error('فشل إرسال الطلب');
+    var j=await resp.json();
+    if(!j||j.status==='error')throw new Error((j&&j.message)||'فشل إرسال الطلب');
+    return j;
+  }
+  async function submitCardRequestSafe(body,requestId,quiet){
+    try{
+      return await submitCardRequestOnce(body);
+    }catch(firstErr){
+      if(safe(firstErr&&firstErr.message)!=='انتهت مهلة الاتصال')throw firstErr;
+
+      // قد يكون الطلب وصل فعلاً لكن الرد تأخر؛ افحص السيرفر قبل أي إعادة POST.
+      if(!quiet)progressSet('','التحقق من وصول الطلب','انتهت المهلة؛ نفحص السيرفر قبل إعادة الإرسال',68,'fa-solid fa-magnifying-glass');
+      try{
+        var list=await serverGetList();
+        var found=(Array.isArray(list)?list:[]).find(function(r){return safe(r&&r.id)===safe(requestId);});
+        if(found)return {status:'ok',request:found,recoveredAfterTimeout:true};
+      }catch(checkErr){
+        try{console.warn('[ASSAL request submit] verify after timeout failed',checkErr);}catch(_){ }
+      }
+
+      // Retry واحد فقط، بنفس request.id ونفس payload؛ لا توجد حلقة إعادة محاولات.
+      if(!quiet)progressSet('','إعادة محاولة الإرسال','لم يظهر الطلب بعد؛ محاولة أخيرة واحدة بعد 3 ثوانٍ',74,'fa-solid fa-rotate');
+      await waitMs(3000);
+      return await submitCardRequestOnce(body);
+    }
+  }
+
 
   function nextPaint(){return new Promise(function(resolve){try{requestAnimationFrame(function(){requestAnimationFrame(resolve);});}catch(_){setTimeout(resolve,0);}});}
   function ensureProgressToast(){
@@ -41010,11 +41056,18 @@ html body .card .item.assal-smart-added-item-safe-final{
   }
 
   function requestChangesPreview(req){
-    var changes=Array.isArray(req&&req.changes)?req.changes:summarizeOps((req&&req.ops)||[]),rows=changes.slice(0,3).map(function(ch){return '<div style="margin-top:6px">• '+esc(fieldLabel(ch.scope,ch.field))+' <span style="color:#fecaca">'+esc(toDisplay(ch.before))+'</span> ← <span style="color:#bbf7d0">'+esc(toDisplay(ch.after))+'</span></div>';}).join('');
-    return rows+(changes.length>3?'<div style="margin-top:7px;color:#94a3b8">ويوجد '+(changes.length-3)+' تغييرات أخرى ضمن الطلب</div>':'');
+    if(isPaymentDraft(req))return paymentRequestHtml(req);
+    if(isNewCardBundle(req))return newCardBundleHtml(req);
+    var changes=Array.isArray(req&&req.changes)?req.changes:summarizeOps((req&&req.ops)||[]),rows=changes.slice(0,4).map(function(ch){
+      var lbl=fieldLabel(ch.scope,ch.field)+(ch.item?' — '+safe(ch.item):'');
+      var structural=['__add__','__remove__','__move__'].indexOf(safe(ch.field))>=0;
+      if(structural)return '<div style="margin-top:6px">• <b>'+esc(lbl)+'</b></div>';
+      return '<div style="margin-top:6px">• '+esc(lbl)+' <span style="color:#fecaca">'+esc(toDisplay(ch.before))+'</span> ← <span style="color:#bbf7d0">'+esc(toDisplay(ch.after))+'</span></div>';
+    }).join('');
+    return rows+(changes.length>4?'<div style="margin-top:7px;color:#94a3b8">ويوجد '+(changes.length-4)+' تغييرات أخرى ضمن الطلب</div>':'');
   }
   function requestConfirmHtml(kind,req,extra){
-    var conf={approve:{icon:'fa-check',title:'اعتماد طلب التعديل',sub:'سيُطبق التغيير محلياً ثم تُرفع نسخة الرئيسية المحمية',hint:'تستمر الواجهة بالعمل، ويظهر تقدم العملية أعلى التطبيق.'},reject:{icon:'fa-xmark',title:'رفض طلب التعديل',sub:'لن تتغير بيانات الحاسبة الرئيسية',hint:'سيظهر الطلب مرفوضاً في أرشيف الأدمن.'},retry:{icon:'fa-cloud-arrow-up',title:'إكمال رفع الطلب',sub:'التعديل مطبق ومحفوظ محلياً',hint:'سيتم رفع أحدث نسخة ثابتة عبر الحماية الحالية دون تطبيق الطلب مرة ثانية.'},conflict:{icon:'fa-triangle-exclamation',title:'تعارض في طلب التعديل',sub:'تغيّرت بيانات مرتبطة بالطلب على الحاسبة الرئيسية',hint:'لن تُطبق أي خطوة غير مؤكدة.'}}[kind]||{};
+    var conf={send:{icon:'fa-paper-plane',title:'إرسال التعديل',sub:'سيصل التغيير المحدد فقط إلى الحاسبة الرئيسية ليُطبق تلقائياً بعد فحص التعارض',hint:'لا تُرسل نسخة بيانات من الأدمن؛ الطلب يحتوي العملية المحددة فقط.'},approve:{icon:'fa-check',title:'اعتماد طلب التعديل',sub:'سيُطبق التغيير محلياً ثم تُرفع نسخة الرئيسية المحمية',hint:'تستمر الواجهة بالعمل، ويظهر تقدم العملية أعلى التطبيق.'},reject:{icon:'fa-xmark',title:'رفض طلب التعديل',sub:'لن تتغير بيانات الحاسبة الرئيسية',hint:'سيظهر الطلب مرفوضاً في أرشيف الأدمن.'},retry:{icon:'fa-cloud-arrow-up',title:'إكمال رفع الطلب',sub:'التعديل مطبق ومحفوظ محلياً',hint:'سيتم رفع أحدث نسخة ثابتة عبر الحماية الحالية دون تطبيق الطلب مرة ثانية.'},conflict:{icon:'fa-triangle-exclamation',title:'تعارض في طلب التعديل',sub:'تغيّرت بيانات مرتبطة بالطلب على الحاسبة الرئيسية',hint:'لن تُطبق أي خطوة غير مؤكدة.'}}[kind]||{};
     return '<div class="assal-cr-confirm-pop '+esc(kind)+'"><div class="assal-cr-confirm-hero"><span class="assal-cr-confirm-icon"><i class="fa-solid '+esc(conf.icon||'fa-circle-question')+'"></i></span><div><div class="assal-cr-confirm-title">'+esc(conf.title||'تأكيد')+'</div><div class="assal-cr-confirm-sub">'+esc(conf.sub||'')+'</div></div></div><div class="assal-cr-confirm-box"><span class="assal-cr-confirm-chip"><i class="fa-solid fa-user"></i>'+esc((req&&req.customer)||'بطاقة بدون اسم')+'</span><span class="assal-cr-confirm-chip"><i class="fa-regular fa-calendar"></i>'+esc((req&&req.cardDay)||'—')+'</span>'+requestChangesPreview(req)+(extra||'')+'</div><div class="assal-cr-confirm-hint">'+esc(conf.hint||'')+'</div></div>';
   }
   async function requestConfirm(kind,req,opts){
@@ -41234,6 +41287,7 @@ html body .card .item.assal-smart-added-item-safe-final{
     else if(mode==='admin-archive')actions='<button class="assal-cr-btn delete" data-cr-hide-archive="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-trash-can')+'"></i> '+(isBusy?'جاري الحذف':'حذف')+'</button>';
     else if(mode==='main-incoming'){
       if(status==='approved_pending_upload')actions='<button class="assal-cr-btn retry '+(isBusy?'is-busy':'')+'" data-cr-retry="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+spin+'"></i> '+(isBusy?'جاري الرفع':'إكمال الرفع')+'</button>';
+      else if(isSimpleAutoApplyEligible(rec))actions='';
       else actions='<button class="assal-cr-btn approve '+(isBusy?'is-busy':'')+'" data-cr-approve="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-check')+'"></i> '+(isBusy?'جاري التنفيذ':'موافقة')+'</button><button class="assal-cr-btn reject" data-cr-reject="'+esc(rec.id)+'"'+dis+'><i class="fa-solid fa-xmark"></i> رفض</button>';
     }
     var conflict=rec.conflictNote?'<div class="assal-cr-conflict"><i class="fa-solid fa-triangle-exclamation"></i> '+esc(rec.conflictNote)+'</div>':'';
@@ -41252,11 +41306,11 @@ html body .card .item.assal-smart-added-item-safe-final{
       sendAll.style.display=activeTab==='drafts'?'inline-flex':'none';sendAll.disabled=!state.drafts.length;
       list.innerHTML=arr.length?arr.map(function(x){return cardHtml(x,activeTab==='archive'?'admin-archive':'draft');}).join(''):'<div class="assal-cr-empty"><div><i class="fa-regular fa-folder-open"></i>'+(activeTab==='archive'?'لا توجد طلبات في الأرشيف حالياً':'لا توجد تعديلات جديدة بانتظار الإرسال')+'</div></div>';
     }else{
-      root.querySelector('#assalCrTitle').textContent='طلبات التعديل الواردة — الحاسبة الرئيسية';root.querySelector('#assalCrSub').textContent='الموافقة تطبق التعديل محلياً ثم ترفع نسخة الرئيسية المحمية';
+      root.querySelector('#assalCrTitle').textContent='طلبات التعديل الواردة — الحاسبة الرئيسية';root.querySelector('#assalCrSub').textContent='التعديلات المحددة تُطبق تلقائياً بعد فحص التعارض؛ الطلبات الخاصة تبقى للمراجعة';
       var incoming=requestCache.filter(function(x){return safe(x.status)==='pending_review'||safe(x.status)==='approved_pending_upload';});
       var history=requestCache.filter(function(x){return safe(x.status)!=='pending_review'&&safe(x.status)!=='approved_pending_upload';});
       tabs.innerHTML='<button class="assal-cr-tab '+(activeTab==='incoming'?'active':'')+'" data-cr-tab="incoming"><i class="fa-solid fa-inbox"></i> الواردة ('+incoming.length+')</button><button class="assal-cr-tab '+(activeTab==='main-history'?'active':'')+'" data-cr-tab="main-history"><i class="fa-solid fa-clock-rotate-left"></i> السجل ('+history.length+')</button>';
-      var arr2=activeTab==='main-history'?history:incoming;sum.textContent=activeTab==='main-history'?'سجل القرارات السابقة':'راجع التغييرات قبل الموافقة';sendAll.style.display='none';
+      var arr2=activeTab==='main-history'?history:incoming;sum.textContent=activeTab==='main-history'?'سجل القرارات السابقة':'التعديلات العادية تُعالج تلقائياً من بيانات الرئيسية نفسها';sendAll.style.display='none';
       list.innerHTML=arr2.length?arr2.map(function(x){return cardHtml(x,activeTab==='main-history'?'main-history':'main-incoming');}).join(''):'<div class="assal-cr-empty"><div><i class="fa-solid fa-circle-check"></i>'+(activeTab==='main-history'?'لا يوجد سجل طلبات حالياً':'لا توجد طلبات تعديل بانتظار المراجعة')+'</div></div>';
     }
     updateButton();
@@ -41349,6 +41403,10 @@ html body .card .item.assal-smart-added-item-safe-final{
     var d=findDraft(reqId);if(!d||busyIds.has(reqId))return false;
     var older=state.drafts.some(function(x){return safe(x.cardId)===safe(d.cardId)&&new Date(x.createdAt||0)<new Date(d.createdAt||0);});
     if(older){if(!quiet)try{showToast('warn','أرسل أقدم تعديل لهذه البطاقة أولاً');}catch(_){}return false;}
+    if(!quiet&&isSimpleAutoApplyEligible(d)){
+      var sendOk=await requestConfirm('send',d,{title:'تأكيد إرسال وتطبيق التعديل',okText:'نعم، إرسال وتطبيق',cancelText:'تراجع'});
+      if(!sendOk)return false;
+    }
     busyIds.add(reqId);
     if(isModalOpen())renderModal();
     try{
@@ -41358,12 +41416,12 @@ html body .card .item.assal-smart-added-item-safe-final{
       delete payload.beforeCard; delete payload.afterCard;
       delete payload.beforePayment; delete payload.afterPayment;
       if(!quiet){progressSet('','إرسال طلب التعديل','إرسال الطلب إلى الحاسبة الرئيسية',58,'fa-solid fa-paper-plane');await nextPaint();}
-      var res=await serverPost('card-request-submit',{version:VERSION,actorEmail:email(),request:payload});
+      var res=await submitCardRequestSafe({version:VERSION,actorEmail:email(),request:payload},payload.id,quiet);
       if(!quiet){progressSet('','إرسال طلب التعديل','تثبيت الطلب في الأرشيف المحلي',86,'fa-solid fa-box-archive');await nextPaint();}
       var record=(res&&res.request)||payload;record.status=record.status||'pending_review';record.sentAt=record.sentAt||payload.sentAt;
       state.drafts=state.drafts.filter(function(x){return safe(x.id)!==safe(reqId);});state.archive.push(record);schedulePersist();
       updateButton();if(isModalOpen())renderModal();
-      if(!quiet)progressSuccess('تم إرسال طلب التعديل','انتقل الطلب إلى الأرشيف وبانتظار مراجعة الحاسبة الرئيسية');
+      if(!quiet)progressSuccess('تم إرسال طلب التعديل',isSimpleAutoApplyEligible(record)?'وصل الطلب للسيرفر وسيُطبق من الحاسبة الرئيسية تلقائياً':'انتقل الطلب إلى الأرشيف وبانتظار مراجعة الحاسبة الرئيسية');
       if(isAttendanceHalfDayRequest(record))notifyAttendanceHalfDayUi();
       if(isSingleCardCustomerChangeRequest(record))notifySingleCardCustomerChangeUi();
       return true;
@@ -41567,6 +41625,64 @@ html body .card .item.assal-smart-added-item-safe-final{
     catch(err){progressError('تعذر رفض الطلب',safe(err&&err.message||err));}
     finally{busyIds.delete(reqId);if(isModalOpen())renderModal();}
   }
+
+  /*
+    تطبيق تلقائي بسيط بنفس فلسفة قفل الدين:
+    - لا يبني ولا يرفع Backup خاص بطلب التعديل.
+    - لا يستخدم approve-pending ولا Worker ولا Queue مستقلة.
+    - يطبق op المحددة فقط على بيانات الرئيسية الحالية بالدوال الأصلية.
+    - إذا التطبيق المحلي تم وفشل فقط تثبيت الحالة على السيرفر، يعاد تثبيت الحالة لاحقاً من دون إعادة التطبيق.
+    - يعالج طلباً واحداً فقط في كل دورة تحديث؛ لا توجد حلقة إعادة محاولات سريعة.
+  */
+  async function simpleAutoApplyOnePending(){
+    if(!ready||!isMain()||simpleAutoApplyBusy||activeUploadRequestId||busyIds.size||!online())return false;
+    var req=requestCache.filter(function(r){return safe(r&&r.status)==='pending_review'&&isSimpleAutoApplyEligible(r);}).sort(function(a,b){return safe(a.sentAt||a.createdAt).localeCompare(safe(b.sentAt||b.createdAt));})[0];
+    if(!req)return false;
+    var reqId=safe(req.id);simpleAutoApplyBusy=true;busyIds.add(reqId);if(isModalOpen())renderModal();
+    try{
+      /* إذا كان التعديل قد نُفذ محلياً سابقاً وفشل فقط تأكيد السيرفر، لا نعيد أي كتابة. */
+      if(isAppliedLocal(reqId)){
+        var ack=await serverPost('card-request-action',{version:VERSION,action:'applied',requestId:reqId,actorEmail:email(),appliedAt:now()});
+        if(ack&&ack.request)mergeRequestCache(ack.request);
+        return true;
+      }
+
+      /* الفحص والتطبيق متتاليان بلا await بينهما؛ الفوكس أو النص غير المحفوظ في الدوك لا يعد تغييراً للبيانات. */
+      var conflicts=preflight(req);
+      if(conflicts.length){
+        var cr=await serverPost('card-request-action',{version:VERSION,action:'conflict',requestId:reqId,actorEmail:email(),note:conflicts.join(' | ')});
+        if(cr&&cr.request)mergeRequestCache(cr.request);else{var lc=clone(req)||{};lc.status='conflict';lc.conflictNote=conflicts.join(' | ');mergeRequestCache(lc);}
+        progressError('تعذر تطبيق التعديل بأمان',conflicts[0]);
+        return false;
+      }
+
+      progressSet('','تطبيق التعديل','تطبيق الجزء المحدد على بيانات الحاسبة الرئيسية',32,'fa-solid fa-pen-to-square');
+      withSuppressedCapture(function(){
+        applyRequestOps(req,false);
+        var r=window.save();
+        if(r&&r.ok===false)throw new Error('فشل الحفظ المحلي');
+      });
+      markAppliedLocal(reqId);
+      refreshAffectedUi(req);
+
+      /* مثل قفل الدين: بعد نجاح التطبيق المحلي نثبت فقط حالة الطلب على السيرفر. */
+      try{
+        var res=await serverPost('card-request-action',{version:VERSION,action:'applied',requestId:reqId,actorEmail:email(),appliedAt:now()});
+        if(res&&res.request)mergeRequestCache(res.request);else{var done=clone(req)||{};done.status='applied';done.appliedAt=now();mergeRequestCache(done);}
+        progressSuccess('تم تطبيق التعديل','تم تعديل الجزء المقصود على الحاسبة الرئيسية');
+      }catch(ackErr){
+        /* البيانات لا تعاد كتابتها؛ الدورة التالية تعيد تأكيد الحالة فقط عبر isAppliedLocal. */
+        progressSet('warn','تم التطبيق محلياً','تعذر تثبيت الحالة على السيرفر وسيعاد التأكيد لاحقاً',100,'fa-solid fa-cloud-arrow-up');
+        try{console.warn('[ASSAL simple auto apply] server acknowledgement pending',ackErr);}catch(_){ }
+      }
+      return true;
+    }catch(err){
+      progressError('تعذر تطبيق التعديل',safe(err&&err.message||err));
+      return false;
+    }finally{
+      busyIds.delete(reqId);simpleAutoApplyBusy=false;updateButton();if(isModalOpen())renderModal();
+    }
+  }
   function handleListClick(e){var b=e.target.closest('button');if(!b)return;var idv=b.getAttribute('data-cr-send')||b.getAttribute('data-cr-delete-draft')||b.getAttribute('data-cr-dismiss-draft')||b.getAttribute('data-cr-hide-archive')||b.getAttribute('data-cr-approve')||b.getAttribute('data-cr-reject')||b.getAttribute('data-cr-retry');if(!idv)return;e.preventDefault();
     var task=null;if(b.hasAttribute('data-cr-send'))task=sendDraft(idv,false);else if(b.hasAttribute('data-cr-delete-draft'))task=deleteDraft(idv);else if(b.hasAttribute('data-cr-dismiss-draft'))task=dismissDraftOnly(idv);else if(b.hasAttribute('data-cr-hide-archive'))task=hideArchive(idv);else if(b.hasAttribute('data-cr-approve'))task=approveRequest(idv);else if(b.hasAttribute('data-cr-reject'))task=rejectRequest(idv);else if(b.hasAttribute('data-cr-retry'))task=retryUpload(idv);if(task&&typeof task.catch==='function')task.catch(function(err){try{console.error('[ASSAL request action]',err);}catch(_){ }});
   }
@@ -41624,6 +41740,7 @@ html body .card .item.assal-smart-added-item-safe-final{
         refreshPromise=null;
         setRefreshButtonBusy(false);
         refreshVisualRequested=false;
+        if(isMain())setTimeout(function(){simpleAutoApplyOnePending().catch(function(err){try{console.warn('[ASSAL simple auto apply]',err);}catch(_){ }});},0);
       }
     })();return refreshPromise;
   }
