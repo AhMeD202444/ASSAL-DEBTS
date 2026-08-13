@@ -45553,7 +45553,7 @@ body.assal-owner-exclusive > #modal.active{
   #assalDebtTransferLockHost.is-visible{
     display:block;
     pointer-events:auto;
-    animation:assalDebtTransferLockIn .18s ease both;
+    animation:none;
   }
   @keyframes assalDebtTransferLockIn{
     from{opacity:0;transform:translateY(-5px)}
@@ -46089,7 +46089,7 @@ body.assal-owner-exclusive > #modal.active{
     var existingHost=byId('assalDebtTransferLockHost');if(existingHost)mountLockPanel(existingHost);
     var day=selectedDayValue(),lockDay=validDay(localState.lockDay)?localState.lockDay:'';
     var changed=day!==viewState.selectedDay||lockDay!==viewState.lockDay;
-    if(changed){clearInlineEdit();if(day!==viewState.selectedDay){viewState.unlockedDay='';viewState.unlockedCardKey='';viewState.promptCardKey='';viewState.actionDay='';viewState.actionCardId=''}if(lockDay!==viewState.lockDay){viewState.unlockedDay='';viewState.unlockedCardKey='';viewState.promptCardKey='';viewState.actionDay='';viewState.actionCardId=''}}
+    if(changed){clearInlineEdit();if(day!==viewState.selectedDay){viewState.unlockedDay='';viewState.unlockedCardKey='';viewState.promptDay='';viewState.promptCardKey='';viewState.actionDay='';viewState.actionCardId=''}if(lockDay!==viewState.lockDay){viewState.unlockedDay='';viewState.unlockedCardKey='';viewState.promptCardKey='';viewState.actionDay='';viewState.actionCardId=''}}
     viewState.selectedDay=day;viewState.lockDay=lockDay;
     var locked=isDayLocked(day);
     viewState.locked=locked;refreshVisibleCardLocks();
