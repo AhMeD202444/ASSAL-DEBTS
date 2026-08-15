@@ -26751,14 +26751,31 @@ window.ASSAL_SET_OWNER_HARD_LOCK = assalSetOwnerHardLock;
 function assalAuthBootBegin(){ try{ document.documentElement.classList.add('assal-auth-pending'); }catch(_){ } }
 function assalAuthBootFinish(){ try{ document.documentElement.classList.remove('assal-auth-pending'); }catch(_){ } }
 
+// حارس حالة المصادقة: يمنع أي callback قديم من إعادة إخفاء بوابة الدخول بعد تسجيل الخروج.
+let assalAuthStateVersion = 0;
+let assalSignedOutUiLocked = false;
+function assalInvalidateAuthAsync(){ assalAuthStateVersion += 1; return assalAuthStateVersion; }
+function assalAuthUserStillCurrent(version,user){
+  if(version !== assalAuthStateVersion) return false;
+  const current = auth.currentUser;
+  if(!user) return !current;
+  return !!current && String(current.uid || '') === String(user.uid || '');
+}
+function assalLockSignedOutUi(on){
+  assalSignedOutUiLocked = !!on;
+  try{ document.documentElement.classList.toggle('assal-signed-out', !!on); }catch(_){ }
+}
+
 // خروج المالك Fail-Closed: لا نكشف واجهة الديون بين إنهاء الجلسة وظهور بوابة الدخول.
 let assalSignedOutGateApplied = false;
 function assalFinalizeSignedOutGate(message=''){
-  try{ showGate(message); }catch(_){ } // جهّز البوابة أولاً وهي ما تزال خلف غطاء المصادقة.
+  // من هذه اللحظة حالة الخروج هي المرجع النهائي للواجهة؛ أي hideGate قديم يُرفض.
+  assalLockSignedOutUi(true);
   if(!assalSignedOutGateApplied){
     assalSignedOutGateApplied = true;
     try{ setSignedOutUI(); }catch(err){ console.error('[ASSAL auth] signed-out UI',err); }
   }
+  try{ showGate(message); }catch(_){ }
   try{
     if(gate){
       gate.classList.remove('fade-out');
@@ -26770,6 +26787,7 @@ function assalFinalizeSignedOutGate(message=''){
   try{ hideSplash(); }catch(_){ }
 }
 window.ASSAL_OWNER_AUTH_LOGOUT = async function(){
+  assalInvalidateAuthAsync();
   assalAuthBootBegin();
   try{ showSplash('جاري تسجيل الخروج…'); }catch(_){ }
   try{
@@ -26934,18 +26952,34 @@ function setBtnLoading(btn, on){
 
 
 
+let assalGateHideTimer = null;
 function showGate(message=''){
+  if(assalGateHideTimer){ clearTimeout(assalGateHideTimer); assalGateHideTimer = null; }
   gate.classList.remove('fade-out');
   gate.classList.add('fade-in');
   gate.style.display = 'grid';
   if(msgEl) msgEl.textContent = message || '';
   if(btnLogout) btnLogout.style.display = 'none';
 }
-function hideGate(){
+function hideGate(force=false){
+  // بعد تسجيل الخروج تبقى بوابة الدخول مفروضة حتى يبدأ المستخدم محاولة دخول صريحة.
+  if(assalSignedOutUiLocked && !force){
+    try{
+      gate.classList.remove('fade-out');
+      gate.classList.add('fade-in');
+      gate.style.display = 'grid';
+    }catch(_){ }
+    return;
+  }
   gate.classList.remove('fade-in');
   gate.classList.add('fade-out');
-  // اخفِ بعد الأنيميشن
-  setTimeout(()=>{ gate.style.display = 'none'; }, 200);
+  // اخفِ بعد الأنيميشن، وألغِ الإخفاء إذا أصبحت الجلسة Signed Out أثناء الانتظار.
+  if(assalGateHideTimer) clearTimeout(assalGateHideTimer);
+  assalGateHideTimer = setTimeout(()=>{
+    assalGateHideTimer = null;
+    if(assalSignedOutUiLocked){ gate.style.display = 'grid'; return; }
+    gate.style.display = 'none';
+  }, 200);
   if(msgEl) msgEl.textContent = '';
   if(btnLogout) btnLogout.style.display = '';
 }
@@ -26953,6 +26987,7 @@ function hideGate(){
 // UI عند الدخول/الخروج
 function setSignedInUI(user){
   assalSignedOutGateApplied = false;
+  assalLockSignedOutUi(false);
   window.IS_SIGNED_IN = true;
   const cleanEmail = (window.ASSAL_NORMALIZE_LOGIN_EMAIL ? window.ASSAL_NORMALIZE_LOGIN_EMAIL(user?.email) : String(user?.email || '').trim().toLowerCase());
   const owner = assalIsOwnerEmail(cleanEmail);
@@ -26977,6 +27012,7 @@ function setSignedInUI(user){
 
 
 function setSignedOutUI(){
+  assalLockSignedOutUi(true);
   window.IS_SIGNED_IN = false;
   window.ASSAL_LOGIN_EMAIL = '';
   window.ASSAL_OWNER_VIEWER = false;
@@ -27039,11 +27075,16 @@ btnEl?.addEventListener('click', async ()=>{
   assalAuthBootBegin();
   setBtnLoading(btnEl, true);
   try{
-    hideGate();                 // أنيميشين خفيف
+    hideGate(true);             // محاولة دخول صريحة فقط: اسمح بإخفاء البوابة خلف سلاش المصادقة.
     setTimeout(()=> showSplash(), 180);  // بعد خفوت البوابة
 
     const { user } = await signInWithEmailAndPassword(auth, email, pass);
-    if(!(await isAllowed(user.email))){
+    const allowed = await isAllowed(user.email);
+    if(!auth.currentUser || String(auth.currentUser.uid || '') !== String(user.uid || '')){
+      assalFinalizeSignedOutGate('');
+      return;
+    }
+    if(!allowed){
       await signOut(auth);
       try{ window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE && window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE(false); }catch(_){ }
       assalAuthBootFinish();
@@ -27113,11 +27154,12 @@ btnLogout?.addEventListener('click', async ()=>{
 
   if(!confirmed) return;
 
+  assalInvalidateAuthAsync();
+  assalAuthBootBegin();
   showSplash();
   try{
     await signOut(auth);
-    setSignedOutUI();
-    showGate('');
+    assalFinalizeSignedOutGate('');
   }finally{
     hideSplash();
   }
@@ -27125,6 +27167,7 @@ btnLogout?.addEventListener('click', async ()=>{
 
 // مراقبة حالة المصادقة (واحد فقط)
 onAuthStateChanged(auth, async (user)=>{
+  const authVersion = assalInvalidateAuthAsync();
   showSplash();
 
   if(user){
@@ -27144,17 +27187,17 @@ onAuthStateChanged(auth, async (user)=>{
   }
 
   const ok = await isAllowed(user.email);
+  // إذا حدث خروج/تبدّل جلسة أثناء انتظار Firestore، تجاهل هذا الرد القديم بالكامل.
+  if(!assalAuthUserStillCurrent(authVersion,user)) return;
   if(!ok){
+    assalInvalidateAuthAsync();
     await signOut(auth);
-    setSignedOutUI();
-    assalAuthBootFinish();
-    showGate('الإيميل غير مخوّل');
-    hideSplash();
+    assalFinalizeSignedOutGate('الإيميل غير مخوّل');
     return;
   }
 
-  hideGate();
   setSignedInUI(user);
+  hideGate();
 
   // حساب المالك: مسار حصري مغلق، بلا أي تنفيذ لمسار التطبيق الأصلي.
   if(window.ASSAL_OWNER_VIEWER === true){
@@ -27164,10 +27207,9 @@ onAuthStateChanged(auth, async (user)=>{
     }catch(err){
       console.error('[ASSAL OWNER STRICT ROUTE]', err);
       try{ assalSetOwnerHardLock(true,'تعذر فتح واجهة المالك بأمان. سيتم إنهاء الجلسة دون فتح واجهة الديون.'); }catch(_){ }
+      assalInvalidateAuthAsync();
       try{ await signOut(auth); }catch(_){ }
-      setSignedOutUI();
-      assalAuthBootFinish();
-      showGate('تعذر فتح واجهة المالك بأمان. أعد تسجيل الدخول.');
+      assalFinalizeSignedOutGate('تعذر فتح واجهة المالك بأمان. أعد تسجيل الدخول.');
     }finally{
       hideSplash();
     }
@@ -42738,18 +42780,57 @@ body.assal-debt-followup-open{overflow:hidden !important;}
 
 <!-- ===== ASSAL OWNER MOBILE DEBT PANEL + FOLLOW-UP FINAL ===== -->
 <style id="assal-owner-mobile-followup-final-style">
-/* تحسين أول دخول على الهاتف لكل الحسابات، بدون تغيير منطق المصادقة */
-@media (max-width:900px), (pointer:coarse) and (max-width:1180px){
+/* عند الخروج: بوابة الدخول هي الواجهة الوحيدة المسموحة حتى يبدأ تسجيل دخول جديد. */
+html.assal-signed-out body > :not(#loginGate):not(#authSplash):not(script):not(style):not(link):not(noscript){
+  display:none !important;
+  visibility:hidden !important;
+  pointer-events:none !important;
+  user-select:none !important;
+}
+html.assal-signed-out body > #loginGate{
+  display:grid !important;
+  visibility:visible !important;
+  pointer-events:auto !important;
+  opacity:1 !important;
+  position:fixed !important;
+  inset:0 !important;
+  z-index:2147483646 !important;
+}
+html.assal-signed-out.assal-auth-pending body > #authSplash{
+  display:grid !important;
+  visibility:visible !important;
+  pointer-events:auto !important;
+  z-index:2147483647 !important;
+}
+
+/* نافذة الدخول مهيأة لمتصفحات الهاتف والـWebView والكيبورد المتحرك. */
+@media (max-width:900px), (hover:none) and (pointer:coarse){
   #loginGate.gate{
+    position:fixed !important;
+    inset:0 !important;
+    width:100vw !important;
+    max-width:100vw !important;
+    min-width:0 !important;
+    height:100vh;
+    min-height:100vh;
+    height:100dvh;
     min-height:100dvh;
-    padding:max(14px,env(safe-area-inset-top)) 12px max(14px,env(safe-area-inset-bottom));
+    box-sizing:border-box !important;
+    padding:max(14px,env(safe-area-inset-top,0px)) 12px max(14px,env(safe-area-inset-bottom,0px));
     place-items:center;
-    overflow:auto;
+    overflow-y:auto !important;
+    overflow-x:hidden !important;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
   }
   #loginGate .gate-card{
-    width:min(100%,430px) !important;
+    width:min(430px,calc(100vw - 24px)) !important;
+    max-width:430px !important;
+    max-height:calc(100vh - 28px);
     max-height:calc(100dvh - 28px);
+    margin:auto !important;
     overflow:auto;
+    -webkit-overflow-scrolling:touch;
     padding:20px 16px 18px !important;
     border-radius:22px !important;
     animation:none !important;
@@ -42760,6 +42841,10 @@ body.assal-debt-followup-open{overflow:hidden !important;}
   #loginGate .g-sub{font-size:13px;}
   #loginGate .gate-input{height:50px !important;font-size:16px !important;border-radius:14px !important;}
   #loginGate .gate-btn{height:50px !important;border-radius:14px !important;font-size:15px;}
+}
+@media (max-height:560px) and (orientation:landscape){
+  #loginGate.gate{ place-items:start center; }
+  #loginGate .gate-card{ margin:8px auto !important; max-height:none; }
 }
 
 body.assal-owner-mode{
