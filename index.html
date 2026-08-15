@@ -26750,7 +26750,40 @@ function assalSetOwnerHardLock(on, message){
 window.ASSAL_SET_OWNER_HARD_LOCK = assalSetOwnerHardLock;
 function assalAuthBootBegin(){ try{ document.documentElement.classList.add('assal-auth-pending'); }catch(_){ } }
 function assalAuthBootFinish(){ try{ document.documentElement.classList.remove('assal-auth-pending'); }catch(_){ } }
-window.ASSAL_OWNER_AUTH_LOGOUT = async function(){ assalAuthBootBegin(); await signOut(auth); };
+
+// خروج المالك Fail-Closed: لا نكشف واجهة الديون بين إنهاء الجلسة وظهور بوابة الدخول.
+let assalSignedOutGateApplied = false;
+function assalFinalizeSignedOutGate(message=''){
+  try{ showGate(message); }catch(_){ } // جهّز البوابة أولاً وهي ما تزال خلف غطاء المصادقة.
+  if(!assalSignedOutGateApplied){
+    assalSignedOutGateApplied = true;
+    try{ setSignedOutUI(); }catch(err){ console.error('[ASSAL auth] signed-out UI',err); }
+  }
+  try{
+    if(gate){
+      gate.classList.remove('fade-out');
+      gate.classList.add('fade-in');
+      gate.style.display = 'grid';
+    }
+  }catch(_){ }
+  assalAuthBootFinish();
+  try{ hideSplash(); }catch(_){ }
+}
+window.ASSAL_OWNER_AUTH_LOGOUT = async function(){
+  assalAuthBootBegin();
+  try{ showSplash('جاري تسجيل الخروج…'); }catch(_){ }
+  try{
+    await signOut(auth);
+    // لا نعتمد حصراً على توقيت onAuthStateChanged في الهاتف.
+    assalFinalizeSignedOutGate('');
+    return true;
+  }catch(err){
+    // إذا فشل signOut تبقى جلسة المالك نفسها؛ نرفع الغطاء ونرجع للمالك بلا كشف للواجهة الأصلية.
+    assalAuthBootFinish();
+    try{ hideSplash(); }catch(_){ }
+    throw err;
+  }
+};
 
 function assalOwnerEventAllowed(target, event){
   try{
@@ -26919,6 +26952,7 @@ function hideGate(){
 
 // UI عند الدخول/الخروج
 function setSignedInUI(user){
+  assalSignedOutGateApplied = false;
   window.IS_SIGNED_IN = true;
   const cleanEmail = (window.ASSAL_NORMALIZE_LOGIN_EMAIL ? window.ASSAL_NORMALIZE_LOGIN_EMAIL(user?.email) : String(user?.email || '').trim().toLowerCase());
   const owner = assalIsOwnerEmail(cleanEmail);
@@ -27104,10 +27138,8 @@ onAuthStateChanged(auth, async (user)=>{
   }
 
   if(!user){
-    setSignedOutUI();
-    assalAuthBootFinish();
-    showGate('');
-    hideSplash();
+    // البوابة تُجهّز قبل فك غطاء المصادقة، حتى لا تظهر واجهة الديون ولو لإطار واحد.
+    assalFinalizeSignedOutGate('');
     return;
   }
 
