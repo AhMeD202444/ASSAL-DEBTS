@@ -34404,14 +34404,99 @@ html body .card .card-foot > .card-sums .assal-toggle-face{
   function ledgerBeforeStart(iso,fromISO){ if(!fromISO) return false; var d=ledgerDayNumber(iso), f=ledgerDayNumber(fromISO); return d!=null&&f!=null?d<f:String(iso||'')<String(fromISO||''); }
   function ledgerInsideInclusiveRange(iso,fromISO,toISO){ var d=ledgerDayNumber(iso), f=ledgerDayNumber(fromISO), t=ledgerDayNumber(toISO); if(fromISO && (d!=null&&f!=null?d<f:String(iso||'')<String(fromISO||''))) return false; if(toISO && (d!=null&&t!=null?d>t:String(iso||'')>String(toISO||''))) return false; return true; }
   function fmtDate(iso){ if(!iso) return '—'; try{ if(typeof window.fmtDMY==='function') return window.fmtDMY(iso); }catch(_){} var m=String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/); return m?m[3]+'-'+m[2]+'-'+m[1]:String(iso); }
-  function ledgerDateDMY(iso){ var m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m?(m[3]+'/'+m[2]+'/'+m[1]):'يوم/شهر/سنة'; }
-  function syncLedgerDateDMY(input){ if(!input)return; var wrap=input.closest&&input.closest('.assal-ledger-dmy-control'),txt=wrap&&wrap.querySelector('.assal-ledger-dmy-text'); if(txt)txt.textContent=ledgerDateDMY(input.value); }
+  function ledgerDateDMY(iso){ var m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m?(m[3]+'/'+m[2]+'/'+m[1]):''; }
+  function ledgerDateDMYToISO(v){
+    var s=latin(v==null?'':v).trim().replace(/\s+/g,'');
+    var m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+    if(!m)return '';
+    var d=Number(m[1]),mo=Number(m[2]),y=Number(m[3]);
+    if(y<1000||mo<1||mo>12||d<1||d>31)return '';
+    var x=new Date(Date.UTC(y,mo-1,d));
+    if(x.getUTCFullYear()!==y||x.getUTCMonth()!==mo-1||x.getUTCDate()!==d)return '';
+    return String(y).padStart(4,'0')+'-'+String(mo).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+  }
+  function syncLedgerDateDMY(input){
+    if(!input)return;
+    var wrap=input.closest&&input.closest('.assal-ledger-dmy-control');
+    var txt=wrap&&wrap.querySelector('.assal-ledger-dmy-text-input');
+    if(txt)txt.value=ledgerDateDMY(input.value);
+    if(wrap)wrap.classList.remove('is-invalid');
+  }
+  function commitLedgerDateDMYText(txt,force){
+    if(!txt)return false;
+    var wrap=txt.closest&&txt.closest('.assal-ledger-dmy-control');
+    var input=wrap&&wrap.querySelector('input[type="date"]');
+    if(!wrap||!input)return false;
+    var iso=ledgerDateDMYToISO(txt.value);
+    if(!iso){ if(force)wrap.classList.add('is-invalid'); return false; }
+    wrap.classList.remove('is-invalid');
+    txt.value=ledgerDateDMY(iso);
+    if(input.value!==iso){
+      input.value=iso;
+      try{
+        if(!normalizeLedgerDateInput(input)){
+          clearPreview('تم منع التاريخ الأقل من '+LEDGER_MIN_LABEL+'. اضغط عرض بعد اختيار الفترة الصحيحة.');
+          return false;
+        }
+        clearPreview(input.id==='assalLedgerFrom'?'تم تغيير تاريخ البداية، اضغط عرض لتحديث الكشف.':'تم تغيير تاريخ النهاية، اضغط عرض لتحديث الكشف.');
+      }catch(_){ syncLedgerDateDMY(input); }
+    }else syncLedgerDateDMY(input);
+    return true;
+  }
+  function stepLedgerDateDMYText(txt,delta){
+    if(!txt||!delta)return false;
+    var wrap=txt.closest&&txt.closest('.assal-ledger-dmy-control');
+    var input=wrap&&wrap.querySelector('input[type="date"]');
+    if(!wrap||!input)return false;
+    var iso=ledgerDateDMYToISO(txt.value)||String(input.value||'');
+    var m=iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(!m)return false;
+    var pos=(typeof txt.selectionStart==='number')?txt.selectionStart:0;
+    var part=pos<=2?'day':(pos<=5?'month':'year');
+    var y=Number(m[1]),mo=Number(m[2]),d=Number(m[3]);
+    function daysInMonth(yy,mm){return new Date(Date.UTC(yy,mm,0)).getUTCDate();}
+    if(part==='day'){
+      var dayDate=new Date(Date.UTC(y,mo-1,d));
+      dayDate.setUTCDate(dayDate.getUTCDate()+delta);
+      y=dayDate.getUTCFullYear();mo=dayDate.getUTCMonth()+1;d=dayDate.getUTCDate();
+    }else if(part==='month'){
+      var total=(y*12)+(mo-1)+delta;
+      y=Math.floor(total/12);mo=((total%12)+12)%12+1;
+      if(y<1000||y>9999)return false;
+      d=Math.min(d,daysInMonth(y,mo));
+    }else{
+      y+=delta;if(y<1000||y>9999)return false;
+      d=Math.min(d,daysInMonth(y,mo));
+    }
+    var next=String(y).padStart(4,'0')+'-'+String(mo).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    txt.value=ledgerDateDMY(next);
+    var ok=commitLedgerDateDMYText(txt,true);
+    var range=part==='day'?[0,2]:(part==='month'?[3,5]:[6,10]);
+    try{txt.focus({preventScroll:true});txt.setSelectionRange(range[0],range[1]);}catch(_){try{txt.setSelectionRange(range[0],range[1]);}catch(__){}}
+    return ok;
+  }
   function ensureLedgerDateDMY(input){
     if(!input)return;
-    var existing=input.closest&&input.closest('.assal-ledger-dmy-control');if(existing){syncLedgerDateDMY(input);return;}
-    var parent=input.parentNode;if(!parent)return;var wrap=document.createElement('div');wrap.className='assal-ledger-dmy-control';parent.insertBefore(wrap,input);wrap.appendChild(input);
-    var visual=document.createElement('div');visual.className='assal-ledger-dmy-visual';visual.innerHTML='<i class="fa-regular fa-calendar"></i><b class="assal-ledger-dmy-text">يوم/شهر/سنة</b>';wrap.appendChild(visual);
-    input.addEventListener('input',function(){syncLedgerDateDMY(input);});input.addEventListener('change',function(){syncLedgerDateDMY(input);});syncLedgerDateDMY(input);
+    var existing=input.closest&&input.closest('.assal-ledger-dmy-control');
+    if(existing){syncLedgerDateDMY(input);return;}
+    var parent=input.parentNode;if(!parent)return;
+    var wrap=document.createElement('div');wrap.className='assal-ledger-dmy-control';parent.insertBefore(wrap,input);wrap.appendChild(input);
+    input.classList.add('assal-ledger-native-date-picker');
+    input.setAttribute('aria-label','فتح تقويم اختيار التاريخ');
+    var icon=document.createElement('span');icon.className='assal-ledger-dmy-picker-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML='<i class="fa-regular fa-calendar"></i>';wrap.appendChild(icon);
+    var txt=document.createElement('input');txt.type='text';txt.className='assal-ledger-dmy-text-input';txt.inputMode='numeric';txt.autocomplete='off';txt.spellcheck=false;txt.placeholder='يوم/شهر/سنة';txt.setAttribute('aria-label','التاريخ بصيغة يوم شهر سنة');wrap.appendChild(txt);
+    txt.addEventListener('input',function(){ wrap.classList.remove('is-invalid'); });
+    txt.addEventListener('blur',function(){ commitLedgerDateDMYText(txt,true); });
+    txt.addEventListener('keydown',function(e){
+      if(e.key==='ArrowUp'||e.key==='ArrowDown'){
+        e.preventDefault();e.stopPropagation();
+        stepLedgerDateDMYText(txt,e.key==='ArrowUp'?1:-1);
+      }else if(e.key==='Enter'){ e.preventDefault(); if(commitLedgerDateDMYText(txt,true)) renderPreview(); }
+      else if(e.key==='Escape'){ e.preventDefault(); syncLedgerDateDMY(input); try{txt.select();}catch(_){} }
+    });
+    input.addEventListener('input',function(){syncLedgerDateDMY(input);});
+    input.addEventListener('change',function(){syncLedgerDateDMY(input);});
+    syncLedgerDateDMY(input);
   }
   function fmtTime(v){ try{ if(typeof window.arTime==='function') return window.arTime(v); }catch(_){} try{ if(!v) return ''; var d=new Date(v); if(isNaN(d.getTime())) return ''; return d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}); }catch(_){ return ''; } }
   function getCards(dayVal){ try{ if(typeof window.__getCardsFromDayVal__==='function') return window.__getCardsFromDayVal__(dayVal)||[]; }catch(_){} if(Array.isArray(dayVal)) return dayVal; if(dayVal&&Array.isArray(dayVal.cards)) return dayVal.cards; if(dayVal&&Array.isArray(dayVal.bills)) return dayVal.bills; return []; }
@@ -34831,7 +34916,7 @@ html body .card .card-foot > .card-sums .assal-toggle-face{
     bd.querySelectorAll('[data-ledger-scope]').forEach(function(b){ b.classList.add('active'); b.setAttribute('aria-pressed','true'); });
     bd.classList.add('active'); document.body.classList.add('modal-open');
     clearPreview('اختر الفترة ونوع الكشف، ثم اضغط عرض.');
-    setTimeout(function(){ try{ f&&f.focus(); }catch(_){} },40);
+    setTimeout(function(){ try{ var __dw=f&&f.closest&&f.closest('.assal-ledger-dmy-control'),__dt=__dw&&__dw.querySelector('.assal-ledger-dmy-text-input'); (__dt||f)&&(__dt||f).focus(); }catch(_){} },40);
   }
   function closeModal(){
     closeResultsModal();
@@ -46712,29 +46797,44 @@ body.assal-owner-exclusive > #modal.active{
 .assal-ledger-date-field .assal-ledger-dmy-control{
   position:relative;width:100%;height:44px;border-radius:15px;
   border:1px solid rgba(255,255,255,.14);background:rgba(2,6,23,.48);
-  overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+  display:grid;grid-template-columns:40px minmax(0,1fr);align-items:center;gap:4px;
+  padding:4px 8px;direction:ltr;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
 }
 .assal-ledger-date-field .assal-ledger-dmy-control:focus-within{
   border-color:rgba(14,165,233,.56);box-shadow:0 0 0 3px rgba(14,165,233,.13);
 }
-.assal-ledger-date-field .assal-ledger-dmy-control > input[type="date"]{
-  position:absolute !important;inset:0 !important;width:100% !important;height:100% !important;
-  margin:0 !important;padding:0 !important;border:0 !important;background:transparent !important;
-  opacity:0 !important;z-index:3 !important;cursor:pointer !important;
+.assal-ledger-date-field .assal-ledger-dmy-control.is-invalid{
+  border-color:rgba(239,68,68,.72);box-shadow:0 0 0 3px rgba(239,68,68,.12);
 }
-.assal-ledger-date-field .assal-ledger-dmy-visual{
-  position:absolute;inset:0;z-index:2;pointer-events:none;display:flex;align-items:center;justify-content:center;
-  gap:10px;padding:0 12px;color:#fff;direction:ltr;font-weight:950;font-variant-numeric:tabular-nums;
+.assal-ledger-date-field .assal-ledger-dmy-picker-icon{
+  grid-column:1;width:36px;height:34px;border-radius:10px;display:grid;place-items:center;
+  color:#cbd5e1;background:rgba(15,23,42,.68);border:1px solid rgba(148,163,184,.18);pointer-events:none;
 }
-.assal-ledger-date-field .assal-ledger-dmy-visual i{color:#cbd5e1;font-size:14px;}
-.assal-ledger-date-field .assal-ledger-dmy-text{font-size:14px;letter-spacing:.15px;}
-body.assal-ledger-owner-context .assal-ledger-date-field .assal-ledger-dmy-control{height:38px;border-radius:11px;}
-body.assal-ledger-owner-context .assal-ledger-date-field .assal-ledger-dmy-text{font-size:12px;}
+.assal-ledger-date-field .assal-ledger-dmy-picker-icon i{font-size:14px;}
+.assal-ledger-date-field .assal-ledger-dmy-control > input[type="date"].assal-ledger-native-date-picker{
+  position:absolute !important;left:8px !important;top:4px !important;right:auto !important;bottom:auto !important;
+  width:36px !important;height:34px !important;margin:0 !important;padding:0 !important;border:0 !important;
+  background:transparent !important;opacity:0 !important;z-index:4 !important;cursor:pointer !important;color-scheme:dark;
+}
+.assal-ledger-date-field .assal-ledger-dmy-text-input{
+  grid-column:2;width:100%;min-width:0;height:34px;margin:0 !important;padding:0 10px !important;
+  border:0 !important;border-radius:10px !important;outline:0 !important;background:transparent !important;
+  color:#fff !important;text-align:center !important;direction:ltr !important;font-family:inherit !important;
+  font-size:14px !important;font-weight:950 !important;line-height:34px !important;font-variant-numeric:tabular-nums;
+  box-shadow:none !important;caret-color:#fff;
+}
+.assal-ledger-date-field .assal-ledger-dmy-text-input::placeholder{color:#64748b;opacity:1;font-size:12px;font-weight:800;}
+.assal-ledger-date-field .assal-ledger-dmy-text-input:focus{background:rgba(14,165,233,.08) !important;}
+body.assal-ledger-owner-context .assal-ledger-date-field .assal-ledger-dmy-control{height:38px;border-radius:11px;padding-block:3px;}
+body.assal-ledger-owner-context .assal-ledger-date-field .assal-ledger-dmy-picker-icon{height:30px;}
+body.assal-ledger-owner-context .assal-ledger-date-field .assal-ledger-dmy-control > input[type="date"].assal-ledger-native-date-picker{top:3px !important;height:30px !important;}
+body.assal-ledger-owner-context .assal-ledger-date-field .assal-ledger-dmy-text-input{height:30px;line-height:30px !important;font-size:12px !important;}
 @media(max-width:700px){
-  .assal-ledger-date-field .assal-ledger-dmy-control{height:46px;border-radius:14px;}
-  .assal-ledger-date-field .assal-ledger-dmy-text{font-size:15px;}
+  .assal-ledger-date-field .assal-ledger-dmy-control{height:46px;border-radius:14px;grid-template-columns:42px minmax(0,1fr);}
+  .assal-ledger-date-field .assal-ledger-dmy-picker-icon{width:38px;height:36px;}
+  .assal-ledger-date-field .assal-ledger-dmy-control > input[type="date"].assal-ledger-native-date-picker{width:38px !important;height:36px !important;}
+  .assal-ledger-date-field .assal-ledger-dmy-text-input{height:36px;line-height:36px !important;font-size:16px !important;}
   body.assal-ledger-owner-context .assal-ledger-date-field .assal-ledger-dmy-control{height:42px;}
-  body.assal-ledger-owner-context .assal-ledger-date-field .assal-ledger-dmy-text{font-size:13px;}
 }
 </style>
 <!-- ASSAL CUSTOMER LEDGER DMY DATE DISPLAY FINAL - END -->
