@@ -34404,6 +34404,15 @@ html body .card .card-foot > .card-sums .assal-toggle-face{
   function ledgerBeforeStart(iso,fromISO){ if(!fromISO) return false; var d=ledgerDayNumber(iso), f=ledgerDayNumber(fromISO); return d!=null&&f!=null?d<f:String(iso||'')<String(fromISO||''); }
   function ledgerInsideInclusiveRange(iso,fromISO,toISO){ var d=ledgerDayNumber(iso), f=ledgerDayNumber(fromISO), t=ledgerDayNumber(toISO); if(fromISO && (d!=null&&f!=null?d<f:String(iso||'')<String(fromISO||''))) return false; if(toISO && (d!=null&&t!=null?d>t:String(iso||'')>String(toISO||''))) return false; return true; }
   function fmtDate(iso){ if(!iso) return '—'; try{ if(typeof window.fmtDMY==='function') return window.fmtDMY(iso); }catch(_){} var m=String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/); return m?m[3]+'-'+m[2]+'-'+m[1]:String(iso); }
+  function ledgerDateDMY(iso){ var m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m?(m[3]+'/'+m[2]+'/'+m[1]):'يوم/شهر/سنة'; }
+  function syncLedgerDateDMY(input){ if(!input)return; var wrap=input.closest&&input.closest('.assal-ledger-dmy-control'),txt=wrap&&wrap.querySelector('.assal-ledger-dmy-text'); if(txt)txt.textContent=ledgerDateDMY(input.value); }
+  function ensureLedgerDateDMY(input){
+    if(!input)return;
+    var existing=input.closest&&input.closest('.assal-ledger-dmy-control');if(existing){syncLedgerDateDMY(input);return;}
+    var parent=input.parentNode;if(!parent)return;var wrap=document.createElement('div');wrap.className='assal-ledger-dmy-control';parent.insertBefore(wrap,input);wrap.appendChild(input);
+    var visual=document.createElement('div');visual.className='assal-ledger-dmy-visual';visual.innerHTML='<i class="fa-regular fa-calendar"></i><b class="assal-ledger-dmy-text">يوم/شهر/سنة</b>';wrap.appendChild(visual);
+    input.addEventListener('input',function(){syncLedgerDateDMY(input);});input.addEventListener('change',function(){syncLedgerDateDMY(input);});syncLedgerDateDMY(input);
+  }
   function fmtTime(v){ try{ if(typeof window.arTime==='function') return window.arTime(v); }catch(_){} try{ if(!v) return ''; var d=new Date(v); if(isNaN(d.getTime())) return ''; return d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}); }catch(_){ return ''; } }
   function getCards(dayVal){ try{ if(typeof window.__getCardsFromDayVal__==='function') return window.__getCardsFromDayVal__(dayVal)||[]; }catch(_){} if(Array.isArray(dayVal)) return dayVal; if(dayVal&&Array.isArray(dayVal.cards)) return dayVal.cards; if(dayVal&&Array.isArray(dayVal.bills)) return dayVal.bills; return []; }
   function includeMovement(customer, dayKey, obj, ignoreOpening){ if(ignoreOpening) return true; try{ if(typeof window.assalDebtMovementAfterOpening==='function') return !!window.assalDebtMovementAfterOpening(customer, dayKey, obj||{}); }catch(_){ return false; } return true; }
@@ -34656,11 +34665,11 @@ html body .card .card-foot > .card-sums .assal-toggle-face{
     try{ input.min = LEDGER_MIN_ISO; }catch(_){}
     var v=String(input.value||'');
     if(v && v < LEDGER_MIN_ISO){
-      input.value = LEDGER_MIN_ISO;
+      input.value = LEDGER_MIN_ISO;syncLedgerDateDMY(input);
       ledgerMinToast();
       return false;
     }
-    return true;
+    syncLedgerDateDMY(input);return true;
   }
   function validateLedgerPeriod(){
     var c=currentControls();
@@ -34788,8 +34797,8 @@ html body .card .card-foot > .card-sums .assal-toggle-face{
     document.body.appendChild(bd);
     try{
       var __lf=bd.querySelector('#assalLedgerFrom'), __lt=bd.querySelector('#assalLedgerTo');
-      if(__lf) __lf.min=LEDGER_MIN_ISO;
-      if(__lt) __lt.min=LEDGER_MIN_ISO;
+      if(__lf){__lf.min=LEDGER_MIN_ISO;ensureLedgerDateDMY(__lf);}
+      if(__lt){__lt.min=LEDGER_MIN_ISO;ensureLedgerDateDMY(__lt);}
     }catch(_){}
     bd.addEventListener('click',function(e){ if(e.target&&e.target.id==='assalLedgerStatementBackdrop') closeModal(); });
     bd.querySelector('#assalLedgerClose').addEventListener('click',closeModal);
@@ -34817,7 +34826,7 @@ html body .card .card-foot > .card-sums .assal-toggle-face{
     state.name=resolveName(opts.name)||String(opts.name||'').trim(); var __liveInfo=getOpeningInfo(state.name)||{}; var __hasPassedAmount=(opts.amount!=null&&String(opts.amount).trim()!==''); var __hasLiveTotal=Object.prototype.hasOwnProperty.call(__liveInfo,'total')&&__liveInfo.total!=null&&__liveInfo.total!==''; state.amount=Math.round(money(__hasLiveTotal?__liveInfo.total:(__hasPassedAmount?opts.amount:0))); state.amountKnown=!!(__hasLiveTotal||__hasPassedAmount); state.mode='summary'; state.scope='smart'; state.data=null; state.rendered=false;
     var bd=ensureModal(); var to=nowISO(); if(to && to < LEDGER_MIN_ISO) to=LEDGER_MIN_ISO; var from=monthStart(to); if(from && from < LEDGER_MIN_ISO) from=LEDGER_MIN_ISO;
     var n=bd.querySelector('#assalLedgerCustomerName'); if(n) n.textContent=state.name;
-    var f=bd.querySelector('#assalLedgerFrom'); var t=bd.querySelector('#assalLedgerTo'); if(f){ f.min=LEDGER_MIN_ISO; f.value=from; } if(t){ t.min=LEDGER_MIN_ISO; t.value=to; }
+    var f=bd.querySelector('#assalLedgerFrom'); var t=bd.querySelector('#assalLedgerTo'); if(f){ f.min=LEDGER_MIN_ISO; f.value=from; syncLedgerDateDMY(f); } if(t){ t.min=LEDGER_MIN_ISO; t.value=to; syncLedgerDateDMY(t); }
     bd.querySelectorAll('[data-ledger-mode]').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-ledger-mode')==='summary'); });
     bd.querySelectorAll('[data-ledger-scope]').forEach(function(b){ b.classList.add('active'); b.setAttribute('aria-pressed','true'); });
     bd.classList.add('active'); document.body.classList.add('modal-open');
@@ -41041,16 +41050,103 @@ html body .card .item.assal-smart-added-item-safe-final{
       throw err;
     }finally{clearTimeout(timer);}
   }
+  function requestTransportError(code,message){
+    var err=new Error(message||'تعذر الاتصال بالسيرفر');err.code=code||'ASSAL_REQUEST_UNKNOWN';return err;
+  }
+  function waitRequestMs(ms){return new Promise(function(resolve){setTimeout(resolve,Math.max(0,Number(ms)||0));});}
+  function parseRequestJson(text){try{return text?JSON.parse(text):null;}catch(_){return null;}}
+  async function fetchRequestTextResult(url,options,timeoutMs){
+    var ctrl=new AbortController(),timer=setTimeout(function(){try{ctrl.abort();}catch(_){ }},Math.max(1800,Number(timeoutMs)||5000));
+    try{
+      var opts=Object.assign({},options||{}, {signal:ctrl.signal});
+      var resp=await fetch(url,opts),txt='';
+      try{txt=await resp.text();}catch(err){return {ok:false,unknown:true,httpStatus:Number(resp.status)||0,message:'تعذر قراءة رد السيرفر'};}
+      var json=parseRequestJson(txt);
+      if(resp.ok&&json&&json.status!=='error')return {ok:true,json:json,httpStatus:Number(resp.status)||200,text:txt};
+      if(json&&json.status==='error')return {ok:false,definite:true,json:json,httpStatus:Number(resp.status)||0,message:safe(json.message||'السيرفر رفض العملية')};
+      if(!resp.ok)return {ok:false,unknown:true,httpStatus:Number(resp.status)||0,message:'رد شبكة غير مؤكد ('+(Number(resp.status)||0)+')'};
+      return {ok:false,unknown:true,httpStatus:Number(resp.status)||0,message:'وصل رد غير مفهوم من السيرفر'};
+    }catch(err){
+      if(!online())return {ok:false,definite:true,message:'لا يوجد اتصال بالإنترنت'};
+      return {ok:false,unknown:true,message:err&&err.name==='AbortError'?'انتهت مهلة الرد':'تعذر استلام رد السيرفر'};
+    }finally{clearTimeout(timer);}
+  }
+  async function serverGetListResult(timeoutMs){
+    if(!online())return {ok:false,definite:true,message:'لا يوجد اتصال بالإنترنت'};
+    var role=isAdmin()?'admin':(isMain()?'main':''); if(!role)return {ok:false,definite:true,message:'الحساب غير مخول'};
+    var r=await fetchRequestTextResult(serverUrl('card-request-list',{actor:role,email:email()}),{method:'GET',cache:'no-store'},timeoutMs||5000);
+    if(!r.ok)return r;
+    var j=r.json;if(!j||!Array.isArray(j.requests))return {ok:false,unknown:true,message:'قائمة الطلبات غير مفهومة'};
+    return {ok:true,json:j,requests:j.requests};
+  }
   async function serverGetList(){
-    if(!online())throw new Error('لا يوجد اتصال');
-    var role=isAdmin()?'admin':(isMain()?'main':''); if(!role)throw new Error('الحساب غير مخول');
-    var resp=await fetchTimed(serverUrl('card-request-list',{actor:role,email:email()}),{method:'GET',cache:'no-store'},30000);
-    if(!resp.ok)throw new Error('فشل قراءة الطلبات'); var j=await resp.json(); if(!j||j.status==='error')throw new Error((j&&j.message)||'فشل قراءة الطلبات'); return Array.isArray(j.requests)?j.requests:[];
+    var r=await serverGetListResult(6500);
+    if(r.ok)return r.requests;
+    throw requestTransportError(r.definite?'ASSAL_REQUEST_DEFINITE':'ASSAL_REQUEST_UNKNOWN',r.message||'تعذر قراءة الطلبات');
+  }
+  async function serverPostResult(mode,body,timeoutMs){
+    if(!online())return {ok:false,definite:true,message:'لا يوجد اتصال بالإنترنت'};
+    return await fetchRequestTextResult(serverUrl(mode,{}),{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SYNC.TOKEN},body:JSON.stringify(body||{})},timeoutMs||9000);
   }
   async function serverPost(mode,body){
     if(!online())throw new Error('لا يوجد اتصال');
     var resp=await fetchTimed(serverUrl(mode,{}),{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SYNC.TOKEN},body:JSON.stringify(body||{})},40000);
     if(!resp.ok)throw new Error('فشل إرسال الطلب'); var j=await resp.json(); if(!j||j.status==='error')throw new Error((j&&j.message)||'فشل إرسال الطلب'); return j;
+  }
+  function stableRequestJson(v){
+    if(v===null||typeof v!=='object')return JSON.stringify(v);
+    if(Array.isArray(v))return '['+v.map(stableRequestJson).join(',')+']';
+    return '{'+Object.keys(v).sort().map(function(k){return JSON.stringify(k)+':'+stableRequestJson(v[k]);}).join(',')+'}';
+  }
+  function sameRequestIdentity(expected,actual){
+    if(!expected||!actual||safe(expected.id)!==safe(actual.id))return false;
+    if(expected.cardId&&actual.cardId&&safe(expected.cardId)!==safe(actual.cardId))return false;
+    var eo=Array.isArray(expected.ops)?expected.ops:[],ao=Array.isArray(actual.ops)?actual.ops:[];
+    if(eo.length&&ao.length&&stableRequestJson(eo)!==stableRequestJson(ao))return false;
+    return true;
+  }
+  async function verifyRequestState(expected,allowedStatuses,opts){
+    opts=opts||{};var statuses=Array.isArray(allowedStatuses)?allowedStatuses:[],attempts=Math.max(1,Number(opts.attempts)||4),delay=Math.max(180,Number(opts.delay)||550),firstDelay=Math.max(0,Number(opts.firstDelay)||0),sawReadable=false,lastMessage='';
+    if(firstDelay)await waitRequestMs(firstDelay);
+    for(var i=0;i<attempts;i++){
+      var lr=await serverGetListResult(Number(opts.timeout)||2800);
+      if(lr.ok){
+        sawReadable=true;
+        var rec=lr.requests.find(function(x){return safe(x&&x.id)===safe(expected&&expected.id);});
+        if(rec){
+          if(!sameRequestIdentity(expected,rec))return {confirmed:false,mismatch:true,request:rec,readable:true};
+          var st=safe(rec.status);
+          if(!statuses.length||statuses.indexOf(st)>=0)return {confirmed:true,request:rec,status:st,readable:true};
+          lastMessage='حالة الطلب الحالية: '+(st||'غير معروفة');
+        }else lastMessage='الطلب غير ظاهر في القائمة بعد';
+      }else lastMessage=lr.message||'تعذر قراءة قائمة الطلبات';
+      if(i+1<attempts)await waitRequestMs(delay);
+    }
+    return {confirmed:false,readable:sawReadable,message:lastMessage};
+  }
+  async function postAndVerifyRequest(mode,body,expected,allowedStatuses,opts){
+    opts=opts||{};
+    var postP=serverPostResult(mode,body,Number(opts.postTimeout)||8500);
+    var verifyP=verifyRequestState(expected,allowedStatuses,{attempts:Number(opts.attempts)||4,delay:Number(opts.delay)||550,firstDelay:opts.firstDelay==null?450:Number(opts.firstDelay),timeout:Number(opts.verifyTimeout)||2800});
+    var first=await Promise.race([postP.then(function(v){return {src:'post',v:v};}),verifyP.then(function(v){return {src:'verify',v:v};})]);
+    function successFromPost(p){var j=p&&p.json||{};return {ok:true,json:j,request:j&&j.request?j.request:null,verified:false};}
+    function successFromVerify(v){return {ok:true,json:null,request:v.request,verified:true};}
+    async function finishWith(postResult,verifyResult){
+      if(verifyResult&&verifyResult.mismatch)throw requestTransportError('ASSAL_REQUEST_DEFINITE','تعارض في معرّف الطلب على السيرفر');
+      if(verifyResult&&verifyResult.confirmed)return successFromVerify(verifyResult);
+      if(postResult&&postResult.ok)return successFromPost(postResult);
+      if(postResult&&postResult.definite)throw requestTransportError('ASSAL_REQUEST_DEFINITE',postResult.message||'السيرفر رفض العملية');
+      var last=await verifyRequestState(expected,allowedStatuses,{attempts:1,firstDelay:250,timeout:3000});
+      if(last.mismatch)throw requestTransportError('ASSAL_REQUEST_DEFINITE','تعارض في معرّف الطلب على السيرفر');
+      if(last.confirmed)return successFromVerify(last);
+      throw requestTransportError('ASSAL_REQUEST_UNKNOWN',(postResult&&postResult.message)||last.message||'تعذر التأكد من وصول العملية');
+    }
+    if(first.src==='post'){
+      if(first.v.ok)return successFromPost(first.v);
+      var vr=await verifyP;return await finishWith(first.v,vr);
+    }
+    if(first.v.confirmed)return successFromVerify(first.v);
+    var pr=await postP;return await finishWith(pr,first.v);
   }
 
 
@@ -41070,13 +41166,14 @@ html body .card .item.assal-smart-added-item-safe-final{
     var pct=Math.max(0,Math.min(100,Number(percent)||0));h.querySelector('#assalCrProgressPct').textContent=Math.round(pct)+'%';h.querySelector('#assalCrProgressBar').style.width=pct+'%';
     h.querySelector('.assal-cr-progress-icon i').className=icon||'fa-solid fa-spinner fa-spin';h.querySelector('#assalCrProgressActions').classList.remove('active');
   }
-  function progressSuccess(title,detail){progressSet('success',title,detail,100,'fa-solid fa-circle-check');progressHideTimer=setTimeout(progressHide,4200);}
+  function progressSuccess(title,detail){progressSet('success',title,detail,100,'fa-solid fa-circle-check');progressHideTimer=setTimeout(progressHide,1400);}
+  function progressUnknown(title,detail){progressSet('warn',title,detail,100,'fa-solid fa-circle-question');progressHideTimer=setTimeout(progressHide,2500);}
   function progressNeedFollowup(req,detail){
     progressSet('warn','التعديل محفوظ محلياً — الرفع غير مكتمل',detail||'يرجى فتح متابعة الطلبات وإكمال الرفع',100,'fa-solid fa-triangle-exclamation');
     var h=ensureProgressToast(),actions=h.querySelector('#assalCrProgressActions'),btn=h.querySelector('#assalCrProgressAction');actions.classList.add('active');
     btn.onclick=function(){activeTab='incoming';openModal();progressHide();};
   }
-  function progressError(title,detail){progressSet('error',title,detail,100,'fa-solid fa-circle-xmark');progressHideTimer=setTimeout(progressHide,6000);}
+  function progressError(title,detail){progressSet('error',title,detail,100,'fa-solid fa-circle-xmark');progressHideTimer=setTimeout(progressHide,2500);}
   function setRefreshButtonBusy(busy){
     var btn=document.getElementById('assalCrRefresh');if(!btn)return;
     btn.disabled=!!busy;btn.setAttribute('aria-busy',busy?'true':'false');btn.classList.toggle('assal-cr-refreshing',!!busy);
@@ -41202,15 +41299,87 @@ html body .card .item.assal-smart-added-item-safe-final{
     followupSyncTimer=setTimeout(attempt,12000);
   }
   async function claimRequestForUpload(req,force,conflicts){
-    var res=await serverPost('card-request-action',{version:VERSION,action:'approve-pending',requestId:req.id,actorEmail:email(),force:!!force,conflicts:Array.isArray(conflicts)?conflicts:[]});
-    if(res&&res.request)mergeRequestCache(res.request);
-    return (res&&res.request)||req;
+    var body={version:VERSION,action:'approve-pending',requestId:req.id,actorEmail:email(),force:!!force,conflicts:Array.isArray(conflicts)?conflicts:[]};
+    var done=await postAndVerifyRequest('card-request-action',body,req,['approved_pending_upload','applied'],{postTimeout:8000,attempts:4,firstDelay:400,verifyTimeout:2600,delay:500});
+    var rec=done.request||(done.json&&done.json.request)||null;
+    if(rec)mergeRequestCache(rec);
+    return rec||req;
+  }
+  var requestBackupArchiveLogged=new Set();
+  function recordVerifiedRequestBackup(payload,prepared,response){
+    try{
+      var key=safe(payload&&payload.exportedAt);if(key&&requestBackupArchiveLogged.has(key))return;if(key)requestBackupArchiveLogged.add(key);
+      if(typeof assalAdvancedRecordServerUpload==='function'){
+        var p=assalAdvancedRecordServerUpload(payload,{size:Number(prepared&&prepared.size)||0,hash:safe(prepared&&prepared.hash),response:response||{status:'verified'}});
+        if(p&&typeof p.catch==='function')p.catch(function(){});
+      }
+    }catch(_){ }
+  }
+  async function requestBackupPostResult(payload,prepared,requestMeta,controller){
+    if(!online())return {ok:false,definite:true,message:'لا يوجد اتصال بالإنترنت'};
+    var body=(prepared&&typeof prepared.body==='string')?prepared.body:JSON.stringify(payload),size=(prepared&&Number.isFinite(Number(prepared.size)))?Number(prepared.size):new TextEncoder().encode(body).length,hash=(prepared&&safe(prepared.hash))||await sha256(body);
+    var base=SYNC.BASE_URL,sep=base.indexOf('?')>=0?'&':'?',query=['token='+encodeURIComponent(SYNC.TOKEN),'size='+encodeURIComponent(size),'hash='+encodeURIComponent(hash)];
+    if(requestMeta&&requestMeta.requestId){query.push('cardRequestId='+encodeURIComponent(String(requestMeta.requestId)));query.push('cardRequestActor='+encodeURIComponent(String(requestMeta.actorEmail||'')));query.push('cardRequestAppliedAt='+encodeURIComponent(String(requestMeta.appliedAt||now())));}
+    var url=base+sep+query.join('&'),ctrl=controller||new AbortController(),timer=setTimeout(function(){try{ctrl.abort();}catch(_){ }},30000);
+    try{
+      var resp=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SYNC.TOKEN},body:body,signal:ctrl.signal}),txt='';
+      try{txt=await resp.text();}catch(_){return {ok:false,unknown:true,message:'تعذر قراءة رد رفع النسخة'};}
+      var json=parseRequestJson(txt);
+      if(resp.ok&&json&&json.status!=='error'){recordVerifiedRequestBackup(payload,prepared,json);return {ok:true,json:json};}
+      if(json&&json.status==='error')return {ok:false,definite:true,message:safe(json.message||'السيرفر رفض رفع النسخة'),json:json};
+      return {ok:false,unknown:true,message:resp.ok?'وصل رد غير مفهوم بعد رفع النسخة':'رد شبكة غير مؤكد أثناء رفع النسخة'};
+    }catch(err){
+      if(!online())return {ok:false,definite:true,message:'انقطع الاتصال قبل اكتمال رفع النسخة'};
+      return {ok:false,unknown:true,message:err&&err.name==='AbortError'?'انتهت مهلة رد الرفع':'تعذر استلام رد رفع النسخة'};
+    }finally{clearTimeout(timer);}
+  }
+  function unwrapBackupForVerify(j){
+    if(!j||typeof j!=='object')return null;
+    if(j.exportedAt)return j;
+    var keys=['backup','data','payload'];for(var i=0;i<keys.length;i++){var x=j[keys[i]];if(x&&typeof x==='object'&&x.exportedAt)return x;}
+    return null;
+  }
+  async function verifyBackupSnapshot(payload,timeoutMs){
+    if(!online())return {confirmed:false,message:'لا يوجد اتصال'};
+    var base=SYNC.BASE_URL,sep=base.indexOf('?')>=0?'&':'?',url=base+sep+'token='+encodeURIComponent(SYNC.TOKEN)+'&_='+Date.now();
+    var r=await fetchRequestTextResult(url,{method:'GET',cache:'no-store'},timeoutMs||2800);if(!r.ok)return {confirmed:false,message:r.message||'تعذر قراءة النسخة'};
+    var remote=unwrapBackupForVerify(r.json);if(!remote)return {confirmed:false,message:'رد النسخة غير مفهوم'};
+    var same=safe(remote.exportedAt)===safe(payload&&payload.exportedAt);
+    if(same&&payload&&payload.updatedAtMax!=null&&remote.updatedAtMax!=null)same=safe(remote.updatedAtMax)===safe(payload.updatedAtMax);
+    return {confirmed:!!same,remote:remote};
+  }
+  async function verifyBackupOrApplied(req,payload,opts){
+    opts=opts||{};var attempts=Math.max(1,Number(opts.attempts)||6),firstDelay=Math.max(0,Number(opts.firstDelay)||700),delay=Math.max(180,Number(opts.delay)||450),lastRequest=null,last='';
+    if(firstDelay)await waitRequestMs(firstDelay);
+    for(var i=0;i<attempts;i++){
+      var pair=await Promise.all([serverGetListResult(Number(opts.timeout)||2600),verifyBackupSnapshot(payload,Number(opts.timeout)||2600)]),lr=pair[0],br=pair[1];
+      if(lr.ok){var rec=lr.requests.find(function(x){return safe(x&&x.id)===safe(req&&req.id);});if(rec&&sameRequestIdentity(req,rec)){lastRequest=rec;if(safe(rec.status)==='applied')return {confirmed:true,kind:'applied',request:rec};}}
+      if(br&&br.confirmed)return {confirmed:true,kind:'backup',request:lastRequest};
+      last=(br&&br.message)||(lr&&lr.message)||'لم يثبت وصول النسخة بعد';
+      if(i+1<attempts)await waitRequestMs(delay);
+    }
+    return {confirmed:false,request:lastRequest,message:last};
   }
   async function postRequestBackupTimed(payload,prepared,requestMeta){
-    var ctrl=new AbortController(),timer=setTimeout(function(){try{ctrl.abort();}catch(_){ }},180000);
-    try{return await serverPostBackup(payload,ctrl.signal,prepared,requestMeta);}
-    catch(err){if(err&&err.name==='AbortError')throw new Error('انتهت مهلة رفع النسخة؛ قد يكون السيرفر أكملها وسيتم التحقق عند تحديث الطلبات');throw err;}
-    finally{clearTimeout(timer);}
+    var req=findRequest(requestMeta&&requestMeta.requestId)||{id:safe(requestMeta&&requestMeta.requestId),ops:[]},ctrl=new AbortController();
+    var postP=requestBackupPostResult(payload,prepared,requestMeta,ctrl);
+    var verifyP=verifyBackupOrApplied(req,payload,{attempts:6,firstDelay:700,timeout:2600,delay:450});
+    var first=await Promise.race([postP.then(function(v){return {src:'post',v:v};}),verifyP.then(function(v){return {src:'verify',v:v};})]);
+    function fromVerify(v){
+      try{ctrl.abort();}catch(_){ }
+      recordVerifiedRequestBackup(payload,prepared,{status:'verified',verification:v.kind});
+      return {status:'success',backupVerified:true,cardRequest:v.kind==='applied'&&v.request?{ok:true,request:v.request}:null};
+    }
+    if(first.src==='verify'&&first.v.confirmed)return fromVerify(first.v);
+    if(first.src==='post'&&first.v.ok)return first.v.json;
+    var postResult=first.src==='post'?first.v:await postP;
+    var verifyResult=first.src==='verify'?first.v:await verifyP;
+    if(verifyResult&&verifyResult.confirmed)return fromVerify(verifyResult);
+    if(postResult&&postResult.ok)return postResult.json;
+    var finalVerify=await verifyBackupOrApplied(req,payload,{attempts:1,firstDelay:250,timeout:3000,delay:0});
+    if(finalVerify.confirmed)return fromVerify(finalVerify);
+    if(postResult&&postResult.definite)throw requestTransportError('ASSAL_REQUEST_DEFINITE',postResult.message||'السيرفر رفض رفع النسخة');
+    throw requestTransportError('ASSAL_REQUEST_UNKNOWN',(postResult&&postResult.message)||finalVerify.message||'تعذر التأكد من وصول النسخة');
   }
 
   function ensureButton(){
@@ -41432,16 +41601,22 @@ html body .card .item.assal-smart-added-item-safe-final{
       delete payload.beforeCard; delete payload.afterCard;
       delete payload.beforePayment; delete payload.afterPayment;
       if(!quiet){progressSet('','إرسال طلب التعديل','إرسال الطلب إلى الحاسبة الرئيسية',58,'fa-solid fa-paper-plane');await nextPaint();}
-      var res=await serverPost('card-request-submit',{version:VERSION,actorEmail:email(),request:payload});
+      var verified=await postAndVerifyRequest('card-request-submit',{version:VERSION,actorEmail:email(),request:payload},payload,['pending_review','approved_pending_upload','applied'],{postTimeout:8000,attempts:4,firstDelay:400,verifyTimeout:2600,delay:500});
       if(!quiet){progressSet('','إرسال طلب التعديل','تثبيت الطلب في الأرشيف المحلي',86,'fa-solid fa-box-archive');await nextPaint();}
-      var record=(res&&res.request)||payload;record.status=record.status||'pending_review';record.sentAt=record.sentAt||payload.sentAt;
+      var res=verified&&verified.json||{},record=(verified&&verified.request)||(res&&res.request)||payload;record.status=record.status||'pending_review';record.sentAt=record.sentAt||payload.sentAt;
       state.drafts=state.drafts.filter(function(x){return safe(x.id)!==safe(reqId);});state.archive.push(record);schedulePersist();
       updateButton();if(isModalOpen())renderModal();
       if(!quiet)progressSuccess('تم إرسال طلب التعديل','انتقل الطلب إلى الأرشيف وبانتظار مراجعة الحاسبة الرئيسية');
       if(isAttendanceHalfDayRequest(record))notifyAttendanceHalfDayUi();
       if(isSingleCardCustomerChangeRequest(record))notifySingleCardCustomerChangeUi();
       return true;
-    }catch(err){if(!quiet)progressError('تعذر إرسال الطلب',safe(err&&err.message||err));return false;}
+    }catch(err){
+      if(!quiet){
+        if(err&&err.code==='ASSAL_REQUEST_UNKNOWN')progressUnknown('تعذر التأكد من الإرسال','لم نكرر الطلب تلقائياً. سيُحسم وصوله من نفس المعرّف عند التحديث — '+safe(err&&err.message||err));
+        else progressError('فشل إرسال الطلب',safe(err&&err.message||err));
+      }
+      return false;
+    }
     finally{busyIds.delete(reqId);if(isModalOpen())renderModal();}
   }
   async function sendAllDrafts(){
@@ -41571,12 +41746,15 @@ html body .card .item.assal-smart-added-item-safe-final{
       var payload=buildBackupPayload();
       progressSet('',mode==='retry'?'إكمال رفع طلب التعديل':'تطبيق طلب التعديل','تحويل النسخة وحساب التحقق بالخلفية',52,'fa-solid fa-fingerprint');
       var prepared=await prepareBackupPayloadAsync(payload);
-      progressSet('',mode==='retry'?'إكمال رفع طلب التعديل':'تطبيق طلب التعديل','رفع النسخة المحمية والتحقق منها في Google Drive',73,'fa-solid fa-cloud-arrow-up');
+      progressSet('',mode==='retry'?'إكمال رفع طلب التعديل':'تطبيق طلب التعديل','رفع النسخة والتحقق من وصولها بالتوازي',73,'fa-solid fa-cloud-arrow-up');
       var response=await postRequestBackupTimed(payload,prepared,{requestId:req.id,actorEmail:email(),appliedAt:now()});
       if(!response||response.status==='error')throw new Error((response&&response.message)||'فشل رفع النسخة');
       progressSet('',mode==='retry'?'إكمال رفع طلب التعديل':'تطبيق طلب التعديل','تثبيت حالة الطلب وتحديث المتابعة',92,'fa-solid fa-list-check');
       var completed=response.cardRequest&&response.cardRequest.ok&&response.cardRequest.request?response.cardRequest.request:null;
-      if(!completed){var finalRes=await serverPost('card-request-action',{version:VERSION,action:'applied',requestId:req.id,actorEmail:email(),appliedAt:now()});completed=finalRes&&finalRes.request;}
+      if(!completed){
+        var ack=await postAndVerifyRequest('card-request-action',{version:VERSION,action:'applied',requestId:req.id,actorEmail:email(),appliedAt:now()},req,['applied'],{postTimeout:7000,attempts:4,firstDelay:350,verifyTimeout:2500,delay:450});
+        completed=(ack&&ack.request)||(ack&&ack.json&&ack.json.request)||null;
+      }
       markAppliedLocal(req.id);if(completed)mergeRequestCache(completed);else{var localRec=clone(req)||{};localRec.status='applied';localRec.appliedAt=now();mergeRequestCache(localRec);}
       var newer=localRevision>snapshotRevision;
       progressSuccess('تم تطبيق الطلب ورفع النسخة بنجاح',newer?'توجد تعديلات أحدث محفوظة محلياً وستدخل بالمزامنة التالية':'تم التحقق من النسخة وتثبيت حالة الطلب');
@@ -41616,7 +41794,10 @@ html body .card .item.assal-smart-added-item-safe-final{
         markAppliedLocal(req.id);refreshAffectedUi(req);
       }
       await uploadAndComplete(req,'approve');
-    }catch(err){progressError('تعذر تطبيق الطلب',safe(err&&err.message||err));}
+    }catch(err){
+      if(err&&err.code==='ASSAL_REQUEST_UNKNOWN')progressUnknown('تعذر التأكد من قبول الطلب','لم يتم تطبيق أي تغيير جديد ما دام قبول السيرفر غير مؤكد — '+safe(err&&err.message||err));
+      else progressError('فشل تطبيق الطلب',safe(err&&err.message||err));
+    }
     finally{if(safe(activeUploadRequestId)===safe(reqId))setRequestUploadActive(reqId,false);busyIds.delete(reqId);if(isModalOpen())renderModal();}
   }
   async function retryUpload(reqId){
@@ -41680,6 +41861,9 @@ html body .card .item.assal-smart-added-item-safe-final{
         if(refreshVisualRequested)progressSet('', 'تم جلب الطلبات','مقارنة الطلبات الجديدة مع القائمة المحلية',58,'fa-solid fa-code-compare');
         requestCache=list;
         if(isAdmin()){
+          var serverById=new Map(list.map(function(r){return [safe(r&&r.id),r];})),confirmedDraftIds=new Set();
+          state.drafts.forEach(function(d){var sr=serverById.get(safe(d&&d.id));if(sr&&sameRequestIdentity(d,sr))confirmedDraftIds.add(safe(d.id));});
+          if(confirmedDraftIds.size)state.drafts=state.drafts.filter(function(d){return !confirmedDraftIds.has(safe(d&&d.id));});
           var localById=new Map(state.archive.map(function(x){return [safe(x.id),x];}));
           list.forEach(function(r){localById.set(safe(r.id),r);});state.archive=Array.from(localById.values()).filter(function(x){return !x.adminHidden;}).sort(function(a,b){return safe(a.sentAt||a.createdAt).localeCompare(safe(b.sentAt||b.createdAt));});schedulePersist();
         }
@@ -41749,7 +41933,7 @@ html body .card .item.assal-smart-added-item-safe-final{
     if(legacyDraftsCleared){try{showToast('info','تم تنظيف '+legacyDraftsCleared+' مسودة خاطئة من النسخة السابقة');}catch(_){ }}
     if(bundledDraftGroups){try{showToast('success','تم تجميع إضافات البطاقات الجديدة ضمن طلب واحد لكل بطاقة');}catch(_){ }}
     try{window.addEventListener('online',function(){if(!activeUploadRequestId)refreshFromServer(false);},false);window.addEventListener('focus',function(){if(!activeUploadRequestId)refreshFromServer(false);},false);document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&!activeUploadRequestId)refreshFromServer(false);},false);document.addEventListener('click',blockSensitiveWhileUpload,true);document.addEventListener('change',blockSensitiveWhileUpload,true);}catch(_){ }
-    clearInterval(refreshTimer);refreshTimer=setInterval(function(){if(document.visibilityState==='visible'&&!activeUploadRequestId&&!busyIds.size)refreshFromServer(false);},30000);
+    clearInterval(refreshTimer);refreshTimer=setInterval(function(){if(document.visibilityState==='visible'&&!activeUploadRequestId&&!busyIds.size)refreshFromServer(false);},5000);
     setTimeout(function(){refreshFromServer(false);},1200);
   }
   function boot(){
@@ -41773,6 +41957,8 @@ html body .card .item.assal-smart-added-item-safe-final{
   window.assalCardChangeRequestsCapturePayments=capturePaymentChanges;
 })();
 </script>
+
+<!-- ASSAL REQUEST TRANSPORT FAST VERIFIED MANUAL FINAL: manual approval preserved; send/claim/upload use verified tri-state transport; poll 5s; request progress success 1.4s/error 2.5s. -->
 <!-- ASSAL CARD REQUESTS NEW CARD BUNDLE FINAL - END -->
 
 
@@ -46520,5 +46706,37 @@ body.assal-owner-exclusive > #modal.active{
 </script>
 <!-- ===== ASSAL SINGLE CARD CUSTOMER SWITCH + REQUESTS FINAL - END ===== -->
 
+
+<!-- ASSAL CUSTOMER LEDGER DMY DATE DISPLAY FINAL - START -->
+<style id="assal-customer-ledger-dmy-date-display-final">
+.assal-ledger-date-field .assal-ledger-dmy-control{
+  position:relative;width:100%;height:44px;border-radius:15px;
+  border:1px solid rgba(255,255,255,.14);background:rgba(2,6,23,.48);
+  overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+}
+.assal-ledger-date-field .assal-ledger-dmy-control:focus-within{
+  border-color:rgba(14,165,233,.56);box-shadow:0 0 0 3px rgba(14,165,233,.13);
+}
+.assal-ledger-date-field .assal-ledger-dmy-control > input[type="date"]{
+  position:absolute !important;inset:0 !important;width:100% !important;height:100% !important;
+  margin:0 !important;padding:0 !important;border:0 !important;background:transparent !important;
+  opacity:0 !important;z-index:3 !important;cursor:pointer !important;
+}
+.assal-ledger-date-field .assal-ledger-dmy-visual{
+  position:absolute;inset:0;z-index:2;pointer-events:none;display:flex;align-items:center;justify-content:center;
+  gap:10px;padding:0 12px;color:#fff;direction:ltr;font-weight:950;font-variant-numeric:tabular-nums;
+}
+.assal-ledger-date-field .assal-ledger-dmy-visual i{color:#cbd5e1;font-size:14px;}
+.assal-ledger-date-field .assal-ledger-dmy-text{font-size:14px;letter-spacing:.15px;}
+body.assal-ledger-owner-context .assal-ledger-date-field .assal-ledger-dmy-control{height:38px;border-radius:11px;}
+body.assal-ledger-owner-context .assal-ledger-date-field .assal-ledger-dmy-text{font-size:12px;}
+@media(max-width:700px){
+  .assal-ledger-date-field .assal-ledger-dmy-control{height:46px;border-radius:14px;}
+  .assal-ledger-date-field .assal-ledger-dmy-text{font-size:15px;}
+  body.assal-ledger-owner-context .assal-ledger-date-field .assal-ledger-dmy-control{height:42px;}
+  body.assal-ledger-owner-context .assal-ledger-date-field .assal-ledger-dmy-text{font-size:13px;}
+}
+</style>
+<!-- ASSAL CUSTOMER LEDGER DMY DATE DISPLAY FINAL - END -->
 </body>
 </html>
