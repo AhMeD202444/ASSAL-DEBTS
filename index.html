@@ -46838,5 +46838,204 @@ body.assal-ledger-owner-context .assal-ledger-date-field .assal-ledger-dmy-text-
 }
 </style>
 <!-- ASSAL CUSTOMER LEDGER DMY DATE DISPLAY FINAL - END -->
+<!-- ASSAL DEBTS WHATSAPP PREMIUM IMAGE FINAL - START -->
+<style id="assal-debt-wa-premium-final-style">
+#assalDebtWaPremiumModal{position:fixed;inset:0;z-index:38000;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(2,6,23,.76);backdrop-filter:blur(7px)}
+#assalDebtWaPremiumModal.active{display:flex}
+#assalDebtWaPremiumModal .assal-wa-shell{width:min(1180px,96vw);max-height:94vh;overflow:hidden;border:1px solid rgba(96,165,250,.18);border-radius:24px;background:linear-gradient(180deg,#10192e,#091120);box-shadow:0 32px 85px rgba(0,0,0,.58);display:flex;flex-direction:column;padding:16px;gap:12px;color:#e7eef9}
+#assalDebtWaPremiumModal .assal-wa-head{min-height:62px;display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(148,163,184,.12);border-radius:18px;background:linear-gradient(180deg,rgba(15,23,42,.82),rgba(10,18,35,.86))}
+#assalDebtWaPremiumModal .assal-wa-mark{width:40px;height:40px;flex:0 0 auto;border-radius:12px;display:grid;place-items:center;color:#fff;font-weight:900;background:linear-gradient(135deg,#12d1b4,#0ea5e9 52%,#7c3aed);box-shadow:0 10px 24px rgba(14,165,233,.24)}
+#assalDebtWaPremiumModal .assal-wa-head-copy{min-width:0;text-align:right}
+#assalDebtWaPremiumModal .assal-wa-head-copy b{display:block;color:#fff;font-size:15px;font-weight:900}
+#assalDebtWaPremiumModal .assal-wa-head-copy span{display:block;margin-top:2px;color:#aebbd0;font-size:11.5px;font-weight:700}
+#assalDebtWaPremiumModal .assal-wa-close{margin-inline-start:auto;width:38px;height:38px;border-radius:11px;border:1px solid rgba(248,113,113,.28);background:linear-gradient(135deg,#521726,#7f1d1d);color:#fecaca;display:grid;place-items:center;cursor:pointer}
+#assalDebtWaPremiumModal .assal-wa-body{display:grid;direction:ltr;grid-template-columns:minmax(0,1fr) 320px;gap:14px;min-height:0;align-items:stretch}
+#assalDebtWaPremiumModal .assal-wa-preview-panel{min-width:0;height:min(72vh,720px);overflow-y:auto;overflow-x:hidden;padding:14px;border:1px solid rgba(148,163,184,.12);border-radius:20px;background:linear-gradient(180deg,#081120,#0a1426);scrollbar-width:thin;scrollbar-color:#31517d #081120}
+#assalDebtWaPremiumModal .assal-wa-preview-panel::-webkit-scrollbar{width:9px}
+#assalDebtWaPremiumModal .assal-wa-preview-panel::-webkit-scrollbar-track{background:#081120;border-radius:999px}
+#assalDebtWaPremiumModal .assal-wa-preview-panel::-webkit-scrollbar-thumb{background:#31517d;border-radius:999px}
+#assalDebtWaPremiumModal .assal-wa-preview{min-height:100%;display:flex;align-items:flex-start;justify-content:center}
+#assalDebtWaPremiumModal .assal-wa-preview img{display:block;width:min(720px,100%);height:auto;max-width:none;margin:0 auto;border-radius:18px;background:#fff;box-shadow:0 16px 42px rgba(0,0,0,.32)}
+#assalDebtWaPremiumModal .assal-wa-loading{min-height:260px;width:100%;display:grid;place-items:center;text-align:center;color:#cbd5e1;font-size:13px;font-weight:800;line-height:1.9}
+#assalDebtWaPremiumModal .assal-wa-side{display:flex;flex-direction:column;gap:12px;min-width:0;direction:rtl}
+#assalDebtWaPremiumModal .assal-wa-box{border:1px solid rgba(148,163,184,.12);border-radius:18px;padding:14px;background:linear-gradient(180deg,#0f1a33,#0c162b);box-shadow:inset 0 1px 0 rgba(255,255,255,.02)}
+#assalDebtWaPremiumModal .assal-wa-customer{display:flex;flex-direction:column;gap:5px;text-align:right}
+#assalDebtWaPremiumModal .assal-wa-customer span{font-size:11px;color:#9cadc4;font-weight:800}
+#assalDebtWaPremiumModal .assal-wa-customer b{font-size:15px;color:#fff;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#assalDebtWaPremiumModal .assal-wa-balance-mini{margin-top:10px;padding:12px 10px;border-radius:14px;background:#0a1327;border:1px solid rgba(56,189,248,.15);text-align:center}
+#assalDebtWaPremiumModal .assal-wa-balance-mini span{display:block;font-size:10.5px;color:#9cadc4;font-weight:800}
+#assalDebtWaPremiumModal .assal-wa-balance-mini b{display:block;margin-top:4px;font-size:20px;color:#fff;font-weight:900}
+#assalDebtWaPremiumModal .assal-wa-actions{display:grid;gap:8px}
+#assalDebtWaPremiumModal .assal-wa-btn{min-height:45px;border-radius:14px;border:1px solid rgba(148,163,184,.16);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 12px;font-size:12.8px;font-weight:900;background:#0b1730;color:#e7eef9;transition:transform .12s ease,filter .12s ease}
+#assalDebtWaPremiumModal .assal-wa-btn.primary{min-height:50px;background:linear-gradient(135deg,#0f766e,#16a34a);color:#fff;border-color:transparent;box-shadow:0 13px 28px rgba(22,163,74,.22)}
+#assalDebtWaPremiumModal .assal-wa-btn:hover{filter:brightness(1.04);transform:translateY(-1px)}
+#assalDebtWaPremiumModal .assal-wa-btn.download{background:linear-gradient(135deg,#5b3b06,#a16207);color:#fff;border-color:transparent}
+#assalDebtWaPremiumModal .assal-wa-help{margin-top:2px;padding:10px 12px;border:1px solid rgba(96,165,250,.16);border-radius:14px;background:#0a1327;font-size:12px;line-height:1.9;color:#d9e3f2;font-weight:800;text-align:right}
+#assalDebtWaPremiumModal .assal-wa-status{min-height:20px;margin-top:10px;text-align:center;font-size:11.4px;font-weight:850;color:#cbd5e1;line-height:1.7}
+#assalDebtWaPremiumModal .assal-wa-status.ok{color:#86efac}
+#assalDebtWaPremiumModal .assal-wa-status.err{color:#fecaca}
+body.assal-wa-premium-open{overflow:hidden!important}
+@media(max-width:880px){#assalDebtWaPremiumModal{padding:8px}#assalDebtWaPremiumModal .assal-wa-shell{width:100%;max-height:96vh;border-radius:18px;padding:10px}#assalDebtWaPremiumModal .assal-wa-body{grid-template-columns:1fr;overflow:auto;direction:rtl}#assalDebtWaPremiumModal .assal-wa-preview-panel{height:min(58vh,620px);order:1}#assalDebtWaPremiumModal .assal-wa-side{padding-bottom:2px;order:2}}
+</style>
+<script id="assal-debt-wa-premium-final-script">
+(function(){
+'use strict';
+if(window.__ASSAL_DEBT_WA_PREMIUM_FINAL__)return;
+window.__ASSAL_DEBT_WA_PREMIUM_FINAL__=true;
+var state={blob:null,url:'',phone:'',name:'',balance:0,fileName:'',snapshot:null};
+var W=1080,H=1480;
+function byId(id){return document.getElementById(id)}
+function toast(type,msg,ms){try{if(typeof window.showToast==='function')window.showToast(type,msg,ms||2600)}catch(_){}}
+function nrm(s){return String(s==null?'':s).trim().toLowerCase().replace(/[\u064B-\u0652]/g,'').replace(/[إأآا]/g,'ا').replace(/[ىي]/g,'ي').replace(/ة/g,'ه').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/[\s\-_،,./\\]+/g,' ').trim()}
+function num(v){if(v==null)return 0;if(typeof v==='number')return isFinite(v)?v:0;var x=parseFloat(String(v).replace(/[\u0660-\u0669]/g,function(ch){return String(ch.charCodeAt(0)-0x0660)}).replace(/[\u06F0-\u06F9]/g,function(ch){return String(ch.charCodeAt(0)-0x06F0)}).replace(/[^\d.\-]/g,''));return isFinite(x)?x:0}
+function money(v){var x=Math.round(Number(v||0));try{return x.toLocaleString('en-US')+' د.ع'}catch(_){return String(x)+' د.ع'}}
+function localISO(d){try{var x=new Date(d);if(isNaN(x.getTime()))return '';return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}catch(_){return ''}}
+function fmtDate(z){if(!/^\d{4}-\d{2}-\d{2}$/.test(String(z||'')))return 'غير متوفر';var p=String(z).split('-');return p[2]+'/'+p[1]+'/'+p[0]}
+function hm(d){try{var x=new Date(d),h=x.getHours(),m=String(x.getMinutes()).padStart(2,'0'),ap=h>=12?'م':'ص';h=h%12||12;return String(h).padStart(2,'0')+':'+m+' '+ap}catch(_){return ''}}
+function nowText(){var d=new Date();return fmtDate(localISO(d))+' • '+hm(d)}
+function dayDiff(z){if(!/^\d{4}-\d{2}-\d{2}$/.test(String(z||'')))return null;var a=new Date(z+'T00:00:00'),b=new Date(localISO(new Date())+'T00:00:00');if(isNaN(a.getTime())||isNaN(b.getTime()))return null;return Math.max(0,Math.floor((b-a)/86400000))}
+function iso(v){try{if(typeof window.assalDebtExtractISODate==='function'){var z=window.assalDebtExtractISODate(v);if(z)return z}}catch(_){ }if(v==null||v==='')return '';if(v instanceof Date)return localISO(v);var s=String(v).trim().replace(/\s*([\/\-.])\s*/g,'$1'),m;if(!s)return '';m=s.match(/(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);if(m)return m[1]+'-'+String(m[2]).padStart(2,'0')+'-'+String(m[3]).padStart(2,'0');m=s.match(/(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})/);if(m)return m[3]+'-'+String(m[2]).padStart(2,'0')+'-'+String(m[1]).padStart(2,'0');var d=new Date(s);return isNaN(d.getTime())?'':localISO(d)}
+function movementISO(dayKey,obj,preferred){var arr=[];if(Array.isArray(preferred))arr=arr.concat(preferred);try{if(obj)arr=arr.concat([obj.date,obj.day,obj.dayKey,obj.createdAt,obj.at,obj.timestamp,obj.created,obj.time])}catch(_){ }arr.push(dayKey);for(var i=0;i<arr.length;i++){var z=iso(arr[i]);if(z)return z}return ''}
+function payKind(v){var s=String(v==null?'':v).trim(),u=s.toUpperCase();if(s==='سحب'||/WITHDRAW|OUT|TAKE/.test(u))return 'سحب';if(s==='تسديد'||s==='دفع'||/PAY|PAID|IN/.test(u))return 'تسديد';return s}
+function typeNorm(v){try{if(typeof window.normalizeBillType==='function')return window.normalizeBillType(v)}catch(_){ }var s=String(v==null?'':v).trim(),u=s.toUpperCase();if(s==='بيع'||s==='أجل'||s==='اجل'||u==='SELL'||u==='SALE'||u==='CREDIT'||u==='AJL')return 'اجل';if(s==='راجع'||u==='RETURN')return 'راجع';if(s==='نقدي'||u==='CASH')return 'نقدي';if(s==='جملة'||u==='WHOLESALE')return 'جملة';return s}
+function getDays(){try{if(typeof days!=='undefined'&&days&&typeof days==='object')return days}catch(_){ }try{if(window.days&&typeof window.days==='object')return window.days}catch(_){ }try{if(typeof load==='function'&&typeof STORAGE!=='undefined')return load(STORAGE,{})||{}}catch(_){ }return {}}
+function cardsFrom(v){try{if(typeof window.__getCardsFromDayVal__==='function')return window.__getCardsFromDayVal__(v)||[]}catch(_){ }return Array.isArray(v)?v:(v&&Array.isArray(v.cards)?v.cards:[])}
+function cardName(c){return String(c&&(c.customer||c.cust||c.name)||'').trim()}
+function cardSums(c){try{if(typeof window.sumCardAmounts==='function')return window.sumCardAmounts(c)||{}}catch(_){ }try{if(typeof sumCardAmounts==='function')return sumCardAmounts(c)||{}}catch(_){ }var total=0,paid=0,returned=0,count=0;(Array.isArray(c&&c.lines)?c.lines:[]).forEach(function(l){if(!l||l.deletedAt)return;var q=Math.max(1,num(l.qty)||1),a=Math.round(num(l.price)*q);count++;if(l.returned)returned+=a;else{total+=a;if(l.paid)paid+=a}});return{total:total,paid:paid,returned:returned,final:total-paid-returned,itemsCount:count}}
+var PHONE_KEYS=['PHONE','Phone','phone','MOBILE','Mobile','mobile','TEL','Tel','tel','WHATSAPP','Whatsapp','WhatsApp','whatsapp','رقم الهاتف','الهاتف','تلفون','موبايل','جوال','رقم','رقم الزبون','واتساب','واتس','واتس اب','الرقم'];
+var NAME_KEYS=['NAME','Name','name','CUSTOMER','Customer','customer','CUST','Cust','cust','الاسم','اسم','اسم الزبون','الزبون','العميل','اسم العميل','الاسم الكامل','زبون','customer name'];
+function keyNorm(k){return String(k==null?'':k).replace(/[\s_\-.]+/g,'').toLowerCase()}
+function pickLoose(obj,keys){if(!obj||typeof obj!=='object')return '';for(var i=0;i<keys.length;i++){var k=keys[i];if(Object.prototype.hasOwnProperty.call(obj,k)&&obj[k]!=null&&obj[k]!=='')return obj[k];var kk=keyNorm(k);for(var p in obj){if(Object.prototype.hasOwnProperty.call(obj,p)&&keyNorm(p)===kk&&obj[p]!=null&&obj[p]!=='')return obj[p]}}return ''}
+function digits(v){return String(v==null?'':v).replace(/[\u0660-\u0669]/g,function(ch){return String(ch.charCodeAt(0)-0x0660)}).replace(/[\u06F0-\u06F9]/g,function(ch){return String(ch.charCodeAt(0)-0x06F0)}).replace(/[^0-9+]/g,'').replace(/^\+/,'')}
+function normalizeIraqPhone(raw){var d=digits(raw);if(!d)return '';if(d.indexOf('00')===0)d=d.slice(2);if(d.indexOf('964')===0){}else if(d.indexOf('0')===0)d='964'+d.slice(1);else if(d.indexOf('7')===0)d='964'+d;return /^9647\d{9}$/.test(d)?d:''}
+function pickCustomerName(row){var nm=pickLoose(row,NAME_KEYS);if(String(nm||'').trim())return String(nm).trim();for(var p in(row||{})){if(!Object.prototype.hasOwnProperty.call(row,p))continue;var s=String(row[p]==null?'':row[p]).trim();if(!s||normalizeIraqPhone(s)||/^[-+]?\d+(?:[.,]\d+)?$/.test(s))continue;return s}return ''}
+function findPhone(name){var target=nrm(name),rows=[];if(!target)return '';try{if(typeof database!=='undefined'&&database&&Array.isArray(database.CUSTOMER))rows=database.CUSTOMER;else if(window.database&&Array.isArray(window.database.CUSTOMER))rows=window.database.CUSTOMER}catch(_){rows=[]}for(var i=0;i<rows.length;i++){var row=rows[i]||{},nm=pickCustomerName(row);if(!nm||nrm(nm)!==target)continue;var ph=normalizeIraqPhone(pickLoose(row,PHONE_KEYS));if(ph)return ph;for(var p in row){if(!Object.prototype.hasOwnProperty.call(row,p))continue;ph=normalizeIraqPhone(row[p]);if(ph)return ph}}return ''}
+function latestPayment(name){var target=nrm(name),store={},best=null;if(!target)return null;try{if(typeof window.assalDebtMergePaymentStores==='function')store=window.assalDebtMergePaymentStores()||{};else if(typeof window.loadPaymentsStore==='function')store=window.loadPaymentsStore()||{}}catch(_){store={}}Object.keys(store||{}).forEach(function(dayKey){var dv=store[dayKey],rows=Array.isArray(dv)?dv:(dv&&Array.isArray(dv.rows)?dv.rows:[]);rows.forEach(function(rec){var nm=String(rec&&(rec.customer||rec.name||rec.cust)||'').trim();if(nrm(nm)!==target||payKind(rec.kind||rec.type||'')!=='تسديد')return;var amount=Math.round(num(rec.amount));if(!amount)return;var z=movementISO(dayKey,rec),score=(z||'')+'|'+String(rec.time||rec.createdAt||rec.at||'');if(!best||score>best.score)best={iso:z,amount:amount,score:score}})});return best}
+function latestDebtCard(name){var target=nrm(name),all=getDays(),best=null;if(!target)return null;Object.keys(all||{}).forEach(function(dayKey){cardsFrom(all[dayKey]).forEach(function(card){if(!card||nrm(cardName(card))!==target||typeNorm(card.billType||card.type||card.kind||'')!=='اجل')return;var z=movementISO(dayKey,card,[card.dayKey,card.day,card.date]),s=cardSums(card),score=(z||'')+'|'+String(card.id||card.cardId||'');if(!best||score>best.score)best={iso:z,total:Math.round(Number(s.total||0)),itemsCount:Math.round(Number(s.itemsCount||0)),score:score}})});return best}
+function followInfo(name){try{if(typeof window.ASSAL_BUILD_DEBT_FOLLOWUP_ROWS==='function'){var rows=window.ASSAL_BUILD_DEBT_FOLLOWUP_ROWS()||[],target=nrm(name);for(var i=0;i<rows.length;i++)if(nrm(rows[i]&&rows[i].name)===target)return rows[i]}}catch(_){ }return null}
+function snapshot(name,balance){var f=followInfo(name)||{},p=latestPayment(name),c=latestDebtCard(name),ageISO=String(f.ageISO||''),ageDays=f.ageDays!=null?Number(f.ageDays):dayDiff(ageISO);return{name:name,balance:Math.round(Number(balance||0)),balanceText:money(balance),phone:findPhone(name),issuedAt:nowText(),ageValue:ageDays==null?'غير متوفر':String(ageDays)+' يوم',ageDate:ageISO?fmtDate(ageISO):'غير محدد',lastPaymentAmount:p?money(p.amount):'لا يوجد',lastPaymentDate:p&&p.iso?fmtDate(p.iso):'لا يوجد',lastCardAmount:c?money(c.total):'لا يوجد',lastCardDate:c&&c.iso?fmtDate(c.iso):'لا يوجد',lastCardItems:c?String(c.itemsCount||0):'—'}}
+function rr(ctx,x,y,w,h,r){r=Math.min(r,w/2,h/2);ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+function fillRound(ctx,x,y,w,h,r,fill,stroke){rr(ctx,x,y,w,h,r);if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke()}}
+function setFont(ctx,weight,size){ctx.font=String(weight)+' '+String(size)+'px "Cairo", Arial, sans-serif';ctx.textBaseline='middle';ctx.direction='rtl'}
+function fitText(ctx,text,maxWidth,weight,size,minSize){var s=size;for(;s>=(minSize||18);s-=2){setFont(ctx,weight,s);if(ctx.measureText(String(text||'')).width<=maxWidth)return s}return minSize||18}
+function textR(ctx,text,x,y,weight,size,color,maxWidth){if(maxWidth)size=fitText(ctx,text,maxWidth,weight,size,16);setFont(ctx,weight,size);ctx.textAlign='right';ctx.fillStyle=color;ctx.fillText(String(text||''),x,y)}
+function textL(ctx,text,x,y,weight,size,color,maxWidth){if(maxWidth)size=fitText(ctx,text,maxWidth,weight,size,16);setFont(ctx,weight,size);ctx.textAlign='left';ctx.fillStyle=color;ctx.fillText(String(text||''),x,y)}
+function textC(ctx,text,x,y,weight,size,color,maxWidth){if(maxWidth)size=fitText(ctx,text,maxWidth,weight,size,16);setFont(ctx,weight,size);ctx.textAlign='center';ctx.fillStyle=color;ctx.fillText(String(text||''),x,y)}
+function line(ctx,x1,y1,x2,y2,color,w){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.strokeStyle=color;ctx.lineWidth=w||1;ctx.stroke()}
+function metricRow(ctx,y,label,value,sub,tone){var x=112,w=856,h=132;fillRound(ctx,x,y,w,h,24,'#ffffff','#e5eaf2');fillRound(ctx,918,y+34,12,64,6,tone,null);textR(ctx,label,884,y+43,700,23,'#64748b',330);textR(ctx,sub,884,y+88,600,18,'#94a3b8',390);textL(ctx,value,150,y+66,700,35,'#0f172a',340)}
+async function ensureCairo(){try{if(document.fonts&&document.fonts.load){await Promise.all([document.fonts.load('400 24px Cairo'),document.fonts.load('600 24px Cairo'),document.fonts.load('700 42px Cairo')]);await document.fonts.ready}}catch(_){}}
+async function makePng(s){
+  await ensureCairo();
+  var canvas=document.createElement('canvas');
+  canvas.width=W; canvas.height=H;
+  var ctx=canvas.getContext('2d');
+  ctx.fillStyle='#f4f6fa';
+  ctx.fillRect(0,0,W,H);
+
+  var glow=ctx.createRadialGradient(940,120,20,940,120,300);
+  glow.addColorStop(0,'rgba(124,58,237,.13)');
+  glow.addColorStop(1,'rgba(124,58,237,0)');
+  ctx.fillStyle=glow; ctx.fillRect(650,0,430,390);
+
+  var glow2=ctx.createRadialGradient(120,240,10,120,240,230);
+  glow2.addColorStop(0,'rgba(18,209,180,.12)');
+  glow2.addColorStop(1,'rgba(18,209,180,0)');
+  ctx.fillStyle=glow2; ctx.fillRect(0,20,360,430);
+
+  ctx.save();
+  ctx.shadowColor='rgba(15,23,42,.13)';
+  ctx.shadowBlur=32;
+  ctx.shadowOffsetY=12;
+  fillRound(ctx,46,44,988,1392,40,'#ffffff',null);
+  ctx.restore();
+
+  var top=ctx.createLinearGradient(80,0,1000,0);
+  top.addColorStop(0,'#12d1b4');
+  top.addColorStop(.5,'#0ea5e9');
+  top.addColorStop(1,'#7c3aed');
+  fillRound(ctx,46,44,988,9,4,top,null);
+
+  var logo=ctx.createLinearGradient(850,80,970,200);
+  logo.addColorStop(0,'#0f766e');
+  logo.addColorStop(.52,'#0ea5e9');
+  logo.addColorStop(1,'#7c3aed');
+  fillRound(ctx,850,86,124,124,28,logo,null);
+  textC(ctx,'عسل',912,138,700,38,'#ffffff',95);
+  textC(ctx,'ASSAL',912,176,700,18,'rgba(255,255,255,.86)',90);
+  textR(ctx,'مكتب عسل',816,111,700,41,'#0f172a',420);
+  textR(ctx,'لقطع غيار الهواتف المحمولة',816,158,600,22,'#64748b',470);
+
+  fillRound(ctx,102,104,250,52,26,'#eef2ff','#e0e7ff');
+  textC(ctx,'كشف حساب مختصر',227,130,700,21,'#4338ca',210);
+  line(ctx,102,238,978,238,'#e5e7eb',1);
+
+  textR(ctx,'الزبون',948,287,600,20,'#94a3b8');
+  textR(ctx,s.name,948,335,700,42,'#111827',700);
+  textL(ctx,s.issuedAt,112,310,600,18,'#64748b',300);
+
+  var hero=ctx.createLinearGradient(106,384,974,596);
+  hero.addColorStop(0,'#f8fafc');
+  hero.addColorStop(1,'#eef4ff');
+  fillRound(ctx,102,382,876,234,34,hero,'#dbe4f0');
+  fillRound(ctx,928,420,14,158,7,s.balance>0?'#b91c1c':(s.balance<0?'#0f766e':'#475569'),null);
+  textR(ctx,'الرصيد الحالي',890,436,700,27,'#64748b');
+
+  var balanceColor=s.balance>0?'#9f1239':(s.balance<0?'#0f766e':'#334155');
+  textR(ctx,s.balanceText,890,515,700,70,balanceColor,700);
+
+  var status=s.balance>0?'رصيد قائم يحتاج متابعة':(s.balance<0?'رصيد لصالح الزبون':'الحساب متوازن حالياً');
+  fillRound(ctx,592,552,298,42,21,s.balance>0?'#fff1f2':(s.balance<0?'#ecfdf5':'#f1f5f9'),null);
+  textC(ctx,status,741,573,600,18,s.balance>0?'#be123c':(s.balance<0?'#047857':'#475569'),270);
+
+  var detailsTitleY=674, detailsSubY=710;
+  var row1Y=744, row2Y=894, row3Y=1044;
+  var footerLineY=1216, footer1Y=1252, footer2Y=1282;
+
+  if(s.balance>0){
+    fillRound(ctx,102,634,876,142,30,'#fff5f5','#fecaca');
+    fillRound(ctx,118,650,132,34,17,'#fee2e2',null);
+    textC(ctx,'تنبيه مهم',184,672,700,18,'#b91c1c',110);
+    textC(ctx,'نود إعلامكم بأنكم متأخرون عن التسديد',540,712,700,26,'#7f1d1d',760);
+    textC(ctx,'راجين مراجعة المكتب في أقرب وقت ممكن',540,748,700,24,'#991b1b',760);
+    detailsTitleY=820; detailsSubY=856;
+    row1Y=890; row2Y=1040; row3Y=1190;
+    footerLineY=1370; footer1Y=1406; footer2Y=1436;
+  }
+
+  textR(ctx,'تفاصيل الحساب',948,detailsTitleY,700,28,'#0f172a');
+  textR(ctx,'مختصر واضح لأهم الحركات المرتبطة بالدين الحالي',948,detailsSubY,600,18,'#94a3b8');
+  metricRow(ctx,row1Y,'آخر تسديد',s.lastPaymentAmount,s.lastPaymentDate,'#16a34a');
+  metricRow(ctx,row2Y,'عمر الدين',s.ageValue,'من '+s.ageDate,'#7c3aed');
+  metricRow(ctx,row3Y,'آخر بطاقة أجل',s.lastCardAmount,s.lastCardDate+' • '+s.lastCardItems+' مادة','#0ea5e9');
+
+  line(ctx,102,footerLineY,978,footerLineY,'#e5e7eb',1);
+  textR(ctx,'مكتب عسل • كشف مُنشأ من النظام للمتابعة فقط',948,footer1Y,600,18,'#64748b',610);
+  textL(ctx,'ASSAL',112,footer1Y,700,19,'#334155');
+  textR(ctx,'للاستفسار أو مراجعة الحساب يرجى التواصل مع المكتب',948,footer2Y,600,16,'#94a3b8',650);
+
+  return new Promise(function(resolve,reject){
+    canvas.toBlob(function(blob){
+      if(!blob){ reject(new Error('PNG failed')); return; }
+      resolve(blob);
+    },'image/png');
+  });
+}
+function openExternal(url){try{var a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener noreferrer';a.referrerPolicy='no-referrer';a.style.position='fixed';a.style.left='-9999px';a.style.top='-9999px';a.setAttribute('aria-hidden','true');document.body.appendChild(a);a.click();setTimeout(function(){try{a.remove()}catch(_){ }},0);return true}catch(_){try{var w=window.open(url,'_blank','noopener,noreferrer');try{if(w)w.opener=null}catch(__){ }return !!w}catch(__){return false}}}
+function openWhatsApp(){if(!state.phone){toast('warn','لا يوجد رقم واتساب محفوظ لهذا الزبون في شيت CUSTOMER',3200);setStatus('لا يوجد رقم واتساب محفوظ لهذا الزبون.','err');return false}var msg='السلام عليكم';var url='https://wa.me/'+state.phone+'?text='+encodeURIComponent(msg);var opened=openExternal(url);if(!opened){toast('warn','اسمح بفتح النوافذ حتى يفتح واتساب',3000);setStatus('تعذر فتح واتساب. اسمح بالنوافذ المنبثقة ثم حاول مرة ثانية.','err');return false}toast('success','تم فتح واتساب للزبون المحدد',2400);return true}
+function setStatus(msg,tone){var el=byId('assalWaPremiumStatus');if(!el)return;el.textContent=String(msg||'');el.className='assal-wa-status'+(tone==='ok'?' ok':(tone==='err'?' err':''))}
+function revoke(){if(state.url){try{URL.revokeObjectURL(state.url)}catch(_){ }}state.url='';state.blob=null}
+function ensureModal(){var root=byId('assalDebtWaPremiumModal');if(root)return root;root=document.createElement('div');root.id='assalDebtWaPremiumModal';root.innerHTML='<section class="assal-wa-shell" role="dialog" aria-modal="true" aria-labelledby="assalWaPremiumTitle"><header class="assal-wa-head"><div class="assal-wa-mark">WA</div><div class="assal-wa-head-copy"><b id="assalWaPremiumTitle">إرسال صورة حساب عبر واتساب</b><span>يتم نسخ الصورة تلقائياً عند الفتح، وبعدها افتح واتساب والصقها مباشرة.</span></div><button type="button" class="assal-wa-close" id="assalWaPremiumClose" aria-label="إغلاق"><i class="fa-solid fa-xmark"></i></button></header><div class="assal-wa-body"><div class="assal-wa-preview-panel"><div class="assal-wa-preview" id="assalWaPremiumPreview"><div class="assal-wa-loading">جاري تجهيز صورة الحساب…</div></div></div><aside class="assal-wa-side"><div class="assal-wa-box"><div class="assal-wa-customer"><span>الزبون</span><b id="assalWaPremiumName">—</b></div><div class="assal-wa-balance-mini"><span>الرصيد الحالي</span><b id="assalWaPremiumBalance">—</b></div></div><div class="assal-wa-box"><div class="assal-wa-actions"><button type="button" class="assal-wa-btn primary" id="assalWaPremiumOpen"><i class="fa-brands fa-whatsapp"></i><span>فتح الواتساب</span></button><button type="button" class="assal-wa-btn download" id="assalWaPremiumDownload"><i class="fa-solid fa-download"></i><span>تحميل الصورة</span></button></div><div class="assal-wa-help">تم نسخ الصورة تلقائياً. اضغط زر <b>فتح الواتساب</b> ثم اضغط <b>Ctrl + V</b>.</div><div class="assal-wa-status" id="assalWaPremiumStatus"></div></div></aside></div></section>';document.body.appendChild(root);byId('assalWaPremiumClose').addEventListener('click',closeModal);root.addEventListener('click',function(e){if(e.target===root)closeModal()});byId('assalWaPremiumOpen').addEventListener('click',function(){var opened=openWhatsApp();if(opened){setStatus('تم فتح الواتساب. اضغط Ctrl + V داخل المحادثة.', 'ok')}});byId('assalWaPremiumDownload').addEventListener('click',downloadImage);document.addEventListener('keydown',function(e){if(root.classList.contains('active')&&e.key==='Escape')closeModal()},true);return root}
+function closeModal(){var m=byId('assalDebtWaPremiumModal');if(m)m.classList.remove('active');document.body.classList.remove('assal-wa-premium-open')}
+function showModal(){var m=ensureModal();m.classList.add('active');document.body.classList.add('assal-wa-premium-open')}
+function setLoading(msg){var p=byId('assalWaPremiumPreview');if(p)p.innerHTML='<div class="assal-wa-loading">'+String(msg||'جاري تجهيز صورة الحساب…').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>'}
+function showImage(){var p=byId('assalWaPremiumPreview');if(!p||!state.url)return;p.innerHTML='';var img=document.createElement('img');img.src=state.url;img.alt='صورة حساب الزبون';p.appendChild(img);var panel=p.closest('.assal-wa-preview-panel');if(panel)panel.scrollTop=0}
+async function copyImage(showToastMsg){if(!state.blob){if(showToastMsg)toast('warn','الصورة غير جاهزة بعد',2200);return false}if(!navigator.clipboard||typeof window.ClipboardItem==='undefined'||typeof navigator.clipboard.write!=='function'){if(showToastMsg)toast('warn','هذا المتصفح لا يدعم نسخ صورة PNG مباشرة، استخدم التحميل',3200);setStatus('تعذر النسخ التلقائي هنا. استخدم تحميل الصورة كحل بديل.','err');return false}try{await navigator.clipboard.write([new ClipboardItem({'image/png':state.blob})]);if(showToastMsg)toast('success','تم نسخ صورة الحساب',2200);setStatus('تم نسخ الصورة تلقائياً. اضغط فتح الواتساب ثم Ctrl + V.','ok');return true}catch(_){if(showToastMsg)toast('warn','تعذر نسخ الصورة، استخدم التحميل',2800);setStatus('تعذر النسخ التلقائي هنا. استخدم تحميل الصورة كحل بديل.','err');return false}}
+function downloadImage(){if(!state.blob||!state.url){toast('warn','الصورة غير جاهزة بعد',2200);return}var a=document.createElement('a');a.href=state.url;a.download=state.fileName||'ASSAL-WHATSAPP.png';document.body.appendChild(a);a.click();setTimeout(function(){try{a.remove()}catch(_){ }},0);toast('success','تم تجهيز صورة الحساب للتحميل',2200);setStatus('تم تحميل الصورة. تقدر ترفقها مباشرة في واتساب.','ok')}
+function makeFileName(name){return 'ASSAL-WA-'+String(name||'customer').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim()+'.png'}
+async function openCard(name,balance){showModal();setLoading('جاري تجهيز صورة حساب '+name+' …');setStatus('جاري تجهيز الصورة ومحاولة نسخها تلقائياً…','');try{revoke();var s=snapshot(name,balance),blob=await makePng(s);state.blob=blob;state.url=URL.createObjectURL(blob);state.phone=s.phone||'';state.name=name;state.balance=balance;state.fileName=makeFileName(name);state.snapshot=s;byId('assalWaPremiumName').textContent=name;byId('assalWaPremiumBalance').textContent=money(balance);showImage();var copied=await copyImage(false);if(copied){setStatus('تم نسخ الصورة تلقائياً. اضغط فتح الواتساب ثم Ctrl + V.','ok')}else{setStatus('الصورة جاهزة لكن تعذر النسخ التلقائي. استخدم تحميل الصورة إذا لزم الأمر.','err')}toast('success','تم تجهيز صورة حساب الزبون',2200)}catch(err){console.error('ASSAL WA premium image error:',err);setLoading('تعذر تجهيز الصورة حالياً.');setStatus('تعذر تجهيز صورة الحساب. حاول مرة ثانية.','err');toast('error','تعذر تجهيز صورة الحساب',2600)}}
+document.addEventListener('click',function(e){var btn=e.target&&e.target.closest?e.target.closest('#debtsModal .debt-whatsapp-btn'):null;if(!btn)return;try{e.preventDefault();e.stopPropagation();e.stopImmediatePropagation()}catch(_){ }var card=btn.closest('.debt-card'),nameEl=card&&card.querySelector('.debt-name'),amtEl=card&&card.querySelector('.debt-amt');var name=String(nameEl&&nameEl.textContent||'').trim(),balance=num(amtEl&&amtEl.textContent||'');if(!name){toast('warn','لا يوجد اسم زبون',2200);return}openCard(name,balance)},true)
+})();
+</script>
+<!-- ASSAL DEBTS WHATSAPP PREMIUM IMAGE FINAL - END -->
 </body>
 </html>
