@@ -46857,7 +46857,7 @@ body.assal-ledger-owner-context .assal-ledger-date-field .assal-ledger-dmy-text-
 #assalDebtWaPremiumModal .assal-wa-preview{min-height:100%;display:flex;align-items:flex-start;justify-content:center}
 #assalDebtWaPremiumModal .assal-wa-preview img{display:block;width:min(720px,100%);height:auto;max-width:none;margin:0 auto;border-radius:18px;background:#fff;box-shadow:0 16px 42px rgba(0,0,0,.32)}
 #assalDebtWaPremiumModal .assal-wa-loading{min-height:260px;width:100%;display:grid;place-items:center;text-align:center;color:#cbd5e1;font-size:13px;font-weight:800;line-height:1.9}
-#assalDebtWaPremiumModal .assal-wa-side{display:flex;flex-direction:column;gap:12px;min-width:0;direction:rtl}
+#assalDebtWaPremiumModal .assal-wa-side{display:flex;flex-direction:column;justify-content:center;align-self:stretch;gap:12px;min-width:0;direction:rtl}
 #assalDebtWaPremiumModal .assal-wa-box{border:1px solid rgba(148,163,184,.12);border-radius:18px;padding:14px;background:linear-gradient(180deg,#0f1a33,#0c162b);box-shadow:inset 0 1px 0 rgba(255,255,255,.02)}
 #assalDebtWaPremiumModal .assal-wa-customer{display:flex;flex-direction:column;gap:5px;text-align:right}
 #assalDebtWaPremiumModal .assal-wa-customer span{font-size:11px;color:#9cadc4;font-weight:800}
@@ -46868,6 +46868,7 @@ body.assal-ledger-owner-context .assal-ledger-date-field .assal-ledger-dmy-text-
 #assalDebtWaPremiumModal .assal-wa-actions{display:grid;gap:8px}
 #assalDebtWaPremiumModal .assal-wa-btn{min-height:45px;border-radius:14px;border:1px solid rgba(148,163,184,.16);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 12px;font-size:12.8px;font-weight:900;background:#0b1730;color:#e7eef9;transition:transform .12s ease,filter .12s ease}
 #assalDebtWaPremiumModal .assal-wa-btn.primary{min-height:50px;background:linear-gradient(135deg,#0f766e,#16a34a);color:#fff;border-color:transparent;box-shadow:0 13px 28px rgba(22,163,74,.22)}
+#assalDebtWaPremiumModal .assal-wa-btn .assal-wa-btn-svg{width:20px;height:20px;display:block;flex:0 0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.18))}
 #assalDebtWaPremiumModal .assal-wa-btn:hover{filter:brightness(1.04);transform:translateY(-1px)}
 #assalDebtWaPremiumModal .assal-wa-btn.download{background:linear-gradient(135deg,#5b3b06,#a16207);color:#fff;border-color:transparent}
 #assalDebtWaPremiumModal .assal-wa-help{margin-top:2px;padding:10px 12px;border:1px solid rgba(96,165,250,.16);border-radius:14px;background:#0a1327;font-size:12px;line-height:1.9;color:#d9e3f2;font-weight:800;text-align:right}
@@ -46875,7 +46876,7 @@ body.assal-ledger-owner-context .assal-ledger-date-field .assal-ledger-dmy-text-
 #assalDebtWaPremiumModal .assal-wa-status.ok{color:#86efac}
 #assalDebtWaPremiumModal .assal-wa-status.err{color:#fecaca}
 body.assal-wa-premium-open{overflow:hidden!important}
-@media(max-width:880px){#assalDebtWaPremiumModal{padding:8px}#assalDebtWaPremiumModal .assal-wa-shell{width:100%;max-height:96vh;border-radius:18px;padding:10px}#assalDebtWaPremiumModal .assal-wa-body{grid-template-columns:1fr;overflow:auto;direction:rtl}#assalDebtWaPremiumModal .assal-wa-preview-panel{height:min(58vh,620px);order:1}#assalDebtWaPremiumModal .assal-wa-side{padding-bottom:2px;order:2}}
+@media(max-width:880px){#assalDebtWaPremiumModal{padding:8px}#assalDebtWaPremiumModal .assal-wa-shell{width:100%;max-height:96vh;border-radius:18px;padding:10px}#assalDebtWaPremiumModal .assal-wa-body{grid-template-columns:1fr;overflow:auto;direction:rtl}#assalDebtWaPremiumModal .assal-wa-preview-panel{height:min(58vh,620px);order:1}#assalDebtWaPremiumModal .assal-wa-side{justify-content:flex-start;align-self:auto;padding-bottom:2px;order:2}}
 </style>
 <script id="assal-debt-wa-premium-final-script">
 (function(){
@@ -46883,7 +46884,7 @@ body.assal-wa-premium-open{overflow:hidden!important}
 if(window.__ASSAL_DEBT_WA_PREMIUM_FINAL__)return;
 window.__ASSAL_DEBT_WA_PREMIUM_FINAL__=true;
 var state={blob:null,url:'',phone:'',name:'',balance:0,fileName:'',snapshot:null};
-var W=1080,H=1480;
+var W=1080,H=1500;
 function byId(id){return document.getElementById(id)}
 function toast(type,msg,ms){try{if(typeof window.showToast==='function')window.showToast(type,msg,ms||2600)}catch(_){}}
 function nrm(s){return String(s==null?'':s).trim().toLowerCase().replace(/[\u064B-\u0652]/g,'').replace(/[إأآا]/g,'ا').replace(/[ىي]/g,'ي').replace(/ة/g,'ه').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/[\s\-_،,./\\]+/g,' ').trim()}
@@ -46946,7 +46947,7 @@ async function makePng(s){
   ctx.shadowColor='rgba(15,23,42,.13)';
   ctx.shadowBlur=32;
   ctx.shadowOffsetY=12;
-  fillRound(ctx,46,44,988,1392,40,'#ffffff',null);
+  fillRound(ctx,46,44,988,1432,40,'#ffffff',null);
   ctx.restore();
 
   var top=ctx.createLinearGradient(80,0,1000,0);
@@ -46989,7 +46990,8 @@ async function makePng(s){
 
   var detailsTitleY=674, detailsSubY=710;
   var row1Y=744, row2Y=894, row3Y=1044;
-  var footerLineY=1216, footer1Y=1252, footer2Y=1282;
+  var footerLineY=1218, contactY=1242, contactH=118;
+  var contactHeaderY=1264, contactThanksY=1296, contactInfoY=1324, contactPhoneY=1352;
 
   if(s.balance>0){
     fillRound(ctx,102,634,876,142,30,'#fff5f5','#fecaca');
@@ -46999,7 +47001,8 @@ async function makePng(s){
     textC(ctx,'راجين مراجعة المكتب في أقرب وقت ممكن',540,748,700,24,'#991b1b',760);
     detailsTitleY=820; detailsSubY=856;
     row1Y=890; row2Y=1040; row3Y=1190;
-    footerLineY=1370; footer1Y=1406; footer2Y=1436;
+    footerLineY=1342; contactY=1360; contactH=100;
+    contactHeaderY=1382; contactThanksY=1406; contactInfoY=1430; contactPhoneY=1452;
   }
 
   textR(ctx,'تفاصيل الحساب',948,detailsTitleY,700,28,'#0f172a');
@@ -47009,9 +47012,12 @@ async function makePng(s){
   metricRow(ctx,row3Y,'آخر بطاقة أجل',s.lastCardAmount,s.lastCardDate+' • '+s.lastCardItems+' مادة','#0ea5e9');
 
   line(ctx,102,footerLineY,978,footerLineY,'#e5e7eb',1);
-  textR(ctx,'مكتب عسل • كشف مُنشأ من النظام للمتابعة فقط',948,footer1Y,600,18,'#64748b',610);
-  textL(ctx,'ASSAL',112,footer1Y,700,19,'#334155');
-  textR(ctx,'للاستفسار أو مراجعة الحساب يرجى التواصل مع المكتب',948,footer2Y,600,16,'#94a3b8',650);
+  fillRound(ctx,102,contactY,876,contactH,26,'#f8fafc','#dbe4f0');
+  fillRound(ctx,446,contactY+12,188,28,14,'#eef2ff','#dbeafe');
+  textC(ctx,'تواصل معنا',540,contactHeaderY,700,17,'#4338ca',150);
+  textC(ctx,'شاكرين تعاملكم معنا',540,contactThanksY,700,21,'#0f172a',420);
+  textC(ctx,'لمزيد من المعلومات يرجى الاتصال بنا',540,contactInfoY,600,16,'#64748b',560);
+  textC(ctx,'07728640560',540,contactPhoneY,700,22,'#0ea5e9',240);
 
   return new Promise(function(resolve,reject){
     canvas.toBlob(function(blob){
@@ -47024,7 +47030,7 @@ function openExternal(url){try{var a=document.createElement('a');a.href=url;a.ta
 function openWhatsApp(){if(!state.phone){toast('warn','لا يوجد رقم واتساب محفوظ لهذا الزبون في شيت CUSTOMER',3200);setStatus('لا يوجد رقم واتساب محفوظ لهذا الزبون.','err');return false}var msg='السلام عليكم';var url='https://wa.me/'+state.phone+'?text='+encodeURIComponent(msg);var opened=openExternal(url);if(!opened){toast('warn','اسمح بفتح النوافذ حتى يفتح واتساب',3000);setStatus('تعذر فتح واتساب. اسمح بالنوافذ المنبثقة ثم حاول مرة ثانية.','err');return false}toast('success','تم فتح واتساب للزبون المحدد',2400);return true}
 function setStatus(msg,tone){var el=byId('assalWaPremiumStatus');if(!el)return;el.textContent=String(msg||'');el.className='assal-wa-status'+(tone==='ok'?' ok':(tone==='err'?' err':''))}
 function revoke(){if(state.url){try{URL.revokeObjectURL(state.url)}catch(_){ }}state.url='';state.blob=null}
-function ensureModal(){var root=byId('assalDebtWaPremiumModal');if(root)return root;root=document.createElement('div');root.id='assalDebtWaPremiumModal';root.innerHTML='<section class="assal-wa-shell" role="dialog" aria-modal="true" aria-labelledby="assalWaPremiumTitle"><header class="assal-wa-head"><div class="assal-wa-mark">WA</div><div class="assal-wa-head-copy"><b id="assalWaPremiumTitle">إرسال صورة حساب عبر واتساب</b><span>يتم نسخ الصورة تلقائياً عند الفتح، وبعدها افتح واتساب والصقها مباشرة.</span></div><button type="button" class="assal-wa-close" id="assalWaPremiumClose" aria-label="إغلاق"><i class="fa-solid fa-xmark"></i></button></header><div class="assal-wa-body"><div class="assal-wa-preview-panel"><div class="assal-wa-preview" id="assalWaPremiumPreview"><div class="assal-wa-loading">جاري تجهيز صورة الحساب…</div></div></div><aside class="assal-wa-side"><div class="assal-wa-box"><div class="assal-wa-customer"><span>الزبون</span><b id="assalWaPremiumName">—</b></div><div class="assal-wa-balance-mini"><span>الرصيد الحالي</span><b id="assalWaPremiumBalance">—</b></div></div><div class="assal-wa-box"><div class="assal-wa-actions"><button type="button" class="assal-wa-btn primary" id="assalWaPremiumOpen"><i class="fa-brands fa-whatsapp"></i><span>فتح الواتساب</span></button><button type="button" class="assal-wa-btn download" id="assalWaPremiumDownload"><i class="fa-solid fa-download"></i><span>تحميل الصورة</span></button></div><div class="assal-wa-help">تم نسخ الصورة تلقائياً. اضغط زر <b>فتح الواتساب</b> ثم اضغط <b>Ctrl + V</b>.</div><div class="assal-wa-status" id="assalWaPremiumStatus"></div></div></aside></div></section>';document.body.appendChild(root);byId('assalWaPremiumClose').addEventListener('click',closeModal);root.addEventListener('click',function(e){if(e.target===root)closeModal()});byId('assalWaPremiumOpen').addEventListener('click',function(){var opened=openWhatsApp();if(opened){setStatus('تم فتح الواتساب. اضغط Ctrl + V داخل المحادثة.', 'ok')}});byId('assalWaPremiumDownload').addEventListener('click',downloadImage);document.addEventListener('keydown',function(e){if(root.classList.contains('active')&&e.key==='Escape')closeModal()},true);return root}
+function ensureModal(){var root=byId('assalDebtWaPremiumModal');if(root)return root;root=document.createElement('div');root.id='assalDebtWaPremiumModal';root.innerHTML='<section class="assal-wa-shell" role="dialog" aria-modal="true" aria-labelledby="assalWaPremiumTitle"><header class="assal-wa-head"><div class="assal-wa-mark">WA</div><div class="assal-wa-head-copy"><b id="assalWaPremiumTitle">إرسال صورة حساب عبر واتساب</b><span>يتم نسخ الصورة تلقائياً عند الفتح، وبعدها افتح واتساب والصقها مباشرة.</span></div><button type="button" class="assal-wa-close" id="assalWaPremiumClose" aria-label="إغلاق"><i class="fa-solid fa-xmark"></i></button></header><div class="assal-wa-body"><div class="assal-wa-preview-panel"><div class="assal-wa-preview" id="assalWaPremiumPreview"><div class="assal-wa-loading">جاري تجهيز صورة الحساب…</div></div></div><aside class="assal-wa-side"><div class="assal-wa-box"><div class="assal-wa-customer"><span>الزبون</span><b id="assalWaPremiumName">—</b></div><div class="assal-wa-balance-mini"><span>الرصيد الحالي</span><b id="assalWaPremiumBalance">—</b></div></div><div class="assal-wa-box"><div class="assal-wa-actions"><button type="button" class="assal-wa-btn primary" id="assalWaPremiumOpen"><svg class="assal-wa-btn-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="#ffffff" d="M12 3.15c-4.65 0-8.43 3.56-8.43 7.94 0 1.48.44 2.86 1.2 4.05L3.72 20.5l5.55-1.31c.86.28 1.78.43 2.73.43 4.65 0 8.43-3.56 8.43-7.94S16.65 3.15 12 3.15Z"/><path fill="#16a34a" d="M8.68 7.35c.22-.02.46-.02.7-.01.18.01.38.02.55.42.21.5.67 1.72.72 1.84.06.13.09.28.01.44-.08.17-.13.27-.25.41-.13.14-.26.31-.37.42-.12.12-.25.25-.11.49.14.25.63 1.02 1.36 1.66.94.83 1.73 1.08 1.98 1.2.25.13.4.1.55-.06.15-.17.64-.72.81-.97.17-.25.34-.21.57-.13.24.08 1.52.69 1.78.82.26.13.43.19.49.3.06.12.06.68-.14 1.34-.2.66-1.16 1.26-1.62 1.33-.42.06-.95.09-1.54-.09-.36-.11-.82-.26-1.41-.5-2.48-1.02-4.1-3.46-4.22-3.62-.12-.17-1.01-1.3-1.01-2.48 0-1.19.64-1.77.86-2.01.23-.25.5-.31.83-.32Z"/></svg><span>فتح الواتساب</span></button><button type="button" class="assal-wa-btn download" id="assalWaPremiumDownload"><i class="fa-solid fa-download"></i><span>تحميل الصورة</span></button></div><div class="assal-wa-help">تم نسخ الصورة تلقائياً. اضغط زر <b>فتح الواتساب</b> ثم اضغط <b>Ctrl + V</b>.</div><div class="assal-wa-status" id="assalWaPremiumStatus"></div></div></aside></div></section>';document.body.appendChild(root);byId('assalWaPremiumClose').addEventListener('click',closeModal);root.addEventListener('click',function(e){if(e.target===root)closeModal()});byId('assalWaPremiumOpen').addEventListener('click',function(){var opened=openWhatsApp();if(opened){setStatus('تم فتح الواتساب. اضغط Ctrl + V داخل المحادثة.', 'ok')}});byId('assalWaPremiumDownload').addEventListener('click',downloadImage);document.addEventListener('keydown',function(e){if(root.classList.contains('active')&&e.key==='Escape')closeModal()},true);return root}
 function closeModal(){var m=byId('assalDebtWaPremiumModal');if(m)m.classList.remove('active');document.body.classList.remove('assal-wa-premium-open')}
 function showModal(){var m=ensureModal();m.classList.add('active');document.body.classList.add('assal-wa-premium-open')}
 function setLoading(msg){var p=byId('assalWaPremiumPreview');if(p)p.innerHTML='<div class="assal-wa-loading">'+String(msg||'جاري تجهيز صورة الحساب…').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>'}
