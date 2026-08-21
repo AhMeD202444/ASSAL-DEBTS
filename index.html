@@ -47081,8 +47081,24 @@ document.addEventListener('click',function(e){var btn=e.target&&e.target.closest
 #assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-btn.download{background:linear-gradient(135deg,#5b3b06,#a16207);border-color:transparent}
 #assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-btn .assal-ledger-wa-btn-svg{width:19px;height:19px;display:block;flex:0 0 auto}
 #assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-btn:disabled{opacity:.48;cursor:not-allowed;filter:saturate(.55);box-shadow:none!important}
-#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-help{margin-top:10px;padding:10px 12px;border-radius:14px;border:1px solid rgba(96,165,250,.16);background:#0a1327;color:#d9e3f2;font-size:12px;line-height:1.9;font-weight:850;text-align:right}
-#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-status{min-height:20px;margin-top:9px;padding:7px 8px;border-radius:11px;text-align:center;color:#cbd5e1;font-size:11.3px;font-weight:900;line-height:1.7}
+#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-progress{margin-top:10px;padding:11px 12px 12px;border-radius:15px;border:1px solid rgba(56,189,248,.18);background:linear-gradient(180deg,#0a1428,#081120);box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-progress-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-progress-label{min-width:0;color:#dbeafe;font-size:11.7px;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-progress-pct{direction:ltr;flex:0 0 auto;min-width:43px;text-align:center;padding:2px 7px;border-radius:999px;background:#071126;border:1px solid rgba(125,211,252,.18);color:#bae6fd;font-size:11px;font-weight:1000;font-variant-numeric:tabular-nums}
+#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-progress-track{position:relative;height:9px;overflow:hidden;border-radius:999px;background:#020617;border:1px solid rgba(148,163,184,.14);box-shadow:inset 0 2px 5px rgba(0,0,0,.35)}
+#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-progress-bar{position:relative;width:0%;height:100%;border-radius:inherit;background:linear-gradient(90deg,#0ea5e9,#14b8a6 48%,#22c55e);box-shadow:0 0 14px rgba(34,211,238,.22);transition:width .24s cubic-bezier(.22,1,.36,1);overflow:hidden}
+#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-progress-bar::after{content:"";position:absolute;inset:0;width:42%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.38),transparent);transform:translateX(160%);animation:assalLedgerWaProgressShine 1.35s ease-in-out infinite}
+#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-progress.done{border-color:rgba(34,197,94,.28);background:linear-gradient(180deg,rgba(6,78,59,.28),#081420)}
+#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-progress.done .assal-ledger-wa-pdf-progress-label{color:#bbf7d0}
+#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-progress.done .assal-ledger-wa-pdf-progress-pct{color:#bbf7d0;border-color:rgba(34,197,94,.28);background:rgba(6,78,59,.25)}
+#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-progress.error{border-color:rgba(239,68,68,.25)}
+#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-progress.error .assal-ledger-wa-pdf-progress-label,#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-progress.error .assal-ledger-wa-pdf-progress-pct{color:#fecaca}
+@keyframes assalLedgerWaProgressShine{0%{transform:translateX(165%);opacity:0}18%{opacity:.9}100%{transform:translateX(-250%);opacity:0}}
+#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-help{margin-top:10px;padding:11px 12px;border-radius:14px;border:1px solid rgba(34,197,94,.22);background:linear-gradient(180deg,rgba(6,78,59,.20),rgba(5,46,42,.18));color:#bbf7d0;font-size:12.3px;line-height:1.85;font-weight:950;text-align:center}
+#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-help[hidden]{display:none!important}
+#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-status{min-height:0;margin-top:9px;padding:0;text-align:center;color:#cbd5e1;font-size:11.3px;font-weight:900;line-height:1.7}
+#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-status:empty{display:none}
+#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-status.ok,#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-status.err{padding:7px 8px;border-radius:11px}
 #assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-status.ok{color:#86efac;border:1px solid rgba(34,197,94,.18)}
 #assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-status.err{color:#fecaca;border:1px solid rgba(239,68,68,.20)}
 body.assal-ledger-wa-auto-pdf-open{overflow:hidden!important}
@@ -47102,12 +47118,15 @@ function esc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'
 function safeName(v){return String(v||'customer').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim()||'customer'}
 function waSvg(){return '<svg class="assal-ledger-wa-btn-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="#ffffff" d="M12 3.15c-4.65 0-8.43 3.56-8.43 7.94 0 1.48.44 2.86 1.2 4.05L3.72 20.5l5.55-1.31c.86.28 1.78.43 2.73.43 4.65 0 8.43-3.56 8.43-7.94S16.65 3.15 12 3.15Z"/><path fill="#16a34a" d="M8.68 7.35c.22-.02.46-.02.7-.01.18.01.38.02.55.42.21.5.67 1.72.72 1.84.06.13.09.28.01.44-.08.17-.13.27-.25.41-.13.14-.26.31-.37.42-.12.12-.25.25-.11.49.14.25.63 1.02 1.36 1.66.94.83 1.73 1.08 1.98 1.2.25.13.4.1.55-.06.15-.17.64-.72.81-.97.17-.25.34-.21.57-.13.24.08 1.52.69 1.78.82.26.13.43.19.49.3.06.12.06.68-.14 1.34-.2.66-1.16 1.26-1.62 1.33-.42.06-.95.09-1.54-.09-.36-.11-.82-.26-1.41-.5-2.48-1.02-4.1-3.46-4.22-3.62-.12-.17-1.01-1.3-1.01-2.48 0-1.19.64-1.77.86-2.01.23-.25.5-.31.83-.32Z"/></svg>'}
 function setStatus(msg,tone){var el=byId('assalLedgerWaAutoPdfStatus');if(!el)return;el.textContent=String(msg||'');el.className='assal-ledger-wa-pdf-status'+(tone==='ok'?' ok':(tone==='err'?' err':''))}
+function setProgress(value,label,tone){var wrap=byId('assalLedgerWaAutoPdfProgress'),bar=byId('assalLedgerWaAutoPdfProgressBar'),pct=byId('assalLedgerWaAutoPdfProgressPct'),txt=byId('assalLedgerWaAutoPdfProgressLabel');var n=Math.max(0,Math.min(100,Math.round(Number(value)||0)));if(bar)bar.style.width=n+'%';if(pct)pct.textContent=n+'%';if(txt)txt.textContent=String(label||'جاري تجهيز ملف PDF…');if(wrap)wrap.className='assal-ledger-wa-pdf-progress'+(tone==='done'?' done':(tone==='error'?' error':''))}
+function showFinalInstruction(show){var el=byId('assalLedgerWaAutoPdfHelp');if(el)el.hidden=!show}
+function resetProgress(){showFinalInstruction(false);setStatus('','');setProgress(3,'بدء تجهيز كشف الحساب…','')}
 function revoke(){pdfState.blob=null;if(Array.isArray(pdfState.previewUrls)){pdfState.previewUrls.forEach(function(u){try{URL.revokeObjectURL(u)}catch(_){}})}pdfState.previewUrls=[];pdfState.previewIndex=0}
 
 function ensureModal(){
   var root=byId('assalLedgerWaAutoPdfModal');if(root)return root;
   root=document.createElement('div');root.id='assalLedgerWaAutoPdfModal';
-  root.innerHTML='<section class="assal-ledger-wa-pdf-shell" role="dialog" aria-modal="true" aria-labelledby="assalLedgerWaAutoPdfTitle"><header class="assal-ledger-wa-pdf-head"><div class="assal-ledger-wa-pdf-mark">PDF</div><div class="assal-ledger-wa-pdf-head-copy"><b id="assalLedgerWaAutoPdfTitle">إرسال كشف الحساب PDF عبر واتساب</b><span>يُنشأ الكشف من نفس تصميم الطباعة الحالي، وتظهر الصفحات هنا كصور خفيفة بدون فتح أي PDF داخل Firefox.</span></div><button type="button" class="assal-ledger-wa-pdf-close" id="assalLedgerWaAutoPdfClose" aria-label="إغلاق"><i class="fa-solid fa-xmark"></i></button></header><div class="assal-ledger-wa-pdf-body"><div class="assal-ledger-wa-pdf-preview-panel" id="assalLedgerWaAutoPdfPreviewPanel"><div class="assal-ledger-wa-pdf-loading">جاري إنشاء ملف PDF…</div></div><aside class="assal-ledger-wa-pdf-side"><div class="assal-ledger-wa-pdf-box"><div class="assal-ledger-wa-pdf-meta"><span>الزبون</span><b id="assalLedgerWaAutoPdfName">—</b><span>الفترة ونوع الكشف</span><b id="assalLedgerWaAutoPdfMeta">—</b><div class="assal-ledger-wa-pdf-pill"><span>ملف الكشف</span><b id="assalLedgerWaAutoPdfFile">PDF</b></div></div></div><div class="assal-ledger-wa-pdf-box"><div class="assal-ledger-wa-pdf-actions"><button type="button" class="assal-ledger-wa-pdf-btn open" id="assalLedgerWaAutoPdfOpen">'+waSvg()+'<span>فتح الواتساب</span></button><button type="button" class="assal-ledger-wa-pdf-btn download" id="assalLedgerWaAutoPdfDownload"><i class="fa-solid fa-file-arrow-down"></i><span>تحميل PDF</span></button></div><div class="assal-ledger-wa-pdf-help">يتم تنزيل ملف مؤقت آمن بامتداد <b>.assalpdf</b> حتى لا يفتحه Firefox. أداة <b>ASSAL PDF Clipboard Helper</b> تحوّله خارج المتصفح إلى PDF وتنسخه تلقائياً؛ بعدها اضغط <b>فتح الواتساب</b> ثم <b>Ctrl + V</b>.</div><div class="assal-ledger-wa-pdf-status" id="assalLedgerWaAutoPdfStatus"></div></div></aside></div></section>';
+  root.innerHTML='<section class="assal-ledger-wa-pdf-shell" role="dialog" aria-modal="true" aria-labelledby="assalLedgerWaAutoPdfTitle"><header class="assal-ledger-wa-pdf-head"><div class="assal-ledger-wa-pdf-mark">PDF</div><div class="assal-ledger-wa-pdf-head-copy"><b id="assalLedgerWaAutoPdfTitle">إرسال كشف الحساب PDF عبر واتساب</b><span>يُنشأ الكشف من نفس تصميم الطباعة الحالي، وتظهر الصفحات هنا كصور خفيفة بدون فتح أي PDF داخل Firefox.</span></div><button type="button" class="assal-ledger-wa-pdf-close" id="assalLedgerWaAutoPdfClose" aria-label="إغلاق"><i class="fa-solid fa-xmark"></i></button></header><div class="assal-ledger-wa-pdf-body"><div class="assal-ledger-wa-pdf-preview-panel" id="assalLedgerWaAutoPdfPreviewPanel"><div class="assal-ledger-wa-pdf-loading">جاري إنشاء ملف PDF…</div></div><aside class="assal-ledger-wa-pdf-side"><div class="assal-ledger-wa-pdf-box"><div class="assal-ledger-wa-pdf-meta"><span>الزبون</span><b id="assalLedgerWaAutoPdfName">—</b><span>الفترة ونوع الكشف</span><b id="assalLedgerWaAutoPdfMeta">—</b><div class="assal-ledger-wa-pdf-pill"><span>ملف الكشف</span><b id="assalLedgerWaAutoPdfFile">PDF</b></div></div></div><div class="assal-ledger-wa-pdf-box"><div class="assal-ledger-wa-pdf-actions"><button type="button" class="assal-ledger-wa-pdf-btn open" id="assalLedgerWaAutoPdfOpen">'+waSvg()+'<span>فتح الواتساب</span></button><button type="button" class="assal-ledger-wa-pdf-btn download" id="assalLedgerWaAutoPdfDownload"><i class="fa-solid fa-file-arrow-down"></i><span>تحميل PDF</span></button></div><div class="assal-ledger-wa-pdf-progress" id="assalLedgerWaAutoPdfProgress"><div class="assal-ledger-wa-pdf-progress-head"><span class="assal-ledger-wa-pdf-progress-label" id="assalLedgerWaAutoPdfProgressLabel">جاري تجهيز ملف PDF…</span><b class="assal-ledger-wa-pdf-progress-pct" id="assalLedgerWaAutoPdfProgressPct">0%</b></div><div class="assal-ledger-wa-pdf-progress-track"><div class="assal-ledger-wa-pdf-progress-bar" id="assalLedgerWaAutoPdfProgressBar"></div></div></div><div class="assal-ledger-wa-pdf-help" id="assalLedgerWaAutoPdfHelp" hidden>اضغط <b>Ctrl + V</b> عند فتح الواتساب لإرسال الكشف.</div><div class="assal-ledger-wa-pdf-status" id="assalLedgerWaAutoPdfStatus"></div></div></aside></div></section>';
   document.body.appendChild(root);
   byId('assalLedgerWaAutoPdfClose').addEventListener('click',closeModal);
   root.addEventListener('click',function(e){if(e.target===root)closeModal()});
@@ -47122,7 +47141,7 @@ function showLoading(msg){var p=byId('assalLedgerWaAutoPdfPreviewPanel');if(p)p.
 function updatePreviewPage(){var img=byId('assalLedgerWaAutoPdfPreviewImage'),cnt=byId('assalLedgerWaAutoPdfPageCount'),prev=byId('assalLedgerWaAutoPdfPrev'),next=byId('assalLedgerWaAutoPdfNext');var urls=pdfState.previewUrls||[];if(!urls.length)return;var i=Math.max(0,Math.min(pdfState.previewIndex||0,urls.length-1));pdfState.previewIndex=i;if(img)img.src=urls[i];if(cnt)cnt.textContent='الصفحة '+(i+1)+' من '+urls.length;if(prev)prev.disabled=(i<=0);if(next)next.disabled=(i>=urls.length-1)}
 function showImagePreviews(blobs){var p=byId('assalLedgerWaAutoPdfPreviewPanel');if(!p)return;if(Array.isArray(pdfState.previewUrls)){pdfState.previewUrls.forEach(function(u){try{URL.revokeObjectURL(u)}catch(_){}})}pdfState.previewUrls=(blobs||[]).map(function(b){return URL.createObjectURL(b)});pdfState.previewIndex=0;if(!pdfState.previewUrls.length){showLoading('تم إنشاء الكشف لكن تعذر إنشاء صور المعاينة.');return}p.innerHTML='<div class="assal-ledger-wa-pdf-preview-stage"><img id="assalLedgerWaAutoPdfPreviewImage" class="assal-ledger-wa-pdf-preview-image" alt="معاينة صفحة كشف الحساب"></div><div class="assal-ledger-wa-pdf-pager"><button type="button" id="assalLedgerWaAutoPdfPrev" class="assal-ledger-wa-pdf-page-btn" aria-label="الصفحة السابقة"><i class="fa-solid fa-chevron-left"></i></button><b id="assalLedgerWaAutoPdfPageCount" class="assal-ledger-wa-pdf-page-count"></b><button type="button" id="assalLedgerWaAutoPdfNext" class="assal-ledger-wa-pdf-page-btn" aria-label="الصفحة التالية"><i class="fa-solid fa-chevron-right"></i></button></div>';var prev=byId('assalLedgerWaAutoPdfPrev'),next=byId('assalLedgerWaAutoPdfNext');if(prev)prev.addEventListener('click',function(){if(pdfState.previewIndex>0){pdfState.previewIndex--;updatePreviewPage()}});if(next)next.addEventListener('click',function(){if(pdfState.previewIndex<pdfState.previewUrls.length-1){pdfState.previewIndex++;updatePreviewPage()}});updatePreviewPage();var stage=p.querySelector('.assal-ledger-wa-pdf-preview-stage');if(stage)stage.scrollTop=0}
 function setPdfButtonsReady(ready){var a=byId('assalLedgerWaAutoPdfOpen'),d=byId('assalLedgerWaAutoPdfDownload');if(a)a.disabled=!ready;if(d)d.disabled=!ready}
-function triggerPdfDownload(isAuto){if(!pdfState.blob)return false;var downloadUrl='';try{downloadUrl=URL.createObjectURL(pdfState.blob);var finalName=pdfState.fileName||'ASSAL-STATEMENT.pdf';var tempName=finalName.replace(/\.pdf$/i,'')+'.assalpdf';var a=document.createElement('a');a.href=downloadUrl;a.setAttribute('download',tempName);a.setAttribute('type','application/octet-stream');a.style.cssText='position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none';document.body.appendChild(a);a.click();setTimeout(function(){try{a.remove()}catch(_){}},0);setTimeout(function(){try{URL.revokeObjectURL(downloadUrl)}catch(_){}},15000);pdfState.downloadStarted=true;if(!isAuto){toast('success','بدأ تنزيل ملف ASSAL المؤقت',2200);setStatus('بدأ تنزيل .assalpdf من جديد. انتظر إشعار أداة ASSAL ثم افتح الواتساب واضغط Ctrl + V.','ok')}return true}catch(err){if(downloadUrl){try{URL.revokeObjectURL(downloadUrl)}catch(_){}}console.error('ASSAL temporary download error:',err);return false}}
+function triggerPdfDownload(isAuto){if(!pdfState.blob)return false;var downloadUrl='';try{downloadUrl=URL.createObjectURL(pdfState.blob);var finalName=pdfState.fileName||'ASSAL-STATEMENT.pdf';var tempName=finalName.replace(/\.pdf$/i,'')+'.assalpdf';var a=document.createElement('a');a.href=downloadUrl;a.setAttribute('download',tempName);a.setAttribute('type','application/octet-stream');a.style.cssText='position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none';document.body.appendChild(a);a.click();setTimeout(function(){try{a.remove()}catch(_){}},0);setTimeout(function(){try{URL.revokeObjectURL(downloadUrl)}catch(_){}},15000);pdfState.downloadStarted=true;if(!isAuto){toast('success','بدأ تنزيل ملف ASSAL المؤقت',2200);setProgress(100,'تم تجهيز الكشف','done');showFinalInstruction(true);setStatus('','')}return true}catch(err){if(downloadUrl){try{URL.revokeObjectURL(downloadUrl)}catch(_){}}console.error('ASSAL temporary download error:',err);return false}}
 
 function currentLedgerInfo(){
   var root=byId('assalLedgerStatementBackdrop');
@@ -47146,7 +47165,7 @@ function pickCustomerName(row){var nm=pickLoose(row,NAME_KEYS);if(String(nm||'')
 function findPhone(name){var target=nrm(name),rows=[];if(!target)return '';try{if(typeof database!=='undefined'&&database&&Array.isArray(database.CUSTOMER))rows=database.CUSTOMER;else if(window.database&&Array.isArray(window.database.CUSTOMER))rows=window.database.CUSTOMER}catch(_){rows=[]}for(var i=0;i<rows.length;i++){var row=rows[i]||{},nm=pickCustomerName(row);if(!nm||nrm(nm)!==target)continue;var ph=normalizeIraqPhone(pickLoose(row,PHONE_KEYS));if(ph)return ph;for(var p in row){if(!Object.prototype.hasOwnProperty.call(row,p))continue;ph=normalizeIraqPhone(row[p]);if(ph)return ph}}return ''}
 
 function openExternal(url){try{var a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener noreferrer';a.referrerPolicy='no-referrer';a.style.position='fixed';a.style.left='-9999px';a.style.top='-9999px';a.setAttribute('aria-hidden','true');document.body.appendChild(a);a.click();setTimeout(function(){try{a.remove()}catch(_){}},0);return true}catch(_){try{var w=window.open(url,'_blank','noopener,noreferrer');try{if(w)w.opener=null}catch(__){}return !!w}catch(__){return false}}}
-function openWhatsApp(){if(!pdfState.blob||!pdfState.downloadStarted){toast('warn','انتظر حتى يكتمل تجهيز وبدء تحميل PDF',2600);setStatus('ملف PDF لم يصبح جاهزاً للتحميل بعد.','err');return false}if(!pdfState.phone){toast('warn','لا يوجد رقم واتساب محفوظ لهذا الزبون في شيت CUSTOMER',3200);setStatus('تعذر العثور على رقم الزبون في CUSTOMER.','err');return false}var ok=openExternal('https://wa.me/'+pdfState.phone+'?text='+encodeURIComponent('السلام عليكم'));if(!ok){toast('warn','اسمح بفتح النوافذ حتى يفتح واتساب',3000);setStatus('تعذر فتح واتساب.','err');return false}setStatus('تم فتح واتساب. إذا ظهر إشعار أداة ASSAL بأن الملف نُسخ، اضغط Ctrl + V للصقه كمرفق.','ok');return true}
+function openWhatsApp(){if(!pdfState.blob||!pdfState.downloadStarted){toast('warn','انتظر حتى يكتمل تجهيز وبدء تحميل PDF',2600);setStatus('ملف PDF لم يصبح جاهزاً للتحميل بعد.','err');return false}if(!pdfState.phone){toast('warn','لا يوجد رقم واتساب محفوظ لهذا الزبون في شيت CUSTOMER',3200);setStatus('تعذر العثور على رقم الزبون في CUSTOMER.','err');return false}var ok=openExternal('https://wa.me/'+pdfState.phone+'?text='+encodeURIComponent('السلام عليكم'));if(!ok){toast('warn','اسمح بفتح النوافذ حتى يفتح واتساب',3000);setStatus('تعذر فتح واتساب.','err');return false}showFinalInstruction(true);setStatus('','');return true}
 function downloadPdf(){if(!pdfState.blob){toast('warn','ملف PDF غير جاهز بعد',2200);return}if(!triggerPdfDownload(false)){toast('error','تعذر بدء تنزيل ملف ASSAL المؤقت',2400);setStatus('تعذر بدء التنزيل. حاول مرة ثانية.','err')}}
 
 /* نلتقط الـHTML الذي كتبته دالة طباعة الكشف الأصلية نفسها، بدون إعادة حساب أي رقم. */
@@ -47192,6 +47211,7 @@ function waitFrame(html){return new Promise(function(resolve,reject){
   هذا يمنع html2pdf من إعادة تنسيق الجدول؛ كل صفحة سترسم أولاً كصورة ثابتة ثم تدخل داخل PDF.
 */
 async function buildFullPrintRaster(html){
+  setProgress(10,'جاري تجهيز تصميم كشف الطباعة…','');
   var fr=await waitFrame(html),d=fr.contentDocument;
   if(!d)throw new Error('PRINT_FRAME_DOCUMENT_MISSING');
   var source=d.querySelector('.doc');
@@ -47229,6 +47249,7 @@ async function buildFullPrintRaster(html){
     });
   }
 
+  setProgress(18,'تم تجهيز التصميم • جاري تحليل صفحات الكشف…','');
   var cssText=Array.prototype.map.call(d.querySelectorAll('style'),function(s){return s.textContent||''}).join('\n');
   var xhtml;
   try{xhtml=new XMLSerializer().serializeToString(source)}catch(err){throw new Error('PRINT_SERIALIZE_FAILED: '+String(err&&err.message||err))}
@@ -47273,6 +47294,7 @@ function canvasBlob(canvas,type,quality){return new Promise(function(resolve,rej
 async function rasterizePrintToPages(pack){
   var scale=RENDER_SCALE,url=fullSvgUrl(pack),img=null;
   try{
+    setProgress(24,'جاري رسم كشف الحساب بدقة الطباعة…','');
     img=await loadImageUrl(url);
     await yieldBrowser();
     var full=document.createElement('canvas');
@@ -47284,11 +47306,12 @@ async function rasterizePrintToPages(pack){
     await yieldBrowser();
 
     var slices=buildPageSlices(pack),pages=[];
+    setProgress(32,'تم رسم الكشف • جاري تقسيمه إلى '+slices.length+' صفحة…','');
     var headSy=Math.round(pack.theadTop*scale),headSh=Math.max(1,Math.round(pack.theadHeight*scale));
 
     async function renderPageAt(i){
       if(i>=slices.length)return;
-      setStatus('جاري تجهيز صفحة '+(i+1)+' من '+slices.length+'…','');
+      setProgress(32+Math.round(((i+1)/slices.length)*30),'جاري تكوين الصفحة '+(i+1)+' من '+slices.length+'…','');
       await yieldBrowser();
       var s=slices[i],canvas=document.createElement('canvas');
       canvas.width=Math.round(PAGE_W*scale);canvas.height=Math.round(PAGE_H*scale);
@@ -47332,7 +47355,7 @@ async function nativePdfFromCanvases(canvases){
   var imgs=[],previews=[];
   async function encodeAt(i){
     if(i>=canvases.length)return;
-    setStatus('جاري ضغط صفحة '+(i+1)+' من '+canvases.length+' داخل PDF…','');
+    setProgress(64+Math.round(((i+1)/canvases.length)*20),'جاري ضغط الصفحة '+(i+1)+' من '+canvases.length+' داخل PDF…','');
     await yieldBrowser();
     imgs.push(await jpegPageInfo(canvases[i]));
     previews.push(await previewBlobFromCanvas(canvases[i]));
@@ -47341,6 +47364,7 @@ async function nativePdfFromCanvases(canvases){
     return encodeAt(i+1);
   }
   await encodeAt(0);
+  setProgress(86,'جاري تركيب ملف PDF النهائي…','');
 
   var pageW=595.276,pageH=841.89,mm=72/25.4,x=8*mm,y=8*mm,w=194*mm,h=281*mm;
   var objCount=2+imgs.length*3,chunks=[],offsets=new Array(objCount+1).fill(0),pos=0;
@@ -47355,6 +47379,7 @@ async function nativePdfFromCanvases(canvases){
   async function addPageAt(p){
     if(p>=imgs.length)return;
     await yieldBrowser();
+    setProgress(86+Math.round(((p+1)/imgs.length)*8),'جاري تثبيت الصفحة '+(p+1)+' من '+imgs.length+' داخل الملف…','');
     var pageObj=3+p*3,imgObj=pageObj+1,contentObj=pageObj+2,img=imgs[p];
     addObj(pageObj,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+pdfNum(pageW)+' '+pdfNum(pageH)+'] /Resources << /XObject << /Im0 '+imgObj+' 0 R >> >> /Contents '+contentObj+' 0 R >>');
     addObj(imgObj,'<< /Type /XObject /Subtype /Image /Width '+img.width+' /Height '+img.height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+img.bytes.length+' >>',img.bytes);
@@ -47368,16 +47393,17 @@ async function nativePdfFromCanvases(canvases){
   var xrefPos=pos;pushAscii('xref\n0 '+(objCount+1)+'\n0000000000 65535 f \n');
   offsets.slice(1).forEach(function(off){pushAscii(String(off).padStart(10,'0')+' 00000 n \n')});
   pushAscii('trailer\n<< /Size '+(objCount+1)+' /Root 1 0 R >>\nstartxref\n'+xrefPos+'\n%%EOF');
+  setProgress(95,'اكتمل ملف PDF • جاري تجهيز المعاينة…','');
   return{blob:new Blob(chunks,{type:'application/octet-stream'}),previews:previews};
 }
 
 async function buildPdfBlob(html){
   var pack=await buildFullPrintRaster(html);
   try{
-    setStatus('جاري رسم كشف الطباعة كاملاً…','');
+    setProgress(22,'جاري رسم كشف الطباعة كاملاً…','');
     var canvases=await rasterizePrintToPages(pack);
     if(!canvases.length)throw new Error('NO_RASTER_PAGES');
-    setStatus('جاري إنشاء ملف PDF من '+canvases.length+' صفحة…','');
+    setProgress(63,'اكتمل تكوين الصفحات • جاري إنشاء PDF من '+canvases.length+' صفحة…','');
     var madePdf=await nativePdfFromCanvases(canvases);
     if(!madePdf||!madePdf.blob||!madePdf.blob.size)throw new Error('PDF_BLOB_EMPTY');
     return{blob:madePdf.blob,pages:canvases.length,previews:madePdf.previews||[]};
@@ -47393,7 +47419,7 @@ async function startAutoPdf(){
   pdfState.copyOk=false;
   setPdfButtonsReady(false);
   showLoading('جاري بناء PDF من نفس تصميم كشف الطباعة…');
-  setStatus('جاري تجهيز الكشف. ستظهر مراحل إنشاء الصفحات هنا…','');
+  resetProgress();
   try{
     var info=currentLedgerInfo();
     if(!info.name)throw new Error('CUSTOMER_NAME_MISSING');
@@ -47404,6 +47430,7 @@ async function startAutoPdf(){
     byId('assalLedgerWaAutoPdfName').textContent=info.name;
     byId('assalLedgerWaAutoPdfMeta').textContent=pdfState.period+' • '+info.mode;
     byId('assalLedgerWaAutoPdfFile').textContent='جاري التجهيز…';
+    setProgress(7,'جاري التقاط كشف الحساب الحالي…','');
 
     var html=captureCurrentPrintHtml();
     var fileName='كشف حساب - '+safeName(info.name)+' - '+String(info.from||'')+' إلى '+String(info.to||'')+'.pdf';
@@ -47415,20 +47442,27 @@ async function startAutoPdf(){
     pdfState.fileName=fileName;
     byId('assalLedgerWaAutoPdfFile').textContent=(pdfState.pages?String(pdfState.pages)+' صفحة • ':'')+'PDF';
 
+    setProgress(97,'تم إنشاء PDF • جاري تجهيز العرض النهائي…','');
     showImagePreviews(made.previews||[]);
     setPdfButtonsReady(true);
 
     var started=triggerPdfDownload(true);
     if(started){
-      setStatus('تم إنشاء الكشف وبدأ تنزيل ملف .assalpdf الآمن. انتظر إشعار أداة ASSAL بأنها حوّلته إلى PDF ونسخته، ثم افتح الواتساب واضغط Ctrl + V.','ok');
-      toast('success','الكشف جاهز وبدأ تنزيل ملف ASSAL',3000);
+      setProgress(100,'تم تجهيز الكشف بنجاح','done');
+      showFinalInstruction(true);
+      setStatus('','');
+      toast('success','تم تجهيز كشف PDF',2600);
     }else{
-      setStatus('تم إنشاء الكشف، لكن تعذر بدء تنزيل ملف ASSAL المؤقت. اضغط زر تحميل PDF مرة واحدة.','err');
+      setProgress(100,'تم إنشاء الكشف • يحتاج إعادة تنزيل','error');
+      showFinalInstruction(false);
+      setStatus('تم إنشاء الكشف، لكن تعذر بدء التنزيل. اضغط زر تحميل PDF مرة واحدة.','err');
       toast('warn','الكشف جاهز لكن التنزيل التلقائي لم يبدأ',3200);
     }
   }catch(err){
     console.error('ASSAL ledger WA assaltemp no-firefox final:',err);
     showLoading('تعذر إنشاء ملف PDF حالياً.');
+    setProgress(0,'تعذر إنشاء ملف PDF','error');
+    showFinalInstruction(false);
     setStatus('تعذر إنشاء PDF. لم يتم تغيير أي بيانات في الحساب.','err');
     toast('error','تعذر إنشاء PDF للواتساب',3000);
     setPdfButtonsReady(false);
