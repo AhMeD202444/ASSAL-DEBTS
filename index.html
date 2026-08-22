@@ -14328,6 +14328,29 @@ function assalFocusOrganizerNoScroll(selectText){
     return true;
   }catch(_){ return assalFocusCustomerNoScroll(selectText); }
 }
+function assalFocusWholesaleCategoryAfterAdd(){
+  try{
+    const cat = document.getElementById('cat');
+    if(!cat || cat.disabled) return false;
+    try{ if(typeof hideOrganizerPanel === 'function') hideOrganizerPanel(); }catch(_){ }
+    try{ if(typeof hideTypePanel === 'function') hideTypePanel(); }catch(_){ }
+    try{ if(typeof hideItemSuggestions === 'function') hideItemSuggestions(); }catch(_){ }
+    try{ if(typeof hideCustSuggestions === 'function') hideCustSuggestions(); }catch(_){ }
+    try{ cat.focus({preventScroll:true}); }catch(_){ try{ cat.focus(); }catch(__){ } }
+    try{ cat.select && cat.select(); }catch(_){ }
+    try{
+      if(typeof showCatPanel === 'function') showCatPanel();
+      if(typeof getCatItems === 'function'){
+        const items = getCatItems();
+        const lcdIndex = items.findIndex(li => (li.getAttribute('data-val') || '') === 'LCD');
+        __catIdx = lcdIndex >= 0 ? lcdIndex : (items.length ? 0 : -1);
+        if(typeof highlightCatItem === 'function') highlightCatItem();
+      }
+    }catch(_){ }
+    return document.activeElement === cat;
+  }catch(_){ return false; }
+}
+
 function assalMaybeFocusOrganizerOnReady(){
   try{
     var org = document.getElementById('organizer');
@@ -15088,6 +15111,9 @@ async function assalConfirmCashToCredit(customer, itemName, scope){
 /* ====== إضافة سطر (ذكي لليوم السابق) ====== */
 // ==== إضافة سطر مع تحذير عند الإضافة ليوم سابق (نسخة مُحدَّثة جاهزة للاستبدال) ====
 document.getElementById('btnAdd').onclick = async () => {
+  // One-shot intent: only Enter from qty in a wholesale invoice may redirect focus after a successful add.
+  const __assalWholesaleQtyEnterFocus = (window.__assalWholesaleQtyEnterFocus === true);
+  window.__assalWholesaleQtyEnterFocus = false;
   if(typeof assalGuardWholesaleAddAttempt === 'function' && assalGuardWholesaleAddAttempt()) return;
   // مهم: لا نحجز توكن الفوكس قبل التأكد أن الإضافة حقيقية؛
   // ضغط Enter زائد على خانة الملاحظات بعد التفريغ لا يجوز أن يلغي رجوع الفوكس للإضافة السابقة.
@@ -15282,15 +15308,33 @@ document.getElementById('btnAdd').onclick = async () => {
     __assalActiveBeforeFinalFocus === __assalNoteInput ||
     __assalActiveBeforeFinalFocus === __assalAddBtnEl
   );
+  const __assalCanConfirmWholesaleCategoryFocus = (
+    __assalWholesaleQtyEnterFocus &&
+    String(type || '').trim() === 'جملة' &&
+    (
+      !__assalActiveBeforeFinalFocus ||
+      __assalActiveBeforeFinalFocus === document.body ||
+      __assalActiveBeforeFinalFocus === __assalOrganizerInput ||
+      __assalActiveBeforeFinalFocus === __assalCustInput ||
+      __assalActiveBeforeFinalFocus === __assalQtyInput ||
+      __assalActiveBeforeFinalFocus === __assalNoteInput ||
+      __assalActiveBeforeFinalFocus === __assalAddBtnEl
+    )
+  );
   if(__assalItemInput)  __assalItemInput.value  = '';
   if(__assalPriceInput) __assalPriceInput.value = '';
   if(__assalQtyInput)   __assalQtyInput.value   = '';
   if(__assalNoteInput)  __assalNoteInput.value  = '';
-  if(__assalCanConfirmCustomerFocus){ try{ assalFocusOrganizerNoScroll(true); }catch(_){ try{ assalFocusCustomerNoScroll(true); }catch(__){} } }
+  if(!__assalCanConfirmWholesaleCategoryFocus && __assalCanConfirmCustomerFocus){
+    try{ assalFocusOrganizerNoScroll(true); }catch(_){ try{ assalFocusCustomerNoScroll(true); }catch(__){} }
+  }
 
   renderBoard?.();
   renderRail?.();
   refreshStats?.();
+  if(__assalCanConfirmWholesaleCategoryFocus){
+    try{ assalFocusWholesaleCategoryAfterAdd(); }catch(_){ }
+  }
   try{ window.assalSoftFlashAddedCardAndItem && window.assalSoftFlashAddedCardAndItem(card, __assalNewLineId); }catch(_){ }
   showToast?.('success','تمت الإضافة');
   } finally {
@@ -36340,10 +36384,21 @@ html body .card .item.assal-smooth-added-item-pulse{
       }else if(target.id === 'qty'){
         ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation();
         if(typeof assalGuardWholesaleAddAttempt === 'function' && assalGuardWholesaleAddAttempt()) return;
+        var __assalWholesaleQtyEnter = false;
         if(!window.__assalAddBusy){
-          try{ document.getElementById('btnAdd')?.click(); }catch(_){ }
+          try{
+            __assalWholesaleQtyEnter = String((byId('type') && byId('type').value) || '').trim() === 'جملة';
+            window.__assalWholesaleQtyEnterFocus = __assalWholesaleQtyEnter;
+            document.getElementById('btnAdd')?.click();
+          }catch(_){
+            window.__assalWholesaleQtyEnterFocus = false;
+            __assalWholesaleQtyEnter = false;
+          }
         }
-        try{ if(typeof assalFocusOrganizerNoScroll === 'function') assalFocusOrganizerNoScroll(true); }catch(_){ }
+        // Preserve the exact old behavior for every non-wholesale invoice.
+        if(!__assalWholesaleQtyEnter){
+          try{ if(typeof assalFocusOrganizerNoScroll === 'function') assalFocusOrganizerNoScroll(true); }catch(_){ }
+        }
       }
     }catch(_){ }
   }, true);
@@ -41243,6 +41298,8 @@ html body .card .item.assal-smart-added-item-safe-final{
   function isNewCardBundle(rec){return !!(rec&&(rec.specialType==='new-card-bundle'||cardAddOperation(rec)));}
   function makeNewCardBundle(afterRec,existing){
     var stamp=now(),card=clone(afterRec&&afterRec.card)||{},draft=existing||{};
+    // البطاقة الجديدة غير المرسلة تمثل شكلها الحالي فقط: لا نرسل أي مادة حُذفت محلياً قبل الإرسال.
+    if(Array.isArray(card.lines))card.lines=card.lines.filter(function(line){return line&&!line.deletedAt;});
     if(!draft.id)draft.id=id();
     draft.version=VERSION;draft.status='draft';draft.specialType='new-card-bundle';draft.createdAt=draft.createdAt||stamp;draft.updatedAt=stamp;draft.adminEmail=ADMIN_EMAIL;
     draft.cardId=safe(afterRec&&afterRec.cardId);draft.cardDay=safe(afterRec&&afterRec.day);draft.beforeDay='';draft.afterDay=safe(afterRec&&afterRec.day);
