@@ -20745,7 +20745,7 @@ function exportCardPDF_Vector(card, dayKey){
 
         function tinyTime(d){
           try{
-            return new Date(d).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+            return new Date(d).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
           }catch{
             return '';
           }
@@ -47580,6 +47580,74 @@ function waitCardFrame(html){return new Promise(function(resolve,reject){
   setTimeout(function(){finish()},900);
 })}
 
+function cardClonePage(source,startRow,endRow,isFirst,isFinal,columnWidths){
+  var clone=source.cloneNode(true),root=clone.querySelector('#invoiceRoot')||clone;
+  try{root.removeAttribute('id')}catch(_){}
+  var wrap=root.querySelector('.table-wrap'),table=wrap&&wrap.querySelector('table'),tbody=table&&table.querySelector('tbody'),thead=table&&table.querySelector('thead');
+  if(!wrap||!table||!tbody||!thead)throw new Error('CARD_PRINT_PAGE_STRUCTURE_MISSING');
+
+  var rows=Array.prototype.slice.call(tbody.children||[]);
+  for(var i=rows.length-1;i>=0;i--){if(i<startRow||i>=endRow)rows[i].remove()}
+
+  if(Array.isArray(columnWidths)&&columnWidths.length){
+    var oldCg=table.querySelector('colgroup');if(oldCg)oldCg.remove();
+    var cg=table.ownerDocument.createElement('colgroup');
+    for(var c=0;c<columnWidths.length;c++){
+      var col=table.ownerDocument.createElement('col');
+      col.style.width=Math.max(1,Number(columnWidths[c])||1)+'px';cg.appendChild(col);
+    }
+    table.insertBefore(cg,table.firstChild);table.style.tableLayout='fixed';
+  }
+
+  var children=Array.prototype.slice.call(root.children||[]),wrapIndex=children.indexOf(wrap);
+  if(wrapIndex<0)throw new Error('CARD_PRINT_TABLE_WRAP_NOT_DIRECT');
+  children.forEach(function(child,idx){
+    if((!isFirst&&idx<wrapIndex)||(!isFinal&&idx>wrapIndex))child.remove();
+  });
+  if(!isFirst)clone.classList.add('assal-card-continuation-page');
+  return clone;
+}
+
+function cardMeasurePageClone(d,clone){
+  var host=d.createElement('div');
+  host.setAttribute('aria-hidden','true');
+  host.style.cssText='position:absolute!important;left:-20000px!important;top:0!important;width:'+CARD_PAGE_W+'px!important;visibility:hidden!important;pointer-events:none!important;overflow:visible!important;';
+  host.appendChild(clone);d.body.appendChild(host);
+  var r=clone.getBoundingClientRect(),h=Math.ceil(Math.max(clone.scrollHeight||0,r.height||0));
+  try{host.remove()}catch(_){if(host.parentNode)host.parentNode.removeChild(host)}
+  return Math.max(1,h);
+}
+
+function cardSerializePageClone(clone){
+  try{return new XMLSerializer().serializeToString(clone)}catch(err){throw new Error('CARD_PRINT_SERIALIZE_FAILED: '+String(err&&err.message||err))}
+}
+
+function cardBuildPageModels(d,source,rowCount,columnWidths){
+  var pages=[],start=0,pageNo=0,limit=Math.max(240,CARD_PAGE_H-48);
+  if(rowCount<1)throw new Error('CARD_PRINT_NO_ROWS');
+  while(start<rowCount){
+    var isFirst=pageNo===0;
+    var allClone=cardClonePage(source,start,rowCount,isFirst,true,columnWidths);
+    var allHeight=cardMeasurePageClone(d,allClone);
+    if(allHeight<=limit){
+      pages.push({start:start,end:rowCount,first:isFirst,final:true,contentHeight:allHeight,xhtml:cardSerializePageClone(allClone)});
+      start=rowCount;break;
+    }
+
+    var lo=start+1,hi=rowCount,best=start+1,bestHeight=0;
+    while(lo<=hi){
+      var mid=Math.floor((lo+hi)/2),probe=cardClonePage(source,start,mid,isFirst,false,columnWidths),h=cardMeasurePageClone(d,probe);
+      if(h<=limit||mid===start+1){best=mid;bestHeight=h;lo=mid+1}else hi=mid-1;
+    }
+    var pageClone=cardClonePage(source,start,best,isFirst,false,columnWidths);
+    if(!bestHeight)bestHeight=cardMeasurePageClone(d,pageClone);
+    pages.push({start:start,end:best,first:isFirst,final:false,contentHeight:bestHeight,xhtml:cardSerializePageClone(pageClone)});
+    start=best;pageNo++;
+    if(pages.length>100)throw new Error('CARD_PDF_PAGE_GUARD');
+  }
+  return pages;
+}
+
 async function buildCardPrintRaster(html){
   setProgress(10,'جاري تجهيز نفس تصميم فاتورة PDF الحالية…','');
   var fr=await waitCardFrame(html),d=fr.contentDocument;
@@ -47594,6 +47662,7 @@ async function buildCardPrintRaster(html){
     'html,body{margin:0!important;padding:0!important;width:'+CARD_PAGE_W+'px!important;background:#fff!important;overflow:visible!important}',
     '.page{padding:0!important;margin:0!important;width:'+CARD_PAGE_W+'px!important;background:#fff!important}',
     '.invoice{box-sizing:border-box!important;width:'+CARD_PAGE_W+'px!important;max-width:none!important;margin:0!important;background:#fff!important;overflow:visible!important}',
+    '.assal-card-continuation-page{margin:0!important}',
     'table{width:100%!important}',
     'thead{display:table-header-group!important}',
     'tbody tr,.bottom-row,.inv-footer{break-inside:avoid!important;page-break-inside:avoid!important}'
@@ -47602,70 +47671,43 @@ async function buildCardPrintRaster(html){
   await waitFontsBrief(d,650);
   await new Promise(function(r){requestAnimationFrame(function(){requestAnimationFrame(r)})});
 
-  var sr=source.getBoundingClientRect();
-  var sourceHeight=Math.ceil(Math.max(source.scrollHeight,sr.height));
+  var sr=source.getBoundingClientRect(),sourceHeight=Math.ceil(Math.max(source.scrollHeight,sr.height));
   if(!sourceHeight||sourceHeight<50)throw new Error('CARD_PRINT_HEIGHT_INVALID');
-  var tr=thead.getBoundingClientRect();
-  var theadTop=Math.max(0,Math.round(tr.top-sr.top));
-  var theadHeight=Math.max(1,Math.ceil(tr.height));
-  var rows=Array.prototype.slice.call(tbody.children||[]),rowInfo=[];
-  for(var i=0;i<rows.length;i++){
-    var rr=rows[i].getBoundingClientRect();
-    rowInfo.push({top:Math.max(0,Math.round(rr.top-sr.top)),bottom:Math.max(0,Math.ceil(rr.bottom-sr.top))});
-  }
-  setProgress(18,'تم تجهيز الفاتورة • جاري تحليل صفحاتها…','');
+  var heads=Array.prototype.slice.call(thead.querySelectorAll('th')),columnWidths=heads.map(function(th){return Math.max(1,Math.round(th.getBoundingClientRect().width))});
+  var rowCount=Array.prototype.slice.call(tbody.children||[]).length;
+  setProgress(18,'تم تجهيز الفاتورة • جاري تقسيمها على حدود المواد الحقيقية…','');
+  var pages=cardBuildPageModels(d,source,rowCount,columnWidths);
+  if(!pages.length)throw new Error('CARD_PRINT_NO_PAGES');
   var cssText=Array.prototype.map.call(d.querySelectorAll('style'),function(s){return s.textContent||''}).join('\n');
-  var xhtml;
-  try{xhtml=new XMLSerializer().serializeToString(source)}catch(err){throw new Error('CARD_PRINT_SERIALIZE_FAILED: '+String(err&&err.message||err))}
-  return{frame:fr,sourceHeight:sourceHeight,theadTop:theadTop,theadHeight:theadHeight,rows:rowInfo,css:cssText,xhtml:xhtml};
+  return{frame:fr,sourceHeight:sourceHeight,pages:pages,css:cssText,columnWidths:columnWidths};
 }
 
-function buildCardPageSlices(pack){
-  var slices=[],start=0,rowIndex=0,pageNo=0,total=pack.sourceHeight,rows=pack.rows||[];
-  while(start<total-1){
-    var repeatHead=pageNo>0;
-    var available=CARD_PAGE_H-(repeatHead?pack.theadHeight:0);
-    if(available<120)available=CARD_PAGE_H;
-    var target=Math.min(total,start+available);
-    if(target>=total-1){slices.push({start:start,end:total,repeatHead:repeatHead});break}
-    var best=-1,bestRow=-1;
-    while(rowIndex<rows.length&&rows[rowIndex].bottom<=start+1)rowIndex++;
-    for(var j=rowIndex;j<rows.length;j++){
-      var info=rows[j];if(info.bottom>target)break;best=info.bottom;bestRow=j;
-    }
-    if(best<=start+4)best=target;else if(bestRow>=0)rowIndex=bestRow+1;
-    slices.push({start:start,end:best,repeatHead:repeatHead});start=best;pageNo++;
-    if(slices.length>100)throw new Error('CARD_PDF_PAGE_GUARD');
-  }
-  return slices;
-}
-
-function cardFullSvgUrl(pack){
-  var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+CARD_PAGE_W+'" height="'+pack.sourceHeight+'" viewBox="0 0 '+CARD_PAGE_W+' '+pack.sourceHeight+'"><foreignObject x="0" y="0" width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="width:'+CARD_PAGE_W+'px;height:'+pack.sourceHeight+'px;margin:0;padding:0;overflow:hidden;background:#fff;"><style>'+escapeXmlText(pack.css||'')+'</style>'+pack.xhtml+'</div></foreignObject></svg>';
+function cardPageSvgUrl(pack,page,trimHeight){
+  var h=trimHeight?Math.max(1,Math.min(CARD_PAGE_H,Math.ceil(page&&page.contentHeight||CARD_PAGE_H))):CARD_PAGE_H;
+  var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+CARD_PAGE_W+'" height="'+h+'" viewBox="0 0 '+CARD_PAGE_W+' '+h+'"><foreignObject x="0" y="0" width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" dir="rtl" style="width:'+CARD_PAGE_W+'px;height:'+h+'px;margin:0;padding:0;overflow:hidden;background:#fff;"><style>'+escapeXmlText(pack.css||'')+'</style>'+String(page&&page.xhtml||'')+'</div></foreignObject></svg>';
   return URL.createObjectURL(new Blob([svg],{type:'image/svg+xml;charset=utf-8'}));
 }
 
 async function rasterizeCardPrintToPages(pack){
-  var scale=CARD_RENDER_SCALE,url=cardFullSvgUrl(pack),img=null;
-  try{
-    setProgress(24,'جاري تجهيز صفحات الفاتورة مباشرة…','');
-    img=await loadImageUrl(url);await yieldBrowser();
-    var slices=buildCardPageSlices(pack),pages=[];
-    setProgress(30,'تم تحليل الفاتورة • '+slices.length+' صفحة • جاري التكوين السريع…','');
-    async function renderAt(i){
-      if(i>=slices.length)return;
-      setProgress(30+Math.round(((i+1)/slices.length)*48),'جاري تكوين وضغط صفحة الفاتورة '+(i+1)+' من '+slices.length+'…','');
-      await yieldBrowser();
-      var s=slices[i],canvas=document.createElement('canvas');canvas.width=Math.round(CARD_PAGE_W*scale);canvas.height=Math.round(CARD_PAGE_H*scale);
-      var ctx=canvas.getContext('2d');if(!ctx)throw new Error('CARD_PAGE_CANVAS_CONTEXT_MISSING');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
-      var destY=0,headDh=Math.max(1,Math.round(pack.theadHeight*scale));
-      if(s.repeatHead&&pack.theadTop>=0&&pack.theadTop+pack.theadHeight<=pack.sourceHeight){ctx.drawImage(img,0,pack.theadTop,CARD_PAGE_W,pack.theadHeight,0,0,canvas.width,headDh);destY=headDh}
-      var sourceH=Math.max(1,s.end-s.start),destH=Math.max(1,Math.round(sourceH*scale)),room=canvas.height-destY;if(destH>room)destH=room;
-      if(destH>0)ctx.drawImage(img,0,s.start,CARD_PAGE_W,sourceH,0,destY,canvas.width,destH);
-      var info=await jpegPageInfo(canvas);pages.push(info);canvas.width=1;canvas.height=1;await yieldBrowser();return renderAt(i+1);
+  var scale=CARD_RENDER_SCALE,models=pack.pages||[],pages=[];
+  if(!models.length)throw new Error('CARD_PRINT_NO_PAGE_MODELS');
+  setProgress(24,'تم تقسيم الفاتورة • '+models.length+' صفحة • جاري التكوين السريع…','');
+  async function renderPageAt(i){
+    if(i>=models.length)return pages;
+    setProgress(30+Math.round(((i+1)/models.length)*48),'جاري تكوين وضغط صفحة الفاتورة '+(i+1)+' من '+models.length+'…','');
+    await yieldBrowser();
+    var url=cardPageSvgUrl(pack,models[i],false),img=null,canvas=null;
+    try{
+      img=await loadImageUrl(url);canvas=document.createElement('canvas');canvas.width=Math.round(CARD_PAGE_W*scale);canvas.height=Math.round(CARD_PAGE_H*scale);
+      var ctx=canvas.getContext('2d');if(!ctx)throw new Error('CARD_PAGE_CANVAS_CONTEXT_MISSING');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
+      pages.push(await jpegPageInfo(canvas));
+    }finally{
+      if(canvas){canvas.width=1;canvas.height=1}try{URL.revokeObjectURL(url)}catch(_){}
     }
-    await renderAt(0);return pages;
-  }finally{try{URL.revokeObjectURL(url)}catch(_){} }
+    await yieldBrowser();
+    return renderPageAt(i+1);
+  }
+  return renderPageAt(0);
 }
 
 async function nativeCardPdfFromCanvases(imgs){
@@ -47689,11 +47731,13 @@ async function nativeCardPdfFromCanvases(imgs){
 }
 
 async function renderCardSinglePng(pack){
-  var scale=CARD_RENDER_SCALE,url=cardFullSvgUrl(pack),img=null,canvas=null;
+  var model=pack&&pack.pages&&pack.pages[0];if(!model)throw new Error('CARD_SINGLE_PAGE_MISSING');
+  var scale=CARD_RENDER_SCALE,url=cardPageSvgUrl(pack,model,true),img=null,canvas=null;
   try{
     setProgress(30,'الفاتورة صفحة واحدة • جاري تجهيز صورة PNG عالية الدقة…','');
     img=await loadImageUrl(url);await yieldBrowser();
-    canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(CARD_PAGE_W*scale));canvas.height=Math.max(1,Math.round(pack.sourceHeight*scale));
+    var h=Math.max(1,Math.min(CARD_PAGE_H,Math.ceil(model.contentHeight||CARD_PAGE_H)));
+    canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(CARD_PAGE_W*scale));canvas.height=Math.max(1,Math.round(h*scale));
     var ctx=canvas.getContext('2d');if(!ctx)throw new Error('CARD_IMAGE_CANVAS_CONTEXT_MISSING');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
     setProgress(72,'جاري حفظ الصورة بجودة كاملة بدون ضغط خساري…','');
     var blob=await canvasBlob(canvas,'image/png');if(!blob||!blob.size)throw new Error('CARD_PNG_BLOB_EMPTY');
@@ -47704,7 +47748,7 @@ async function renderCardSinglePng(pack){
 async function buildCardPdfBlob(html){
   var pack=await buildCardPrintRaster(html);
   try{
-    if(pack.sourceHeight<=CARD_PAGE_H){
+    if(pack.pages&&pack.pages.length===1){
       var png=await renderCardSinglePng(pack);
       return{blob:png,pages:1,previews:[png],format:'png'};
     }
