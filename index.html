@@ -18188,7 +18188,7 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
 
     // زر واتساب PDF — قراءة/تصدير فقط، لا يغيّر أي بيانات داخل البطاقة.
     const btnWaPdf = CE('button', 'i-btn card-whatsapp-pdf-btn');
-    btnWaPdf.innerHTML = '<i class="fa-brands fa-whatsapp"></i><span>واتساب</span>';
+    btnWaPdf.innerHTML = '<svg class="assal-card-wa-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 2.75a9.16 9.16 0 0 0-7.83 13.9L3 21.25l4.72-1.19A9.2 9.2 0 1 0 12 2.75Zm0 16.55a7.33 7.33 0 0 1-3.74-1.03l-.27-.16-2.8.71.75-2.72-.18-.28A7.34 7.34 0 1 1 12 19.3Zm4.03-5.49c-.22-.11-1.31-.65-1.52-.72-.2-.08-.35-.11-.5.11-.15.22-.57.72-.7.87-.13.15-.26.17-.48.06-.22-.11-.93-.34-1.77-1.1a6.55 6.55 0 0 1-1.23-1.53c-.13-.22-.01-.34.1-.45.1-.1.22-.26.33-.39.11-.13.15-.22.22-.37.08-.15.04-.28-.02-.39-.05-.11-.5-1.2-.68-1.65-.18-.43-.36-.37-.5-.38h-.43c-.15 0-.39.06-.59.28-.2.22-.77.75-.77 1.83 0 1.08.79 2.12.9 2.27.11.15 1.55 2.37 3.76 3.32.52.23.93.36 1.25.46.53.17 1.01.14 1.39.09.42-.06 1.31-.54 1.5-1.05.18-.52.18-.96.13-1.05-.06-.1-.2-.15-.42-.26Z"/></svg><span>واتساب</span>';
     btnWaPdf.title = 'إرسال نفس فاتورة PDF الحالية عبر واتساب';
     btnWaPdf.onclick = () => {
       if (typeof window.assalOpenCardWhatsAppPdf === 'function') {
@@ -40719,6 +40719,7 @@ html body .card .item.assal-smart-added-item-safe-final{
 .assal-cr-newcard-top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;border-bottom:1px solid rgba(148,163,184,.11);background:linear-gradient(90deg,rgba(14,165,233,.10),rgba(124,58,237,.07))}
 .assal-cr-newcard-title{display:flex;align-items:center;gap:8px;color:#e0f2fe;font-size:12px;font-weight:950}.assal-cr-newcard-title i{color:#38bdf8}.assal-cr-newcard-count{padding:3px 8px;border-radius:999px;color:#bbf7d0;background:rgba(22,101,52,.14);border:1px solid rgba(74,222,128,.20);font-size:10.5px;font-weight:950;white-space:nowrap}
 .assal-cr-newcard-lines{display:flex;flex-direction:column}.assal-cr-newcard-line{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(90px,.8fr) 74px 105px;gap:7px;align-items:center;padding:8px 10px;border-bottom:1px solid rgba(148,163,184,.08);font-size:11px}.assal-cr-newcard-line:last-child{border-bottom:0}.assal-cr-newcard-item{min-width:0;color:#f8fafc;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.assal-cr-newcard-cat{min-width:0;color:#aebdd2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.assal-cr-newcard-qty,.assal-cr-newcard-price{text-align:center;padding:3px 6px;border-radius:8px;border:1px solid rgba(148,163,184,.11);background:rgba(15,23,42,.35)}.assal-cr-newcard-qty{color:#fde68a}.assal-cr-newcard-price{color:#bbf7d0}.assal-cr-newcard-empty{padding:14px;text-align:center;color:#9fb0c7;font-size:11.5px}.assal-cr-newcard-more{padding:7px 10px;text-align:center;color:#bae6fd;background:rgba(14,165,233,.06);border-top:1px solid rgba(56,189,248,.10);font-size:10.5px;font-weight:900}
+.assal-cr-newcard-fold{width:calc(100% - 18px);min-height:36px;margin:8px 9px 9px;padding:7px 11px;border-radius:11px;border:1px solid rgba(34,197,94,.25);background:linear-gradient(135deg,rgba(6,78,59,.42),rgba(15,118,110,.25));color:#dcfce7;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font:inherit;font-size:11px;font-weight:950;transition:transform .12s ease,filter .12s ease,border-color .12s ease}.assal-cr-newcard-fold:hover{transform:translateY(-1px);filter:brightness(1.07);border-color:rgba(74,222,128,.42)}.assal-cr-newcard-fold i{color:#4ade80;font-size:10px}.assal-cr-newcard-fold small{padding-inline-start:3px;color:#a7f3d0;font-size:9.5px;font-weight:900}.assal-cr-newcard.is-wholesale .assal-cr-newcard-top{background:linear-gradient(90deg,rgba(22,101,52,.13),rgba(13,148,136,.08))}
 .assal-cr-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;padding:0 12px 12px}
 .assal-cr-btn{height:35px;padding:0 12px;border-radius:10px;border:1px solid transparent;font-weight:950;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px}
 .assal-cr-btn.send,.assal-cr-btn.approve{color:#fff;background:linear-gradient(135deg,#0891b2,#2563eb);border-color:rgba(125,211,252,.25)}
@@ -40841,6 +40842,8 @@ html body .card .item.assal-smart-added-item-safe-final{
   var followupSyncTimer = 0;
   var refreshPromise = null;
   var refreshVisualRequested = false;
+  /* عرض فقط: حالة فتح/طي فاتورة الجملة داخل قائمة طلبات التعديل. لا تُحفظ ضمن الذمم أو الطلب نفسه. */
+  var wholesaleRequestExpandedIds = new Set();
 
   function safe(v){ return String(v == null ? '' : v); }
   function clone(v){ try{ return JSON.parse(JSON.stringify(v)); }catch(_){ return null; } }
@@ -41788,12 +41791,23 @@ html body .card .item.assal-smart-added-item-safe-final{
   }
   function numberText(v){var n=Number(v)||0;try{return n.toLocaleString('en-US');}catch(_){return String(n);}}
   function newCardBundleHtml(rec){
-    var op=cardAddOperation(rec),card=clone(rec&&rec.afterCard)||(op&&clone(op.after))||{},lines=Array.isArray(card.lines)?card.lines:[],shown=lines.slice(0,16),more=Math.max(0,lines.length-shown.length);
+    var op=cardAddOperation(rec),card=clone(rec&&rec.afterCard)||(op&&clone(op.after))||{},lines=Array.isArray(card.lines)?card.lines:[];
+    var requestId=safe(rec&&rec.id||card&&card.id||'');
+    var wholesale=false;
+    try{ wholesale=(typeof isWholesaleCard==='function')?!!isWholesaleCard(card):(safe(card&&card.billType).trim()==='جملة'); }catch(_){ wholesale=safe(card&&card.billType).trim()==='جملة'; }
+    var expanded=wholesale&&wholesaleRequestExpandedIds.has(requestId);
+    var previewLimit=wholesale?5:16;
+    var shown=(wholesale&&expanded)?lines:lines.slice(0,previewLimit),more=Math.max(0,lines.length-shown.length);
     var rows=shown.map(function(line){
       return '<div class="assal-cr-newcard-line"><div class="assal-cr-newcard-item" title="'+esc(line&&line.item||'مادة بدون اسم')+'">'+esc(line&&line.item||'مادة بدون اسم')+'</div><div class="assal-cr-newcard-cat" title="'+esc(line&&line.cat||'—')+'">'+esc(line&&line.cat||'—')+'</div><div class="assal-cr-newcard-qty">× '+esc(numberText(line&&line.qty||1))+'</div><div class="assal-cr-newcard-price">'+esc(numberText(line&&line.price||0))+'</div></div>';
     }).join('');
     if(!rows)rows='<div class="assal-cr-newcard-empty"><i class="fa-solid fa-box-open"></i> البطاقة الجديدة لا تحتوي مواد حالياً</div>';
-    return '<div class="assal-cr-newcard"><div class="assal-cr-newcard-top"><div class="assal-cr-newcard-title"><i class="fa-solid fa-file-circle-plus"></i><span>إضافة بطاقة جديدة كاملة</span></div><span class="assal-cr-newcard-count">'+lines.length+' مادة</span></div><div class="assal-cr-newcard-lines">'+rows+'</div>'+(more?'<div class="assal-cr-newcard-more">ويوجد '+more+' مواد أخرى ضمن نفس البطاقة</div>':'')+'</div>';
+    var fold='';
+    if(wholesale&&lines.length>5){
+      fold='<button type="button" class="assal-cr-newcard-fold" data-cr-wholesale-toggle="'+esc(requestId)+'" aria-expanded="'+(expanded?'true':'false')+'"><i class="fa-solid '+(expanded?'fa-chevron-up':'fa-chevron-down')+'"></i><span>'+(expanded?'طي الفاتورة':'فتح الفاتورة كاملة')+'</span>'+(expanded?'':'<small>باقي '+more+' مادة</small>')+'</button>';
+    }
+    var legacyMore=(!wholesale&&more)?'<div class="assal-cr-newcard-more">ويوجد '+more+' مواد أخرى ضمن نفس البطاقة</div>':'';
+    return '<div class="assal-cr-newcard'+(wholesale?' is-wholesale':'')+'"><div class="assal-cr-newcard-top"><div class="assal-cr-newcard-title"><i class="fa-solid fa-file-circle-plus"></i><span>'+(wholesale?'إضافة فاتورة جملة كاملة':'إضافة بطاقة جديدة كاملة')+'</span></div><span class="assal-cr-newcard-count">'+lines.length+' مادة</span></div><div class="assal-cr-newcard-lines">'+rows+'</div>'+fold+legacyMore+'</div>';
   }
   function paymentRequestHtml(rec){
     var op=paymentOpOf(rec)||{};
@@ -42186,7 +42200,9 @@ html body .card .item.assal-smart-added-item-safe-final{
     catch(err){progressError('تعذر رفض الطلب',safe(err&&err.message||err));}
     finally{busyIds.delete(reqId);if(isModalOpen())renderModal();}
   }
-  function handleListClick(e){var b=e.target.closest('button');if(!b)return;var idv=b.getAttribute('data-cr-send')||b.getAttribute('data-cr-delete-draft')||b.getAttribute('data-cr-dismiss-draft')||b.getAttribute('data-cr-hide-archive')||b.getAttribute('data-cr-approve')||b.getAttribute('data-cr-reject')||b.getAttribute('data-cr-retry');if(!idv)return;e.preventDefault();
+  function handleListClick(e){var b=e.target.closest('button');if(!b)return;
+    if(b.hasAttribute('data-cr-wholesale-toggle')){var foldId=safe(b.getAttribute('data-cr-wholesale-toggle'));if(!foldId)return;e.preventDefault();if(wholesaleRequestExpandedIds.has(foldId))wholesaleRequestExpandedIds.delete(foldId);else wholesaleRequestExpandedIds.add(foldId);renderModal();return;}
+    var idv=b.getAttribute('data-cr-send')||b.getAttribute('data-cr-delete-draft')||b.getAttribute('data-cr-dismiss-draft')||b.getAttribute('data-cr-hide-archive')||b.getAttribute('data-cr-approve')||b.getAttribute('data-cr-reject')||b.getAttribute('data-cr-retry');if(!idv)return;e.preventDefault();
     var task=null;if(b.hasAttribute('data-cr-send'))task=sendDraft(idv,false);else if(b.hasAttribute('data-cr-delete-draft'))task=deleteDraft(idv);else if(b.hasAttribute('data-cr-dismiss-draft'))task=dismissDraftOnly(idv);else if(b.hasAttribute('data-cr-hide-archive'))task=hideArchive(idv);else if(b.hasAttribute('data-cr-approve'))task=approveRequest(idv);else if(b.hasAttribute('data-cr-reject'))task=rejectRequest(idv);else if(b.hasAttribute('data-cr-retry'))task=retryUpload(idv);if(task&&typeof task.catch==='function')task.catch(function(err){try{console.error('[ASSAL request action]',err);}catch(_){ }});
   }
 
@@ -47395,6 +47411,14 @@ html body .card .card-foot > .foot-actions .card-whatsapp-pdf-btn:hover{
   transform:translateY(-1px);
   filter:brightness(1.05);
 }
+html body .card .card-foot > .foot-actions .card-whatsapp-pdf-btn .assal-card-wa-svg{
+  width:18px;
+  height:18px;
+  flex:0 0 18px;
+  display:block;
+  color:#fff;
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.20));
+}
 @media(max-width:760px){
   html body .card .card-foot > .foot-actions{grid-template-columns:repeat(3,minmax(0,1fr))!important}
 }
@@ -47447,7 +47471,7 @@ function setModalContext(kind){
   setOutputFormat(isCard?'auto':'pdf');
 }
 function resetProgress(){showFinalInstruction(false);setStatus('','');setProgress(3,'بدء تجهيز '+pdfSubject()+'…','')}
-function revoke(){pdfState.blob=null;pdfState.fileName='';pdfState.pages=0;pdfState.downloadStarted=false;if(Array.isArray(pdfState.previewUrls)){pdfState.previewUrls.forEach(function(u){try{URL.revokeObjectURL(u)}catch(_){}})}pdfState.previewUrls=[];pdfState.previewIndex=0}
+function revoke(){pdfState.blob=null;pdfState.fileName='';pdfState.pages=0;pdfState.copyOk=false;pdfState.downloadStarted=false;if(Array.isArray(pdfState.previewUrls)){pdfState.previewUrls.forEach(function(u){try{URL.revokeObjectURL(u)}catch(_){}})}pdfState.previewUrls=[];pdfState.previewIndex=0}
 
 function ensureModal(){
   var root=byId('assalLedgerWaAutoPdfModal');if(root)return root;
@@ -47467,6 +47491,25 @@ function showLoading(msg){var p=byId('assalLedgerWaAutoPdfPreviewPanel');if(p)p.
 function updatePreviewPage(){var img=byId('assalLedgerWaAutoPdfPreviewImage'),cnt=byId('assalLedgerWaAutoPdfPageCount'),prev=byId('assalLedgerWaAutoPdfPrev'),next=byId('assalLedgerWaAutoPdfNext');var urls=pdfState.previewUrls||[];if(!urls.length)return;var i=Math.max(0,Math.min(pdfState.previewIndex||0,urls.length-1));pdfState.previewIndex=i;if(img)img.src=urls[i];if(cnt)cnt.textContent='الصفحة '+(i+1)+' من '+urls.length;if(prev)prev.disabled=(i<=0);if(next)next.disabled=(i>=urls.length-1)}
 function showImagePreviews(blobs){var p=byId('assalLedgerWaAutoPdfPreviewPanel');if(!p)return;if(Array.isArray(pdfState.previewUrls)){pdfState.previewUrls.forEach(function(u){try{URL.revokeObjectURL(u)}catch(_){}})}pdfState.previewUrls=(blobs||[]).map(function(b){return URL.createObjectURL(b)});pdfState.previewIndex=0;if(!pdfState.previewUrls.length){showLoading('تم إنشاء الكشف لكن تعذر إنشاء صور المعاينة.');return}p.innerHTML='<div class="assal-ledger-wa-pdf-preview-stage"><img id="assalLedgerWaAutoPdfPreviewImage" class="assal-ledger-wa-pdf-preview-image" alt="معاينة صفحة كشف الحساب"></div><div class="assal-ledger-wa-pdf-pager"><button type="button" id="assalLedgerWaAutoPdfPrev" class="assal-ledger-wa-pdf-page-btn" aria-label="الصفحة السابقة"><i class="fa-solid fa-chevron-left"></i></button><b id="assalLedgerWaAutoPdfPageCount" class="assal-ledger-wa-pdf-page-count"></b><button type="button" id="assalLedgerWaAutoPdfNext" class="assal-ledger-wa-pdf-page-btn" aria-label="الصفحة التالية"><i class="fa-solid fa-chevron-right"></i></button></div>';var prev=byId('assalLedgerWaAutoPdfPrev'),next=byId('assalLedgerWaAutoPdfNext');if(prev)prev.addEventListener('click',function(){if(pdfState.previewIndex>0){pdfState.previewIndex--;updatePreviewPage()}});if(next)next.addEventListener('click',function(){if(pdfState.previewIndex<pdfState.previewUrls.length-1){pdfState.previewIndex++;updatePreviewPage()}});updatePreviewPage();var stage=p.querySelector('.assal-ledger-wa-pdf-preview-stage');if(stage)stage.scrollTop=0}
 function setPdfButtonsReady(ready){var a=byId('assalLedgerWaAutoPdfOpen'),d=byId('assalLedgerWaAutoPdfDownload');if(a)a.disabled=!ready;if(d)d.disabled=!ready}
+async function copyCardPngToClipboard(showToastMsg){
+  if(pdfState.kind!=='card'||pdfState.format!=='png'||!pdfState.blob)return false;
+  if(!navigator.clipboard||typeof window.ClipboardItem==='undefined'||typeof navigator.clipboard.write!=='function'){
+    pdfState.copyOk=false;
+    if(showToastMsg)toast('warn','هذا المتصفح لا يدعم نسخ صورة PNG مباشرة',3000);
+    return false;
+  }
+  try{
+    await navigator.clipboard.write([new ClipboardItem({'image/png':pdfState.blob})]);
+    pdfState.copyOk=true;
+    if(showToastMsg)toast('success','تم نسخ صورة الفاتورة',2200);
+    return true;
+  }catch(err){
+    pdfState.copyOk=false;
+    console.warn('ASSAL card WhatsApp PNG clipboard:',err);
+    if(showToastMsg)toast('warn','تعذر نسخ الصورة تلقائياً',2800);
+    return false;
+  }
+}
 function triggerPdfDownload(isAuto){
   if(!pdfState.blob)return false;
   var downloadUrl='';
@@ -47474,11 +47517,12 @@ function triggerPdfDownload(isAuto){
     downloadUrl=URL.createObjectURL(pdfState.blob);
     var isImg=pdfState.format==='png';
     var finalName=pdfState.fileName||(isImg?'ASSAL-INVOICE.png':'ASSAL-STATEMENT.pdf');
-    var tempName=isImg?finalName.replace(/\.png$/i,'')+'.assalimg':finalName.replace(/\.pdf$/i,'')+'.assalpdf';
-    var a=document.createElement('a');a.href=downloadUrl;a.setAttribute('download',tempName);a.setAttribute('type','application/octet-stream');a.style.cssText='position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none';document.body.appendChild(a);a.click();
+    /* الصورة تُحمّل كـ PNG عادي فقط عند طلب المستخدم؛ أداة AHK تبقى لمسار PDF حصراً. */
+    var tempName=isImg?finalName:finalName.replace(/\.pdf$/i,'')+'.assalpdf';
+    var a=document.createElement('a');a.href=downloadUrl;a.setAttribute('download',tempName);a.setAttribute('type',isImg?'image/png':'application/octet-stream');a.style.cssText='position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none';document.body.appendChild(a);a.click();
     setTimeout(function(){try{a.remove()}catch(_){}},0);setTimeout(function(){try{URL.revokeObjectURL(downloadUrl)}catch(_){}},15000);
-    pdfState.downloadStarted=true;
-    if(!isAuto){toast('success','بدأ تنزيل ملف ASSAL المؤقت',2200);setProgress(100,'تم تجهيز '+pdfSubject(),'done');showFinalInstruction(true);setStatus('','')}
+    if(!isImg)pdfState.downloadStarted=true;
+    if(!isAuto){toast('success',isImg?'بدأ تحميل صورة الفاتورة':'بدأ تنزيل ملف ASSAL المؤقت',2200);setProgress(100,'تم تجهيز '+pdfSubject(),'done');showFinalInstruction(true);setStatus('','')}
     return true;
   }catch(err){if(downloadUrl){try{URL.revokeObjectURL(downloadUrl)}catch(_){}}console.error('ASSAL temporary download error:',err);return false}
 }
@@ -47506,11 +47550,16 @@ function findPhone(name){var target=nrm(name),rows=[];if(!target)return '';try{i
 
 function openExternal(url){try{var a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener noreferrer';a.referrerPolicy='no-referrer';a.style.position='fixed';a.style.left='-9999px';a.style.top='-9999px';a.setAttribute('aria-hidden','true');document.body.appendChild(a);a.click();setTimeout(function(){try{a.remove()}catch(_){}},0);return true}catch(_){try{var w=window.open(url,'_blank','noopener,noreferrer');try{if(w)w.opener=null}catch(__){}return !!w}catch(__){return false}}}
 function openWhatsApp(){
-  if(!pdfState.blob||!pdfState.downloadStarted){toast('warn','انتظر حتى يكتمل تجهيز الملف',2600);setStatus('الملف لم يصبح جاهزاً للنسخ بعد.','err');return false}
+  var isImg=pdfState.kind==='card'&&pdfState.format==='png';
+  if(!pdfState.blob||(!isImg&&!pdfState.downloadStarted)){toast('warn','انتظر حتى يكتمل تجهيز الملف',2600);setStatus('الملف لم يصبح جاهزاً للنسخ بعد.','err');return false}
   if(!pdfState.phone){toast('warn','لا يوجد رقم واتساب محفوظ لهذا الزبون في شيت CUSTOMER',3200);setStatus('تعذر العثور على رقم الزبون في CUSTOMER.','err');return false}
+  /* للصورة: نبدأ إعادة نسخ PNG داخل نفس ضغطة المستخدم، ثم نفتح واتساب فوراً حتى لا نفقد صلاحية فتح النافذة. */
+  var copyPromise=isImg?copyCardPngToClipboard(false):null;
   var ok=openExternal('https://wa.me/'+pdfState.phone+'?text='+encodeURIComponent('السلام عليكم'));
   if(!ok){toast('warn','اسمح بفتح النوافذ حتى يفتح واتساب',3000);setStatus('تعذر فتح واتساب.','err');return false}
-  showFinalInstruction(true);setStatus('','');return true;
+  showFinalInstruction(true);
+  if(copyPromise){copyPromise.then(function(copied){if(copied){setStatus('تم فتح الواتساب والصورة جاهزة. اضغط Ctrl + V.','ok')}else{setStatus('تم فتح الواتساب، لكن تعذر تحديث نسخ الصورة. الصورة ما زالت متاحة بالمعاينة والتحميل.','err')}})}else{setStatus('','')}
+  return true;
 }
 function downloadPdf(){
   if(!pdfState.blob){toast('warn','الملف غير جاهز بعد',2200);return}
@@ -47521,7 +47570,7 @@ function downloadPdf(){
    CARD WHATSAPP PDF — يستخدم نفس exportCardPDF_Vector حرفياً كمصدر للفاتورة.
    لا يعيد حساب أي مبلغ ولا يغيّر البطاقة؛ يلتقط HTML الطباعة فقط داخل نافذة وهمية.
    ===================================================================== */
-var CARD_PAGE_W=703,CARD_PAGE_H=1032,CARD_RENDER_SCALE=1.25;
+var CARD_PAGE_W=703,CARD_PAGE_H=1032,CARD_RENDER_SCALE=1.25,CARD_PAGE_FOOTER_H=38;
 
 function cardBillLabel(card){
   var bt=String(card&&card.billType||'').trim();
@@ -47623,7 +47672,7 @@ function cardSerializePageClone(clone){
 }
 
 function cardBuildPageModels(d,source,rowCount,columnWidths){
-  var pages=[],start=0,pageNo=0,limit=Math.max(240,CARD_PAGE_H-48);
+  var pages=[],start=0,pageNo=0,limit=Math.max(240,CARD_PAGE_H-CARD_PAGE_FOOTER_H-8);
   if(rowCount<1)throw new Error('CARD_PRINT_NO_ROWS');
   while(start<rowCount){
     var isFirst=pageNo===0;
@@ -47660,6 +47709,7 @@ async function buildCardPrintRaster(html){
   var style=d.createElement('style');
   style.textContent=[
     'html,body{margin:0!important;padding:0!important;width:'+CARD_PAGE_W+'px!important;background:#fff!important;overflow:visible!important}',
+    'html,body,.invoice,.invoice *{font-family:system-ui,"Segoe UI",Arial,sans-serif!important}',
     '.page{padding:0!important;margin:0!important;width:'+CARD_PAGE_W+'px!important;background:#fff!important}',
     '.invoice{box-sizing:border-box!important;width:'+CARD_PAGE_W+'px!important;max-width:none!important;margin:0!important;background:#fff!important;overflow:visible!important}',
     '.assal-card-continuation-page{margin:0!important}',
@@ -47668,7 +47718,7 @@ async function buildCardPrintRaster(html){
     'tbody tr,.bottom-row,.inv-footer{break-inside:avoid!important;page-break-inside:avoid!important}'
   ].join('');
   d.head.appendChild(style);
-  await waitFontsBrief(d,650);
+  // القياس والرسم يستخدمان نفس الخط المحلي السريع؛ لا ننتظر Google Fonts هنا حتى لا تختلف أبعاد الصفحات أو تتأخر العملية.
   await new Promise(function(r){requestAnimationFrame(function(){requestAnimationFrame(r)})});
 
   var sr=source.getBoundingClientRect(),sourceHeight=Math.ceil(Math.max(source.scrollHeight,sr.height));
@@ -47688,6 +47738,26 @@ function cardPageSvgUrl(pack,page,trimHeight){
   return URL.createObjectURL(new Blob([svg],{type:'image/svg+xml;charset=utf-8'}));
 }
 
+function drawCardPdfPageFooter(ctx,canvas,pageIndex,totalPages,scale){
+  try{
+    var s=Math.max(.5,Number(scale)||1),footerY=canvas.height-Math.round(12*s);
+    ctx.save();
+    ctx.strokeStyle='rgba(100,116,139,.32)';
+    ctx.lineWidth=Math.max(1,Math.round(s));
+    ctx.beginPath();
+    ctx.moveTo(Math.round(72*s),canvas.height-Math.round((CARD_PAGE_FOOTER_H-7)*s));
+    ctx.lineTo(canvas.width-Math.round(72*s),canvas.height-Math.round((CARD_PAGE_FOOTER_H-7)*s));
+    ctx.stroke();
+    ctx.direction='rtl';
+    ctx.textAlign='center';
+    ctx.textBaseline='alphabetic';
+    ctx.fillStyle='#64748b';
+    ctx.font='700 '+Math.max(11,Math.round(10.5*s))+'px system-ui, "Segoe UI", Arial, sans-serif';
+    ctx.fillText('الصفحة '+String(pageIndex+1)+' من '+String(totalPages),canvas.width/2,footerY);
+    ctx.restore();
+  }catch(_){}
+}
+
 async function rasterizeCardPrintToPages(pack){
   var scale=CARD_RENDER_SCALE,models=pack.pages||[],pages=[];
   if(!models.length)throw new Error('CARD_PRINT_NO_PAGE_MODELS');
@@ -47700,6 +47770,7 @@ async function rasterizeCardPrintToPages(pack){
     try{
       img=await loadImageUrl(url);canvas=document.createElement('canvas');canvas.width=Math.round(CARD_PAGE_W*scale);canvas.height=Math.round(CARD_PAGE_H*scale);
       var ctx=canvas.getContext('2d');if(!ctx)throw new Error('CARD_PAGE_CANVAS_CONTEXT_MISSING');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
+      drawCardPdfPageFooter(ctx,canvas,i,models.length,scale);
       pages.push(await jpegPageInfo(canvas));
     }finally{
       if(canvas){canvas.width=1;canvas.height=1}try{URL.revokeObjectURL(url)}catch(_){}
@@ -47773,10 +47844,18 @@ async function startCardAutoPdf(card,dayKey){
     setOutputFormat(made.format||'pdf');pdfState.blob=made.blob;pdfState.pages=made.pages||1;
     pdfState.fileName='ASSAL WA - فاتورة - '+safeName(name)+(day?' - '+day:'')+(pdfState.format==='png'?'.png':'.pdf');
     byId('assalLedgerWaAutoPdfFile').textContent=pdfState.format==='png'?'صورة PNG عالية الدقة':((pdfState.pages?String(pdfState.pages)+' صفحة • ':'')+'PDF');
-    var started=triggerPdfDownload(true);
     showImagePreviews(made.previews||[]);setPdfButtonsReady(true);
-    if(started){setProgress(100,pdfState.format==='png'?'تم تجهيز الفاتورة كصورة عالية الدقة':'تم تجهيز الفاتورة PDF بنجاح','done');showFinalInstruction(true);setStatus('','');toast('success',pdfState.format==='png'?'تم تجهيز صورة الفاتورة':'تم تجهيز الفاتورة PDF',2400)}
-    else{setProgress(100,'تم إنشاء الفاتورة • يحتاج إعادة تنزيل','error');showFinalInstruction(false);setStatus('تم إنشاء الفاتورة، لكن تعذر بدء التنزيل. اضغط زر التحميل مرة واحدة.','err');toast('warn','الفاتورة جاهزة لكن التنزيل التلقائي لم يبدأ',3200)}
+    if(pdfState.format==='png'){
+      setProgress(96,'تم تجهيز الصورة • جاري نسخها تلقائياً للحافظة…','');
+      var copied=await copyCardPngToClipboard(false);
+      setProgress(100,'تم تجهيز الفاتورة كصورة عالية الدقة','done');showFinalInstruction(true);
+      if(copied){setStatus('تم نسخ صورة الفاتورة تلقائياً. افتح الواتساب ثم اضغط Ctrl + V.','ok');toast('success','تم تجهيز ونسخ صورة الفاتورة',2400)}
+      else{setStatus('الصورة جاهزة، لكن تعذر النسخ التلقائي. عند الضغط على فتح الواتساب سيحاول النظام نسخها مرة أخرى.','err');toast('warn','الصورة جاهزة وسيعاد نسخها عند فتح الواتساب',3000)}
+    }else{
+      var started=triggerPdfDownload(true);
+      if(started){setProgress(100,'تم تجهيز الفاتورة PDF بنجاح','done');showFinalInstruction(true);setStatus('','');toast('success','تم تجهيز الفاتورة PDF',2400)}
+      else{setProgress(100,'تم إنشاء الفاتورة • يحتاج إعادة تنزيل','error');showFinalInstruction(false);setStatus('تم إنشاء الفاتورة، لكن تعذر بدء التنزيل. اضغط زر التحميل مرة واحدة.','err');toast('warn','الفاتورة جاهزة لكن التنزيل التلقائي لم يبدأ',3200)}
+    }
   }catch(err){
     console.error('ASSAL card WhatsApp smart output:',err);showLoading('تعذر إنشاء ملف الفاتورة حالياً.');setProgress(0,'تعذر تجهيز الفاتورة','error');showFinalInstruction(false);setStatus('تعذر تجهيز الفاتورة. لم يتم تغيير أي بيانات في البطاقة.','err');toast('error','تعذر تجهيز فاتورة الواتساب',3000);setPdfButtonsReady(false);
   }finally{pdfState.busy=false}
