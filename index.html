@@ -47747,26 +47747,80 @@ function cardSerializePageClone(clone){
 }
 
 function cardBuildPageModels(d,source,rowCount,columnWidths){
-  var pages=[],start=0,pageNo=0,limit=Math.max(240,CARD_PAGE_H-CARD_PAGE_FOOTER_H-8);
+  var pages=[],limit=Math.max(240,CARD_PAGE_H-CARD_PAGE_FOOTER_H-8),safety=8;
   if(rowCount<1)throw new Error('CARD_PRINT_NO_ROWS');
+
+  var table=source.querySelector('.table-wrap table'),tbody=table&&table.querySelector('tbody');
+  var sourceRows=tbody?Array.prototype.slice.call(tbody.children||[]):[];
+  if(sourceRows.length!==rowCount)throw new Error('CARD_PRINT_ROW_COUNT_MISMATCH');
+
+  // قياس كل سطر حقيقي مرة واحدة فقط.
+  var rowHeights=sourceRows.map(function(row){
+    var rr=row.getBoundingClientRect();
+    return Math.max(1,Math.ceil(Math.max(row.scrollHeight||0,rr.height||0)));
+  });
+  var prefix=[0];
+  rowHeights.forEach(function(h){prefix.push(prefix[prefix.length-1]+h)});
+  function rowsHeight(a,b){return Math.max(0,prefix[b]-prefix[a])}
+
+  // قياس الأجزاء الثابتة لكل نوع صفحة مرة واحدة فقط.
+  function shellHeight(isFirst,isFinal){
+    var shell=cardClonePage(source,0,0,isFirst,isFinal,columnWidths);
+    return cardMeasurePageClone(d,shell);
+  }
+  var shellFirstOpen=shellHeight(true,false);
+  var shellMiddleOpen=shellHeight(false,false);
+  var shellFirstFinal=shellHeight(true,true);
+  var shellMiddleFinal=shellHeight(false,true);
+
+  function baseHeight(isFirst,isFinal){
+    if(isFirst)return isFinal?shellFirstFinal:shellFirstOpen;
+    return isFinal?shellMiddleFinal:shellMiddleOpen;
+  }
+  function estimatedHeight(a,b,isFirst,isFinal){
+    return baseHeight(isFirst,isFinal)+rowsHeight(a,b);
+  }
+  function maxRowsEnd(start,isFirst){
+    var base=baseHeight(isFirst,false),available=Math.max(1,limit-safety-base);
+    var lo=start+1,hi=rowCount,best=start+1;
+    while(lo<=hi){
+      var mid=Math.floor((lo+hi)/2);
+      if(rowsHeight(start,mid)<=available||mid===start+1){best=mid;lo=mid+1}
+      else hi=mid-1;
+    }
+    return Math.max(start+1,Math.min(rowCount,best));
+  }
+
+  var start=0,pageNo=0;
   while(start<rowCount){
     var isFirst=pageNo===0;
-    var allClone=cardClonePage(source,start,rowCount,isFirst,true,columnWidths);
-    var allHeight=cardMeasurePageClone(d,allClone);
-    if(allHeight<=limit){
-      pages.push({start:start,end:rowCount,first:isFirst,final:true,contentHeight:allHeight,xhtml:cardSerializePageClone(allClone)});
-      start=rowCount;break;
+    var finalEstimate=estimatedHeight(start,rowCount,isFirst,true);
+    var isFinal=finalEstimate<=limit-safety;
+    var end=isFinal?rowCount:maxRowsEnd(start,isFirst);
+
+    // نبني الصفحة النهائية مرة واحدة فقط. القياس هنا للتوثيق/القص الدقيق،
+    // وليس للبحث المتكرر عن حدود الصفحة.
+    var pageClone=cardClonePage(source,start,end,isFirst,isFinal,columnWidths);
+    var actualHeight=cardMeasurePageClone(d,pageClone);
+
+    // حماية هامشية فقط لأي اختلاف بكسلات نادر بسبب border-collapse.
+    // لا تدخل في بحث DOM؛ تنقص سطراً واحداً عند الحاجة القصوى.
+    if(!isFinal&&actualHeight>limit&&end>start+1){
+      end--;
+      pageClone=cardClonePage(source,start,end,isFirst,false,columnWidths);
+      actualHeight=cardMeasurePageClone(d,pageClone);
     }
 
-    var lo=start+1,hi=rowCount,best=start+1,bestHeight=0;
-    while(lo<=hi){
-      var mid=Math.floor((lo+hi)/2),probe=cardClonePage(source,start,mid,isFirst,false,columnWidths),h=cardMeasurePageClone(d,probe);
-      if(h<=limit||mid===start+1){best=mid;bestHeight=h;lo=mid+1}else hi=mid-1;
-    }
-    var pageClone=cardClonePage(source,start,best,isFirst,false,columnWidths);
-    if(!bestHeight)bestHeight=cardMeasurePageClone(d,pageClone);
-    pages.push({start:start,end:best,first:isFirst,final:false,contentHeight:bestHeight,xhtml:cardSerializePageClone(pageClone)});
-    start=best;pageNo++;
+    pages.push({
+      start:start,
+      end:end,
+      first:isFirst,
+      final:isFinal&&end===rowCount,
+      contentHeight:actualHeight,
+      xhtml:cardSerializePageClone(pageClone)
+    });
+    start=end;
+    pageNo++;
     if(pages.length>100)throw new Error('CARD_PDF_PAGE_GUARD');
   }
   return pages;
@@ -47813,6 +47867,17 @@ function cardPageSvgUrl(pack,page,trimHeight){
   return URL.createObjectURL(new Blob([svg],{type:'image/svg+xml;charset=utf-8'}));
 }
 
+function cardCompositeSvgUrl(pack){
+  var models=pack&&Array.isArray(pack.pages)?pack.pages:[];
+  if(!models.length)throw new Error('CARD_PRINT_NO_PAGE_MODELS');
+  var totalH=CARD_PAGE_H*models.length;
+  var pagesHtml=models.map(function(page){
+    return '<div xmlns="http://www.w3.org/1999/xhtml" dir="rtl" style="position:relative;width:'+CARD_PAGE_W+'px;height:'+CARD_PAGE_H+'px;margin:0;padding:0;overflow:hidden;background:#fff;">'+String(page&&page.xhtml||'')+'</div>';
+  }).join('');
+  var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+CARD_PAGE_W+'" height="'+totalH+'" viewBox="0 0 '+CARD_PAGE_W+' '+totalH+'"><foreignObject x="0" y="0" width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" dir="rtl" style="width:'+CARD_PAGE_W+'px;height:'+totalH+'px;margin:0;padding:0;overflow:hidden;background:#fff;"><style>'+escapeXmlText(pack.css||'')+'</style>'+pagesHtml+'</div></foreignObject></svg>';
+  return URL.createObjectURL(new Blob([svg],{type:'image/svg+xml;charset=utf-8'}));
+}
+
 function drawCardPdfPageFooter(ctx,canvas,pageIndex,totalPages,scale){
   try{
     var s=Math.max(.5,Number(scale)||1),footerY=canvas.height-Math.round(12*s);
@@ -47836,24 +47901,47 @@ function drawCardPdfPageFooter(ctx,canvas,pageIndex,totalPages,scale){
 async function rasterizeCardPrintToPages(pack){
   var scale=CARD_RENDER_SCALE,models=pack.pages||[],pages=[];
   if(!models.length)throw new Error('CARD_PRINT_NO_PAGE_MODELS');
-  setProgress(24,'تم تقسيم الفاتورة • '+models.length+' صفحة • جاري التكوين السريع…','');
-  async function renderPageAt(i){
-    if(i>=models.length)return pages;
-    setProgress(30+Math.round(((i+1)/models.length)*48),'جاري تكوين وضغط صفحة الفاتورة '+(i+1)+' من '+models.length+'…','');
+  setProgress(24,'تم تقسيم الفاتورة • '+models.length+' صفحة • جاري الرندر السريع مرة واحدة…','');
+
+  // أهم فرق بالسرعة: كل صفحات الفاتورة تُحوّل إلى SVG/Image مرة واحدة فقط.
+  var url=cardCompositeSvgUrl(pack),img=null;
+  try{
     await yieldBrowser();
-    var url=cardPageSvgUrl(pack,models[i],false),img=null,canvas=null;
-    try{
-      img=await loadImageUrl(url);canvas=document.createElement('canvas');canvas.width=Math.round(CARD_PAGE_W*scale);canvas.height=Math.round(CARD_PAGE_H*scale);
-      var ctx=canvas.getContext('2d');if(!ctx)throw new Error('CARD_PAGE_CANVAS_CONTEXT_MISSING');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
-      drawCardPdfPageFooter(ctx,canvas,i,models.length,scale);
-      pages.push(await jpegPageInfo(canvas));
-    }finally{
-      if(canvas){canvas.width=1;canvas.height=1}try{URL.revokeObjectURL(url)}catch(_){}
+    setProgress(32,'جاري رسم صفحات الفاتورة دفعة واحدة…','');
+    img=await loadImageUrl(url);
+
+    async function cropPageAt(i){
+      if(i>=models.length)return pages;
+      setProgress(38+Math.round(((i+1)/models.length)*40),'جاري ضغط صفحة الفاتورة '+(i+1)+' من '+models.length+'…','');
+      await yieldBrowser();
+
+      var canvas=document.createElement('canvas');
+      try{
+        canvas.width=Math.round(CARD_PAGE_W*scale);
+        canvas.height=Math.round(CARD_PAGE_H*scale);
+        var ctx=canvas.getContext('2d');
+        if(!ctx)throw new Error('CARD_PAGE_CANVAS_CONTEXT_MISSING');
+        ctx.fillStyle='#fff';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+
+        // قص الصفحة من الصورة المشتركة بدون إعادة SVG decode لكل صفحة.
+        ctx.drawImage(
+          img,
+          0,i*CARD_PAGE_H,CARD_PAGE_W,CARD_PAGE_H,
+          0,0,canvas.width,canvas.height
+        );
+        drawCardPdfPageFooter(ctx,canvas,i,models.length,scale);
+        pages.push(await jpegPageInfo(canvas));
+      }finally{
+        canvas.width=1;
+        canvas.height=1;
+      }
+      return cropPageAt(i+1);
     }
-    await yieldBrowser();
-    return renderPageAt(i+1);
+    return await cropPageAt(0);
+  }finally{
+    try{URL.revokeObjectURL(url)}catch(_){}
   }
-  return renderPageAt(0);
 }
 
 async function nativeCardPdfFromCanvases(imgs){
