@@ -14332,6 +14332,11 @@ function assalFocusWholesaleCategoryAfterAdd(){
   try{
     const cat = document.getElementById('cat');
     if(!cat || cat.disabled) return false;
+
+    // Wholesale only: preserve the exact last selected category after a successful add.
+    // This is UI focus state only; nothing is written to debts/storage/server.
+    const lastSelectedCat = String(cat.value || '').trim();
+
     try{ if(typeof hideOrganizerPanel === 'function') hideOrganizerPanel(); }catch(_){ }
     try{ if(typeof hideTypePanel === 'function') hideTypePanel(); }catch(_){ }
     try{ if(typeof hideItemSuggestions === 'function') hideItemSuggestions(); }catch(_){ }
@@ -14342,8 +14347,13 @@ function assalFocusWholesaleCategoryAfterAdd(){
       if(typeof showCatPanel === 'function') showCatPanel();
       if(typeof getCatItems === 'function'){
         const items = getCatItems();
-        const lcdIndex = items.findIndex(li => (li.getAttribute('data-val') || '') === 'LCD');
-        __catIdx = lcdIndex >= 0 ? lcdIndex : (items.length ? 0 : -1);
+        const sameIndex = items.findIndex(li => String(li.getAttribute('data-val') || '').trim() === lastSelectedCat);
+        if(sameIndex >= 0){
+          __catIdx = sameIndex;
+        }else{
+          const lcdIndex = items.findIndex(li => (li.getAttribute('data-val') || '') === 'LCD');
+          __catIdx = lcdIndex >= 0 ? lcdIndex : (items.length ? 0 : -1);
+        }
         if(typeof highlightCatItem === 'function') highlightCatItem();
       }
     }catch(_){ }
@@ -36360,6 +36370,14 @@ html body .card .item.assal-smooth-added-item-pulse{
       ev.preventDefault();
       ev.stopPropagation();
       ev.stopImmediatePropagation();
+
+      // General guard: an empty item name must never advance on Enter.
+      if(!String(target.value || '').trim()){
+        try{ showToast?.('warn','يرجى كتابة اسم الآيتم أولاً'); }catch(_){ }
+        try{ target.focus({preventScroll:true}); }catch(_){ try{ target.focus(); }catch(__){ } }
+        return;
+      }
+
       fillItemFromSuggestionIfOpen();
       tryFillTypedItemPrice();
       if(typeof window.assalReturnGuardEnterAsync === 'function'){
