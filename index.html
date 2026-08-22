@@ -11853,6 +11853,53 @@ function isWholesaleCard(card){
   return (card.lines || []).some(l => !l.deletedAt && String(l.type || '') === 'جملة');
 }
 
+
+/* ===== ASSAL WHOLESALE CARD COMPACT VIEW V1 — عرض فقط، لا يغيّر بيانات الفاتورة ===== */
+const ASSAL_WHOLESALE_CARD_PREVIEW_LIMIT = 5;
+const assalWholesaleExpandedCards = (window.__ASSAL_WHOLESALE_EXPANDED_CARDS__ instanceof Set)
+  ? window.__ASSAL_WHOLESALE_EXPANDED_CARDS__
+  : new Set();
+window.__ASSAL_WHOLESALE_EXPANDED_CARDS__ = assalWholesaleExpandedCards;
+
+function assalWholesaleCardRenderKey(card){
+  const dayKey = String(card?.__day || ((typeof selectedDay === 'string') ? selectedDay : '') || '');
+  const cardId = String(card?.id || card?.createdAt || card?.at || card?.customer || 'legacy');
+  return dayKey + '::' + cardId;
+}
+
+(function assalWholesaleFoldStyleOnce(){
+  if(document.getElementById('assalWholesaleFoldStyleV1')) return;
+  const st = document.createElement('style');
+  st.id = 'assalWholesaleFoldStyleV1';
+  st.textContent = `
+    .assal-wholesale-fold-toggle{
+      width:100%;min-height:38px;margin:8px 0 2px;padding:7px 12px;
+      border:1px solid rgba(245,158,11,.30);border-radius:12px;
+      background:linear-gradient(180deg,rgba(245,158,11,.12),rgba(245,158,11,.055));
+      color:#fbbf24;display:flex;align-items:center;justify-content:center;gap:8px;
+      font:inherit;font-size:12px;font-weight:800;line-height:1.25;cursor:pointer;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 5px 16px rgba(0,0,0,.10);
+      transition:background .16s ease,border-color .16s ease,transform .08s ease;
+      -webkit-tap-highlight-color:transparent;user-select:none;
+    }
+    .assal-wholesale-fold-toggle:hover{
+      background:linear-gradient(180deg,rgba(245,158,11,.17),rgba(245,158,11,.075));
+      border-color:rgba(245,158,11,.46);
+    }
+    .assal-wholesale-fold-toggle:active{transform:scale(.995)}
+    .assal-wholesale-fold-toggle i{font-size:11px;opacity:.95}
+    .assal-wholesale-fold-toggle .assal-wholesale-fold-count{
+      color:#aeb8c8;font-size:10.5px;font-weight:700;white-space:nowrap;
+    }
+    @media (max-width:640px){
+      .assal-wholesale-fold-toggle{min-height:36px;margin-top:7px;font-size:11.5px;border-radius:11px}
+      .assal-wholesale-fold-toggle .assal-wholesale-fold-count{font-size:10px}
+    }
+  `;
+  document.head.appendChild(st);
+})();
+/* ===== /ASSAL WHOLESALE CARD COMPACT VIEW V1 ===== */
+
 function isCashCard(card){
   if(!card) return false;
 
@@ -17599,8 +17646,16 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
     /* ===== السطور (المواد) ===== */
     const itemsWrap = CE('div', 'items');
 
-    (card.lines || [])
-      .filter(ln => !ln.deletedAt) // لا تعرض السطور المعلمة محذوف
+    const __assalWholesaleActiveLines = (card.lines || []).filter(ln => !ln.deletedAt);
+    const __assalWholesaleFoldable = isWholesaleCard(card) && (__assalWholesaleActiveLines.length > ASSAL_WHOLESALE_CARD_PREVIEW_LIMIT);
+    const __assalWholesaleFoldKey = __assalWholesaleFoldable ? assalWholesaleCardRenderKey(card) : '';
+    // بحث المادة يبقى يعرض كل السطور حتى لا تكون نتيجة البحث مخفية بعد السطر الخامس.
+    const __assalWholesaleExpanded = __assalWholesaleFoldable && (!!itemQ || assalWholesaleExpandedCards.has(__assalWholesaleFoldKey));
+    const __assalWholesaleRenderedLines = (__assalWholesaleFoldable && !__assalWholesaleExpanded)
+      ? __assalWholesaleActiveLines.slice(0, ASSAL_WHOLESALE_CARD_PREVIEW_LIMIT)
+      : __assalWholesaleActiveLines;
+
+    __assalWholesaleRenderedLines
       .forEach((ln) => {
         const it = CE('div', 'item');
         try{ if(ln && ln.lineId) it.setAttribute('data-line-id', String(ln.lineId)); }catch(_){ }
@@ -17978,6 +18033,27 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
         itemsWrap.appendChild(it);
       });
 
+    // زر الطي/الفتح يظهر بعد آخر سطر معروض: تحت الخامس عند الطي، وتحت آخر مادة عند الفتح.
+    // أثناء بحث المادة نعرض الفاتورة كاملة تلقائياً ونخفي الزر حتى تبقى نتيجة البحث واضحة.
+    if(__assalWholesaleFoldable && !itemQ){
+      const __assalWholesaleFoldBtn = CE('button', 'assal-wholesale-fold-toggle');
+      __assalWholesaleFoldBtn.type = 'button';
+      if(__assalWholesaleExpanded){
+        __assalWholesaleFoldBtn.innerHTML = '<i class="fa-solid fa-chevron-up"></i><span>طي الفاتورة</span><span class="assal-wholesale-fold-count">' + __assalWholesaleActiveLines.length + ' مادة</span>';
+        __assalWholesaleFoldBtn.title = 'إظهار أول ' + ASSAL_WHOLESALE_CARD_PREVIEW_LIMIT + ' مواد فقط';
+      }else{
+        const __assalWholesaleHiddenCount = Math.max(0, __assalWholesaleActiveLines.length - ASSAL_WHOLESALE_CARD_PREVIEW_LIMIT);
+        __assalWholesaleFoldBtn.innerHTML = '<i class="fa-solid fa-chevron-down"></i><span>فتح الفاتورة كاملة</span><span class="assal-wholesale-fold-count">+' + __assalWholesaleHiddenCount + ' مادة</span>';
+        __assalWholesaleFoldBtn.title = 'إظهار جميع مواد فاتورة الجملة';
+      }
+      __assalWholesaleFoldBtn.onclick = function(){
+        if(__assalWholesaleExpanded) assalWholesaleExpandedCards.delete(__assalWholesaleFoldKey);
+        else assalWholesaleExpandedCards.add(__assalWholesaleFoldKey);
+        renderBoard();
+      };
+      itemsWrap.appendChild(__assalWholesaleFoldBtn);
+    }
+
     box.appendChild(itemsWrap);
 
     /* ===== ملاحظات البطاقة (mini timeline جوّا البطاقة) ===== */
@@ -18108,6 +18184,18 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
     btnPdf.title = 'طباعة هاي البطاقة فقط';
     btnPdf.onclick = () => {
       exportCardPDF_Vector(card, card.__day || selectedDay);
+    };
+
+    // زر واتساب PDF — قراءة/تصدير فقط، لا يغيّر أي بيانات داخل البطاقة.
+    const btnWaPdf = CE('button', 'i-btn card-whatsapp-pdf-btn');
+    btnWaPdf.innerHTML = '<i class="fa-brands fa-whatsapp"></i><span>واتساب</span>';
+    btnWaPdf.title = 'إرسال نفس فاتورة PDF الحالية عبر واتساب';
+    btnWaPdf.onclick = () => {
+      if (typeof window.assalOpenCardWhatsAppPdf === 'function') {
+        window.assalOpenCardWhatsAppPdf(card, card.__day || selectedDay);
+      } else {
+        try{ showToast('warn','واجهة واتساب PDF غير جاهزة بعد'); }catch(_){ }
+      }
     };
 
     // زر "تسديد الكل" — لفواتير الجملة يتحول نفس الزر دورياً إلى "تم التجهيز" بدون تغيير ترتيب الأزرار
@@ -18326,7 +18414,7 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
     // حدّث عداد الملاحظات
     updateNotesBadge(btnNotes, card);
 
-    right.append(btnPdf, btnPayAll, btnPartialPay, btnNotes, btnDelCard);
+    right.append(btnPdf, btnPayAll, btnPartialPay, btnNotes, btnDelCard, btnWaPdf);
     foot.append(left, right);
     box.appendChild(foot);
 
@@ -26015,6 +26103,138 @@ function mergeAllDays(localDays, remoteDays){
 
 
 
+/* ===== ASSAL ADMIN PULL — WHOLESALE-ONLY PRESERVE/MERGE V1 =====
+   وضع الحاسبة الفرعية يبقى استبدالاً كاملاً من السيرفر لكل شيء،
+   والاستثناء الوحيد: فواتير الجملة المحلية لا تضيع.
+   - جملة السيرفر تبقى وتنزل كالمعتاد.
+   - جملة محلية غير موجودة على السيرفر تُحفظ.
+   - إذا نفس card.id موجود كجملة في الجهتين، تُدمج بطاقة واحدة حسب الأزمنة/lineId.
+   - إذا نفس card.id موجود على السيرفر لكنه لم يعد جملة، نسخة السيرفر تفوز ولا نعيد جملة قديمة محلياً.
+   لا يلمس هذا الدمج الأجل/الراجع/النقدي أو الحسابات المالية أو الأسماء.
+   ===================================================================== */
+function assalAdminPullCloneWholesaleCard(card){
+  try{ return JSON.parse(JSON.stringify(card)); }
+  catch(_){
+    return {
+      ...(card || {}),
+      lines:Array.isArray(card?.lines) ? card.lines.map(x => ({...(x || {})})) : [],
+      notes:Array.isArray(card?.notes) ? card.notes.map(x => ({...(x || {})})) : []
+    };
+  }
+}
+
+function assalAdminPullMergeWholesaleDays(localDays, remoteDays){
+  const local = (localDays && typeof localDays === 'object') ? localDays : {};
+  const remote = (remoteDays && typeof remoteDays === 'object') ? remoteDays : {};
+  const out = {};
+
+  // الأساس يبقى نسخة السيرفر حرفياً من حيث الأيام والبطاقات؛ ننسخ المصفوفات فقط حتى لا نعدل كائن server نفسه.
+  Object.keys(remote).forEach(dayKey => {
+    out[dayKey] = Array.isArray(remote[dayKey]) ? remote[dayKey].slice() : [];
+  });
+
+  const remoteById = new Map();
+  Object.keys(out).forEach(dayKey => {
+    (out[dayKey] || []).forEach(card => {
+      const id = String(card?.id || '').trim();
+      if(!id) return;
+      const prev = remoteById.get(id);
+      if(!prev || isNewer(prev.card?.updatedAt || prev.card?.createdAt, card?.updatedAt || card?.createdAt)){
+        remoteById.set(id, {day:dayKey, card:card});
+      }
+    });
+  });
+
+  // لو ظهر نفس card.id محلياً بأكثر من يوم (مثلاً بعد نقل قديم)، نحتفظ بالأحدث فقط قبل الدمج.
+  const localWholesaleById = new Map();
+  const localLegacyWholesale = [];
+  Object.keys(local).forEach(dayKey => {
+    const cards = Array.isArray(local[dayKey]) ? local[dayKey] : [];
+    cards.forEach(card => {
+      if(!isWholesaleCard(card)) return;
+      const id = String(card?.id || '').trim();
+      if(!id){
+        localLegacyWholesale.push({day:dayKey, card:card});
+        return;
+      }
+      const prev = localWholesaleById.get(id);
+      if(!prev || isNewer(prev.card?.updatedAt || prev.card?.createdAt, card?.updatedAt || card?.createdAt)){
+        localWholesaleById.set(id, {day:dayKey, card:card});
+      }
+    });
+  });
+
+  const mergeReport = [];
+
+  localWholesaleById.forEach((localEntry, id) => {
+    const remoteEntry = remoteById.get(id);
+
+    if(!remoteEntry){
+      if(!Array.isArray(out[localEntry.day])) out[localEntry.day] = [];
+      out[localEntry.day].push(assalAdminPullCloneWholesaleCard(localEntry.card));
+      return;
+    }
+
+    // نفس البطاقة موجودة على الرئيسية لكن تحولت هناك إلى نوع آخر: لا نعيد نسخة جملة محلية قديمة.
+    if(!isWholesaleCard(remoteEntry.card)) return;
+
+    const localCard = assalAdminPullCloneWholesaleCard(localEntry.card);
+    const remoteCard = assalAdminPullCloneWholesaleCard(remoteEntry.card);
+    const merged = mergeCard(localCard, remoteCard, mergeReport, 'admin-pull.wholesale.card:' + id);
+
+    // mergeCard العام يعيد billType من سطور البيع كـ أجل/راجع؛ هنا البطاقة مؤكدة جملة في الجهتين، فنثبت نوعها فقط.
+    merged.billType = 'جملة';
+
+    const remoteStamp = remoteEntry.card?.updatedAt || remoteEntry.card?.createdAt || '';
+    const localStamp = localEntry.card?.updatedAt || localEntry.card?.createdAt || '';
+    const targetDay = isNewer(remoteStamp, localStamp) ? localEntry.day : remoteEntry.day;
+
+    // نزيل أي نسخة بنفس الهوية من أيام نسخة السيرفر ثم نضع نسخة واحدة مدمجة باليوم الأحدث.
+    Object.keys(out).forEach(dayKey => {
+      out[dayKey] = (out[dayKey] || []).filter(c => String(c?.id || '').trim() !== id);
+    });
+    if(!Array.isArray(out[targetDay])) out[targetDay] = [];
+    out[targetDay].push(merged);
+    remoteById.set(id, {day:targetDay, card:merged});
+  });
+
+  // بطاقات قديمة جداً بلا card.id: نحافظ عليها فقط إذا لم توجد نسخة مطابقة تقريبياً على السيرفر، لمنع التكرار مع كل سحب.
+  localLegacyWholesale.forEach(entry => {
+    const c = entry.card || {};
+    const signature = JSON.stringify({
+      customer:String(c.customer || ''),
+      createdAt:String(c.createdAt || c.at || ''),
+      billType:String(c.billType || ''),
+      lines:(Array.isArray(c.lines) ? c.lines : []).map(l => [String(l?.lineId || ''), String(l?.item || ''), Number(l?.qty || 0), Number(l?.price || 0), String(l?.at || l?.createdAt || '')])
+    });
+    let found = false;
+    Object.keys(out).some(dayKey => (out[dayKey] || []).some(rc => {
+      if(!isWholesaleCard(rc) || String(rc?.id || '').trim()) return false;
+      const rs = JSON.stringify({
+        customer:String(rc.customer || ''),
+        createdAt:String(rc.createdAt || rc.at || ''),
+        billType:String(rc.billType || ''),
+        lines:(Array.isArray(rc.lines) ? rc.lines : []).map(l => [String(l?.lineId || ''), String(l?.item || ''), Number(l?.qty || 0), Number(l?.price || 0), String(l?.at || l?.createdAt || '')])
+      });
+      if(rs === signature){ found = true; return true; }
+      return false;
+    }));
+    if(!found){
+      if(!Array.isArray(out[entry.day])) out[entry.day] = [];
+      out[entry.day].push(assalAdminPullCloneWholesaleCard(entry.card));
+    }
+  });
+
+  Object.keys(out).forEach(dayKey => {
+    out[dayKey] = (out[dayKey] || []).slice().sort((a,b) =>
+      new Date(b?.updatedAt || b?.createdAt || 0) - new Date(a?.updatedAt || a?.createdAt || 0)
+    );
+  });
+
+  return out;
+}
+/* ===== /ASSAL ADMIN PULL — WHOLESALE-ONLY PRESERVE/MERGE V1 ===== */
+
 // استيراد ذكي: يسحب من السيرفر إذا هو أحدث (أو إذا المحلي فارغ)
 async function smartImportFromServer(options){
   const progressMode = !!(options && options.__assalPullProgressV1 === true);
@@ -26123,9 +26343,16 @@ async function smartImportFromServer(options){
     // [END NEW]
 
     if(subMode){
-      // ========= وضع "حاسبة فرعية": استبدال كامل محلي داخل IndexedDB بدون حذف =========
+      // ========= وضع "حاسبة فرعية": نسخة السيرفر + استثناء جملة محلي فقط =========
+      // بقية الفواتير تبقى على سلوك الاستبدال الحالي حرفياً؛ الدمج أدناه خاص بفواتير الجملة فقط.
       emit('save-days', {mode:'sub'});
-      await saveBigStoreAndWait(STORAGE, server.days || {});
+      const __assalAdminPullLocalDays = (days && typeof days === 'object') ? days : load(STORAGE, {});
+      const __assalAdminPullExactAdmin = (window.ASSAL_IS_ADMIN_DEBTS === true) ||
+        (typeof normalizeAssalLoginEmail === 'function' && normalizeAssalLoginEmail(window.ASSAL_LOGIN_EMAIL || '') === ASSAL_ADMIN_DEBTS_EMAIL);
+      const __assalAdminPullDays = __assalAdminPullExactAdmin
+        ? assalAdminPullMergeWholesaleDays(__assalAdminPullLocalDays, server.days || {})
+        : (server.days || {});
+      await saveBigStoreAndWait(STORAGE, __assalAdminPullDays);
 
       emit('save-names', {mode:'sub'});
       await saveBigStoreAndWait(NAMES, Array.isArray(server.names) ? server.names : []);
@@ -40640,8 +40867,8 @@ html body .card .item.assal-smart-added-item-safe-final{
   function fmtDateTime(v){ try{ return new Date(v).toLocaleString('ar-IQ',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(_){ return safe(v||'—'); } }
   function statusText(s){
     return ({
-      draft:'غير مرسل',pending_review:'مرسل — بانتظار المراجعة',approved_pending_upload:'مقبول — بانتظار الرفع',
-      applied:'تم التطبيق والرفع',rejected:'مرفوض',conflict:'تعارض',cancelled:'ملغى'
+      draft:'غير مرسل',pending_review:'مرسل — بانتظار المراجعة',approved_pending_upload:'مقبول — بانتظار تثبيت الحالة',
+      applied:'تم التطبيق',rejected:'مرفوض',conflict:'تعارض',cancelled:'ملغى'
     })[safe(s)] || safe(s||'—');
   }
   function isDebtTransferLockRequest(req){
@@ -41235,6 +41462,46 @@ html body .card .item.assal-smart-added-item-safe-final{
   }
 
 
+  /*
+   * نقل موثوق لطلبات التعديل — محاولتان فقط كحد أقصى، بنفس Request ID.
+   * لا توجد حلقة مفتوحة: ننتظر أول تنفيذ زمناً يكفي لقفل Apps Script، ثم نتحقق
+   * من نفس المعرّف قبل السماح بإعادة الإرسال الآمنة مرة واحدة فقط.
+   */
+  async function postAndVerifyRequestReliable(mode,body,expected,allowedStatuses,opts){
+    opts=opts||{};
+    var rounds=Math.max(1,Math.min(2,Number(opts.rounds)||2)),lastErr=null;
+    function stage(name,round){try{if(typeof opts.onStage==='function')opts.onStage(name,round,rounds);}catch(_){ }}
+    for(var round=1;round<=rounds;round++){
+      stage(round===1?'send':'retry',round);
+      try{
+        return await postAndVerifyRequest(mode,body,expected,allowedStatuses,{
+          postTimeout:Number(opts.postTimeout)||45000,
+          attempts:Math.max(1,Number(opts.attempts)||8),
+          firstDelay:opts.firstDelay==null?600:Number(opts.firstDelay),
+          verifyTimeout:Number(opts.verifyTimeout)||4200,
+          delay:Number(opts.delay)||1100
+        });
+      }catch(err){
+        if(err&&err.code==='ASSAL_REQUEST_DEFINITE')throw err;
+        lastErr=err;
+        if(round>=rounds)break;
+        stage('settle',round);
+        var settle=await verifyRequestState(expected,allowedStatuses,{
+          attempts:Math.max(1,Number(opts.settleAttempts)||4),
+          firstDelay:Number(opts.settleFirstDelay)||1400,
+          delay:Number(opts.settleDelay)||1800,
+          timeout:Number(opts.settleVerifyTimeout)||5000
+        });
+        if(settle.mismatch)throw requestTransportError('ASSAL_REQUEST_DEFINITE','تعارض في معرّف الطلب على السيرفر');
+        if(settle.confirmed)return {ok:true,json:null,request:settle.request,verified:true,recovered:true};
+        if(!online())throw requestTransportError('ASSAL_REQUEST_DEFINITE','لا يوجد اتصال بالإنترنت');
+        await waitRequestMs(Math.max(500,Number(opts.retryDelay)||1200));
+      }
+    }
+    throw requestTransportError('ASSAL_REQUEST_UNKNOWN',safe(lastErr&&lastErr.message)||'تعذر التأكد من وصول العملية بعد المحاولتين الآمنتين');
+  }
+
+
   function nextPaint(){return new Promise(function(resolve){try{requestAnimationFrame(function(){requestAnimationFrame(resolve);});}catch(_){setTimeout(resolve,0);}});}
   function ensureProgressToast(){
     var host=document.getElementById('assalCrProgressHost');
@@ -41254,7 +41521,7 @@ html body .card .item.assal-smart-added-item-safe-final{
   function progressSuccess(title,detail){progressSet('success',title,detail,100,'fa-solid fa-circle-check');progressHideTimer=setTimeout(progressHide,1400);}
   function progressUnknown(title,detail){progressSet('warn',title,detail,100,'fa-solid fa-circle-question');progressHideTimer=setTimeout(progressHide,2500);}
   function progressNeedFollowup(req,detail){
-    progressSet('warn','التعديل محفوظ محلياً — الرفع غير مكتمل',detail||'يرجى فتح متابعة الطلبات وإكمال الرفع',100,'fa-solid fa-triangle-exclamation');
+    progressSet('warn','التعديل محفوظ محلياً — تثبيت الحالة غير مكتمل',detail||'يرجى فتح متابعة الطلبات وإكمال تثبيت الحالة',100,'fa-solid fa-triangle-exclamation');
     var h=ensureProgressToast(),actions=h.querySelector('#assalCrProgressActions'),btn=h.querySelector('#assalCrProgressAction');actions.classList.add('active');
     btn.onclick=function(){activeTab='incoming';openModal();progressHide();};
   }
@@ -41270,7 +41537,7 @@ html body .card .item.assal-smart-added-item-safe-final{
     return rows+(changes.length>3?'<div style="margin-top:7px;color:#94a3b8">ويوجد '+(changes.length-3)+' تغييرات أخرى ضمن الطلب</div>':'');
   }
   function requestConfirmHtml(kind,req,extra){
-    var conf={approve:{icon:'fa-check',title:'اعتماد طلب التعديل',sub:'سيُطبق التغيير محلياً ثم تُرفع نسخة الرئيسية المحمية',hint:'تستمر الواجهة بالعمل، ويظهر تقدم العملية أعلى التطبيق.'},reject:{icon:'fa-xmark',title:'رفض طلب التعديل',sub:'لن تتغير بيانات الحاسبة الرئيسية',hint:'سيظهر الطلب مرفوضاً في أرشيف الأدمن.'},retry:{icon:'fa-cloud-arrow-up',title:'إكمال رفع الطلب',sub:'التعديل مطبق ومحفوظ محلياً',hint:'سيتم رفع أحدث نسخة ثابتة عبر الحماية الحالية دون تطبيق الطلب مرة ثانية.'},conflict:{icon:'fa-triangle-exclamation',title:'تعارض في طلب التعديل',sub:'تغيّرت بيانات مرتبطة بالطلب على الحاسبة الرئيسية',hint:'لن تُطبق أي خطوة غير مؤكدة.'}}[kind]||{};
+    var conf={approve:{icon:'fa-check',title:'اعتماد طلب التعديل',sub:'سيُطبق التغيير ويحفظ محلياً أولاً',hint:'بعد الحفظ تُثبت حالة الطلب، وتبقى مزامنة الذمم بالخلفية من دون انتظار رفع النسخة داخل زر الموافقة.'},reject:{icon:'fa-xmark',title:'رفض طلب التعديل',sub:'لن تتغير بيانات الحاسبة الرئيسية',hint:'سيظهر الطلب مرفوضاً في أرشيف الأدمن.'},retry:{icon:'fa-list-check',title:'إكمال تثبيت الطلب',sub:'التعديل مطبق ومحفوظ محلياً',hint:'سيتم فقط تثبيت حالة الطلب على السيرفر دون إعادة تطبيق التعديل.'},conflict:{icon:'fa-triangle-exclamation',title:'تعارض في طلب التعديل',sub:'تغيّرت بيانات مرتبطة بالطلب على الحاسبة الرئيسية',hint:'لن تُطبق أي خطوة غير مؤكدة.'}}[kind]||{};
     return '<div class="assal-cr-confirm-pop '+esc(kind)+'"><div class="assal-cr-confirm-hero"><span class="assal-cr-confirm-icon"><i class="fa-solid '+esc(conf.icon||'fa-circle-question')+'"></i></span><div><div class="assal-cr-confirm-title">'+esc(conf.title||'تأكيد')+'</div><div class="assal-cr-confirm-sub">'+esc(conf.sub||'')+'</div></div></div><div class="assal-cr-confirm-box"><span class="assal-cr-confirm-chip"><i class="fa-solid fa-user"></i>'+esc((req&&req.customer)||'بطاقة بدون اسم')+'</span><span class="assal-cr-confirm-chip"><i class="fa-regular fa-calendar"></i>'+esc((req&&req.cardDay)||'—')+'</span>'+requestChangesPreview(req)+(extra||'')+'</div><div class="assal-cr-confirm-hint">'+esc(conf.hint||'')+'</div></div>';
   }
   async function requestConfirm(kind,req,opts){
@@ -41385,7 +41652,14 @@ html body .card .item.assal-smart-added-item-safe-final{
   }
   async function claimRequestForUpload(req,force,conflicts){
     var body={version:VERSION,action:'approve-pending',requestId:req.id,actorEmail:email(),force:!!force,conflicts:Array.isArray(conflicts)?conflicts:[]};
-    var done=await postAndVerifyRequest('card-request-action',body,req,['approved_pending_upload','applied'],{postTimeout:8000,attempts:4,firstDelay:400,verifyTimeout:2600,delay:500});
+    var done=await postAndVerifyRequestReliable('card-request-action',body,req,['approved_pending_upload','applied'],{
+      rounds:2,postTimeout:45000,attempts:8,firstDelay:600,verifyTimeout:4200,delay:1100,
+      settleAttempts:4,settleFirstDelay:1400,settleDelay:1800,settleVerifyTimeout:5000,retryDelay:1200,
+      onStage:function(stage,round){
+        if(stage==='settle')progressSet('','تطبيق طلب التعديل','تأخر رد السيرفر — جاري التأكد من تثبيت القبول تلقائياً',18,'fa-solid fa-shield-halved');
+        else if(stage==='retry'&&round===2)progressSet('','تطبيق طلب التعديل','إعادة تثبيت القبول تلقائياً وبنفس الطلب (2/2)',24,'fa-solid fa-rotate fa-spin');
+      }
+    });
     var rec=done.request||(done.json&&done.json.request)||null;
     if(rec)mergeRequestCache(rec);
     return rec||req;
@@ -41557,12 +41831,12 @@ html body .card .item.assal-smart-added-item-safe-final{
     var localPending=isMain()&&status==='pending_review'&&isAppliedLocal(rec.id);if(localPending)status='approved_pending_upload';
     var cls=status==='applied'?'applied':(status==='rejected'?'rejected':(status==='conflict'?'conflict':'pending'));
     var time=rec.sentAt||rec.createdAt||rec.updatedAt||'',isBusy=busyIds.has(safe(rec.id))||safe(activeUploadRequestId)===safe(rec.id),dis=isBusy?' disabled':'';
-    var spin=isBusy?'fa-spinner':'fa-cloud-arrow-up',actions='';
-    if(mode==='draft')actions=(isAttendance||isSingleCustomerChange)?'<button class="assal-cr-btn send" data-cr-send="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-paper-plane')+'"></i> '+(isBusy?'جاري الإرسال':'إرسال')+'</button><button class="assal-cr-btn delete-only" data-cr-dismiss-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-regular fa-trash-can"></i> حذف الطلب</button>':'<button class="assal-cr-btn send" data-cr-send="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-paper-plane')+'"></i> '+(isBusy?'جاري الإرسال':'إرسال')+'</button><button class="assal-cr-btn delete" data-cr-delete-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-solid fa-rotate-left"></i> '+(isBundle?'حذف البطاقة والتراجع':'حذف وإرجاع الأصل')+'</button><button class="assal-cr-btn delete-only" data-cr-dismiss-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-regular fa-trash-can"></i> حذف الحركة</button>';
-    else if(mode==='admin-archive')actions='<button class="assal-cr-btn delete" data-cr-hide-archive="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-trash-can')+'"></i> '+(isBusy?'جاري الحذف':'حذف')+'</button>';
+    var spin=isBusy?'fa-spinner fa-spin':'fa-list-check',actions='';
+    if(mode==='draft')actions=(isAttendance||isSingleCustomerChange)?'<button class="assal-cr-btn send" data-cr-send="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner fa-spin':'fa-paper-plane')+'"></i> '+(isBusy?'جاري الإرسال':'إرسال')+'</button><button class="assal-cr-btn delete-only" data-cr-dismiss-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-regular fa-trash-can"></i> حذف الطلب</button>':'<button class="assal-cr-btn send" data-cr-send="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner fa-spin':'fa-paper-plane')+'"></i> '+(isBusy?'جاري الإرسال':'إرسال')+'</button><button class="assal-cr-btn delete" data-cr-delete-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-solid fa-rotate-left"></i> '+(isBundle?'حذف البطاقة والتراجع':'حذف وإرجاع الأصل')+'</button><button class="assal-cr-btn delete-only" data-cr-dismiss-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-regular fa-trash-can"></i> حذف الحركة</button>';
+    else if(mode==='admin-archive')actions='<button class="assal-cr-btn delete" data-cr-hide-archive="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner fa-spin':'fa-trash-can')+'"></i> '+(isBusy?'جاري الحذف':'حذف')+'</button>';
     else if(mode==='main-incoming'){
-      if(status==='approved_pending_upload')actions='<button class="assal-cr-btn retry '+(isBusy?'is-busy':'')+'" data-cr-retry="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+spin+'"></i> '+(isBusy?'جاري الرفع':'إكمال الرفع')+'</button>';
-      else actions='<button class="assal-cr-btn approve '+(isBusy?'is-busy':'')+'" data-cr-approve="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner':'fa-check')+'"></i> '+(isBusy?'جاري التنفيذ':'موافقة')+'</button><button class="assal-cr-btn reject" data-cr-reject="'+esc(rec.id)+'"'+dis+'><i class="fa-solid fa-xmark"></i> رفض</button>';
+      if(status==='approved_pending_upload')actions='<button class="assal-cr-btn retry '+(isBusy?'is-busy':'')+'" data-cr-retry="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+spin+'"></i> '+(isBusy?'جاري التثبيت':'إكمال التثبيت')+'</button>';
+      else actions='<button class="assal-cr-btn approve '+(isBusy?'is-busy':'')+'" data-cr-approve="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner fa-spin':'fa-check')+'"></i> '+(isBusy?'جاري التنفيذ':'موافقة')+'</button><button class="assal-cr-btn reject" data-cr-reject="'+esc(rec.id)+'"'+dis+'><i class="fa-solid fa-xmark"></i> رفض</button>';
     }
     var conflict=rec.conflictNote?'<div class="assal-cr-conflict"><i class="fa-solid fa-triangle-exclamation"></i> '+esc(rec.conflictNote)+'</div>':'';
     var subtitle=esc(rec.cardDay||rec.afterDay||rec.beforeDay||'—')+' • '+esc(fmtDateTime(time))+' • '+(isAttendance?'طلب حضور':(isSingleCustomerChange?'تغيير زبون البطاقة':(isBundle?'بطاقة جديدة — '+bundleLines.length+' مادة':(isPayment?'حركة حسابات مالية':changes.length+' تغيير'))));
@@ -41685,19 +41959,27 @@ html body .card .item.assal-smart-added-item-safe-final{
       /* النسخ الكاملة مطلوبة للإرجاع المحلي قبل الإرسال فقط؛ السيرفر يستلم العمليات الدقيقة دون تكرار البطاقة كاملة. */
       delete payload.beforeCard; delete payload.afterCard;
       delete payload.beforePayment; delete payload.afterPayment;
-      if(!quiet){progressSet('','إرسال طلب التعديل','إرسال الطلب إلى الحاسبة الرئيسية',58,'fa-solid fa-paper-plane');await nextPaint();}
-      var verified=await postAndVerifyRequest('card-request-submit',{version:VERSION,actorEmail:email(),request:payload},payload,['pending_review','approved_pending_upload','applied'],{postTimeout:8000,attempts:4,firstDelay:400,verifyTimeout:2600,delay:500});
-      if(!quiet){progressSet('','إرسال طلب التعديل','تثبيت الطلب في الأرشيف المحلي',86,'fa-solid fa-box-archive');await nextPaint();}
+      if(!quiet){progressSet('','إرسال طلب التعديل','إرسال الطلب — لا تحتاج إلى الضغط مرة أخرى',48,'fa-solid fa-paper-plane');await nextPaint();}
+      var verified=await postAndVerifyRequestReliable('card-request-submit',{version:VERSION,actorEmail:email(),request:payload},payload,['pending_review','approved_pending_upload','applied'],{
+        rounds:2,postTimeout:45000,attempts:8,firstDelay:600,verifyTimeout:4200,delay:1100,
+        settleAttempts:4,settleFirstDelay:1400,settleDelay:1800,settleVerifyTimeout:5000,retryDelay:1200,
+        onStage:function(stage,round){
+          if(quiet)return;
+          if(stage==='settle')progressSet('','إرسال طلب التعديل','تأخر الرد — جاري التأكد من وصول نفس الطلب تلقائياً',64,'fa-solid fa-magnifying-glass');
+          else if(stage==='retry'&&round===2)progressSet('','إرسال طلب التعديل','إعادة الإرسال الآمنة تلقائياً بنفس المعرّف (2/2)',74,'fa-solid fa-rotate fa-spin');
+        }
+      });
+      if(!quiet){progressSet('','إرسال طلب التعديل','تثبيت الطلب في الأرشيف المحلي',88,'fa-solid fa-box-archive');await nextPaint();}
       var res=verified&&verified.json||{},record=(verified&&verified.request)||(res&&res.request)||payload;record.status=record.status||'pending_review';record.sentAt=record.sentAt||payload.sentAt;
       state.drafts=state.drafts.filter(function(x){return safe(x.id)!==safe(reqId);});state.archive.push(record);schedulePersist();
       updateButton();if(isModalOpen())renderModal();
-      if(!quiet)progressSuccess('تم إرسال طلب التعديل','انتقل الطلب إلى الأرشيف وبانتظار مراجعة الحاسبة الرئيسية');
+      if(!quiet)progressSuccess('تم إرسال طلب التعديل','تم التأكد من نفس الطلب بدون تكرار يدوي');
       if(isAttendanceHalfDayRequest(record))notifyAttendanceHalfDayUi();
       if(isSingleCardCustomerChangeRequest(record))notifySingleCardCustomerChangeUi();
       return true;
     }catch(err){
       if(!quiet){
-        if(err&&err.code==='ASSAL_REQUEST_UNKNOWN')progressUnknown('تعذر التأكد من الإرسال','لم نكرر الطلب تلقائياً. سيُحسم وصوله من نفس المعرّف عند التحديث — '+safe(err&&err.message||err));
+        if(err&&err.code==='ASSAL_REQUEST_UNKNOWN')progressUnknown('تعذر حسم الإرسال','توقفت المحاولات الآمنة عند 2/2 ولم ندخل في حلقة. حدّث الطلبات قبل أي محاولة يدوية — '+safe(err&&err.message||err));
         else progressError('فشل إرسال الطلب',safe(err&&err.message||err));
       }
       return false;
@@ -41822,40 +42104,25 @@ html body .card .item.assal-smart-added-item-safe-final{
     if(card){card.updatedAt=stamp;if(card.customer){try{if(Array.isArray(names)&&names.indexOf(card.customer)<0)names.push(card.customer);}catch(_){}}}
     touchedPaymentDays.forEach(function(day){savePaymentDayLocal(day);});
   }
-  async function uploadAndComplete(req,mode){
-    if(isUploadBusyForOther(req.id))throw new Error('يوجد رفع طلب آخر قيد التنفيذ');
-    setRequestUploadActive(req.id,true);
-    var snapshotRevision=localRevision;
-    try{
-      progressSet('',mode==='retry'?'إكمال رفع طلب التعديل':'تطبيق طلب التعديل','تجهيز نسخة ثابتة من بيانات الرئيسية',38,'fa-solid fa-database');await nextPaint();
-      var payload=buildBackupPayload();
-      progressSet('',mode==='retry'?'إكمال رفع طلب التعديل':'تطبيق طلب التعديل','تحويل النسخة وحساب التحقق بالخلفية',52,'fa-solid fa-fingerprint');
-      var prepared=await prepareBackupPayloadAsync(payload);
-      progressSet('',mode==='retry'?'إكمال رفع طلب التعديل':'تطبيق طلب التعديل','رفع النسخة والتحقق من وصولها بالتوازي',73,'fa-solid fa-cloud-arrow-up');
-      var response=await postRequestBackupTimed(payload,prepared,{requestId:req.id,actorEmail:email(),appliedAt:now()});
-      if(!response||response.status==='error')throw new Error((response&&response.message)||'فشل رفع النسخة');
-      progressSet('',mode==='retry'?'إكمال رفع طلب التعديل':'تطبيق طلب التعديل','تثبيت حالة الطلب وتحديث المتابعة',92,'fa-solid fa-list-check');
-      var completed=response.cardRequest&&response.cardRequest.ok&&response.cardRequest.request?response.cardRequest.request:null;
-      if(!completed){
-        var ack=await postAndVerifyRequest('card-request-action',{version:VERSION,action:'applied',requestId:req.id,actorEmail:email(),appliedAt:now()},req,['applied'],{postTimeout:7000,attempts:4,firstDelay:350,verifyTimeout:2500,delay:450});
-        completed=(ack&&ack.request)||(ack&&ack.json&&ack.json.request)||null;
+  async function finalizeAppliedState(req){
+    var body={version:VERSION,action:'applied',requestId:req.id,actorEmail:email(),appliedAt:now()};
+    var done=await postAndVerifyRequestReliable('card-request-action',body,req,['applied'],{
+      rounds:2,postTimeout:45000,attempts:8,firstDelay:600,verifyTimeout:4200,delay:1100,
+      settleAttempts:4,settleFirstDelay:1400,settleDelay:1800,settleVerifyTimeout:5000,retryDelay:1200,
+      onStage:function(stage,round){
+        if(stage==='settle')progressSet('','تطبيق طلب التعديل','التعديل محفوظ — جاري التأكد من تثبيت الحالة على السيرفر',76,'fa-solid fa-list-check');
+        else if(stage==='retry'&&round===2)progressSet('','تطبيق طلب التعديل','إعادة تثبيت الحالة تلقائياً وبنفس الطلب (2/2)',84,'fa-solid fa-rotate fa-spin');
       }
-      markAppliedLocal(req.id);if(completed)mergeRequestCache(completed);else{var localRec=clone(req)||{};localRec.status='applied';localRec.appliedAt=now();mergeRequestCache(localRec);}
-      var newer=localRevision>snapshotRevision;
-      progressSuccess('تم تطبيق الطلب ورفع النسخة بنجاح',newer?'توجد تعديلات أحدث محفوظة محلياً وستدخل بالمزامنة التالية':'تم التحقق من النسخة وتثبيت حالة الطلب');
-      scheduleFollowupSyncIfNeeded(snapshotRevision);return true;
-    }catch(err){
-      /* الطلب تم حجزه كـ بانتظار الرفع قبل التطبيق؛ لا نكرر كتابة الحالة عند كل فشل. */
-      var fallback=clone(findRequest(req.id)||req)||{};fallback.status='approved_pending_upload';mergeRequestCache(fallback);
-      progressNeedFollowup(req,'يرجى فتح متابعة الطلبات وإكمال الرفع — '+safe(err&&err.message||err));return false;
-    }finally{
-      setRequestUploadActive(req.id,false);
-    }
+    });
+    var rec=done.request||(done.json&&done.json.request)||null;
+    if(rec)mergeRequestCache(rec);
+    else{var localRec=clone(req)||{};localRec.status='applied';localRec.appliedAt=now();mergeRequestCache(localRec);rec=localRec;}
+    return rec;
   }
   async function approveRequest(reqId){
     var req=findRequest(reqId);if(!req||busyIds.has(reqId))return;
     if(isAppliedLocal(req.id)){await retryUpload(reqId);return;}
-    if(isUploadBusyForOther(reqId)){progressSet('warn','يوجد رفع طلب آخر','انتظر اكتمال العملية الحالية ثم أعد المحاولة',100,'fa-solid fa-hourglass-half');return;}
+    if(isUploadBusyForOther(reqId)){progressSet('warn','يوجد طلب آخر قيد التنفيذ','انتظر اكتمال العملية الحالية ثم أعد المحاولة',100,'fa-solid fa-hourglass-half');return;}
     var conflicts=preflight(req),force=false;
     if(conflicts.length){
       var hardConflict=isAttendanceHalfDayRequest(req)&&conflicts.length>0||conflicts.some(function(x){return /غير موجودة|موجودة مسبقاً|مكان البطاقة الحالي مختلف/.test(safe(x));});
@@ -41871,16 +42138,26 @@ html body .card .item.assal-smart-added-item-safe-final{
     }
     busyIds.add(reqId);setRequestUploadActive(reqId,true);renderModal();
     try{
-      progressSet('','تطبيق طلب التعديل','تثبيت قبول الطلب ومنع أي قرار متعارض',10,'fa-solid fa-shield-halved');await nextPaint();
+      progressSet('','تطبيق طلب التعديل','تثبيت قبول الطلب ومنع أي قرار متعارض — لا تضغط مرة أخرى',10,'fa-solid fa-shield-halved');await nextPaint();
       req=await claimRequestForUpload(req,force,conflicts);
       if(!isAppliedLocal(req.id)){
-        progressSet('','تطبيق طلب التعديل','تطبيق التغيير المحدد وحفظه محلياً',25,'fa-solid fa-pen-to-square');await nextPaint();
+        progressSet('','تطبيق طلب التعديل','تطبيق التغيير المحدد وحفظه محلياً',46,'fa-solid fa-pen-to-square');await nextPaint();
         withSuppressedCapture(function(){applyRequestOps(req,force);var r=window.save();if(r&&r.ok===false)throw new Error('فشل الحفظ المحلي');});
         markAppliedLocal(req.id);refreshAffectedUi(req);
       }
-      await uploadAndComplete(req,'approve');
+      /* لا نربط زر الموافقة برفع Backup كامل. نطلب المزامنة الموجودة بالخلفية بعد هدوء التعديل. */
+      scheduleFollowupSyncIfNeeded(-1);
+      progressSet('','تطبيق طلب التعديل','تم الحفظ المحلي — جاري تثبيت حالة الطلب فقط',68,'fa-solid fa-list-check');await nextPaint();
+      try{
+        req=await finalizeAppliedState(req);
+        progressSuccess('تم تطبيق طلب التعديل','تم الحفظ محلياً وتثبيت حالة الطلب؛ مزامنة الذمم ستعمل بالخلفية');
+      }catch(finalErr){
+        var fallback=clone(findRequest(req.id)||req)||{};fallback.status='approved_pending_upload';mergeRequestCache(fallback);
+        progressNeedFollowup(req,'تم تطبيق التعديل وحفظه محلياً مرة واحدة. تعذر فقط تثبيت الحالة بعد 2/2؛ لن يُعاد تطبيق التعديل — '+safe(finalErr&&finalErr.message||finalErr));
+      }
     }catch(err){
-      if(err&&err.code==='ASSAL_REQUEST_UNKNOWN')progressUnknown('تعذر التأكد من قبول الطلب','لم يتم تطبيق أي تغيير جديد ما دام قبول السيرفر غير مؤكد — '+safe(err&&err.message||err));
+      if(isAppliedLocal(reqId))progressNeedFollowup(req,'التعديل محفوظ محلياً ولن يُعاد تطبيقه — '+safe(err&&err.message||err));
+      else if(err&&err.code==='ASSAL_REQUEST_UNKNOWN')progressUnknown('تعذر التأكد من قبول الطلب','لم يتم تطبيق أي تغيير جديد ما دام قبول السيرفر غير مؤكد. توقفت المحاولات عند 2/2 — '+safe(err&&err.message||err));
       else progressError('فشل تطبيق الطلب',safe(err&&err.message||err));
     }
     finally{if(safe(activeUploadRequestId)===safe(reqId))setRequestUploadActive(reqId,false);busyIds.delete(reqId);if(isModalOpen())renderModal();}
@@ -41888,15 +42165,17 @@ html body .card .item.assal-smart-added-item-safe-final{
   async function retryUpload(reqId){
     var req=findRequest(reqId);if(!req||busyIds.has(reqId))return;
     if(!isAppliedLocal(req.id)){await approveRequest(reqId);return;}
-    if(isUploadBusyForOther(reqId)){progressSet('warn','يوجد رفع طلب آخر','انتظر اكتمال العملية الحالية ثم أعد المحاولة',100,'fa-solid fa-hourglass-half');return;}
-    var ok=await requestConfirm('retry',req,{title:'إكمال رفع الطلب',okText:'نعم، إكمال الرفع',cancelText:'تراجع'});if(!ok)return;
+    if(isUploadBusyForOther(reqId)){progressSet('warn','يوجد طلب آخر قيد التنفيذ','انتظر اكتمال العملية الحالية ثم أعد المحاولة',100,'fa-solid fa-hourglass-half');return;}
+    var ok=await requestConfirm('retry',req,{title:'إكمال تثبيت الطلب',okText:'نعم، إكمال التثبيت',cancelText:'تراجع'});if(!ok)return;
     busyIds.add(reqId);setRequestUploadActive(reqId,true);if(isModalOpen())renderModal();
     try{
-      progressSet('','إكمال رفع طلب التعديل','التحقق من حالة الطلب والتعديل المحلي',14,'fa-solid fa-hard-drive');await nextPaint();
+      progressSet('','إكمال تثبيت طلب التعديل','التعديل محفوظ محلياً — التحقق من حالة الطلب فقط',36,'fa-solid fa-hard-drive');await nextPaint();
       if(safe(req.status)==='pending_review')req=await claimRequestForUpload(req,!!req.forceApplied,req.conflicts||[]);
-      await uploadAndComplete(req,'retry');
+      scheduleFollowupSyncIfNeeded(-1);
+      req=await finalizeAppliedState(req);
+      progressSuccess('تم تثبيت حالة الطلب','لم يُعاد تطبيق التعديل؛ مزامنة الذمم ستعمل بالخلفية');
     }
-    catch(err){progressNeedFollowup(req,'يرجى فتح متابعة الطلبات وإكمال الرفع — '+safe(err&&err.message||err));}
+    catch(err){progressNeedFollowup(req,'التعديل محفوظ محلياً ولن يُعاد تطبيقه. تعذر تثبيت الحالة بعد 2/2 — '+safe(err&&err.message||err));}
     finally{if(safe(activeUploadRequestId)===safe(reqId))setRequestUploadActive(reqId,false);busyIds.delete(reqId);if(isModalOpen())renderModal();}
   }
   async function rejectRequest(reqId){
@@ -47043,7 +47322,7 @@ document.addEventListener('click',function(e){var btn=e.target&&e.target.closest
 })();
 </script>
 <!-- ASSAL DEBTS WHATSAPP PREMIUM IMAGE FINAL - END -->
-<!-- ASSAL LEDGER WHATSAPP ASSALTEMP NO FIREFOX FINAL - START -->
+<!-- ASSAL LEDGER WHATSAPP SMART FAST OUTPUT FINAL - START -->
 <style id="assal-ledger-wa-assaltemp-no-firefox-style">
 #assalLedgerStatementBackdrop .assal-ledger-actionbar.assal-ledger-wa-auto-pdf-enabled{grid-template-columns:1fr 1fr 1fr .88fr !important}
 #assalLedgerStatementBackdrop .assal-ledger-btn.whatsapp-pdf{background:linear-gradient(135deg,#0f766e,#16a34a)!important;border-color:rgba(134,239,172,.30)!important;box-shadow:0 12px 26px rgba(22,163,74,.16)}
@@ -47101,6 +47380,28 @@ document.addEventListener('click',function(e){var btn=e.target&&e.target.closest
 #assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-status.ok,#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-status.err{padding:7px 8px;border-radius:11px}
 #assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-status.ok{color:#86efac;border:1px solid rgba(34,197,94,.18)}
 #assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-status.err{color:#fecaca;border:1px solid rgba(239,68,68,.20)}
+/* زر واتساب داخل كل بطاقة: نفس صف أزرار البطاقة، قراءة/تصدير فقط. */
+html body .card .card-foot > .foot-actions{
+  grid-template-columns:repeat(6,minmax(0,1fr))!important;
+}
+html body .card .card-foot > .foot-actions .card-whatsapp-pdf-btn{
+  order:6!important;
+  background:linear-gradient(135deg,#0f766e,#16a34a)!important;
+  color:#f0fdf4!important;
+  border-color:rgba(74,222,128,.42)!important;
+  box-shadow:0 8px 18px rgba(22,163,74,.16)!important;
+}
+html body .card .card-foot > .foot-actions .card-whatsapp-pdf-btn:hover{
+  transform:translateY(-1px);
+  filter:brightness(1.05);
+}
+@media(max-width:760px){
+  html body .card .card-foot > .foot-actions{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+}
+@media(max-width:560px){
+  html body .card .card-foot > .foot-actions{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  html body .card .card-foot > .foot-actions .card-delete-btn{grid-column:auto!important}
+}
 body.assal-ledger-wa-auto-pdf-open{overflow:hidden!important}
 @media(max-width:880px){#assalLedgerWaAutoPdfModal{padding:8px}#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-shell{width:100%;max-height:97vh;border-radius:18px;padding:10px}#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-body{grid-template-columns:1fr;overflow:auto;direction:rtl}#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-preview-panel{height:min(58vh,620px);order:1}#assalLedgerWaAutoPdfModal .assal-ledger-wa-pdf-side{order:2;justify-content:flex-start;padding-bottom:2px}}
 </style>
@@ -47111,7 +47412,7 @@ if(window.__ASSAL_LEDGER_WA_ASSALTEMP_NO_FIREFOX_FINAL__)return;
 window.__ASSAL_LEDGER_WA_ASSALTEMP_NO_FIREFOX_FINAL__=true;
 
 var PAGE_W=733,PAGE_H=1062,RENDER_SCALE=1.25;
-var pdfState={blob:null,fileName:'',name:'',phone:'',period:'',mode:'',pages:0,copyOk:false,busy:false,downloadStarted:false,previewUrls:[],previewIndex:0};
+var pdfState={blob:null,fileName:'',name:'',phone:'',period:'',mode:'',pages:0,copyOk:false,busy:false,downloadStarted:false,previewUrls:[],previewIndex:0,kind:'ledger',format:'pdf'};
 function byId(id){return document.getElementById(id)}
 function toast(type,msg,ms){try{if(typeof window.showToast==='function')window.showToast(type,msg,ms||2600)}catch(_){}}
 function esc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
@@ -47120,8 +47421,33 @@ function waSvg(){return '<svg class="assal-ledger-wa-btn-svg" viewBox="0 0 24 24
 function setStatus(msg,tone){var el=byId('assalLedgerWaAutoPdfStatus');if(!el)return;el.textContent=String(msg||'');el.className='assal-ledger-wa-pdf-status'+(tone==='ok'?' ok':(tone==='err'?' err':''))}
 function setProgress(value,label,tone){var wrap=byId('assalLedgerWaAutoPdfProgress'),bar=byId('assalLedgerWaAutoPdfProgressBar'),pct=byId('assalLedgerWaAutoPdfProgressPct'),txt=byId('assalLedgerWaAutoPdfProgressLabel');var n=Math.max(0,Math.min(100,Math.round(Number(value)||0)));if(bar)bar.style.width=n+'%';if(pct)pct.textContent=n+'%';if(txt)txt.textContent=String(label||'جاري تجهيز ملف PDF…');if(wrap)wrap.className='assal-ledger-wa-pdf-progress'+(tone==='done'?' done':(tone==='error'?' error':''))}
 function showFinalInstruction(show){var el=byId('assalLedgerWaAutoPdfHelp');if(el)el.hidden=!show}
-function resetProgress(){showFinalInstruction(false);setStatus('','');setProgress(3,'بدء تجهيز كشف الحساب…','')}
-function revoke(){pdfState.blob=null;if(Array.isArray(pdfState.previewUrls)){pdfState.previewUrls.forEach(function(u){try{URL.revokeObjectURL(u)}catch(_){}})}pdfState.previewUrls=[];pdfState.previewIndex=0}
+function pdfSubject(){return pdfState.kind==='card'?'الفاتورة':'كشف الحساب'}
+function outputTypeLabel(){return pdfState.format==='png'?'صورة PNG':(pdfState.format==='pdf'?'PDF':'تلقائي')}
+function setOutputFormat(format){
+  pdfState.format=(format==='png'?'png':(format==='pdf'?'pdf':'auto'));
+  var mark=byId('assalLedgerWaAutoPdfModal');mark=mark&&mark.querySelector('.assal-ledger-wa-pdf-mark');if(mark)mark.textContent=pdfState.format==='png'?'PNG':(pdfState.format==='pdf'?'PDF':'AUTO');
+  var d=byId('assalLedgerWaAutoPdfDownload'),sp=d&&d.querySelector('span');if(sp)sp.textContent=pdfState.format==='png'?'تحميل الصورة':(pdfState.format==='pdf'?'تحميل PDF':'تحميل الملف');
+}
+function waitFontsBrief(d,maxMs){
+  if(!d||!d.fonts||!d.fonts.ready)return Promise.resolve(false);
+  var ms=Math.max(120,Number(maxMs)||850),timer=null;
+  return Promise.race([
+    Promise.resolve(d.fonts.ready).then(function(){return true}).catch(function(){return false}),
+    new Promise(function(resolve){timer=setTimeout(function(){resolve(false)},ms)})
+  ]).then(function(v){if(timer)clearTimeout(timer);return v},function(){if(timer)clearTimeout(timer);return false});
+}
+function setModalContext(kind){
+  pdfState.kind=(kind==='card'?'card':'ledger');
+  var root=ensureModal(),isCard=pdfState.kind==='card';
+  var title=byId('assalLedgerWaAutoPdfTitle');if(title)title.textContent=isCard?'إرسال الفاتورة عبر واتساب':'إرسال كشف الحساب PDF عبر واتساب';
+  var headSub=root.querySelector('.assal-ledger-wa-pdf-head-copy span');if(headSub)headSub.textContent=isCard?'يختار النظام تلقائياً صورة عالية الدقة إذا كانت الفاتورة بصفحة واحدة، أو PDF إذا كانت طويلة.':'يُنشأ الكشف من نفس تصميم الطباعة الحالي بمحرك أسرع، بدون فتح أي PDF داخل Firefox.';
+  var labels=root.querySelectorAll('.assal-ledger-wa-pdf-meta > span');if(labels&&labels[1])labels[1].textContent=isCard?'التاريخ ونوع الفاتورة':'الفترة ونوع الكشف';
+  var pill=root.querySelector('.assal-ledger-wa-pdf-pill span');if(pill)pill.textContent=isCard?'ملف الفاتورة':'ملف الكشف';
+  var help=byId('assalLedgerWaAutoPdfHelp');if(help)help.innerHTML=isCard?'اضغط <b>Ctrl + V</b> عند فتح الواتساب لإرسال الفاتورة.':'اضغط <b>Ctrl + V</b> عند فتح الواتساب لإرسال الكشف.';
+  setOutputFormat(isCard?'auto':'pdf');
+}
+function resetProgress(){showFinalInstruction(false);setStatus('','');setProgress(3,'بدء تجهيز '+pdfSubject()+'…','')}
+function revoke(){pdfState.blob=null;pdfState.fileName='';pdfState.pages=0;pdfState.downloadStarted=false;if(Array.isArray(pdfState.previewUrls)){pdfState.previewUrls.forEach(function(u){try{URL.revokeObjectURL(u)}catch(_){}})}pdfState.previewUrls=[];pdfState.previewIndex=0}
 
 function ensureModal(){
   var root=byId('assalLedgerWaAutoPdfModal');if(root)return root;
@@ -47141,7 +47467,21 @@ function showLoading(msg){var p=byId('assalLedgerWaAutoPdfPreviewPanel');if(p)p.
 function updatePreviewPage(){var img=byId('assalLedgerWaAutoPdfPreviewImage'),cnt=byId('assalLedgerWaAutoPdfPageCount'),prev=byId('assalLedgerWaAutoPdfPrev'),next=byId('assalLedgerWaAutoPdfNext');var urls=pdfState.previewUrls||[];if(!urls.length)return;var i=Math.max(0,Math.min(pdfState.previewIndex||0,urls.length-1));pdfState.previewIndex=i;if(img)img.src=urls[i];if(cnt)cnt.textContent='الصفحة '+(i+1)+' من '+urls.length;if(prev)prev.disabled=(i<=0);if(next)next.disabled=(i>=urls.length-1)}
 function showImagePreviews(blobs){var p=byId('assalLedgerWaAutoPdfPreviewPanel');if(!p)return;if(Array.isArray(pdfState.previewUrls)){pdfState.previewUrls.forEach(function(u){try{URL.revokeObjectURL(u)}catch(_){}})}pdfState.previewUrls=(blobs||[]).map(function(b){return URL.createObjectURL(b)});pdfState.previewIndex=0;if(!pdfState.previewUrls.length){showLoading('تم إنشاء الكشف لكن تعذر إنشاء صور المعاينة.');return}p.innerHTML='<div class="assal-ledger-wa-pdf-preview-stage"><img id="assalLedgerWaAutoPdfPreviewImage" class="assal-ledger-wa-pdf-preview-image" alt="معاينة صفحة كشف الحساب"></div><div class="assal-ledger-wa-pdf-pager"><button type="button" id="assalLedgerWaAutoPdfPrev" class="assal-ledger-wa-pdf-page-btn" aria-label="الصفحة السابقة"><i class="fa-solid fa-chevron-left"></i></button><b id="assalLedgerWaAutoPdfPageCount" class="assal-ledger-wa-pdf-page-count"></b><button type="button" id="assalLedgerWaAutoPdfNext" class="assal-ledger-wa-pdf-page-btn" aria-label="الصفحة التالية"><i class="fa-solid fa-chevron-right"></i></button></div>';var prev=byId('assalLedgerWaAutoPdfPrev'),next=byId('assalLedgerWaAutoPdfNext');if(prev)prev.addEventListener('click',function(){if(pdfState.previewIndex>0){pdfState.previewIndex--;updatePreviewPage()}});if(next)next.addEventListener('click',function(){if(pdfState.previewIndex<pdfState.previewUrls.length-1){pdfState.previewIndex++;updatePreviewPage()}});updatePreviewPage();var stage=p.querySelector('.assal-ledger-wa-pdf-preview-stage');if(stage)stage.scrollTop=0}
 function setPdfButtonsReady(ready){var a=byId('assalLedgerWaAutoPdfOpen'),d=byId('assalLedgerWaAutoPdfDownload');if(a)a.disabled=!ready;if(d)d.disabled=!ready}
-function triggerPdfDownload(isAuto){if(!pdfState.blob)return false;var downloadUrl='';try{downloadUrl=URL.createObjectURL(pdfState.blob);var finalName=pdfState.fileName||'ASSAL-STATEMENT.pdf';var tempName=finalName.replace(/\.pdf$/i,'')+'.assalpdf';var a=document.createElement('a');a.href=downloadUrl;a.setAttribute('download',tempName);a.setAttribute('type','application/octet-stream');a.style.cssText='position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none';document.body.appendChild(a);a.click();setTimeout(function(){try{a.remove()}catch(_){}},0);setTimeout(function(){try{URL.revokeObjectURL(downloadUrl)}catch(_){}},15000);pdfState.downloadStarted=true;if(!isAuto){toast('success','بدأ تنزيل ملف ASSAL المؤقت',2200);setProgress(100,'تم تجهيز الكشف','done');showFinalInstruction(true);setStatus('','')}return true}catch(err){if(downloadUrl){try{URL.revokeObjectURL(downloadUrl)}catch(_){}}console.error('ASSAL temporary download error:',err);return false}}
+function triggerPdfDownload(isAuto){
+  if(!pdfState.blob)return false;
+  var downloadUrl='';
+  try{
+    downloadUrl=URL.createObjectURL(pdfState.blob);
+    var isImg=pdfState.format==='png';
+    var finalName=pdfState.fileName||(isImg?'ASSAL-INVOICE.png':'ASSAL-STATEMENT.pdf');
+    var tempName=isImg?finalName.replace(/\.png$/i,'')+'.assalimg':finalName.replace(/\.pdf$/i,'')+'.assalpdf';
+    var a=document.createElement('a');a.href=downloadUrl;a.setAttribute('download',tempName);a.setAttribute('type','application/octet-stream');a.style.cssText='position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none';document.body.appendChild(a);a.click();
+    setTimeout(function(){try{a.remove()}catch(_){}},0);setTimeout(function(){try{URL.revokeObjectURL(downloadUrl)}catch(_){}},15000);
+    pdfState.downloadStarted=true;
+    if(!isAuto){toast('success','بدأ تنزيل ملف ASSAL المؤقت',2200);setProgress(100,'تم تجهيز '+pdfSubject(),'done');showFinalInstruction(true);setStatus('','')}
+    return true;
+  }catch(err){if(downloadUrl){try{URL.revokeObjectURL(downloadUrl)}catch(_){}}console.error('ASSAL temporary download error:',err);return false}
+}
 
 function currentLedgerInfo(){
   var root=byId('assalLedgerStatementBackdrop');
@@ -47165,8 +47505,239 @@ function pickCustomerName(row){var nm=pickLoose(row,NAME_KEYS);if(String(nm||'')
 function findPhone(name){var target=nrm(name),rows=[];if(!target)return '';try{if(typeof database!=='undefined'&&database&&Array.isArray(database.CUSTOMER))rows=database.CUSTOMER;else if(window.database&&Array.isArray(window.database.CUSTOMER))rows=window.database.CUSTOMER}catch(_){rows=[]}for(var i=0;i<rows.length;i++){var row=rows[i]||{},nm=pickCustomerName(row);if(!nm||nrm(nm)!==target)continue;var ph=normalizeIraqPhone(pickLoose(row,PHONE_KEYS));if(ph)return ph;for(var p in row){if(!Object.prototype.hasOwnProperty.call(row,p))continue;ph=normalizeIraqPhone(row[p]);if(ph)return ph}}return ''}
 
 function openExternal(url){try{var a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener noreferrer';a.referrerPolicy='no-referrer';a.style.position='fixed';a.style.left='-9999px';a.style.top='-9999px';a.setAttribute('aria-hidden','true');document.body.appendChild(a);a.click();setTimeout(function(){try{a.remove()}catch(_){}},0);return true}catch(_){try{var w=window.open(url,'_blank','noopener,noreferrer');try{if(w)w.opener=null}catch(__){}return !!w}catch(__){return false}}}
-function openWhatsApp(){if(!pdfState.blob||!pdfState.downloadStarted){toast('warn','انتظر حتى يكتمل تجهيز وبدء تحميل PDF',2600);setStatus('ملف PDF لم يصبح جاهزاً للتحميل بعد.','err');return false}if(!pdfState.phone){toast('warn','لا يوجد رقم واتساب محفوظ لهذا الزبون في شيت CUSTOMER',3200);setStatus('تعذر العثور على رقم الزبون في CUSTOMER.','err');return false}var ok=openExternal('https://wa.me/'+pdfState.phone+'?text='+encodeURIComponent('السلام عليكم'));if(!ok){toast('warn','اسمح بفتح النوافذ حتى يفتح واتساب',3000);setStatus('تعذر فتح واتساب.','err');return false}showFinalInstruction(true);setStatus('','');return true}
-function downloadPdf(){if(!pdfState.blob){toast('warn','ملف PDF غير جاهز بعد',2200);return}if(!triggerPdfDownload(false)){toast('error','تعذر بدء تنزيل ملف ASSAL المؤقت',2400);setStatus('تعذر بدء التنزيل. حاول مرة ثانية.','err')}}
+function openWhatsApp(){
+  if(!pdfState.blob||!pdfState.downloadStarted){toast('warn','انتظر حتى يكتمل تجهيز الملف',2600);setStatus('الملف لم يصبح جاهزاً للنسخ بعد.','err');return false}
+  if(!pdfState.phone){toast('warn','لا يوجد رقم واتساب محفوظ لهذا الزبون في شيت CUSTOMER',3200);setStatus('تعذر العثور على رقم الزبون في CUSTOMER.','err');return false}
+  var ok=openExternal('https://wa.me/'+pdfState.phone+'?text='+encodeURIComponent('السلام عليكم'));
+  if(!ok){toast('warn','اسمح بفتح النوافذ حتى يفتح واتساب',3000);setStatus('تعذر فتح واتساب.','err');return false}
+  showFinalInstruction(true);setStatus('','');return true;
+}
+function downloadPdf(){
+  if(!pdfState.blob){toast('warn','الملف غير جاهز بعد',2200);return}
+  if(!triggerPdfDownload(false)){toast('error','تعذر بدء تنزيل ملف ASSAL المؤقت',2400);setStatus('تعذر بدء التنزيل. حاول مرة ثانية.','err')}
+}
+
+/* =====================================================================
+   CARD WHATSAPP PDF — يستخدم نفس exportCardPDF_Vector حرفياً كمصدر للفاتورة.
+   لا يعيد حساب أي مبلغ ولا يغيّر البطاقة؛ يلتقط HTML الطباعة فقط داخل نافذة وهمية.
+   ===================================================================== */
+var CARD_PAGE_W=703,CARD_PAGE_H=1032,CARD_RENDER_SCALE=1.25;
+
+function cardBillLabel(card){
+  var bt=String(card&&card.billType||'').trim();
+  if(!bt){
+    var types=[];
+    try{types=Array.from(new Set((card&&Array.isArray(card.lines)?card.lines:[]).map(function(l){return l&&l.type}).filter(Boolean)))}catch(_){types=[]}
+    bt=types.length===1?String(types[0]||''):'مختلط';
+  }
+  return bt==='راجع'?'فاتورة راجع':(bt==='نقدي'?'فاتورة نقدي':(bt==='اجل'?'فاتورة اجل':'فاتورة ديون'));
+}
+
+function captureCardPrintHtml(card,dayKey){
+  if(!card||!Array.isArray(card.lines)||!card.lines.length)throw new Error('CARD_EMPTY');
+  if(typeof exportCardPDF_Vector!=='function')throw new Error('CARD_PRINT_FUNCTION_MISSING');
+  var captured='',originalOpen=window.open,originalToast=window.showToast;
+  var fake={document:{open:function(){},write:function(v){captured+=String(v||'')},close:function(){}},focus:function(){},close:function(){},opener:null};
+  try{
+    window.open=function(){return fake};
+    if(typeof originalToast==='function')window.showToast=function(){};
+    exportCardPDF_Vector(card,dayKey);
+  }finally{
+    window.open=originalOpen;
+    if(typeof originalToast==='function')window.showToast=originalToast;
+  }
+  if(!captured)throw new Error('CARD_PRINT_HTML_NOT_CAPTURED');
+  // نمنع أمر الطباعة فقط؛ سكربت بناء الفاتورة يبقى كما هو حتى يكون الشكل مطابقاً لزر PDF.
+  captured=captured.replace(/window\.print\s*\(\s*\)/g,'void 0');
+  return captured;
+}
+
+function waitCardFrame(html){return new Promise(function(resolve,reject){
+  var fr=document.createElement('iframe');
+  fr.setAttribute('aria-hidden','true');
+  fr.style.cssText='position:fixed;left:-20000px;top:0;width:'+CARD_PAGE_W+'px;height:'+CARD_PAGE_H+'px;opacity:0;pointer-events:none;border:0;z-index:-1;';
+  var finished=false,running=false;
+  function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
+  async function finish(){
+    if(finished||running)return;running=true;
+    try{
+      var d=fr.contentDocument,w=fr.contentWindow;
+      if(!d||!w)throw new Error('CARD_PRINT_FRAME_DOCUMENT_MISSING');
+      await waitFontsBrief(d,850);
+      await sleep(60);
+      var root=d.querySelector('#invoiceRoot');
+      if(!root||!String(root.textContent||'').trim())throw new Error('CARD_PRINT_CONTENT_MISSING');
+      finished=true;resolve(fr);
+    }catch(err){
+      running=false;
+      if(fr.contentDocument&&fr.contentDocument.querySelector('#invoiceRoot')){finished=true;resolve(fr);return}
+      try{fr.remove()}catch(_){}finished=true;reject(err);
+    }
+  }
+  fr.onload=function(){finish()};
+  document.body.appendChild(fr);
+  try{fr.srcdoc=html}catch(err){try{fr.remove()}catch(_){}finished=true;reject(err);return}
+  setTimeout(function(){finish()},900);
+})}
+
+async function buildCardPrintRaster(html){
+  setProgress(10,'جاري تجهيز نفس تصميم فاتورة PDF الحالية…','');
+  var fr=await waitCardFrame(html),d=fr.contentDocument;
+  if(!d)throw new Error('CARD_PRINT_FRAME_DOCUMENT_MISSING');
+  var source=d.querySelector('.invoice');
+  if(!source)throw new Error('CARD_PRINT_INVOICE_MISSING');
+  var table=source.querySelector('.table-wrap table'),tbody=table&&table.querySelector('tbody'),thead=table&&table.querySelector('thead');
+  if(!table||!tbody||!thead)throw new Error('CARD_PRINT_TABLE_MISSING');
+
+  var style=d.createElement('style');
+  style.textContent=[
+    'html,body{margin:0!important;padding:0!important;width:'+CARD_PAGE_W+'px!important;background:#fff!important;overflow:visible!important}',
+    '.page{padding:0!important;margin:0!important;width:'+CARD_PAGE_W+'px!important;background:#fff!important}',
+    '.invoice{box-sizing:border-box!important;width:'+CARD_PAGE_W+'px!important;max-width:none!important;margin:0!important;background:#fff!important;overflow:visible!important}',
+    'table{width:100%!important}',
+    'thead{display:table-header-group!important}',
+    'tbody tr,.bottom-row,.inv-footer{break-inside:avoid!important;page-break-inside:avoid!important}'
+  ].join('');
+  d.head.appendChild(style);
+  await waitFontsBrief(d,650);
+  await new Promise(function(r){requestAnimationFrame(function(){requestAnimationFrame(r)})});
+
+  var sr=source.getBoundingClientRect();
+  var sourceHeight=Math.ceil(Math.max(source.scrollHeight,sr.height));
+  if(!sourceHeight||sourceHeight<50)throw new Error('CARD_PRINT_HEIGHT_INVALID');
+  var tr=thead.getBoundingClientRect();
+  var theadTop=Math.max(0,Math.round(tr.top-sr.top));
+  var theadHeight=Math.max(1,Math.ceil(tr.height));
+  var rows=Array.prototype.slice.call(tbody.children||[]),rowInfo=[];
+  for(var i=0;i<rows.length;i++){
+    var rr=rows[i].getBoundingClientRect();
+    rowInfo.push({top:Math.max(0,Math.round(rr.top-sr.top)),bottom:Math.max(0,Math.ceil(rr.bottom-sr.top))});
+  }
+  setProgress(18,'تم تجهيز الفاتورة • جاري تحليل صفحاتها…','');
+  var cssText=Array.prototype.map.call(d.querySelectorAll('style'),function(s){return s.textContent||''}).join('\n');
+  var xhtml;
+  try{xhtml=new XMLSerializer().serializeToString(source)}catch(err){throw new Error('CARD_PRINT_SERIALIZE_FAILED: '+String(err&&err.message||err))}
+  return{frame:fr,sourceHeight:sourceHeight,theadTop:theadTop,theadHeight:theadHeight,rows:rowInfo,css:cssText,xhtml:xhtml};
+}
+
+function buildCardPageSlices(pack){
+  var slices=[],start=0,rowIndex=0,pageNo=0,total=pack.sourceHeight,rows=pack.rows||[];
+  while(start<total-1){
+    var repeatHead=pageNo>0;
+    var available=CARD_PAGE_H-(repeatHead?pack.theadHeight:0);
+    if(available<120)available=CARD_PAGE_H;
+    var target=Math.min(total,start+available);
+    if(target>=total-1){slices.push({start:start,end:total,repeatHead:repeatHead});break}
+    var best=-1,bestRow=-1;
+    while(rowIndex<rows.length&&rows[rowIndex].bottom<=start+1)rowIndex++;
+    for(var j=rowIndex;j<rows.length;j++){
+      var info=rows[j];if(info.bottom>target)break;best=info.bottom;bestRow=j;
+    }
+    if(best<=start+4)best=target;else if(bestRow>=0)rowIndex=bestRow+1;
+    slices.push({start:start,end:best,repeatHead:repeatHead});start=best;pageNo++;
+    if(slices.length>100)throw new Error('CARD_PDF_PAGE_GUARD');
+  }
+  return slices;
+}
+
+function cardFullSvgUrl(pack){
+  var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+CARD_PAGE_W+'" height="'+pack.sourceHeight+'" viewBox="0 0 '+CARD_PAGE_W+' '+pack.sourceHeight+'"><foreignObject x="0" y="0" width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="width:'+CARD_PAGE_W+'px;height:'+pack.sourceHeight+'px;margin:0;padding:0;overflow:hidden;background:#fff;"><style>'+escapeXmlText(pack.css||'')+'</style>'+pack.xhtml+'</div></foreignObject></svg>';
+  return URL.createObjectURL(new Blob([svg],{type:'image/svg+xml;charset=utf-8'}));
+}
+
+async function rasterizeCardPrintToPages(pack){
+  var scale=CARD_RENDER_SCALE,url=cardFullSvgUrl(pack),img=null;
+  try{
+    setProgress(24,'جاري تجهيز صفحات الفاتورة مباشرة…','');
+    img=await loadImageUrl(url);await yieldBrowser();
+    var slices=buildCardPageSlices(pack),pages=[];
+    setProgress(30,'تم تحليل الفاتورة • '+slices.length+' صفحة • جاري التكوين السريع…','');
+    async function renderAt(i){
+      if(i>=slices.length)return;
+      setProgress(30+Math.round(((i+1)/slices.length)*48),'جاري تكوين وضغط صفحة الفاتورة '+(i+1)+' من '+slices.length+'…','');
+      await yieldBrowser();
+      var s=slices[i],canvas=document.createElement('canvas');canvas.width=Math.round(CARD_PAGE_W*scale);canvas.height=Math.round(CARD_PAGE_H*scale);
+      var ctx=canvas.getContext('2d');if(!ctx)throw new Error('CARD_PAGE_CANVAS_CONTEXT_MISSING');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+      var destY=0,headDh=Math.max(1,Math.round(pack.theadHeight*scale));
+      if(s.repeatHead&&pack.theadTop>=0&&pack.theadTop+pack.theadHeight<=pack.sourceHeight){ctx.drawImage(img,0,pack.theadTop,CARD_PAGE_W,pack.theadHeight,0,0,canvas.width,headDh);destY=headDh}
+      var sourceH=Math.max(1,s.end-s.start),destH=Math.max(1,Math.round(sourceH*scale)),room=canvas.height-destY;if(destH>room)destH=room;
+      if(destH>0)ctx.drawImage(img,0,s.start,CARD_PAGE_W,sourceH,0,destY,canvas.width,destH);
+      var info=await jpegPageInfo(canvas);pages.push(info);canvas.width=1;canvas.height=1;await yieldBrowser();return renderAt(i+1);
+    }
+    await renderAt(0);return pages;
+  }finally{try{URL.revokeObjectURL(url)}catch(_){} }
+}
+
+async function nativeCardPdfFromCanvases(imgs){
+  if(!imgs||!imgs.length)throw new Error('NO_CARD_PDF_PAGES');
+  setProgress(80,'تم ضغط الصفحات مرة واحدة • جاري تركيب PDF…','');
+  var pageW=595.276,pageH=841.89,mm=72/25.4,x=12*mm,y=12*mm,w=186*mm,h=273*mm;
+  var objCount=2+imgs.length*3,chunks=[],offsets=new Array(objCount+1).fill(0),pos=0;
+  function pushBytes(b){chunks.push(b);pos+=b.length}function pushAscii(s){pushBytes(asciiBytes(s))}
+  function addObj(n,head,streamBytes){offsets[n]=pos;pushAscii(n+' 0 obj\n'+head);if(streamBytes){pushAscii('\nstream\n');pushBytes(streamBytes);pushAscii('\nendstream')}pushAscii('\nendobj\n')}
+  pushBytes(new Uint8Array([37,80,68,70,45,49,46,52,10,37,226,227,207,211,10]));addObj(1,'<< /Type /Catalog /Pages 2 0 R >>');
+  var kids=imgs.map(function(_,k){return(3+k*3)+' 0 R'});addObj(2,'<< /Type /Pages /Count '+imgs.length+' /Kids [ '+kids.join(' ')+' ] >>');
+  async function addPageAt(p){
+    if(p>=imgs.length)return;await yieldBrowser();setProgress(80+Math.round(((p+1)/imgs.length)*15),'جاري تثبيت صفحة الفاتورة '+(p+1)+' من '+imgs.length+' داخل PDF…','');
+    var pageObj=3+p*3,imgObj=pageObj+1,contentObj=pageObj+2,img=imgs[p];
+    addObj(pageObj,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+pdfNum(pageW)+' '+pdfNum(pageH)+'] /Resources << /XObject << /Im0 '+imgObj+' 0 R >> >> /Contents '+contentObj+' 0 R >>');
+    addObj(imgObj,'<< /Type /XObject /Subtype /Image /Width '+img.width+' /Height '+img.height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+img.bytes.length+' >>',img.bytes);
+    var content=asciiBytes('q\n'+pdfNum(w)+' 0 0 '+pdfNum(h)+' '+pdfNum(x)+' '+pdfNum(y)+' cm\n/Im0 Do\nQ\n');addObj(contentObj,'<< /Length '+content.length+' >>',content);return addPageAt(p+1);
+  }
+  await addPageAt(0);var xrefPos=pos;pushAscii('xref\n0 '+(objCount+1)+'\n0000000000 65535 f \n');offsets.slice(1).forEach(function(off){pushAscii(String(off).padStart(10,'0')+' 00000 n \n')});pushAscii('trailer\n<< /Size '+(objCount+1)+' /Root 1 0 R >>\nstartxref\n'+xrefPos+'\n%%EOF');
+  return{blob:new Blob(chunks,{type:'application/octet-stream'}),previews:imgs.map(function(x){return x.blob})};
+}
+
+async function renderCardSinglePng(pack){
+  var scale=CARD_RENDER_SCALE,url=cardFullSvgUrl(pack),img=null,canvas=null;
+  try{
+    setProgress(30,'الفاتورة صفحة واحدة • جاري تجهيز صورة PNG عالية الدقة…','');
+    img=await loadImageUrl(url);await yieldBrowser();
+    canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(CARD_PAGE_W*scale));canvas.height=Math.max(1,Math.round(pack.sourceHeight*scale));
+    var ctx=canvas.getContext('2d');if(!ctx)throw new Error('CARD_IMAGE_CANVAS_CONTEXT_MISSING');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    setProgress(72,'جاري حفظ الصورة بجودة كاملة بدون ضغط خساري…','');
+    var blob=await canvasBlob(canvas,'image/png');if(!blob||!blob.size)throw new Error('CARD_PNG_BLOB_EMPTY');
+    setProgress(94,'اكتملت الصورة • جاري بدء التنزيل للأداة…','');return blob;
+  }finally{if(canvas){canvas.width=1;canvas.height=1}try{URL.revokeObjectURL(url)}catch(_){} }
+}
+
+async function buildCardPdfBlob(html){
+  var pack=await buildCardPrintRaster(html);
+  try{
+    if(pack.sourceHeight<=CARD_PAGE_H){
+      var png=await renderCardSinglePng(pack);
+      return{blob:png,pages:1,previews:[png],format:'png'};
+    }
+    setProgress(22,'الفاتورة طويلة • سيتم تجهيزها PDF متعدد الصفحات…','');
+    var imgs=await rasterizeCardPrintToPages(pack);if(!imgs.length)throw new Error('NO_CARD_RASTER_PAGES');
+    var made=await nativeCardPdfFromCanvases(imgs);if(!made||!made.blob||!made.blob.size)throw new Error('CARD_PDF_BLOB_EMPTY');
+    return{blob:made.blob,pages:imgs.length,previews:made.previews||[],format:'pdf'};
+  }finally{setTimeout(function(){try{pack.frame.remove()}catch(_){}},0)}
+}
+
+async function startCardAutoPdf(card,dayKey){
+  if(pdfState.busy)return;
+  pdfState.busy=true;setModalContext('card');showModal();revoke();pdfState.copyOk=false;setPdfButtonsReady(false);showLoading('جاري تحليل الفاتورة واختيار أسرع صيغة مناسبة…');resetProgress();
+  try{
+    if(!card||!Array.isArray(card.lines)||!card.lines.length)throw new Error('CARD_EMPTY');
+    var name=String(card.customer||'').trim();if(!name)throw new Error('CUSTOMER_NAME_MISSING');
+    var day=String(dayKey||card.__day||'').trim(),bill=cardBillLabel(card);
+    pdfState.name=name;pdfState.period=formatIso(day);pdfState.mode=bill;pdfState.phone=findPhone(name);
+    byId('assalLedgerWaAutoPdfName').textContent=name;byId('assalLedgerWaAutoPdfMeta').textContent=(formatIso(day)||day||'—')+' • '+bill;byId('assalLedgerWaAutoPdfFile').textContent='جاري الاختيار تلقائياً…';
+    setProgress(7,'جاري التقاط تصميم الفاتورة وقياسها…','');
+    var html=captureCardPrintHtml(card,day),made=await buildCardPdfBlob(html);if(!made.blob)throw new Error('CARD_OUTPUT_BLOB_EMPTY');
+    setOutputFormat(made.format||'pdf');pdfState.blob=made.blob;pdfState.pages=made.pages||1;
+    pdfState.fileName='ASSAL WA - فاتورة - '+safeName(name)+(day?' - '+day:'')+(pdfState.format==='png'?'.png':'.pdf');
+    byId('assalLedgerWaAutoPdfFile').textContent=pdfState.format==='png'?'صورة PNG عالية الدقة':((pdfState.pages?String(pdfState.pages)+' صفحة • ':'')+'PDF');
+    var started=triggerPdfDownload(true);
+    showImagePreviews(made.previews||[]);setPdfButtonsReady(true);
+    if(started){setProgress(100,pdfState.format==='png'?'تم تجهيز الفاتورة كصورة عالية الدقة':'تم تجهيز الفاتورة PDF بنجاح','done');showFinalInstruction(true);setStatus('','');toast('success',pdfState.format==='png'?'تم تجهيز صورة الفاتورة':'تم تجهيز الفاتورة PDF',2400)}
+    else{setProgress(100,'تم إنشاء الفاتورة • يحتاج إعادة تنزيل','error');showFinalInstruction(false);setStatus('تم إنشاء الفاتورة، لكن تعذر بدء التنزيل. اضغط زر التحميل مرة واحدة.','err');toast('warn','الفاتورة جاهزة لكن التنزيل التلقائي لم يبدأ',3200)}
+  }catch(err){
+    console.error('ASSAL card WhatsApp smart output:',err);showLoading('تعذر إنشاء ملف الفاتورة حالياً.');setProgress(0,'تعذر تجهيز الفاتورة','error');showFinalInstruction(false);setStatus('تعذر تجهيز الفاتورة. لم يتم تغيير أي بيانات في البطاقة.','err');toast('error','تعذر تجهيز فاتورة الواتساب',3000);setPdfButtonsReady(false);
+  }finally{pdfState.busy=false}
+}
+window.assalOpenCardWhatsAppPdf=function(card,dayKey){return startCardAutoPdf(card,dayKey)};
 
 /* نلتقط الـHTML الذي كتبته دالة طباعة الكشف الأصلية نفسها، بدون إعادة حساب أي رقم. */
 function captureCurrentPrintHtml(){
@@ -47181,29 +47752,14 @@ function captureCurrentPrintHtml(){
 }
 
 function waitFrame(html){return new Promise(function(resolve,reject){
-  var fr=document.createElement('iframe');
-  fr.setAttribute('aria-hidden','true');
-  fr.style.cssText='position:fixed;left:-20000px;top:0;width:'+PAGE_W+'px;height:'+PAGE_H+'px;opacity:0;pointer-events:none;border:0;z-index:-1;';
-  var settled=false;
-  function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
+  var fr=document.createElement('iframe');fr.setAttribute('aria-hidden','true');fr.style.cssText='position:fixed;left:-20000px;top:0;width:'+PAGE_W+'px;height:'+PAGE_H+'px;opacity:0;pointer-events:none;border:0;z-index:-1;';
+  var finished=false,running=false;
   async function finish(){
-    if(settled)return;
-    settled=true;
-    try{
-      var d=fr.contentDocument,w=fr.contentWindow;
-      if(!d||!w)throw new Error('PRINT_FRAME_DOCUMENT_MISSING');
-      try{if(d.fonts&&d.fonts.ready)await d.fonts.ready}catch(_){}
-      await sleep(120);
-      resolve(fr);
-    }catch(err){
-      try{fr.remove()}catch(_){}
-      reject(err);
-    }
+    if(finished||running)return;running=true;
+    try{var d=fr.contentDocument,w=fr.contentWindow;if(!d||!w)throw new Error('PRINT_FRAME_DOCUMENT_MISSING');await waitFontsBrief(d,850);await new Promise(function(r){setTimeout(r,50)});finished=true;resolve(fr)}
+    catch(err){running=false;try{var d2=fr.contentDocument;if(d2&&d2.querySelector('.doc')){finished=true;resolve(fr);return}}catch(_){}try{fr.remove()}catch(_){}finished=true;reject(err)}
   }
-  fr.onload=function(){finish()};
-  document.body.appendChild(fr);
-  try{fr.srcdoc=html}catch(err){try{fr.remove()}catch(_){}reject(err);return}
-  setTimeout(function(){finish()},1800);
+  fr.onload=function(){finish()};document.body.appendChild(fr);try{fr.srcdoc=html}catch(err){try{fr.remove()}catch(_){}finished=true;reject(err);return}setTimeout(function(){finish()},900);
 })}
 
 /*
@@ -47229,7 +47785,7 @@ async function buildFullPrintRaster(html){
     'tbody tr,.foot{break-inside:avoid!important;page-break-inside:avoid!important}'
   ].join('');
   d.head.appendChild(style);
-  try{if(d.fonts&&d.fonts.ready)await d.fonts.ready}catch(_){}
+  await waitFontsBrief(d,650);
   await new Promise(function(r){requestAnimationFrame(function(){requestAnimationFrame(r)})});
 
   var sr=source.getBoundingClientRect();
@@ -47282,7 +47838,11 @@ function buildPageSlices(pack){
 }
 
 function escapeXmlText(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
-function loadImageUrl(url){return new Promise(function(resolve,reject){var img=new Image();var done=false;function finish(ok){if(done)return;done=true;img.onload=null;img.onerror=null;if(ok)resolve(img);else reject(new Error('PAGE_SVG_IMAGE_LOAD_FAILED'))}img.onload=function(){finish(true)};img.onerror=function(){finish(false)};try{img.decoding='async'}catch(_){}img.src=url})}
+function loadImageUrl(url){return new Promise(function(resolve,reject){
+  var img=new Image(),done=false,timer=setTimeout(function(){finish(false,'PAGE_SVG_IMAGE_TIMEOUT')},20000);
+  function finish(ok,msg){if(done)return;done=true;clearTimeout(timer);img.onload=null;img.onerror=null;if(ok)resolve(img);else reject(new Error(msg||'PAGE_SVG_IMAGE_LOAD_FAILED'))}
+  img.onload=function(){finish(true)};img.onerror=function(){finish(false,'PAGE_SVG_IMAGE_LOAD_FAILED')};try{img.decoding='async'}catch(_){}img.src=url;
+})}
 
 function fullSvgUrl(pack){
   var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+PAGE_W+'" height="'+pack.sourceHeight+'" viewBox="0 0 '+PAGE_W+' '+pack.sourceHeight+'"><foreignObject x="0" y="0" width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="width:'+PAGE_W+'px;height:'+pack.sourceHeight+'px;margin:0;padding:0;overflow:hidden;background:#fff;"><style>'+escapeXmlText(pack.css||'')+'</style>'+pack.xhtml+'</div></foreignObject></svg>';
@@ -47294,54 +47854,28 @@ function canvasBlob(canvas,type,quality){return new Promise(function(resolve,rej
 async function rasterizePrintToPages(pack){
   var scale=RENDER_SCALE,url=fullSvgUrl(pack),img=null;
   try{
-    setProgress(24,'جاري رسم كشف الحساب بدقة الطباعة…','');
-    img=await loadImageUrl(url);
-    await yieldBrowser();
-    var full=document.createElement('canvas');
-    full.width=Math.max(1,Math.round(PAGE_W*scale));
-    full.height=Math.max(1,Math.round(pack.sourceHeight*scale));
-    var fctx=full.getContext('2d');if(!fctx)throw new Error('FULL_CANVAS_CONTEXT_MISSING');
-    fctx.fillStyle='#fff';fctx.fillRect(0,0,full.width,full.height);
-    fctx.drawImage(img,0,0,full.width,full.height);
-    await yieldBrowser();
-
-    var slices=buildPageSlices(pack),pages=[];
-    setProgress(32,'تم رسم الكشف • جاري تقسيمه إلى '+slices.length+' صفحة…','');
-    var headSy=Math.round(pack.theadTop*scale),headSh=Math.max(1,Math.round(pack.theadHeight*scale));
-
+    setProgress(24,'جاري تجهيز صفحات الكشف مباشرة…','');img=await loadImageUrl(url);await yieldBrowser();
+    var slices=buildPageSlices(pack),pages=[];setProgress(30,'تم تحليل الكشف • '+slices.length+' صفحة • جاري التكوين السريع…','');
     async function renderPageAt(i){
       if(i>=slices.length)return;
-      setProgress(32+Math.round(((i+1)/slices.length)*30),'جاري تكوين الصفحة '+(i+1)+' من '+slices.length+'…','');
-      await yieldBrowser();
-      var s=slices[i],canvas=document.createElement('canvas');
-      canvas.width=Math.round(PAGE_W*scale);canvas.height=Math.round(PAGE_H*scale);
-      var ctx=canvas.getContext('2d');if(!ctx)throw new Error('PAGE_CANVAS_CONTEXT_MISSING');
-      ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
-      var destY=0;
-      if(s.repeatHead&&headSy>=0&&headSy+headSh<=full.height){
-        ctx.drawImage(full,0,headSy,full.width,headSh,0,0,canvas.width,headSh);
-        destY=headSh;
-      }
-      var sy=Math.max(0,Math.round(s.start*scale)),sh=Math.max(1,Math.round((s.end-s.start)*scale));
-      if(sy+sh>full.height)sh=full.height-sy;
-      var room=canvas.height-destY;if(sh>room)sh=room;
-      if(sh>0)ctx.drawImage(full,0,sy,full.width,sh,0,destY,canvas.width,sh);
-      pages.push(canvas);
-      await yieldBrowser();
-      return renderPageAt(i+1);
+      setProgress(30+Math.round(((i+1)/slices.length)*48),'جاري تكوين وضغط الصفحة '+(i+1)+' من '+slices.length+'…','');await yieldBrowser();
+      var s=slices[i],canvas=document.createElement('canvas');canvas.width=Math.round(PAGE_W*scale);canvas.height=Math.round(PAGE_H*scale);
+      var ctx=canvas.getContext('2d');if(!ctx)throw new Error('PAGE_CANVAS_CONTEXT_MISSING');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+      var destY=0,headDh=Math.max(1,Math.round(pack.theadHeight*scale));
+      if(s.repeatHead&&pack.theadTop>=0&&pack.theadTop+pack.theadHeight<=pack.sourceHeight){ctx.drawImage(img,0,pack.theadTop,PAGE_W,pack.theadHeight,0,0,canvas.width,headDh);destY=headDh}
+      var sourceH=Math.max(1,s.end-s.start),destH=Math.max(1,Math.round(sourceH*scale)),room=canvas.height-destY;if(destH>room)destH=room;
+      if(destH>0)ctx.drawImage(img,0,s.start,PAGE_W,sourceH,0,destY,canvas.width,destH);
+      var info=await jpegPageInfo(canvas);pages.push(info);canvas.width=1;canvas.height=1;await yieldBrowser();return renderPageAt(i+1);
     }
-
-    await renderPageAt(0);
-    full.width=1;full.height=1;
-    return pages;
-  }finally{try{URL.revokeObjectURL(url)}catch(_){}}
+    await renderPageAt(0);return pages;
+  }finally{try{URL.revokeObjectURL(url)}catch(_){} }
 }
 
 function asciiBytes(s){return new TextEncoder().encode(String(s))}
 function pdfNum(n){return Number(n).toFixed(3).replace(/\.000$/,'')}
 async function jpegPageInfo(canvas){
   var blob=await canvasBlob(canvas,'image/jpeg',0.90);
-  return{bytes:new Uint8Array(await blob.arrayBuffer()),width:canvas.width,height:canvas.height};
+  return{bytes:new Uint8Array(await blob.arrayBuffer()),width:canvas.width,height:canvas.height,blob:blob};
 }
 async function previewBlobFromCanvas(canvas){
   var maxW=480,w=Math.min(maxW,canvas.width),h=Math.max(1,Math.round(canvas.height*(w/canvas.width)));
@@ -47350,125 +47884,45 @@ async function previewBlobFromCanvas(canvas){
   ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);ctx.drawImage(canvas,0,0,w,h);
   var blob=await canvasBlob(thumb,'image/jpeg',0.72);thumb.width=1;thumb.height=1;return blob;
 }
-async function nativePdfFromCanvases(canvases){
-  if(!canvases||!canvases.length)throw new Error('NO_PDF_PAGES');
-  var imgs=[],previews=[];
-  async function encodeAt(i){
-    if(i>=canvases.length)return;
-    setProgress(64+Math.round(((i+1)/canvases.length)*20),'جاري ضغط الصفحة '+(i+1)+' من '+canvases.length+' داخل PDF…','');
-    await yieldBrowser();
-    imgs.push(await jpegPageInfo(canvases[i]));
-    previews.push(await previewBlobFromCanvas(canvases[i]));
-    canvases[i].width=1;canvases[i].height=1;
-    await yieldBrowser();
-    return encodeAt(i+1);
-  }
-  await encodeAt(0);
-  setProgress(86,'جاري تركيب ملف PDF النهائي…','');
-
+async function nativePdfFromCanvases(imgs){
+  if(!imgs||!imgs.length)throw new Error('NO_PDF_PAGES');
+  setProgress(80,'تم ضغط الصفحات مرة واحدة • جاري تركيب PDF…','');
   var pageW=595.276,pageH=841.89,mm=72/25.4,x=8*mm,y=8*mm,w=194*mm,h=281*mm;
   var objCount=2+imgs.length*3,chunks=[],offsets=new Array(objCount+1).fill(0),pos=0;
-  function pushBytes(b){chunks.push(b);pos+=b.length}
-  function pushAscii(s){pushBytes(asciiBytes(s))}
+  function pushBytes(b){chunks.push(b);pos+=b.length}function pushAscii(s){pushBytes(asciiBytes(s))}
   function addObj(n,head,streamBytes){offsets[n]=pos;pushAscii(n+' 0 obj\n'+head);if(streamBytes){pushAscii('\nstream\n');pushBytes(streamBytes);pushAscii('\nendstream')}pushAscii('\nendobj\n')}
-  pushBytes(new Uint8Array([37,80,68,70,45,49,46,52,10,37,226,227,207,211,10]));
-  addObj(1,'<< /Type /Catalog /Pages 2 0 R >>');
-  var kids=imgs.map(function(_,k){return(3+k*3)+' 0 R'});
-  addObj(2,'<< /Type /Pages /Count '+imgs.length+' /Kids [ '+kids.join(' ')+' ] >>');
-
+  pushBytes(new Uint8Array([37,80,68,70,45,49,46,52,10,37,226,227,207,211,10]));addObj(1,'<< /Type /Catalog /Pages 2 0 R >>');var kids=imgs.map(function(_,k){return(3+k*3)+' 0 R'});addObj(2,'<< /Type /Pages /Count '+imgs.length+' /Kids [ '+kids.join(' ')+' ] >>');
   async function addPageAt(p){
-    if(p>=imgs.length)return;
-    await yieldBrowser();
-    setProgress(86+Math.round(((p+1)/imgs.length)*8),'جاري تثبيت الصفحة '+(p+1)+' من '+imgs.length+' داخل الملف…','');
-    var pageObj=3+p*3,imgObj=pageObj+1,contentObj=pageObj+2,img=imgs[p];
-    addObj(pageObj,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+pdfNum(pageW)+' '+pdfNum(pageH)+'] /Resources << /XObject << /Im0 '+imgObj+' 0 R >> >> /Contents '+contentObj+' 0 R >>');
-    addObj(imgObj,'<< /Type /XObject /Subtype /Image /Width '+img.width+' /Height '+img.height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+img.bytes.length+' >>',img.bytes);
-    var content=asciiBytes('q\n'+pdfNum(w)+' 0 0 '+pdfNum(h)+' '+pdfNum(x)+' '+pdfNum(y)+' cm\n/Im0 Do\nQ\n');
-    addObj(contentObj,'<< /Length '+content.length+' >>',content);
-    await yieldBrowser();
-    return addPageAt(p+1);
+    if(p>=imgs.length)return;await yieldBrowser();setProgress(80+Math.round(((p+1)/imgs.length)*15),'جاري تثبيت الصفحة '+(p+1)+' من '+imgs.length+' داخل PDF…','');
+    var pageObj=3+p*3,imgObj=pageObj+1,contentObj=pageObj+2,img=imgs[p];addObj(pageObj,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+pdfNum(pageW)+' '+pdfNum(pageH)+'] /Resources << /XObject << /Im0 '+imgObj+' 0 R >> >> /Contents '+contentObj+' 0 R >>');addObj(imgObj,'<< /Type /XObject /Subtype /Image /Width '+img.width+' /Height '+img.height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+img.bytes.length+' >>',img.bytes);var content=asciiBytes('q\n'+pdfNum(w)+' 0 0 '+pdfNum(h)+' '+pdfNum(x)+' '+pdfNum(y)+' cm\n/Im0 Do\nQ\n');addObj(contentObj,'<< /Length '+content.length+' >>',content);return addPageAt(p+1);
   }
-  await addPageAt(0);
-
-  var xrefPos=pos;pushAscii('xref\n0 '+(objCount+1)+'\n0000000000 65535 f \n');
-  offsets.slice(1).forEach(function(off){pushAscii(String(off).padStart(10,'0')+' 00000 n \n')});
-  pushAscii('trailer\n<< /Size '+(objCount+1)+' /Root 1 0 R >>\nstartxref\n'+xrefPos+'\n%%EOF');
-  setProgress(95,'اكتمل ملف PDF • جاري تجهيز المعاينة…','');
-  return{blob:new Blob(chunks,{type:'application/octet-stream'}),previews:previews};
+  await addPageAt(0);var xrefPos=pos;pushAscii('xref\n0 '+(objCount+1)+'\n0000000000 65535 f \n');offsets.slice(1).forEach(function(off){pushAscii(String(off).padStart(10,'0')+' 00000 n \n')});pushAscii('trailer\n<< /Size '+(objCount+1)+' /Root 1 0 R >>\nstartxref\n'+xrefPos+'\n%%EOF');return{blob:new Blob(chunks,{type:'application/octet-stream'}),previews:imgs.map(function(x){return x.blob})};
 }
 
 async function buildPdfBlob(html){
   var pack=await buildFullPrintRaster(html);
   try{
-    setProgress(22,'جاري رسم كشف الطباعة كاملاً…','');
-    var canvases=await rasterizePrintToPages(pack);
-    if(!canvases.length)throw new Error('NO_RASTER_PAGES');
-    setProgress(63,'اكتمل تكوين الصفحات • جاري إنشاء PDF من '+canvases.length+' صفحة…','');
-    var madePdf=await nativePdfFromCanvases(canvases);
-    if(!madePdf||!madePdf.blob||!madePdf.blob.size)throw new Error('PDF_BLOB_EMPTY');
-    return{blob:madePdf.blob,pages:canvases.length,previews:madePdf.previews||[]};
+    setProgress(22,'الكشف جاهز للتحويل • جاري تكوين الصفحات مباشرة…','');
+    var imgs=await rasterizePrintToPages(pack);if(!imgs.length)throw new Error('NO_RASTER_PAGES');
+    var madePdf=await nativePdfFromCanvases(imgs);if(!madePdf||!madePdf.blob||!madePdf.blob.size)throw new Error('PDF_BLOB_EMPTY');
+    return{blob:madePdf.blob,pages:imgs.length,previews:madePdf.previews||[]};
   }finally{setTimeout(function(){try{pack.frame.remove()}catch(_){}},0)}
 }
 
 async function startAutoPdf(){
   if(pdfState.busy)return;
-  pdfState.busy=true;
-  showModal();
-  revoke();
-  pdfState.downloadStarted=false;
-  pdfState.copyOk=false;
-  setPdfButtonsReady(false);
-  showLoading('جاري بناء PDF من نفس تصميم كشف الطباعة…');
-  resetProgress();
+  pdfState.busy=true;setModalContext('ledger');showModal();revoke();pdfState.copyOk=false;setPdfButtonsReady(false);showLoading('جاري بناء PDF بمحرك التكوين السريع…');resetProgress();
   try{
-    var info=currentLedgerInfo();
-    if(!info.name)throw new Error('CUSTOMER_NAME_MISSING');
-    pdfState.name=info.name;
-    pdfState.period=formatIso(info.from)+' — '+formatIso(info.to);
-    pdfState.mode=info.mode;
-    pdfState.phone=findPhone(info.name);
-    byId('assalLedgerWaAutoPdfName').textContent=info.name;
-    byId('assalLedgerWaAutoPdfMeta').textContent=pdfState.period+' • '+info.mode;
-    byId('assalLedgerWaAutoPdfFile').textContent='جاري التجهيز…';
-    setProgress(7,'جاري التقاط كشف الحساب الحالي…','');
-
-    var html=captureCurrentPrintHtml();
-    var fileName='كشف حساب - '+safeName(info.name)+' - '+String(info.from||'')+' إلى '+String(info.to||'')+'.pdf';
-    var made=await buildPdfBlob(html);
-    if(!made.blob)throw new Error('PDF_BLOB_EMPTY');
-
-    pdfState.blob=made.blob;
-    pdfState.pages=made.pages||0;
-    pdfState.fileName=fileName;
-    byId('assalLedgerWaAutoPdfFile').textContent=(pdfState.pages?String(pdfState.pages)+' صفحة • ':'')+'PDF';
-
-    setProgress(97,'تم إنشاء PDF • جاري تجهيز العرض النهائي…','');
-    showImagePreviews(made.previews||[]);
-    setPdfButtonsReady(true);
-
-    var started=triggerPdfDownload(true);
-    if(started){
-      setProgress(100,'تم تجهيز الكشف بنجاح','done');
-      showFinalInstruction(true);
-      setStatus('','');
-      toast('success','تم تجهيز كشف PDF',2600);
-    }else{
-      setProgress(100,'تم إنشاء الكشف • يحتاج إعادة تنزيل','error');
-      showFinalInstruction(false);
-      setStatus('تم إنشاء الكشف، لكن تعذر بدء التنزيل. اضغط زر تحميل PDF مرة واحدة.','err');
-      toast('warn','الكشف جاهز لكن التنزيل التلقائي لم يبدأ',3200);
-    }
-  }catch(err){
-    console.error('ASSAL ledger WA assaltemp no-firefox final:',err);
-    showLoading('تعذر إنشاء ملف PDF حالياً.');
-    setProgress(0,'تعذر إنشاء ملف PDF','error');
-    showFinalInstruction(false);
-    setStatus('تعذر إنشاء PDF. لم يتم تغيير أي بيانات في الحساب.','err');
-    toast('error','تعذر إنشاء PDF للواتساب',3000);
-    setPdfButtonsReady(false);
-  }finally{
-    pdfState.busy=false;
-  }
+    var info=currentLedgerInfo();if(!info.name)throw new Error('CUSTOMER_NAME_MISSING');
+    pdfState.name=info.name;pdfState.period=formatIso(info.from)+' — '+formatIso(info.to);pdfState.mode=info.mode;pdfState.phone=findPhone(info.name);setOutputFormat('pdf');
+    byId('assalLedgerWaAutoPdfName').textContent=info.name;byId('assalLedgerWaAutoPdfMeta').textContent=pdfState.period+' • '+info.mode;byId('assalLedgerWaAutoPdfFile').textContent='جاري التجهيز…';setProgress(7,'جاري التقاط كشف الحساب الحالي…','');
+    var html=captureCurrentPrintHtml(),fileName='كشف حساب - '+safeName(info.name)+' - '+String(info.from||'')+' إلى '+String(info.to||'')+'.pdf',made=await buildPdfBlob(html);if(!made.blob)throw new Error('PDF_BLOB_EMPTY');
+    pdfState.blob=made.blob;pdfState.pages=made.pages||0;pdfState.fileName=fileName;byId('assalLedgerWaAutoPdfFile').textContent=(pdfState.pages?String(pdfState.pages)+' صفحة • ':'')+'PDF';
+    var started=triggerPdfDownload(true);showImagePreviews(made.previews||[]);setPdfButtonsReady(true);
+    if(started){setProgress(100,'تم تجهيز الكشف بنجاح','done');showFinalInstruction(true);setStatus('','');toast('success','تم تجهيز كشف PDF',2400)}
+    else{setProgress(100,'تم إنشاء الكشف • يحتاج إعادة تنزيل','error');showFinalInstruction(false);setStatus('تم إنشاء الكشف، لكن تعذر بدء التنزيل. اضغط زر تحميل PDF مرة واحدة.','err');toast('warn','الكشف جاهز لكن التنزيل التلقائي لم يبدأ',3200)}
+  }catch(err){console.error('ASSAL ledger WA smart fast:',err);showLoading('تعذر إنشاء ملف PDF حالياً.');setProgress(0,'تعذر إنشاء ملف PDF','error');showFinalInstruction(false);setStatus('تعذر إنشاء PDF. لم يتم تغيير أي بيانات في الحساب.','err');toast('error','تعذر إنشاء PDF للواتساب',3000);setPdfButtonsReady(false)}
+  finally{pdfState.busy=false}
 }
 
 function decorateLedger(){var root=byId('assalLedgerStatementBackdrop');if(!root)return;var bar=root.querySelector('.assal-ledger-actionbar');if(!bar)return;bar.classList.add('assal-ledger-wa-auto-pdf-enabled');if(byId('assalLedgerWhatsAppPdf'))return;var btn=document.createElement('button');btn.type='button';btn.id='assalLedgerWhatsAppPdf';btn.className='assal-ledger-btn whatsapp-pdf';btn.innerHTML=waSvg()+'<span>واتساب PDF</span>';btn.title='إنشاء كشف PDF تلقائياً وإرساله عبر واتساب';var cancel=byId('assalLedgerCancel');if(cancel&&cancel.parentNode===bar)bar.insertBefore(btn,cancel);else bar.appendChild(btn);btn.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();startAutoPdf()})}
@@ -47476,7 +47930,7 @@ var oldOpen=window.assalOpenCustomerRangeStatement;if(typeof oldOpen==='function
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(decorateLedger,0)},false);else setTimeout(decorateLedger,0);
 })();
 </script>
-<!-- ASSAL LEDGER WHATSAPP ASSALTEMP NO FIREFOX FINAL - END -->
+<!-- ASSAL LEDGER WHATSAPP SMART FAST OUTPUT FINAL - END -->
 
 </body>
 </html>
