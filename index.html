@@ -47463,6 +47463,9 @@ document.addEventListener('click',function(e){var btn=e.target&&e.target.closest
 #assalLedgerStatementBackdrop .assal-ledger-actionbar.assal-ledger-wa-auto-pdf-enabled{grid-template-columns:1fr 1fr 1fr .88fr !important}
 #assalLedgerStatementBackdrop .assal-ledger-btn.whatsapp-pdf{background:linear-gradient(135deg,#0f766e,#16a34a)!important;border-color:rgba(134,239,172,.30)!important;box-shadow:0 12px 26px rgba(22,163,74,.16)}
 #assalLedgerStatementBackdrop .assal-ledger-btn.whatsapp-pdf .assal-ledger-wa-btn-svg{width:18px;height:18px;display:block;flex:0 0 auto}
+/* الطباعة بلون مستقل بوضوح عن واتساب، بدون تغيير الحجم أو المكان */
+#assalLedgerStatementBackdrop #assalLedgerPrint,
+#assalLedgerResultsBackdrop #assalLedgerResultsPrint{background:linear-gradient(135deg,#d97706,#f59e0b)!important;border-color:rgba(253,186,116,.55)!important;box-shadow:0 10px 24px rgba(217,119,6,.18)!important;color:#fff!important}
 @media(max-width:700px){#assalLedgerStatementBackdrop .assal-ledger-actionbar.assal-ledger-wa-auto-pdf-enabled{grid-template-columns:1fr 1fr!important}}
 #assalLedgerWaAutoPdfModal{position:fixed;inset:0;z-index:2147483647!important;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(2,6,23,.84);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);direction:rtl}
 #assalLedgerWaAutoPdfModal.active{display:flex}
@@ -47555,7 +47558,7 @@ body.assal-ledger-wa-auto-pdf-open{overflow:hidden!important}
 if(window.__ASSAL_LEDGER_WA_ASSALTEMP_NO_FIREFOX_FINAL__)return;
 window.__ASSAL_LEDGER_WA_ASSALTEMP_NO_FIREFOX_FINAL__=true;
 
-var PAGE_W=733,PAGE_H=1062,RENDER_SCALE=1.25;
+var PAGE_W=733,PAGE_H=1062,RENDER_SCALE=1;
 var pdfState={blob:null,fileName:'',name:'',phone:'',period:'',mode:'',pages:0,copyOk:false,busy:false,downloadStarted:false,previewUrls:[],previewIndex:0,kind:'ledger',format:'pdf'};
 function byId(id){return document.getElementById(id)}
 function toast(type,msg,ms){try{if(typeof window.showToast==='function')window.showToast(type,msg,ms||2600)}catch(_){}}
@@ -48165,94 +48168,222 @@ function captureCurrentPrintHtml(){
   try{window.open=function(){return fake};btn.click()}finally{window.open=originalOpen}
   if(!captured)throw new Error('PRINT_HTML_NOT_CAPTURED');
   captured=captured.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'');
-  if(captured.indexOf('fonts.googleapis.com')===-1)captured=captured.replace('</head>','<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"></head>');
+
+  // LEDGER FAST RASTER ONLY:
+  // لا نحمّل أي Google Font في النسخة المؤقتة؛ التصميم نفسه يبقى، والرندر يستخدم خط النظام المحلي مباشرة.
+  captured=captured.replace(/<link\b[^>]*href=["']https:\/\/fonts\.googleapis\.com\/[^"']*["'][^>]*>/gi,'');
+  captured=captured.replace('</head>','<style id="assalLedgerFastRasterStyle">html,body{margin:0!important;padding:0!important;width:'+PAGE_W+'px!important;background:#fff!important;overflow:visible!important}html,body,.wrap,.doc,.doc *{font-family:system-ui,"Segoe UI",Arial,sans-serif!important}.wrap{padding:0!important;margin:0!important;width:'+PAGE_W+'px!important}.doc{box-sizing:border-box!important;width:'+PAGE_W+'px!important;max-width:none!important;margin:0!important;border-radius:0!important;background:#fff!important;overflow:visible!important}table{width:100%!important}thead{display:table-header-group!important}tbody tr,.foot{break-inside:avoid!important;page-break-inside:avoid!important}</style></head>');
   return captured;
 }
 
 function waitFrame(html){return new Promise(function(resolve,reject){
-  var fr=document.createElement('iframe');fr.setAttribute('aria-hidden','true');fr.style.cssText='position:fixed;left:-20000px;top:0;width:'+PAGE_W+'px;height:'+PAGE_H+'px;opacity:0;pointer-events:none;border:0;z-index:-1;';
-  var finished=false,running=false;
-  async function finish(){
-    if(finished||running)return;running=true;
-    try{var d=fr.contentDocument,w=fr.contentWindow;if(!d||!w)throw new Error('PRINT_FRAME_DOCUMENT_MISSING');await waitFontsBrief(d,850);await new Promise(function(r){setTimeout(r,50)});finished=true;resolve(fr)}
-    catch(err){running=false;try{var d2=fr.contentDocument;if(d2&&d2.querySelector('.doc')){finished=true;resolve(fr);return}}catch(_){}try{fr.remove()}catch(_){}finished=true;reject(err)}
+  var fr=document.createElement('iframe');
+  fr.setAttribute('aria-hidden','true');
+  fr.style.cssText='position:fixed;left:-20000px;top:0;width:'+PAGE_W+'px;height:'+PAGE_H+'px;opacity:0;pointer-events:none;border:0;z-index:-1;';
+  var done=false,started=performance.now(),MAX_WAIT=1400;
+
+  function ok(){if(done)return;done=true;resolve(fr)}
+  function fail(err){if(done)return;done=true;try{fr.remove()}catch(_){}reject(err)}
+  function probe(){
+    if(done)return;
+    try{
+      var d=fr.contentDocument,w=fr.contentWindow,doc=d&&d.querySelector('.doc');
+      if(d&&w&&doc&&doc.querySelector('table')){ok();return}
+      if((performance.now()-started)>=MAX_WAIT){
+        if(doc){ok();return}
+        fail(new Error('PRINT_FRAME_CONTENT_MISSING'));return;
+      }
+    }catch(err){if((performance.now()-started)>=MAX_WAIT){fail(err);return}}
+    requestAnimationFrame(probe);
   }
-  fr.onload=function(){finish()};document.body.appendChild(fr);try{fr.srcdoc=html}catch(err){try{fr.remove()}catch(_){}finished=true;reject(err);return}setTimeout(function(){finish()},900);
+
+  document.body.appendChild(fr);
+  try{fr.srcdoc=html;requestAnimationFrame(probe)}catch(err){fail(err)}
 })}
 
 /*
   نعيد ترتيب نفس DOM الخاص بالطباعة إلى صفحات بحجم منطقة A4 القابلة للطباعة (194×281mm ≈ 733×1062 CSS px).
   هذا يمنع html2pdf من إعادة تنسيق الجدول؛ كل صفحة سترسم أولاً كصورة ثابتة ثم تدخل داخل PDF.
 */
+function ledgerClonePage(source,startRow,endRow,isFirst,isFinal){
+  var clone=source.cloneNode(true);
+  var table=clone.querySelector('table'),tbody=table&&table.querySelector('tbody'),thead=table&&table.querySelector('thead');
+  if(!table||!tbody||!thead)throw new Error('LEDGER_PAGE_STRUCTURE_MISSING');
+
+  var rows=Array.prototype.slice.call(tbody.children||[]);
+  for(var i=rows.length-1;i>=0;i--){
+    if(i<startRow||i>=endRow)rows[i].remove();
+  }
+
+  var children=Array.prototype.slice.call(clone.children||[]),tableIndex=children.indexOf(table);
+  if(tableIndex<0)throw new Error('LEDGER_TABLE_NOT_DIRECT');
+
+  // الصفحة الأولى تحتفظ بهيدر/بيانات الكشف، والصفحة الأخيرة فقط تحتفظ بالتذييل.
+  children.forEach(function(child,idx){
+    if((!isFirst&&idx<tableIndex)||(!isFinal&&idx>tableIndex))child.remove();
+  });
+
+  if(!isFirst)clone.classList.add('assal-ledger-continuation-page');
+  return clone;
+}
+
+function ledgerMeasurePageClone(d,clone){
+  var host=d.createElement('div');
+  host.setAttribute('aria-hidden','true');
+  host.style.cssText='position:absolute!important;left:-20000px!important;top:0!important;width:'+PAGE_W+'px!important;visibility:hidden!important;pointer-events:none!important;overflow:visible!important;';
+  host.appendChild(clone);
+  d.body.appendChild(host);
+  var r=clone.getBoundingClientRect(),h=Math.ceil(Math.max(clone.scrollHeight||0,r.height||0));
+  try{host.remove()}catch(_){if(host.parentNode)host.parentNode.removeChild(host)}
+  return Math.max(1,h);
+}
+
+function ledgerSerializePageClone(clone){
+  try{return new XMLSerializer().serializeToString(clone)}
+  catch(err){throw new Error('LEDGER_PAGE_SERIALIZE_FAILED: '+String(err&&err.message||err))}
+}
+
+function ledgerBuildPageModels(d,source,rowCount){
+  var pages=[],limit=Math.max(240,PAGE_H-6),safety=6;
+  if(rowCount<1)throw new Error('LEDGER_NO_ROWS');
+
+  var table=source.querySelector('table'),tbody=table&&table.querySelector('tbody');
+  var sourceRows=tbody?Array.prototype.slice.call(tbody.children||[]):[];
+  if(sourceRows.length!==rowCount)throw new Error('LEDGER_ROW_COUNT_MISMATCH');
+
+  // مثل محرك بطاقة اليوم: نقيس كل صف مرة واحدة فقط.
+  var rowHeights=sourceRows.map(function(row){
+    var rr=row.getBoundingClientRect();
+    return Math.max(1,Math.ceil(Math.max(row.scrollHeight||0,rr.height||0)));
+  });
+  var prefix=[0];
+  rowHeights.forEach(function(h){prefix.push(prefix[prefix.length-1]+h)});
+  function rowsHeight(a,b){return Math.max(0,prefix[b]-prefix[a])}
+  function isSeparator(i){return !!(sourceRows[i]&&sourceRows[i].classList&&sourceRows[i].classList.contains('day-separator'))}
+
+  // قياس الأجزاء الثابتة لكل نوع صفحة مرة واحدة فقط.
+  function shellHeight(isFirst,isFinal){
+    return ledgerMeasurePageClone(d,ledgerClonePage(source,0,0,isFirst,isFinal));
+  }
+  var shellFirstOpen=shellHeight(true,false);
+  var shellMiddleOpen=shellHeight(false,false);
+  var shellFirstFinal=shellHeight(true,true);
+  var shellMiddleFinal=shellHeight(false,true);
+
+  function baseHeight(isFirst,isFinal){
+    if(isFirst)return isFinal?shellFirstFinal:shellFirstOpen;
+    return isFinal?shellMiddleFinal:shellMiddleOpen;
+  }
+  function estimatedHeight(a,b,isFirst,isFinal){
+    return baseHeight(isFirst,isFinal)+rowsHeight(a,b);
+  }
+  function maxRowsEnd(start,isFirst){
+    var base=baseHeight(isFirst,false),available=Math.max(1,limit-safety-base);
+    var lo=start+1,hi=rowCount,best=start+1;
+    while(lo<=hi){
+      var mid=Math.floor((lo+hi)/2);
+      if(rowsHeight(start,mid)<=available||mid===start+1){best=mid;lo=mid+1}
+      else hi=mid-1;
+    }
+    return Math.max(start+1,Math.min(rowCount,best));
+  }
+
+  // لا نترك فاصل اليوم وحده في نهاية الصفحة.
+  function protectDaySeparator(start,end){
+    if(end<rowCount&&end>start&&isSeparator(end-1)){
+      if(end-start>1)end--;
+      else if(start+2<=rowCount)end=start+2;
+    }
+    return Math.max(start+1,Math.min(rowCount,end));
+  }
+
+  var start=0,pageNo=0;
+  while(start<rowCount){
+    var isFirst=pageNo===0;
+    var finalEstimate=estimatedHeight(start,rowCount,isFirst,true);
+    var isFinal=finalEstimate<=limit-safety;
+    var end=isFinal?rowCount:protectDaySeparator(start,maxRowsEnd(start,isFirst));
+
+    var pageClone=ledgerClonePage(source,start,end,isFirst,isFinal);
+    var actualHeight=ledgerMeasurePageClone(d,pageClone);
+
+    // حماية بكسلية فقط، بدون بحث DOM ثقيل.
+    var guard=0;
+    while(!isFinal&&actualHeight>limit&&end>start+1&&guard<3){
+      var nextEnd=protectDaySeparator(start,end-1);
+      if(nextEnd>=end)break;
+      end=nextEnd;
+      pageClone=ledgerClonePage(source,start,end,isFirst,false);
+      actualHeight=ledgerMeasurePageClone(d,pageClone);
+      guard++;
+    }
+
+    pages.push({
+      start:start,
+      end:end,
+      first:isFirst,
+      final:isFinal&&end===rowCount,
+      contentHeight:actualHeight,
+      xhtml:ledgerSerializePageClone(pageClone)
+    });
+
+    start=end;
+    pageNo++;
+    if(pages.length>120)throw new Error('LEDGER_PDF_PAGE_GUARD');
+  }
+  return pages;
+}
+
+/*
+  نفس فلسفة بطاقة اليوم:
+  نقسم DOM إلى صفحات A4 صغيرة أولاً، ثم نرندر الصفحات الجاهزة.
+  لا يوجد بعد الآن SVG واحد يحتوي جدولاً عملاقاً بطول الكشف كله.
+*/
 async function buildFullPrintRaster(html){
   setProgress(10,'جاري تجهيز تصميم كشف الطباعة…','');
   var fr=await waitFrame(html),d=fr.contentDocument;
   if(!d)throw new Error('PRINT_FRAME_DOCUMENT_MISSING');
+
   var source=d.querySelector('.doc');
   if(!source)throw new Error('PRINT_DOC_MISSING');
+
   var table=source.querySelector('table'),tbody=table&&table.querySelector('tbody'),thead=table&&table.querySelector('thead');
   if(!table||!tbody||!thead)throw new Error('PRINT_TABLE_MISSING');
 
-  var style=d.createElement('style');
-  style.textContent=[
-    'html,body{margin:0!important;padding:0!important;width:'+PAGE_W+'px!important;background:#fff!important;overflow:visible!important}',
-    '.wrap{padding:0!important;margin:0!important;width:'+PAGE_W+'px!important}',
-    '.doc{box-sizing:border-box!important;width:'+PAGE_W+'px!important;max-width:none!important;margin:0!important;border-radius:0!important;background:#fff!important;overflow:visible!important}',
-    'table{width:100%!important}',
-    'thead{display:table-header-group!important}',
-    'tbody tr,.foot{break-inside:avoid!important;page-break-inside:avoid!important}'
-  ].join('');
-  d.head.appendChild(style);
-  await waitFontsBrief(d,650);
-  await new Promise(function(r){requestAnimationFrame(function(){requestAnimationFrame(r)})});
-
   var sr=source.getBoundingClientRect();
-  var sourceHeight=Math.ceil(Math.max(source.scrollHeight,sr.height));
+  var sourceHeight=Math.ceil(Math.max(source.scrollHeight||0,sr.height||0));
   if(!sourceHeight||sourceHeight<50)throw new Error('PRINT_DOC_HEIGHT_INVALID');
-  var tr=thead.getBoundingClientRect();
-  var theadTop=Math.max(0,Math.round(tr.top-sr.top));
-  var theadHeight=Math.max(1,Math.ceil(tr.height));
-  var rows=Array.prototype.slice.call(tbody.children||[]);
-  var rowInfo=[];
-  for(var i=0;i<rows.length;i++){
-    var rr=rows[i].getBoundingClientRect();
-    rowInfo.push({
-      top:Math.max(0,Math.round(rr.top-sr.top)),
-      bottom:Math.max(0,Math.ceil(rr.bottom-sr.top)),
-      sep:!!(rows[i].classList&&rows[i].classList.contains('day-separator'))
-    });
+
+  var rowCount=Array.prototype.slice.call(tbody.children||[]).length;
+  if(rowCount<1)throw new Error('LEDGER_NO_ROWS');
+
+  var pages=null,limit=Math.max(240,PAGE_H-6);
+
+  // الكشف القصير: نفس العنصر الجاهز مباشرة، بدون Clone أو قياسات إضافية.
+  if(sourceHeight<=limit){
+    pages=[{
+      start:0,
+      end:rowCount,
+      first:true,
+      final:true,
+      contentHeight:Math.min(PAGE_H,sourceHeight),
+      xhtml:source.outerHTML
+    }];
+    setProgress(18,'الكشف صفحة واحدة • تم تفعيل المسار المباشر السريع…','');
+  }else{
+    setProgress(18,'الكشف طويل • جاري تقسيمه إلى صفحات A4 قبل الرندر…','');
+    pages=ledgerBuildPageModels(d,source,rowCount);
   }
 
-  setProgress(18,'تم تجهيز التصميم • جاري تحليل صفحات الكشف…','');
+  if(!pages||!pages.length)throw new Error('LEDGER_NO_PAGE_MODELS');
+
   var cssText=Array.prototype.map.call(d.querySelectorAll('style'),function(s){return s.textContent||''}).join('\n');
-  var xhtml;
-  try{xhtml=new XMLSerializer().serializeToString(source)}catch(err){throw new Error('PRINT_SERIALIZE_FAILED: '+String(err&&err.message||err))}
-  return{frame:fr,sourceHeight:sourceHeight,theadTop:theadTop,theadHeight:theadHeight,rows:rowInfo,css:cssText,xhtml:xhtml};
-}
-
-function buildPageSlices(pack){
-  var slices=[],start=0,rowIndex=0,pageNo=0,total=pack.sourceHeight,rows=pack.rows||[];
-  while(start<total-1){
-    var repeatHead=pageNo>0;
-    var available=PAGE_H-(repeatHead?pack.theadHeight:0);
-    if(available<120)available=PAGE_H;
-    var target=Math.min(total,start+available);
-    if(target>=total-1){slices.push({start:start,end:total,repeatHead:repeatHead});break}
-    var best=-1,bestRow=-1;
-    while(rowIndex<rows.length&&rows[rowIndex].bottom<=start+1)rowIndex++;
-    for(var j=rowIndex;j<rows.length;j++){
-      var info=rows[j];
-      if(info.bottom>target)break;
-      if(info.sep&&j+1<rows.length&&rows[j+1].bottom>target)continue;
-      best=info.bottom;bestRow=j;
-    }
-    if(best<=start+4){best=target}
-    else if(bestRow>=0)rowIndex=bestRow+1;
-    slices.push({start:start,end:best,repeatHead:repeatHead});
-    start=best;pageNo++;
-    if(slices.length>100)throw new Error('PDF_PAGE_GUARD');
-  }
-  return slices;
+  return{
+    frame:fr,
+    sourceHeight:sourceHeight,
+    pages:pages,
+    css:cssText
+  };
 }
 
 function escapeXmlText(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
@@ -48262,31 +48393,71 @@ function loadImageUrl(url){return new Promise(function(resolve,reject){
   img.onload=function(){finish(true)};img.onerror=function(){finish(false,'PAGE_SVG_IMAGE_LOAD_FAILED')};try{img.decoding='async'}catch(_){}img.src=url;
 })}
 
-function fullSvgUrl(pack){
-  var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+PAGE_W+'" height="'+pack.sourceHeight+'" viewBox="0 0 '+PAGE_W+' '+pack.sourceHeight+'"><foreignObject x="0" y="0" width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="width:'+PAGE_W+'px;height:'+pack.sourceHeight+'px;margin:0;padding:0;overflow:hidden;background:#fff;"><style>'+escapeXmlText(pack.css||'')+'</style>'+pack.xhtml+'</div></foreignObject></svg>';
+function ledgerCompositeSvgUrl(pack){
+  var models=pack&&Array.isArray(pack.pages)?pack.pages:[];
+  if(!models.length)throw new Error('LEDGER_NO_PAGE_MODELS');
+
+  var totalH=PAGE_H*models.length;
+  var pagesHtml=models.map(function(page){
+    return '<div xmlns="http://www.w3.org/1999/xhtml" dir="rtl" style="position:relative;width:'+PAGE_W+'px;height:'+PAGE_H+'px;margin:0;padding:0;overflow:hidden;background:#fff;">'+String(page&&page.xhtml||'')+'</div>';
+  }).join('');
+
+  var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+PAGE_W+'" height="'+totalH+'" viewBox="0 0 '+PAGE_W+' '+totalH+'"><foreignObject x="0" y="0" width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" dir="rtl" style="width:'+PAGE_W+'px;height:'+totalH+'px;margin:0;padding:0;overflow:hidden;background:#fff;"><style>'+escapeXmlText(pack.css||'')+'</style>'+pagesHtml+'</div></foreignObject></svg>';
   return URL.createObjectURL(new Blob([svg],{type:'image/svg+xml;charset=utf-8'}));
 }
+
 function yieldBrowser(){return new Promise(function(resolve){setTimeout(resolve,0)})}
 function canvasBlob(canvas,type,quality){return new Promise(function(resolve,reject){canvas.toBlob(function(blob){if(blob)resolve(blob);else reject(new Error('CANVAS_BLOB_FAILED'))},type,quality)})}
 
 async function rasterizePrintToPages(pack){
-  var scale=RENDER_SCALE,url=fullSvgUrl(pack),img=null;
+  var scale=RENDER_SCALE,models=pack&&Array.isArray(pack.pages)?pack.pages:[],pages=[];
+  if(!models.length)throw new Error('LEDGER_NO_PAGE_MODELS');
+
+  setProgress(24,'تم تقسيم الكشف • '+models.length+' صفحة • جاري الرندر مرة واحدة…','');
+  var url=ledgerCompositeSvgUrl(pack),img=null;
+
   try{
-    setProgress(24,'جاري تجهيز صفحات الكشف مباشرة…','');img=await loadImageUrl(url);await yieldBrowser();
-    var slices=buildPageSlices(pack),pages=[];setProgress(30,'تم تحليل الكشف • '+slices.length+' صفحة • جاري التكوين السريع…','');
-    async function renderPageAt(i){
-      if(i>=slices.length)return;
-      setProgress(30+Math.round(((i+1)/slices.length)*48),'جاري تكوين وضغط الصفحة '+(i+1)+' من '+slices.length+'…','');await yieldBrowser();
-      var s=slices[i],canvas=document.createElement('canvas');canvas.width=Math.round(PAGE_W*scale);canvas.height=Math.round(PAGE_H*scale);
-      var ctx=canvas.getContext('2d');if(!ctx)throw new Error('PAGE_CANVAS_CONTEXT_MISSING');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
-      var destY=0,headDh=Math.max(1,Math.round(pack.theadHeight*scale));
-      if(s.repeatHead&&pack.theadTop>=0&&pack.theadTop+pack.theadHeight<=pack.sourceHeight){ctx.drawImage(img,0,pack.theadTop,PAGE_W,pack.theadHeight,0,0,canvas.width,headDh);destY=headDh}
-      var sourceH=Math.max(1,s.end-s.start),destH=Math.max(1,Math.round(sourceH*scale)),room=canvas.height-destY;if(destH>room)destH=room;
-      if(destH>0)ctx.drawImage(img,0,s.start,PAGE_W,sourceH,0,destY,canvas.width,destH);
-      var info=await jpegPageInfo(canvas);pages.push(info);canvas.width=1;canvas.height=1;await yieldBrowser();return renderPageAt(i+1);
+    await yieldBrowser();
+    setProgress(30,'جاري رسم صفحات الكشف دفعة واحدة…','');
+    img=await loadImageUrl(url);
+
+    async function cropPageAt(i){
+      if(i>=models.length)return pages;
+
+      setProgress(34+Math.round(((i+1)/models.length)*44),'جاري ضغط صفحة الكشف '+(i+1)+' من '+models.length+'…','');
+      await yieldBrowser();
+
+      var canvas=document.createElement('canvas');
+      try{
+        canvas.width=Math.max(1,Math.round(PAGE_W*scale));
+        canvas.height=Math.max(1,Math.round(PAGE_H*scale));
+
+        var ctx=canvas.getContext('2d');
+        if(!ctx)throw new Error('PAGE_CANVAS_CONTEXT_MISSING');
+
+        ctx.fillStyle='#fff';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+
+        // كل صفحة جاهزة مسبقاً؛ هنا فقط نقصها من الصورة المشتركة، مثل بطاقة اليوم.
+        ctx.drawImage(
+          img,
+          0,i*PAGE_H,PAGE_W,PAGE_H,
+          0,0,canvas.width,canvas.height
+        );
+
+        pages.push(await jpegPageInfo(canvas));
+      }finally{
+        canvas.width=1;
+        canvas.height=1;
+      }
+
+      return cropPageAt(i+1);
     }
-    await renderPageAt(0);return pages;
-  }finally{try{URL.revokeObjectURL(url)}catch(_){} }
+
+    return await cropPageAt(0);
+  }finally{
+    try{URL.revokeObjectURL(url)}catch(_){}
+  }
 }
 
 function asciiBytes(s){return new TextEncoder().encode(String(s))}
@@ -48320,7 +48491,7 @@ async function nativePdfFromCanvases(imgs){
 async function buildPdfBlob(html){
   var pack=await buildFullPrintRaster(html);
   try{
-    setProgress(22,'الكشف جاهز للتحويل • جاري تكوين الصفحات مباشرة…','');
+    setProgress(22,'تم تقسيم الكشف مثل محرك بطاقة اليوم • جاري التكوين…','');
     var imgs=await rasterizePrintToPages(pack);if(!imgs.length)throw new Error('NO_RASTER_PAGES');
     var madePdf=await nativePdfFromCanvases(imgs);if(!madePdf||!madePdf.blob||!madePdf.blob.size)throw new Error('PDF_BLOB_EMPTY');
     return{blob:madePdf.blob,pages:imgs.length,previews:madePdf.previews||[]};
@@ -48329,7 +48500,7 @@ async function buildPdfBlob(html){
 
 async function startAutoPdf(){
   if(pdfState.busy)return;
-  pdfState.busy=true;setModalContext('ledger');showModal();revoke();pdfState.copyOk=false;setPdfButtonsReady(false);showLoading('جاري بناء PDF بمحرك التكوين السريع…');resetProgress();
+  pdfState.busy=true;setModalContext('ledger');showModal();revoke();pdfState.copyOk=false;setPdfButtonsReady(false);showLoading('جاري بناء PDF بمحرك الصفحات الموحّد السريع…');resetProgress();
   try{
     var info=currentLedgerInfo();if(!info.name)throw new Error('CUSTOMER_NAME_MISSING');
     pdfState.name=info.name;pdfState.period=formatIso(info.from)+' — '+formatIso(info.to);pdfState.mode=info.mode;pdfState.phone=findPhone(info.name);setOutputFormat('pdf');
@@ -48344,8 +48515,8 @@ async function startAutoPdf(){
 }
 
 function decorateLedger(){var root=byId('assalLedgerStatementBackdrop');if(!root)return;var bar=root.querySelector('.assal-ledger-actionbar');if(!bar)return;bar.classList.add('assal-ledger-wa-auto-pdf-enabled');if(byId('assalLedgerWhatsAppPdf'))return;var btn=document.createElement('button');btn.type='button';btn.id='assalLedgerWhatsAppPdf';btn.className='assal-ledger-btn whatsapp-pdf';btn.innerHTML=waSvg()+'<span>واتساب PDF</span>';btn.title='إنشاء كشف PDF تلقائياً وإرساله عبر واتساب';var cancel=byId('assalLedgerCancel');if(cancel&&cancel.parentNode===bar)bar.insertBefore(btn,cancel);else bar.appendChild(btn);btn.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();startAutoPdf()})}
-var oldOpen=window.assalOpenCustomerRangeStatement;if(typeof oldOpen==='function'&&!oldOpen.__assalLedgerWaAutoPdfRasterWrapped){var wrapped=function(){var r=oldOpen.apply(this,arguments);setTimeout(decorateLedger,0);return r};wrapped.__assalLedgerWaAutoPdfRasterWrapped=true;wrapped.__assalLedgerWaAutoPdfRasterOriginal=oldOpen;window.assalOpenCustomerRangeStatement=wrapped}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(decorateLedger,0)},false);else setTimeout(decorateLedger,0);
+var oldOpen=window.assalOpenCustomerRangeStatement;if(typeof oldOpen==='function'&&!oldOpen.__assalLedgerWaAutoPdfRasterWrapped){var wrapped=function(){var r=oldOpen.apply(this,arguments);decorateLedger();return r};wrapped.__assalLedgerWaAutoPdfRasterWrapped=true;wrapped.__assalLedgerWaAutoPdfRasterOriginal=oldOpen;window.assalOpenCustomerRangeStatement=wrapped}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',decorateLedger,false);else decorateLedger();
 })();
 </script>
 <!-- ASSAL LEDGER WHATSAPP SMART FAST OUTPUT FINAL - END -->
