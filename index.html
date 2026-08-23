@@ -47254,7 +47254,7 @@ body.assal-wa-premium-open{overflow:hidden!important}
 if(window.__ASSAL_DEBT_WA_PREMIUM_FINAL__)return;
 window.__ASSAL_DEBT_WA_PREMIUM_FINAL__=true;
 var state={blob:null,url:'',phone:'',name:'',balance:0,fileName:'',snapshot:null};
-var W=1080,H=1500;
+var W=1080,H=1500,DEBT_PNG_RENDER_SCALE=0.9;
 function byId(id){return document.getElementById(id)}
 function toast(type,msg,ms){try{if(typeof window.showToast==='function')window.showToast(type,msg,ms||2600)}catch(_){}}
 function nrm(s){return String(s==null?'':s).trim().toLowerCase().replace(/[\u064B-\u0652]/g,'').replace(/[إأآا]/g,'ا').replace(/[ىي]/g,'ي').replace(/ة/g,'ه').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/[\s\-_،,./\\]+/g,' ').trim()}
@@ -47294,12 +47294,32 @@ function textL(ctx,text,x,y,weight,size,color,maxWidth){if(maxWidth)size=fitText
 function textC(ctx,text,x,y,weight,size,color,maxWidth){if(maxWidth)size=fitText(ctx,text,maxWidth,weight,size,16);setFont(ctx,weight,size);ctx.textAlign='center';ctx.fillStyle=color;ctx.fillText(String(text||''),x,y)}
 function line(ctx,x1,y1,x2,y2,color,w){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.strokeStyle=color;ctx.lineWidth=w||1;ctx.stroke()}
 function metricRow(ctx,y,label,value,sub,tone){var x=112,w=856,h=132;fillRound(ctx,x,y,w,h,24,'#ffffff','#e5eaf2');fillRound(ctx,918,y+34,12,64,6,tone,null);textR(ctx,label,884,y+43,700,23,'#64748b',330);textR(ctx,sub,884,y+88,600,18,'#94a3b8',390);textL(ctx,value,150,y+66,700,35,'#0f172a',340)}
-async function ensureCairo(){try{if(document.fonts&&document.fonts.load){await Promise.all([document.fonts.load('400 24px Cairo'),document.fonts.load('600 24px Cairo'),document.fonts.load('700 42px Cairo')]);await document.fonts.ready}}catch(_){}}
+var ensureCairoPromise=null;
+function ensureCairo(){
+  if(ensureCairoPromise)return ensureCairoPromise;
+  ensureCairoPromise=(async function(){
+    try{
+      if(document.fonts&&document.fonts.load){
+        await Promise.all([
+          document.fonts.load('400 24px Cairo'),
+          document.fonts.load('600 24px Cairo'),
+          document.fonts.load('700 42px Cairo')
+        ]);
+        await document.fonts.ready;
+      }
+    }catch(_){}
+  })();
+  return ensureCairoPromise;
+}
 async function makePng(s){
   await ensureCairo();
+  var scale=DEBT_PNG_RENDER_SCALE||1;
   var canvas=document.createElement('canvas');
-  canvas.width=W; canvas.height=H;
-  var ctx=canvas.getContext('2d');
+  canvas.width=Math.max(1,Math.round(W*scale));
+  canvas.height=Math.max(1,Math.round(H*scale));
+  var ctx=canvas.getContext('2d',{alpha:false,desynchronized:true})||canvas.getContext('2d');
+  if(scale!==1&&ctx&&ctx.setTransform)ctx.setTransform(scale,0,0,scale,0,0);
+  if(ctx)ctx.imageSmoothingEnabled=true;
   ctx.fillStyle='#f4f6fa';
   ctx.fillRect(0,0,W,H);
 
@@ -47391,9 +47411,9 @@ async function makePng(s){
 
   return new Promise(function(resolve,reject){
     canvas.toBlob(function(blob){
-      if(!blob){ reject(new Error('PNG failed')); return; }
+      if(!blob){ reject(new Error('IMAGE failed')); return; }
       resolve(blob);
-    },'image/png');
+    },'image/jpeg',0.96);
   });
 }
 function openExternal(url){try{var a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener noreferrer';a.referrerPolicy='no-referrer';a.style.position='fixed';a.style.left='-9999px';a.style.top='-9999px';a.setAttribute('aria-hidden','true');document.body.appendChild(a);a.click();setTimeout(function(){try{a.remove()}catch(_){ }},0);return true}catch(_){try{var w=window.open(url,'_blank','noopener,noreferrer');try{if(w)w.opener=null}catch(__){ }return !!w}catch(__){return false}}}
@@ -47430,9 +47450,9 @@ function closeModal(){var m=byId('assalDebtWaPremiumModal');if(m)m.classList.rem
 function showModal(){var m=ensureModal();m.classList.add('active');document.body.classList.add('assal-wa-premium-open')}
 function setLoading(msg){var p=byId('assalWaPremiumPreview');if(p)p.innerHTML='<div class="assal-wa-loading">'+String(msg||'جاري تجهيز صورة الحساب…').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>'}
 function showImage(){var p=byId('assalWaPremiumPreview');if(!p||!state.url)return;p.innerHTML='';var img=document.createElement('img');img.src=state.url;img.alt='صورة حساب الزبون';p.appendChild(img);var panel=p.closest('.assal-wa-preview-panel');if(panel)panel.scrollTop=0}
-async function copyImage(showToastMsg){if(!state.blob){if(showToastMsg)toast('warn','الصورة غير جاهزة بعد',2200);return false}if(!navigator.clipboard||typeof window.ClipboardItem==='undefined'||typeof navigator.clipboard.write!=='function'){if(showToastMsg)toast('warn','هذا المتصفح لا يدعم نسخ صورة PNG مباشرة، استخدم التحميل',3200);setStatus('تعذر النسخ التلقائي هنا. استخدم تحميل الصورة كحل بديل.','err');return false}try{await navigator.clipboard.write([new ClipboardItem({'image/png':state.blob})]);if(showToastMsg)toast('success','تم نسخ صورة الحساب',2200);setStatus('تم نسخ الصورة تلقائياً وجاري تجهيز الفتح واللصق التلقائي.','ok');return true}catch(_){if(showToastMsg)toast('warn','تعذر نسخ الصورة، استخدم التحميل',2800);setStatus('تعذر النسخ التلقائي هنا. استخدم تحميل الصورة كحل بديل.','err');return false}}
-function downloadImage(){if(!state.blob||!state.url){toast('warn','الصورة غير جاهزة بعد',2200);return}var a=document.createElement('a');a.href=state.url;a.download=state.fileName||'ASSAL-WHATSAPP.png';document.body.appendChild(a);a.click();setTimeout(function(){try{a.remove()}catch(_){ }},0);toast('success','تم تجهيز صورة الحساب للتحميل',2200);setStatus('تم تحميل الصورة. تقدر ترفقها مباشرة في واتساب.','ok')}
-function makeFileName(name){return 'ASSAL-WA-'+String(name||'customer').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim()+'.png'}
+async function copyImage(showToastMsg){if(!state.blob){if(showToastMsg)toast('warn','الصورة غير جاهزة بعد',2200);return false}if(!navigator.clipboard||typeof window.ClipboardItem==='undefined'||typeof navigator.clipboard.write!=='function'){if(showToastMsg)toast('warn','هذا المتصفح لا يدعم نسخ الصورة مباشرة، استخدم التحميل',3200);setStatus('تعذر النسخ التلقائي هنا. استخدم تحميل الصورة كحل بديل.','err');return false}try{await navigator.clipboard.write([new ClipboardItem({'image/jpeg':state.blob})]);if(showToastMsg)toast('success','تم نسخ صورة الحساب',2200);setStatus('تم نسخ الصورة تلقائياً وجاري تجهيز الفتح واللصق التلقائي.','ok');return true}catch(_){if(showToastMsg)toast('warn','تعذر نسخ الصورة، استخدم التحميل',2800);setStatus('تعذر النسخ التلقائي هنا. استخدم تحميل الصورة كحل بديل.','err');return false}}
+function downloadImage(){if(!state.blob||!state.url){toast('warn','الصورة غير جاهزة بعد',2200);return}var a=document.createElement('a');a.href=state.url;a.download=state.fileName||'ASSAL-WHATSAPP.jpg';document.body.appendChild(a);a.click();setTimeout(function(){try{a.remove()}catch(_){ }},0);toast('success','تم تجهيز صورة الحساب للتحميل',2200);setStatus('تم تحميل الصورة. تقدر ترفقها مباشرة في واتساب.','ok')}
+function makeFileName(name){return 'ASSAL-WA-'+String(name||'customer').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim()+'.jpg'}
 async function openCard(name,balance){showModal();setLoading('جاري تجهيز صورة حساب '+name+' …');setStatus('جاري تجهيز الصورة للإرسال التلقائي…','');try{revoke();var s=snapshot(name,balance),blob=await makePng(s);state.blob=blob;state.url=URL.createObjectURL(blob);state.phone=s.phone||'';state.name=name;state.balance=balance;state.fileName=makeFileName(name);state.snapshot=s;byId('assalWaPremiumName').textContent=name;byId('assalWaPremiumBalance').textContent=money(balance);showImage();if(state.phone){var queued=assalQueueClipboardWhatsApp('DEBT',state.phone,name,state.blob);if(queued){setStatus('اكتمل تكوين الصورة 100% • تم تسليمها لأداة ASSAL • جاري فتح تطبيق واتساب…','ok');toast('success','تم تجهيز صورة الحساب • جاري فتح واتساب',2400);return}var copiedFallback=await copyImage(false);if(copiedFallback){setStatus('تعذر تسليم الصورة للأداة، لكن تم نسخها للحافظة. استخدم فتح الواتساب يدوياً كحل احتياطي.','err');toast('warn','تعذر تشغيل الفتح التلقائي • الصورة منسوخة',3000)}else{setStatus('تعذر تسليم الصورة للأداة والنسخ التلقائي. استخدم تحميل الصورة كحل احتياطي.','err');toast('warn','تعذر تشغيل الإرسال التلقائي',3000)}}else{var copied=await copyImage(false);if(copied){setStatus('تم نسخ الصورة، لكن لا يوجد رقم واتساب محفوظ لهذا الزبون.','err');toast('warn','الصورة جاهزة • لا يوجد رقم واتساب',3000)}else{setStatus('الصورة جاهزة، لكن لا يوجد رقم واتساب وتعذر النسخ التلقائي.','err');toast('warn','الصورة جاهزة • لا يوجد رقم واتساب',3000)}}}catch(err){console.error('ASSAL WA premium image error:',err);setLoading('تعذر تجهيز الصورة حالياً.');setStatus('تعذر تجهيز صورة الحساب. حاول مرة ثانية.','err');toast('error','تعذر تجهيز صورة الحساب',2600)}}
 document.addEventListener('click',function(e){var btn=e.target&&e.target.closest?e.target.closest('#debtsModal .debt-whatsapp-btn'):null;if(!btn)return;try{e.preventDefault();e.stopPropagation();e.stopImmediatePropagation()}catch(_){ }var card=btn.closest('.debt-card'),nameEl=card&&card.querySelector('.debt-name'),amtEl=card&&card.querySelector('.debt-amt');var name=String(nameEl&&nameEl.textContent||'').trim(),balance=num(amtEl&&amtEl.textContent||'');if(!name){toast('warn','لا يوجد اسم زبون',2200);return}openCard(name,balance)},true)
 })();
@@ -47567,7 +47587,7 @@ function setStatus(msg,tone){var el=byId('assalLedgerWaAutoPdfStatus');if(!el)re
 function setProgress(value,label,tone){var wrap=byId('assalLedgerWaAutoPdfProgress'),bar=byId('assalLedgerWaAutoPdfProgressBar'),pct=byId('assalLedgerWaAutoPdfProgressPct'),txt=byId('assalLedgerWaAutoPdfProgressLabel');var n=Math.max(0,Math.min(100,Math.round(Number(value)||0)));if(bar)bar.style.width=n+'%';if(pct)pct.textContent=n+'%';if(txt)txt.textContent=String(label||'جاري تجهيز ملف PDF…');if(wrap)wrap.className='assal-ledger-wa-pdf-progress'+(tone==='done'?' done':(tone==='error'?' error':''))}
 function showFinalInstruction(show){var el=byId('assalLedgerWaAutoPdfHelp');if(el)el.hidden=!show}
 function pdfSubject(){return pdfState.kind==='card'?'الفاتورة':'كشف الحساب'}
-function outputTypeLabel(){return pdfState.format==='png'?'صورة PNG':(pdfState.format==='pdf'?'PDF':'تلقائي')}
+function outputTypeLabel(){return pdfState.format==='png'?'صورة عالية الجودة':(pdfState.format==='pdf'?'PDF':'تلقائي')}
 function setOutputFormat(format){
   pdfState.format=(format==='png'?'png':(format==='pdf'?'pdf':'auto'));
   var mark=byId('assalLedgerWaAutoPdfModal');mark=mark&&mark.querySelector('.assal-ledger-wa-pdf-mark');if(mark)mark.textContent=pdfState.format==='png'?'PNG':(pdfState.format==='pdf'?'PDF':'AUTO');
@@ -47616,17 +47636,17 @@ async function copyCardPngToClipboard(showToastMsg){
   if(pdfState.kind!=='card'||pdfState.format!=='png'||!pdfState.blob)return false;
   if(!navigator.clipboard||typeof window.ClipboardItem==='undefined'||typeof navigator.clipboard.write!=='function'){
     pdfState.copyOk=false;
-    if(showToastMsg)toast('warn','هذا المتصفح لا يدعم نسخ صورة PNG مباشرة',3000);
+    if(showToastMsg)toast('warn','هذا المتصفح لا يدعم نسخ الصورة مباشرة',3000);
     return false;
   }
   try{
-    await navigator.clipboard.write([new ClipboardItem({'image/png':pdfState.blob})]);
+    await navigator.clipboard.write([new ClipboardItem({'image/jpeg':pdfState.blob})]);
     pdfState.copyOk=true;
     if(showToastMsg)toast('success','تم نسخ صورة الفاتورة',2200);
     return true;
   }catch(err){
     pdfState.copyOk=false;
-    console.warn('ASSAL card WhatsApp PNG clipboard:',err);
+    console.warn('ASSAL card WhatsApp image clipboard:',err);
     if(showToastMsg)toast('warn','تعذر نسخ الصورة تلقائياً',2800);
     return false;
   }
@@ -47637,10 +47657,10 @@ function triggerPdfDownload(isAuto){
   try{
     downloadUrl=URL.createObjectURL(pdfState.blob);
     var isImg=pdfState.format==='png';
-    var finalName=pdfState.fileName||(isImg?'ASSAL-INVOICE.png':'ASSAL-STATEMENT.pdf');
-    /* الصورة تُحمّل كـ PNG عادي فقط عند طلب المستخدم؛ أداة AHK تبقى لمسار PDF حصراً. */
+    var finalName=pdfState.fileName||(isImg?'ASSAL-INVOICE.jpg':'ASSAL-STATEMENT.pdf');
+    /* الالصورة تُحمّل كملف JPG عالي الجودة عادي فقط عند طلب المستخدم؛ أداة AHK تبقى لمسار PDF حصراً. */
     var tempName=isImg?finalName:(isAuto&&pdfState.phone?assalAutoPdfTempName():finalName.replace(/\.pdf$/i,'')+'.assalpdf');
-    var a=document.createElement('a');a.href=downloadUrl;a.setAttribute('download',tempName);a.setAttribute('type',isImg?'image/png':'application/octet-stream');a.style.cssText='position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none';document.body.appendChild(a);a.click();
+    var a=document.createElement('a');a.href=downloadUrl;a.setAttribute('download',tempName);a.setAttribute('type',isImg?'image/jpeg':'application/octet-stream');a.style.cssText='position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none';document.body.appendChild(a);a.click();
     setTimeout(function(){try{a.remove()}catch(_){}},0);setTimeout(function(){try{URL.revokeObjectURL(downloadUrl)}catch(_){}},15000);
     if(!isImg)pdfState.downloadStarted=true;
     if(!isAuto){toast('success',isImg?'بدأ تحميل صورة الفاتورة':'بدأ تنزيل ملف ASSAL المؤقت',2200);setProgress(100,'تم تجهيز '+pdfSubject(),'done');showFinalInstruction(true);setStatus('','')}
@@ -47691,7 +47711,7 @@ function downloadPdf(){
    CARD WHATSAPP PDF — يستخدم نفس exportCardPDF_Vector حرفياً كمصدر للفاتورة.
    لا يعيد حساب أي مبلغ ولا يغيّر البطاقة؛ يلتقط HTML الطباعة فقط داخل نافذة وهمية.
    ===================================================================== */
-var CARD_PAGE_W=703,CARD_PAGE_H=1032,CARD_RENDER_SCALE=1.25,CARD_PAGE_FOOTER_H=38;
+var CARD_PAGE_W=703,CARD_PAGE_H=1032,CARD_RENDER_SCALE=1.25,CARD_PNG_RENDER_SCALE=1,CARD_PAGE_FOOTER_H=38;
 
 function cardBillLabel(card){
   var bt=String(card&&card.billType||'').trim();
@@ -47719,6 +47739,11 @@ function captureCardPrintHtml(card,dayKey){
   if(!captured)throw new Error('CARD_PRINT_HTML_NOT_CAPTURED');
   // نمنع أمر الطباعة فقط؛ سكربت بناء الفاتورة يبقى كما هو حتى يكون الشكل مطابقاً لزر PDF.
   captured=captured.replace(/window\.print\s*\(\s*\)/g,'void 0');
+
+  // FAST CARD WHATSAPP ONLY:
+  // نسخة الرندر المؤقتة لا تحتاج تحميل Cairo من Google؛
+  // محرك الصورة يفرض system-ui محلياً لاحقاً، لذلك حذف الرابط يزيل انتظار شبكة غير لازم.
+  captured=captured.replace(/<link\b[^>]*href=["']https:\/\/fonts\.googleapis\.com\/[^"']*["'][^>]*>/gi,'');
   return captured;
 }
 
@@ -47726,28 +47751,58 @@ function waitCardFrame(html){return new Promise(function(resolve,reject){
   var fr=document.createElement('iframe');
   fr.setAttribute('aria-hidden','true');
   fr.style.cssText='position:fixed;left:-20000px;top:0;width:'+CARD_PAGE_W+'px;height:'+CARD_PAGE_H+'px;opacity:0;pointer-events:none;border:0;z-index:-1;';
-  var finished=false,running=false;
-  function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
-  async function finish(){
-    if(finished||running)return;running=true;
+  var done=false,started=performance.now(),MAX_WAIT=1400;
+
+  function finishOk(){
+    if(done)return;
+    done=true;
+    resolve(fr);
+  }
+
+  function finishErr(err){
+    if(done)return;
+    done=true;
+    try{fr.remove()}catch(_){}
+    reject(err);
+  }
+
+  function probe(){
+    if(done)return;
     try{
       var d=fr.contentDocument,w=fr.contentWindow;
-      if(!d||!w)throw new Error('CARD_PRINT_FRAME_DOCUMENT_MISSING');
-      await waitFontsBrief(d,850);
-      await sleep(60);
-      var root=d.querySelector('#invoiceRoot');
-      if(!root||!String(root.textContent||'').trim())throw new Error('CARD_PRINT_CONTENT_MISSING');
-      finished=true;resolve(fr);
+      var root=d&&d.querySelector('#invoiceRoot');
+
+      // سكربت فاتورة الطباعة يبني invoiceRoot بشكل متزامن أثناء parsing.
+      // نكمل فور اكتمال المحتوى بدل انتظار onload أو الخطوط الخارجية.
+      if(d&&w&&root&&String(root.textContent||'').trim()){
+        finishOk();
+        return;
+      }
+
+      if((performance.now()-started)>=MAX_WAIT){
+        if(root){
+          finishOk();
+          return;
+        }
+        finishErr(new Error('CARD_PRINT_CONTENT_MISSING'));
+        return;
+      }
     }catch(err){
-      running=false;
-      if(fr.contentDocument&&fr.contentDocument.querySelector('#invoiceRoot')){finished=true;resolve(fr);return}
-      try{fr.remove()}catch(_){}finished=true;reject(err);
+      if((performance.now()-started)>=MAX_WAIT){
+        finishErr(err);
+        return;
+      }
     }
+    requestAnimationFrame(probe);
   }
-  fr.onload=function(){finish()};
+
   document.body.appendChild(fr);
-  try{fr.srcdoc=html}catch(err){try{fr.remove()}catch(_){}finished=true;reject(err);return}
-  setTimeout(function(){finish()},900);
+  try{
+    fr.srcdoc=html;
+    requestAnimationFrame(probe);
+  }catch(err){
+    finishErr(err);
+  }
 })}
 
 function cardClonePage(source,startRow,endRow,isFirst,isFinal,columnWidths){
@@ -47893,15 +47948,34 @@ async function buildCardPrintRaster(html){
     'tbody tr,.bottom-row,.inv-footer{break-inside:avoid!important;page-break-inside:avoid!important}'
   ].join('');
   d.head.appendChild(style);
-  // القياس والرسم يستخدمان نفس الخط المحلي السريع؛ لا ننتظر Google Fonts هنا حتى لا تختلف أبعاد الصفحات أو تتأخر العملية.
-  await new Promise(function(r){requestAnimationFrame(function(){requestAnimationFrame(r)})});
-
+  // القياس والرسم يستخدمان نفس الخط المحلي السريع.
+  // getBoundingClientRect يجبر المتصفح على تطبيق الـCSS فوراً، فلا نحتاج انتظار Frame إضافي.
   var sr=source.getBoundingClientRect(),sourceHeight=Math.ceil(Math.max(source.scrollHeight,sr.height));
   if(!sourceHeight||sourceHeight<50)throw new Error('CARD_PRINT_HEIGHT_INVALID');
-  var heads=Array.prototype.slice.call(thead.querySelectorAll('th')),columnWidths=heads.map(function(th){return Math.max(1,Math.round(th.getBoundingClientRect().width))});
   var rowCount=Array.prototype.slice.call(tbody.children||[]).length;
-  setProgress(18,'تم تجهيز الفاتورة • جاري تقسيمها على حدود المواد الحقيقية…','');
-  var pages=cardBuildPageModels(d,source,rowCount,columnWidths);
+
+  // DIRECT SINGLE-PAGE FAST PATH:
+  // إذا الفاتورة كلها أصلاً ضمن صفحة واحدة، نستخدم نفس عنصر invoice الجاهز للطباعة مباشرة
+  // بدون Clone/Measure/Serialize إضافي. هذا يحافظ على نفس الشكل لكنه يزيل طبقات تجهيز غير لازمة.
+  var pages=null,columnWidths=null,pageLimit=Math.max(240,CARD_PAGE_H-CARD_PAGE_FOOTER_H-8),pageSafety=8;
+  if(rowCount>0&&sourceHeight<=pageLimit-pageSafety){
+    pages=[{
+      start:0,
+      end:rowCount,
+      first:true,
+      final:true,
+      contentHeight:Math.min(CARD_PAGE_H,sourceHeight),
+      xhtml:source.outerHTML
+    }];
+    setProgress(18,'الفاتورة صفحة واحدة • تم تفعيل المسار المباشر الأسرع للصورة…','');
+  }
+
+  if(!pages){
+    var heads=Array.prototype.slice.call(thead.querySelectorAll('th'));
+    columnWidths=heads.map(function(th){return Math.max(1,Math.round(th.getBoundingClientRect().width))});
+    setProgress(18,'تم تجهيز الفاتورة • جاري تقسيمها على حدود المواد الحقيقية…','');
+    pages=cardBuildPageModels(d,source,rowCount,columnWidths);
+  }
   if(!pages.length)throw new Error('CARD_PRINT_NO_PAGES');
   var cssText=Array.prototype.map.call(d.querySelectorAll('style'),function(s){return s.textContent||''}).join('\n');
   return{frame:fr,sourceHeight:sourceHeight,pages:pages,css:cssText,columnWidths:columnWidths};
@@ -48012,15 +48086,17 @@ async function nativeCardPdfFromCanvases(imgs){
 
 async function renderCardSinglePng(pack){
   var model=pack&&pack.pages&&pack.pages[0];if(!model)throw new Error('CARD_SINGLE_PAGE_MISSING');
-  var scale=CARD_RENDER_SCALE,url=cardPageSvgUrl(pack,model,true),img=null,canvas=null;
+  // للصورة فقط نرسم على دقة CSS الأصلية 1:1؛
+  // الـPDF يبقى على CARD_RENDER_SCALE=1.25 كما هو.
+  var scale=CARD_PNG_RENDER_SCALE,url=cardPageSvgUrl(pack,model,true),img=null,canvas=null;
   try{
-    setProgress(30,'الفاتورة صفحة واحدة • جاري تجهيز صورة PNG عالية الدقة…','');
+    setProgress(30,'الفاتورة صفحة واحدة • جاري الرسم المباشر السريع للصورة…','');
     img=await loadImageUrl(url);await yieldBrowser();
     var h=Math.max(1,Math.min(CARD_PAGE_H,Math.ceil(model.contentHeight||CARD_PAGE_H)));
     canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(CARD_PAGE_W*scale));canvas.height=Math.max(1,Math.round(h*scale));
     var ctx=canvas.getContext('2d');if(!ctx)throw new Error('CARD_IMAGE_CANVAS_CONTEXT_MISSING');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
-    setProgress(72,'جاري حفظ الصورة بجودة كاملة بدون ضغط خساري…','');
-    var blob=await canvasBlob(canvas,'image/png');if(!blob||!blob.size)throw new Error('CARD_PNG_BLOB_EMPTY');
+    setProgress(72,'جاري حفظ صورة JPG عالية الجودة بسرعة أكبر…','');
+    var blob=await canvasBlob(canvas,'image/jpeg',0.96);if(!blob||!blob.size)throw new Error('CARD_PNG_BLOB_EMPTY');
     setProgress(94,'اكتملت الصورة • جاري بدء التنزيل للأداة…','');return blob;
   }finally{if(canvas){canvas.width=1;canvas.height=1}try{URL.revokeObjectURL(url)}catch(_){} }
 }
@@ -48051,8 +48127,8 @@ async function startCardAutoPdf(card,dayKey){
     setProgress(7,'جاري التقاط تصميم الفاتورة وقياسها…','');
     var html=captureCardPrintHtml(card,day),made=await buildCardPdfBlob(html);if(!made.blob)throw new Error('CARD_OUTPUT_BLOB_EMPTY');
     setOutputFormat(made.format||'pdf');pdfState.blob=made.blob;pdfState.pages=made.pages||1;
-    pdfState.fileName='ASSAL WA - فاتورة - '+safeName(name)+(day?' - '+day:'')+(pdfState.format==='png'?'.png':'.pdf');
-    byId('assalLedgerWaAutoPdfFile').textContent=pdfState.format==='png'?'صورة PNG عالية الدقة':((pdfState.pages?String(pdfState.pages)+' صفحة • ':'')+'PDF');
+    pdfState.fileName='ASSAL WA - فاتورة - '+safeName(name)+(day?' - '+day:'')+(pdfState.format==='png'?'.jpg':'.pdf');
+    byId('assalLedgerWaAutoPdfFile').textContent=pdfState.format==='png'?'صورة JPG عالية الجودة':((pdfState.pages?String(pdfState.pages)+' صفحة • ':'')+'PDF');
     showImagePreviews(made.previews||[]);setPdfButtonsReady(true);
     if(pdfState.format==='png'){
       setProgress(96,'تم تجهيز الصورة • جاري تسليمها لأداة ASSAL…','');
