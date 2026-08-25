@@ -11073,6 +11073,7 @@ async function loadExcelFiles(){
       ALL       : XLSX.utils.sheet_to_json(wb.Sheets["ALL"]       || {}, {defval:null}),
       DEBTS     : XLSX.utils.sheet_to_json(wb.Sheets["DEBTS"]     || {}, {defval:null}),
       CUSTOMER  : XLSX.utils.sheet_to_json(wb.Sheets["CUSTOMER"]  || {}, {defval:null}),
+      "BAG-DEBTS": XLSX.utils.sheet_to_json(wb.Sheets["BAG-DEBTS"] || {}, {defval:null}),
       LCD       : XLSX.utils.sheet_to_json(wb.Sheets["LCD"]       || {}, {defval:null}),
       BATTERY   : XLSX.utils.sheet_to_json(wb.Sheets["BATTERY"]   || {}, {defval:null}),
       HOUSING   : XLSX.utils.sheet_to_json(wb.Sheets["HOUSING"]   || {}, {defval:null}),
@@ -11120,7 +11121,7 @@ function buildPriceIndexFromDatabase(){
 
   if (!database || typeof database !== 'object') return;
 
-  const EXCLUDED = new Set(['DEBTS','ALL','CUSTOMER']); // ✅ التعديل
+  const EXCLUDED = new Set(['DEBTS','ALL','CUSTOMER','BAG-DEBTS']); // ✅ بيانات إدارية/محاسبية لا تدخل فهرس الأصناف
 
   for (const [sheetName, rows] of Object.entries(database)){
     if (EXCLUDED.has(String(sheetName).toUpperCase())) continue; // ✅ التعديل
@@ -27065,7 +27066,7 @@ function dedupeAllDays(daysObj){
       const cleanEmail = String(u?.email || '').trim().toLowerCase();
       if(!u || !cleanUid || u.uid !== cleanUid || cleanEmail !== 'owner-debts@assal.com') throw new Error('OWNER_ACCESS_DENIED');
       const safe = JSON.parse(JSON.stringify(payload || {}));
-      await setDoc(doc(db, 'ownerPanel', cleanUid), safe);
+      await setDoc(doc(db, 'ownerPanel', cleanUid), safe, { merge:true });
       return true;
     }
   });
@@ -44330,7 +44331,7 @@ body.assal-ledger-owner-context .assal-ledger-results-body .assal-ledger-stat{
   window.__ASSAL_OWNER_MOBILE_FOLLOWUP_FINAL__ = true;
 
   var OWNER_EMAIL = 'owner-debts@assal.com';
-  var state = {user:null,rows:[],followups:[],notices:[],query:'',filter:'all',busy:false,syncing:false,lastUpdated:0,briefNoticeIds:[]};
+  var state = {user:null,rows:[],followups:[],notices:[],supplierDebts:{},supplierStoreLoaded:false,query:'',filter:'all',busy:false,syncing:false,lastUpdated:0,briefNoticeIds:[]};
   var ownerStatementObserver = null;
 
   function byId(id){return document.getElementById(id);}
@@ -44468,23 +44469,138 @@ body.assal-ledger-owner-context .assal-ledger-results-body .assal-ledger-stat{
   function activate(){try{window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE&&window.ASSAL_SINGLE_WINDOW_SET_OWNER_MODE(true);}catch(_){ }try{window.ASSAL_SET_OWNER_HARD_LOCK&&window.ASSAL_SET_OWNER_HARD_LOCK(true,'تم فتح لوحة المالك الخاصة فقط.');}catch(_){ }var root=ensureRoot();document.documentElement.classList.add('assal-owner-exclusive-root');document.body.classList.add('assal-owner-mode','assal-owner-exclusive');root.classList.remove('assal-owner-header-compact');var ownerTitle=root.querySelector('.assal-owner-brand-copy h1');if(ownerTitle)ownerTitle.textContent='لوحة مالك مكتب عسل';root.classList.add('active');root.setAttribute('aria-hidden','false');try{window.scrollTo(0,0);root.scrollLeft=0;var ownerBody=byId('assalOwnerBody');if(ownerBody){ownerBody.scrollLeft=0;ownerBody.scrollTop=0;}var ownerControls=root.querySelector('.assal-owner-controls');if(ownerControls)ownerControls.classList.remove('assal-owner-search-only-on-scroll');}catch(_){ }}
   function clearOwnerStatementContext(){document.body.classList.remove('assal-ledger-owner-context');if(ownerStatementObserver){try{ownerStatementObserver.disconnect();}catch(_){ }ownerStatementObserver=null;}}
   function watchOwnerStatementClose(){var bd=byId('assalLedgerStatementBackdrop');if(!bd)return;clearOwnerStatementContext();document.body.classList.add('assal-ledger-owner-context');ownerStatementObserver=new MutationObserver(function(){if(!bd.classList.contains('active'))clearOwnerStatementContext();});ownerStatementObserver.observe(bd,{attributes:true,attributeFilter:['class']});}
-  function deactivate(){if(document.body.classList.contains('assal-ledger-owner-context')){try{if(typeof window.assalCloseCustomerRangeStatement==='function')window.assalCloseCustomerRangeStatement();}catch(_){ }clearOwnerStatementContext();}var root=byId('assalOwnerPanel');if(root){root.classList.remove('active','assal-owner-header-compact');var ownerTitle=root.querySelector('.assal-owner-brand-copy h1');if(ownerTitle)ownerTitle.textContent='لوحة مالك مكتب عسل';var ownerControls=root.querySelector('.assal-owner-controls');if(ownerControls)ownerControls.classList.remove('assal-owner-search-only-on-scroll');root.setAttribute('aria-hidden','true');}document.body.classList.remove('assal-owner-mode','assal-owner-exclusive');document.documentElement.classList.remove('assal-owner-exclusive-root');state={user:null,rows:[],followups:[],notices:[],query:'',filter:'all',busy:false,syncing:false,lastUpdated:0,briefNoticeIds:[]};}
+  function deactivate(){if(document.body.classList.contains('assal-ledger-owner-context')){try{if(typeof window.assalCloseCustomerRangeStatement==='function')window.assalCloseCustomerRangeStatement();}catch(_){ }clearOwnerStatementContext();}var root=byId('assalOwnerPanel');if(root){root.classList.remove('active','assal-owner-header-compact');var ownerTitle=root.querySelector('.assal-owner-brand-copy h1');if(ownerTitle)ownerTitle.textContent='لوحة مالك مكتب عسل';var ownerControls=root.querySelector('.assal-owner-controls');if(ownerControls)ownerControls.classList.remove('assal-owner-search-only-on-scroll');root.setAttribute('aria-hidden','true');}document.body.classList.remove('assal-owner-mode','assal-owner-exclusive');document.documentElement.classList.remove('assal-owner-exclusive-root');state={user:null,rows:[],followups:[],notices:[],supplierDebts:{},supplierStoreLoaded:false,query:'',filter:'all',busy:false,syncing:false,lastUpdated:0,briefNoticeIds:[]};}
+
+  function assalSupplierDebtPick(row,keys){
+    row=row&&typeof row==='object'?row:{};
+    for(var i=0;i<keys.length;i++){
+      if(Object.prototype.hasOwnProperty.call(row,keys[i])&&row[keys[i]]!=null&&String(row[keys[i]]).trim()!=='')return row[keys[i]];
+    }
+    var wanted=keys.map(nrm);
+    var rowKeys=Object.keys(row);
+    for(var j=0;j<rowKeys.length;j++){
+      if(wanted.indexOf(nrm(rowKeys[j]))>=0&&row[rowKeys[j]]!=null&&String(row[rowKeys[j]]).trim()!=='')return row[rowKeys[j]];
+    }
+    return null;
+  }
+  function assalSupplierDebtDate(v){
+    if(v==null||v==='')return '';
+    if(typeof v==='number'&&isFinite(v)){
+      if(v>20000&&v<100000){
+        var ms=Math.round((v-25569)*86400000),d=new Date(ms);
+        if(!isNaN(d.getTime()))return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
+      }
+    }
+    var z=iso(v);if(z)return z;
+    var s=String(v).trim().replace(/[\u0660-\u0669]/g,function(c){return String(c.charCodeAt(0)-0x0660);}).replace(/[\u06F0-\u06F9]/g,function(c){return String(c.charCodeAt(0)-0x06F0);});
+    var m=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2})$/);
+    if(m){var yy=Number(m[3]);yy+=(yy<70?2000:1900);return yy+'-'+String(m[2]).padStart(2,'0')+'-'+String(m[1]).padStart(2,'0');}
+    return '';
+  }
+  function assalSupplierDebtSheetRows(){
+    var source=[];try{source=(typeof database!=='undefined'&&database&&Array.isArray(database['BAG-DEBTS']))?database['BAG-DEBTS']:[];}catch(_){source=[];}
+    var map=new Map(),order=0;
+    source.forEach(function(row){
+      var name=String(assalSupplierDebtPick(row,['الاسم','اسم','المورد','الوكيل','المجهز','NAME','Name','name'])||'').trim();if(!name)return;
+      var balance=Math.round(num(assalSupplierDebtPick(row,['الرصيد','رصيد','الدين','الذمة','المبلغ','BALANCE','Balance','balance','DEBT','Debt','debt'])));
+      var date=assalSupplierDebtDate(assalSupplierDebtPick(row,['التاريخ','تاريخ','DATE','Date','date']));
+      var key=hashName(name),rec={key:key,name:name,balance:isFinite(balance)?balance:0,date:date,order:order++};
+      var prev=map.get(key);
+      if(!prev||String(rec.date||'').localeCompare(String(prev.date||''))>=0)map.set(key,rec);
+    });
+    return Array.from(map.values()).sort(function(a,b){return a.order-b.order;});
+  }
+  function assalSanitizeSupplierDebts(raw){
+    raw=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};var out={};
+    Object.keys(raw).forEach(function(key){
+      var item=raw[key];if(!item||typeof item!=='object')return;
+      var name=String(item.name||'').trim();if(!name)return;
+      var byDate={};var snaps=Array.isArray(item.snapshots)?item.snapshots:[];
+      snaps.forEach(function(s){
+        var d='',b=0;
+        // Migration support for the first supplier-debt build.
+        if(Array.isArray(s)){d=assalSupplierDebtDate(s[0]);b=Math.round(num(s[1]));}
+        else if(s&&typeof s==='object'){d=assalSupplierDebtDate(s.d||s.date);b=Math.round(num(s.b!=null?s.b:s.balance));}
+        if(!d||!isFinite(b))return;byDate[d]=b;
+      });
+      // Firestore-safe canonical shape: array of objects, never nested arrays.
+      out[String(key)]={
+        name:name,
+        snapshots:Object.keys(byDate).sort().map(function(d){return {date:d,balance:byDate[d]};})
+      };
+    });
+    return out;
+  }
+  function assalReconcileSupplierDebts(){
+    var rows=assalSupplierDebtSheetRows();if(!rows.length)return false;
+    var changed=false,store=assalSanitizeSupplierDebts(state.supplierDebts);
+    rows.forEach(function(row){
+      if(!row.date)return;
+      var entry=store[row.key];
+      if(!entry||typeof entry!=='object'){entry={name:row.name,snapshots:[]};store[row.key]=entry;changed=true;}
+      if(String(entry.name||'')!==row.name){entry.name=row.name;changed=true;}
+      if(!Array.isArray(entry.snapshots))entry.snapshots=[];
+      var idx=-1;
+      for(var i=0;i<entry.snapshots.length;i++){
+        if(String(entry.snapshots[i]&&entry.snapshots[i].date||'')===row.date){idx=i;break;}
+      }
+      if(idx>=0){
+        if(Math.round(num(entry.snapshots[idx].balance))!==row.balance){
+          entry.snapshots[idx]={date:row.date,balance:row.balance};
+          changed=true;
+        }
+      }else{
+        entry.snapshots.push({date:row.date,balance:row.balance});
+        changed=true;
+      }
+      entry.snapshots.sort(function(a,b){return String(a&&a.date||'').localeCompare(String(b&&b.date||''));});
+    });
+    state.supplierDebts=store;return changed;
+  }
+  function assalSupplierDebtPublicSnapshot(){
+    var history={};
+    Object.keys(state.supplierDebts||{}).forEach(function(key){
+      var e=state.supplierDebts[key];if(!e)return;
+      var safe=assalSanitizeSupplierDebts((function(){var x={};x[key]=e;return x;})())[key];
+      if(!safe)return;
+      history[key]={
+        name:String(safe.name||''),
+        snapshots:safe.snapshots.map(function(s){return {date:String(s.date||''),balance:Math.round(num(s.balance))};})
+      };
+    });
+    return {current:assalSupplierDebtSheetRows().map(function(r){return {key:r.key,name:r.name,balance:r.balance,date:r.date};}),history:history,loaded:state.supplierStoreLoaded===true};
+  }
 
   function sanitizeStore(raw){
     raw=raw&&typeof raw==='object'?raw:{};
     var follows=Array.isArray(raw.followups)?raw.followups:[],notices=Array.isArray(raw.notices)?raw.notices:[];
     follows=follows.filter(function(x){return x&&String(x.customer||'').trim();}).slice(-300).map(function(x){return {id:String(x.id||hashName(x.customer)),customer:String(x.customer||'').trim(),startedAt:Number(x.startedAt||0),startedISO:String(x.startedISO||''),startDebt:Math.round(num(x.startDebt)),paymentKeys:Array.isArray(x.paymentKeys)?x.paymentKeys.map(String).slice(-1000):[],baselineReady:x.baselineReady===true||Object.prototype.hasOwnProperty.call(x,'paymentKeys')};});
     notices=notices.filter(function(x){return x&&x.id&&x.customer;}).slice(-120).map(function(x){return {id:String(x.id),customer:String(x.customer),kind:String(x.kind||'paid'),amount:Math.round(num(x.amount)),remaining:Math.round(num(x.remaining)),at:String(x.at||''),createdAt:Number(x.createdAt||0),seen:!!x.seen};});
-    return {followups:follows,notices:notices};
+    return {followups:follows,notices:notices,supplierDebts:assalSanitizeSupplierDebts(raw.supplierDebts)};
   }
   async function loadOwnerStore(){
     var bridge=window.ASSAL_OWNER_FIRESTORE_BRIDGE;if(!bridge||!state.user||!state.user.uid)throw new Error('OWNER_STORE_NOT_READY');
-    var raw=await bridge.read(state.user.uid),safe=sanitizeStore(raw);state.followups=safe.followups;state.notices=safe.notices;
+    var raw=await bridge.read(state.user.uid),safe=sanitizeStore(raw);state.followups=safe.followups;state.notices=safe.notices;state.supplierDebts=safe.supplierDebts;state.supplierStoreLoaded=true;
   }
   async function saveOwnerStore(){
     var bridge=window.ASSAL_OWNER_FIRESTORE_BRIDGE;if(!bridge||!state.user||!state.user.uid)throw new Error('OWNER_STORE_NOT_READY');
     await bridge.write(state.user.uid,{version:1,email:OWNER_EMAIL,updatedAt:Date.now(),followups:state.followups.slice(-300),notices:state.notices.slice(-120)});
   }
+  function assalSupplierDebtFirestoreSafe(){
+    // Final serialization guard: guarantees Firestore receives no nested arrays.
+    return assalSanitizeSupplierDebts(state.supplierDebts);
+  }
+  async function saveSupplierDebtStore(){
+    var bridge=window.ASSAL_OWNER_FIRESTORE_BRIDGE;if(!bridge||!state.user||!state.user.uid)throw new Error('OWNER_STORE_NOT_READY');
+    var safeDebts=assalSupplierDebtFirestoreSafe();
+    await bridge.write(state.user.uid,{
+      supplierDebtVersion:2,
+      supplierDebtUpdatedAt:Date.now(),
+      supplierDebts:safeDebts
+    });
+    state.supplierDebts=safeDebts;
+  }
+  window.ASSAL_OWNER_SUPPLIER_DEBTS_API=Object.freeze({snapshot:assalSupplierDebtPublicSnapshot});
 
   function movementISO(dayKey,obj,preferred){var arr=[];if(Array.isArray(preferred))arr=arr.concat(preferred);try{if(obj)arr=arr.concat([obj.date,obj.day,obj.createdAt,obj.updatedAt,obj.at,obj.timestamp,obj.created,obj.time]);}catch(_){ }arr.push(dayKey);for(var i=0;i<arr.length;i++){var z=iso(arr[i]);if(z)return z;}return '';}
   function rawStamp(obj,dayKey){var vals=[];try{vals=[obj&&obj.id,obj&&obj._id,obj&&obj.lineId,obj&&obj.createdAt,obj&&obj.updatedAt,obj&&obj.at,obj&&obj.timestamp,obj&&obj.time,obj&&obj.date,dayKey];}catch(_){vals=[dayKey];}return vals.map(function(v){return String(v==null?'':v);}).join('|');}
@@ -44682,10 +44798,13 @@ body.assal-ledger-owner-context .assal-ledger-results-body .assal-ledger-stat{
       try{if(typeof window.assalInvalidateSheetCustomerCache==='function')window.assalInvalidateSheetCustomerCache();}catch(_){ }
       await loadOwnerStore();
       state.rows=buildRows();
+      var supplierChanged=assalReconcileSupplierDebts();
       var changed=reconcileFollowups();
       if(changed)await saveOwnerStore();
+      if(supplierChanged)await saveSupplierDebtStore();
       state.lastUpdated=Date.now();
       renderSummary();
+      try{window.dispatchEvent(new CustomEvent('assal:owner-suppliers-updated'));}catch(_){ }
       if(showBrief||state.notices.some(function(n){return !n.seen;}))showBriefing();
     }catch(err){
       console.error('[ASSAL owner] background sync',err);
@@ -46138,13 +46257,153 @@ body.assal-owner-exclusive > #modal.active{
 
 </style>
 
+
+<style id="assal-owner-supplier-debts-accounting-style">
+#assalOwnerPanel[data-owner-view="suppliers"] #assalOwnerSupplierView{display:block !important;}
+.assal-owner-home-card.suppliers{--owner-accent:#fb7185;}
+.assal-owner-supplier-wrap{width:min(920px,100%);margin:0 auto;display:grid;gap:10px;}
+.assal-owner-supplier-overview{
+  position:relative;overflow:hidden;padding:14px;border-radius:22px;border:1px solid rgba(251,113,133,.18);
+  background:radial-gradient(360px 170px at 100% 0%,rgba(190,24,93,.16),transparent 70%),linear-gradient(180deg,#111c33,#091327);
+  box-shadow:0 14px 32px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.04);
+}
+.assal-owner-supplier-overview-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.assal-owner-supplier-overview-copy{min-width:0;}
+.assal-owner-supplier-overview-copy span{display:flex;align-items:center;gap:6px;color:#fda4af;font-size:9.5px;font-weight:950;}
+.assal-owner-supplier-overview-copy b{display:block;margin-top:5px;color:#fff;font-size:clamp(18px,4.8vw,27px);font-weight:950;line-height:1.3;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}
+.assal-owner-supplier-overview-date{flex:0 0 auto;padding:5px 8px;border-radius:999px;background:rgba(15,23,42,.58);border:1px solid rgba(148,163,184,.13);color:#9fb0c8;font-size:8.5px;font-weight:900;white-space:nowrap;}
+.assal-owner-supplier-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:11px;}
+.assal-owner-supplier-stat{min-width:0;padding:8px 9px;border-radius:14px;background:rgba(2,6,23,.30);border:1px solid rgba(148,163,184,.10);}
+.assal-owner-supplier-stat span{display:block;color:#8294ac;font-size:8.2px;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.assal-owner-supplier-stat b{display:block;margin-top:4px;color:#eef6ff;font-size:10.5px;font-weight:950;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}
+.assal-owner-supplier-stat.up b{color:#fecaca}.assal-owner-supplier-stat.down b{color:#bbf7d0}
+.assal-owner-supplier-insight{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;margin-top:8px;padding:8px 9px;border-radius:13px;background:rgba(15,23,42,.42);border:1px solid rgba(148,163,184,.09);}
+.assal-owner-supplier-insight span{min-width:0;color:#8fa2bb;font-size:8.7px;font-weight:800;line-height:1.6;}
+.assal-owner-supplier-insight b{color:#f8fafc;font-size:9px;font-weight:950;white-space:nowrap;}
+.assal-owner-supplier-section-head{display:flex;align-items:end;justify-content:space-between;gap:8px;padding:2px 2px 0;}
+.assal-owner-supplier-section-head div{min-width:0}.assal-owner-supplier-section-head b{display:block;color:#f8fafc;font-size:12px;font-weight:950;}.assal-owner-supplier-section-head span{display:block;margin-top:2px;color:#7488a5;font-size:8.5px;font-weight:800;}
+.assal-owner-supplier-count{flex:0 0 auto;padding:4px 8px;border-radius:999px;background:rgba(251,113,133,.11);border:1px solid rgba(251,113,133,.15);color:#fecdd3;font-size:8.5px;font-weight:950;}
+.assal-owner-supplier-list{display:grid;grid-template-columns:1fr;gap:7px;}
+.assal-owner-supplier-card{
+  position:relative;overflow:hidden;width:100%;min-width:0;
+  display:grid;grid-template-columns:46px minmax(0,1fr) minmax(116px,auto);
+  align-items:center;gap:10px;
+  padding:10px 11px;border-radius:18px;
+  border:1px solid rgba(148,163,184,.12);
+  background:
+    radial-gradient(180px 88px at 100% 0%,rgba(56,189,248,.055),transparent 72%),
+    linear-gradient(180deg,#111c33 0%,#0a1529 100%);
+  color:inherit;text-align:right;font-family:inherit;cursor:pointer;
+  box-shadow:0 8px 20px rgba(0,0,0,.13),inset 0 1px 0 rgba(255,255,255,.025);
+  -webkit-tap-highlight-color:transparent;
+  direction:rtl;
+}
+.assal-owner-supplier-card::before{
+  content:"";position:absolute;right:0;top:14px;bottom:14px;width:2px;border-radius:99px;
+  background:linear-gradient(180deg,rgba(125,211,252,.7),rgba(251,113,133,.42));
+  opacity:.7;pointer-events:none;
+}
+.assal-owner-supplier-card:active{
+  transform:scale(.994);
+  background:linear-gradient(180deg,#15223d,#0b172c);
+}
+.assal-owner-supplier-card>.assal-owner-supplier-logo{
+  justify-self:center;align-self:center;
+  width:44px;height:44px;border-radius:14px;
+}
+.assal-owner-supplier-logo{
+  --supplier-logo-bg:#0f4c81;--supplier-logo-mark:#7dd3fc;--supplier-logo-dot:#e0f2fe;
+  display:grid;place-items:center;overflow:hidden;
+  border:1px solid rgba(255,255,255,.10);
+  box-shadow:0 7px 18px rgba(2,6,23,.22), inset 0 1px 0 rgba(255,255,255,.08);
+  background:transparent;
+}
+.assal-owner-supplier-logo svg{display:block;width:100%;height:100%;}
+.assal-owner-supplier-logo.large{width:50px;height:50px;border-radius:16px;}
+.assal-owner-supplier-logo.tone-0{--supplier-logo-bg:#075985;--supplier-logo-mark:#7dd3fc;--supplier-logo-dot:#e0f2fe}
+.assal-owner-supplier-logo.tone-1{--supplier-logo-bg:#5b21b6;--supplier-logo-mark:#c4b5fd;--supplier-logo-dot:#ede9fe}
+.assal-owner-supplier-logo.tone-2{--supplier-logo-bg:#166534;--supplier-logo-mark:#86efac;--supplier-logo-dot:#dcfce7}
+.assal-owner-supplier-logo.tone-3{--supplier-logo-bg:#9a3412;--supplier-logo-mark:#fdba74;--supplier-logo-dot:#ffedd5}
+.assal-owner-supplier-logo.tone-4{--supplier-logo-bg:#9f1239;--supplier-logo-mark:#fda4af;--supplier-logo-dot:#ffe4e6}
+.assal-owner-supplier-logo.tone-5{--supplier-logo-bg:#334155;--supplier-logo-mark:#cbd5e1;--supplier-logo-dot:#f1f5f9}
+.assal-owner-supplier-card-info{
+  min-width:0;display:flex;flex-direction:column;justify-content:center;gap:4px;
+}
+.assal-owner-supplier-name{
+  display:block;min-width:0;color:#f8fafc;
+  font-size:12.7px;font-weight:950;line-height:1.35;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.assal-owner-supplier-meta{
+  min-width:0;display:flex;align-items:center;gap:5px;
+  color:#8193ac;font-size:7.5px;font-weight:850;line-height:1.2;
+  white-space:nowrap;overflow:hidden;
+}
+.assal-owner-supplier-meta span{display:inline-flex;align-items:center;gap:3px;min-width:0;}
+.assal-owner-supplier-meta .assal-owner-supplier-meta-dot{opacity:.42;font-size:6px;}
+.assal-owner-supplier-share-inline{
+  min-width:0;display:grid;grid-template-columns:minmax(48px,1fr) auto;
+  align-items:center;gap:6px;margin-top:1px;
+}
+.assal-owner-supplier-share-track{
+  height:3px;border-radius:99px;background:rgba(148,163,184,.10);overflow:hidden;
+}
+.assal-owner-supplier-share-fill{
+  height:100%;border-radius:inherit;
+  background:linear-gradient(90deg,#38bdf8,#a78bfa,#fb7185);
+}
+.assal-owner-supplier-share-text{
+  color:#60738d;font-size:6.9px;font-weight:900;white-space:nowrap;
+}
+.assal-owner-supplier-account{
+  min-width:116px;text-align:left;align-self:center;direction:rtl;
+  display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;
+}
+.assal-owner-supplier-balance-label{
+  display:block;color:#64748b;font-size:6.8px;font-weight:900;line-height:1.1;
+}
+.assal-owner-supplier-balance{
+  display:block;color:#fff;font-size:11.7px;font-weight:950;line-height:1.3;
+  font-variant-numeric:tabular-nums;white-space:nowrap;direction:ltr;text-align:left;
+}
+.assal-owner-supplier-delta{
+  display:inline-flex;align-items:center;justify-content:center;gap:3px;
+  margin-top:2px;padding:2px 5px;border-radius:999px;
+  font-size:6.8px;font-weight:950;line-height:1.25;white-space:nowrap;
+}
+.assal-owner-supplier-delta.up{
+  color:#fecaca;background:rgba(127,29,29,.18);border:1px solid rgba(248,113,113,.13)
+}
+.assal-owner-supplier-delta.down{
+  color:#bbf7d0;background:rgba(6,95,70,.18);border:1px solid rgba(52,211,153,.13)
+}
+.assal-owner-supplier-delta.same,.assal-owner-supplier-delta.first{
+  color:#cbd5e1;background:rgba(51,65,85,.20);border:1px solid rgba(148,163,184,.11)
+}
+.assal-owner-supplier-detail-back{height:34px;padding:0 10px;border-radius:11px;border:1px solid rgba(125,211,252,.15);background:#111d35;color:#dbeafe;font-family:inherit;font-size:9px;font-weight:950;display:inline-flex;align-items:center;gap:6px;cursor:pointer;}
+.assal-owner-supplier-detail-hero{padding:13px;border-radius:20px;border:1px solid rgba(251,113,133,.17);background:radial-gradient(300px 160px at 100% 0%,rgba(190,24,93,.14),transparent 70%),linear-gradient(180deg,#111c33,#091327);box-shadow:0 12px 28px rgba(0,0,0,.16);}
+.assal-owner-supplier-detail-head{display:grid;grid-template-columns:50px minmax(0,1fr);align-items:center;gap:10px;}
+.assal-owner-supplier-detail-name{min-width:0;color:#f8fafc;font-size:13.5px;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.assal-owner-supplier-detail-kicker{display:block;margin-bottom:2px;color:#fda4af;font-size:7.8px;font-weight:900;}
+.assal-owner-supplier-detail-balance-label{display:block;margin-top:10px;color:#8294ac;font-size:8.1px;font-weight:900;}
+.assal-owner-supplier-detail-balance{display:block;margin-top:3px;color:#fff;font-size:clamp(20px,5.4vw,30px);font-weight:950;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}.assal-owner-supplier-detail-asof{display:flex;align-items:center;gap:5px;margin-top:5px;color:#8fa2bb;font-size:8.8px;font-weight:850;}
+.assal-owner-supplier-detail-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:9px;}.assal-owner-supplier-detail-stat{padding:8px;border-radius:13px;background:rgba(2,6,23,.30);border:1px solid rgba(148,163,184,.09);min-width:0;}.assal-owner-supplier-detail-stat span{display:block;color:#8294ac;font-size:7.8px;font-weight:850;}.assal-owner-supplier-detail-stat b{display:block;margin-top:4px;color:#eaf2ff;font-size:9.8px;font-weight:950;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}
+.assal-owner-supplier-period{padding:10px;border-radius:18px;border:1px solid rgba(148,163,184,.12);background:rgba(8,18,37,.72);}.assal-owner-supplier-period-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;}.assal-owner-supplier-period-head b{color:#f8fafc;font-size:11px;font-weight:950;}.assal-owner-supplier-period-head span{color:#7488a5;font-size:8px;font-weight:850;white-space:nowrap;}
+.assal-owner-supplier-timeline{display:grid;gap:5px;}.assal-owner-supplier-move{display:grid;grid-template-columns:76px minmax(0,1fr) auto;align-items:center;gap:7px;padding:7px 8px;border-radius:12px;background:rgba(2,6,23,.28);border:1px solid rgba(148,163,184,.08);}.assal-owner-supplier-move-date{color:#94a3b8;font-size:8px;font-weight:900;white-space:nowrap;}.assal-owner-supplier-move-balance{min-width:0;color:#f8fafc;font-size:9.4px;font-weight:950;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}.assal-owner-supplier-move .assal-owner-supplier-delta{margin-top:0;}
+.assal-owner-supplier-archive{display:grid;gap:6px;}.assal-owner-supplier-archive-card{border-radius:15px;border:1px solid rgba(148,163,184,.11);background:linear-gradient(180deg,rgba(17,28,51,.86),rgba(9,19,39,.86));overflow:hidden;}.assal-owner-supplier-archive-toggle{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 10px;border:0;background:transparent;color:inherit;text-align:right;font-family:inherit;cursor:pointer;}.assal-owner-supplier-archive-title b{display:block;color:#eaf2ff;font-size:10.3px;font-weight:950;}.assal-owner-supplier-archive-title span{display:block;margin-top:3px;color:#7488a5;font-size:7.8px;font-weight:800;}.assal-owner-supplier-archive-side{text-align:left;}.assal-owner-supplier-archive-side b{display:block;font-size:9.3px;font-weight:950;}.assal-owner-supplier-archive-side span{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:3px;color:#64748b;font-size:7.5px;font-weight:850;}.assal-owner-supplier-archive-card.open>.assal-owner-supplier-archive-toggle .fa-chevron-down{transform:rotate(180deg);}.assal-owner-supplier-archive-body{display:none;padding:0 8px 8px;}.assal-owner-supplier-archive-card.open>.assal-owner-supplier-archive-body{display:grid;gap:5px;}.assal-owner-supplier-year-months{display:grid;gap:5px;}
+.assal-owner-supplier-empty{padding:32px 13px;text-align:center;border-radius:18px;border:1px dashed rgba(148,163,184,.16);color:#8fa2bb;font-size:10px;font-weight:800;line-height:1.9;}.assal-owner-supplier-empty i{display:block;margin-bottom:8px;color:#fb7185;font-size:24px;}
+.assal-owner-supplier-baseline{padding:8px 9px;border-radius:12px;background:rgba(14,116,144,.10);border:1px solid rgba(34,211,238,.10);color:#a5f3fc;font-size:8.4px;font-weight:850;line-height:1.65;}
+@media(min-width:700px){.assal-owner-supplier-list{grid-template-columns:repeat(2,minmax(0,1fr));}.assal-owner-supplier-stats,.assal-owner-supplier-detail-stats{grid-template-columns:repeat(4,minmax(0,1fr));}}
+@media(max-width:430px){.assal-owner-supplier-wrap{gap:8px}.assal-owner-supplier-overview{padding:11px;border-radius:18px}.assal-owner-supplier-card{grid-template-columns:40px minmax(0,1fr) minmax(104px,auto);gap:7px;padding:9px 9px;border-radius:15px}.assal-owner-supplier-card>.assal-owner-supplier-logo{width:39px;height:39px;border-radius:13px}.assal-owner-supplier-account{min-width:104px}.assal-owner-supplier-balance{font-size:10.2px}.assal-owner-supplier-balance-label{font-size:6.5px}.assal-owner-supplier-meta{gap:4px;font-size:6.8px}.assal-owner-supplier-name{font-size:11.5px}.assal-owner-supplier-share-text{font-size:6.4px}.assal-owner-supplier-delta{font-size:6.3px;padding:2px 4px}.assal-owner-supplier-move{grid-template-columns:68px minmax(0,1fr);}.assal-owner-supplier-move>.assal-owner-supplier-delta{grid-column:2;justify-self:start}.assal-owner-supplier-overview-date{font-size:7.6px}.assal-owner-supplier-insight{grid-template-columns:1fr}.assal-owner-supplier-insight b{white-space:normal}.assal-owner-supplier-detail-hero{padding:11px;border-radius:17px}.assal-owner-supplier-period{padding:8px;border-radius:15px}}
+</style>
+
 <script id="assal-owner-readonly-hub-final-script">
 (function(){
   'use strict';
   if(window.__ASSAL_OWNER_READONLY_HUB_FINAL__) return;
   window.__ASSAL_OWNER_READONLY_HUB_FINAL__ = true;
 
-  var ui={view:'home',dailyDay:'',dailyQuery:'',dailySearchMode:'customer',financeDay:'',financeQuery:'',financeFilter:'all',attendanceDay:'',expanded:new Set(),observer:null,headerObserver:null,headerGuardTimer:0};
+  var ui={view:'home',dailyDay:'',dailyQuery:'',dailySearchMode:'customer',financeDay:'',financeQuery:'',financeFilter:'all',attendanceDay:'',supplierKey:'',supplierExpandedMonths:new Set(),supplierExpandedYears:new Set(),expanded:new Set(),observer:null,headerObserver:null,headerGuardTimer:0};
   function byId(id){return document.getElementById(id);}
   function esc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
   function num(v){if(v==null)return 0;if(typeof v==='number')return isFinite(v)?v:0;var n=Number(String(v).replace(/[\u0660-\u0669]/g,function(c){return String(c.charCodeAt(0)-0x0660);}).replace(/[\u06F0-\u06F9]/g,function(c){return String(c.charCodeAt(0)-0x06F0);}).replace(/[^\d.\-]/g,''));return isFinite(n)?n:0;}
@@ -46183,11 +46442,12 @@ body.assal-owner-exclusive > #modal.active{
     var back=document.createElement('button');back.id='assalOwnerHubBack';back.type='button';back.className='assal-owner-action hub-back';back.title='العودة إلى لوحة المالك';back.innerHTML='<i class="fa-solid fa-house"></i><span>الرئيسية</span>';actions.insertBefore(back,actions.firstChild);
     var home=document.createElement('main');home.id='assalOwnerHome';home.className='assal-owner-hub-view';home.innerHTML=
       '<div class="assal-owner-home-wrap">'+
-        '<section class="assal-owner-home-intro"><b>مركز متابعة مكتب عسل</b><span>وصول سريع إلى الديون والبطاقات اليومية والحسابات المالية وكشف الحضور، بجميع الأقسام بوضع اطلاع آمن فقط.</span><div class="assal-owner-home-status"><em>واجهة قراءة فقط</em><span id="assalOwnerHomeUpdated">آخر تحديث: —</span></div></section>'+
+        '<section class="assal-owner-home-intro"><b>مركز متابعة مكتب عسل</b><span>وصول سريع إلى الديون والبطاقات اليومية والحسابات المالية وذمم الموردين وكشف الحضور، بجميع الأقسام بوضع اطلاع آمن فقط.</span><div class="assal-owner-home-status"><em>واجهة قراءة فقط</em><span id="assalOwnerHomeUpdated">آخر تحديث: —</span></div></section>'+
         '<section class="assal-owner-home-grid">'+
           '<button type="button" class="assal-owner-home-card debts" data-owner-section="debts"><span class="assal-owner-home-icon"><i class="fa-solid fa-users-viewfinder"></i></span><span class="assal-owner-home-copy"><strong>متابعة الديون</strong><small>الذمم، البحث الذكي وكشف حساب الزبائن</small></span><span class="assal-owner-home-metric"><b id="assalOwnerHomeDebtMetric">—</b><span id="assalOwnerHomeDebtSub">الديون الحالية</span></span><i class="fa-solid fa-chevron-left assal-owner-home-arrow"></i></button>'+
           '<button type="button" class="assal-owner-home-card daily" data-owner-section="daily"><span class="assal-owner-home-icon"><i class="fa-solid fa-calendar-days"></i></span><span class="assal-owner-home-copy"><strong>بطاقات الديون اليومية</strong><small>عرض بطاقات اليوم والمواد وتفاصيلها</small></span><span class="assal-owner-home-metric"><b id="assalOwnerHomeDailyMetric">—</b><span>بطاقات اليوم</span></span><i class="fa-solid fa-chevron-left assal-owner-home-arrow"></i></button>'+
           '<button type="button" class="assal-owner-home-card finance" data-owner-section="finance"><span class="assal-owner-home-icon"><i class="fa-solid fa-money-bill-transfer"></i></span><span class="assal-owner-home-copy"><strong>متابعة التسديدات</strong><small>التسديدات والسحوبات في الحسابات المالية</small></span><span class="assal-owner-home-metric"><b id="assalOwnerHomeFinanceMetric">—</b><span>تسديدات اليوم</span></span><i class="fa-solid fa-chevron-left assal-owner-home-arrow"></i></button>'+
+          '<button type="button" class="assal-owner-home-card suppliers" data-owner-section="suppliers"><span class="assal-owner-home-icon"><i class="fa-solid fa-building-columns"></i></span><span class="assal-owner-home-copy"><strong>ذمم الموردين</strong><small>التزامات مكتب عسل للمجهزين وسجلها التاريخي</small></span><span class="assal-owner-home-metric"><b id="assalOwnerHomeSupplierMetric">—</b><span id="assalOwnerHomeSupplierSub">الموردون</span></span><i class="fa-solid fa-chevron-left assal-owner-home-arrow"></i></button>'+
           '<button type="button" class="assal-owner-home-card attendance" data-owner-section="attendance"><span class="assal-owner-home-icon"><i class="fa-solid fa-user-check"></i></span><span class="assal-owner-home-copy"><strong>كشف الحضور</strong><small>حضور الموظفين وحالات اليوم</small></span><span class="assal-owner-home-metric"><b id="assalOwnerHomeAttendanceMetric">—</b><span>اكتمال اليوم</span></span><i class="fa-solid fa-chevron-left assal-owner-home-arrow"></i></button>'+
         '</section>'+
       '</div>';
@@ -46210,6 +46470,7 @@ body.assal-owner-exclusive > #modal.active{
         '</section>'+
         '<section id="assalOwnerFinanceSummary" class="assal-owner-mini-summary"></section><section id="assalOwnerFinanceList" class="assal-owner-finance-list"></section>'+
       '</div>';
+    var suppliers=document.createElement('main');suppliers.id='assalOwnerSupplierView';suppliers.className='assal-owner-hub-view';suppliers.innerHTML='<div class="assal-owner-supplier-wrap" id="assalOwnerSupplierContent"><div class="assal-owner-supplier-empty"><i class="fa-solid fa-building-columns"></i>جاري تجهيز ذمم الموردين…</div></div>';
     var attendance=document.createElement('main');attendance.id='assalOwnerAttendanceView';attendance.className='assal-owner-hub-view';attendance.innerHTML=
       '<div class="assal-owner-section-wrap">'+
         '<section class="assal-owner-section-toolbar">'+
@@ -46219,7 +46480,7 @@ body.assal-owner-exclusive > #modal.active{
         '<section id="assalOwnerAttendanceSummary" class="assal-owner-mini-summary assal-owner-attendance-summary"></section><section id="assalOwnerAttendanceList" class="assal-owner-attendance-list"></section>'+
       '</div>';
     var photoModal=document.createElement('div');photoModal.id='assalOwnerAttendancePhotoModal';photoModal.className='assal-owner-photo-modal';photoModal.setAttribute('aria-hidden','true');photoModal.innerHTML='<div class="assal-owner-photo-card" role="dialog" aria-modal="true" aria-label="صورة الحضور"><div class="assal-owner-photo-head"><span id="assalOwnerAttendancePhotoTitle">صورة الحضور</span><button type="button" class="assal-owner-photo-close" data-owner-photo-close aria-label="إغلاق"><i class="fa-solid fa-xmark"></i></button></div><img id="assalOwnerAttendancePhotoImage" alt="صورة الحضور"><div class="assal-owner-photo-meta" id="assalOwnerAttendancePhotoMeta"></div></div>';
-    var body=byId('assalOwnerBody');shell.insertBefore(home,body||shell.children[1]||null);shell.insertBefore(daily,body||null);shell.insertBefore(finance,body||null);shell.insertBefore(attendance,body||null);root.appendChild(photoModal);
+    var body=byId('assalOwnerBody');shell.insertBefore(home,body||shell.children[1]||null);shell.insertBefore(daily,body||null);shell.insertBefore(finance,body||null);shell.insertBefore(suppliers,body||null);shell.insertBefore(attendance,body||null);root.appendChild(photoModal);
     bindHub(root);
     observeOwnerUpdates();
     installHeaderGuard();
@@ -46232,6 +46493,7 @@ body.assal-owner-exclusive > #modal.active{
     var title='لوحة مالك مكتب عسل',sub='مركز المتابعة والاطلاع • قراءة فقط',compact=false;
     if(ui.view==='daily'){title='بطاقات الديون اليومية';sub='عرض البطاقات والمواد حسب اليوم';var d=byId('assalOwnerDailyView');compact=!!(d&&d.scrollTop>8);}
     if(ui.view==='finance'){title='متابعة التسديدات';sub='الحسابات المالية • عرض فقط';var f=byId('assalOwnerFinanceView');compact=!!(f&&f.scrollTop>8);}
+    if(ui.view==='suppliers'){title='ذمم الموردين';sub='التزامات على مكتب عسل • سجل محاسبي تاريخي';var s=byId('assalOwnerSupplierView');compact=!!(s&&s.scrollTop>8);}
     if(ui.view==='attendance'){title='كشف الحضور';sub='حضور الموظفين • عرض فقط';var a=byId('assalOwnerAttendanceView');compact=!!(a&&a.scrollTop>8);}
     root.classList.toggle('assal-owner-header-compact',compact);
     setHeader(title,sub);
@@ -46248,23 +46510,98 @@ body.assal-owner-exclusive > #modal.active{
   }
   function showView(view){
     var root=ensureHub();if(!root)return;
-    view=['home','debts','daily','finance','attendance'].indexOf(view)>=0?view:'home';ui.view=view;root.setAttribute('data-owner-view',view);root.classList.remove('assal-owner-header-compact');
+    view=['home','debts','daily','finance','suppliers','attendance'].indexOf(view)>=0?view:'home';ui.view=view;root.setAttribute('data-owner-view',view);root.classList.remove('assal-owner-header-compact');
     if(view==='home'){setHeader('لوحة مالك مكتب عسل','مركز المتابعة والاطلاع • قراءة فقط');renderHome();var h=byId('assalOwnerHome');if(h)h.scrollTop=0;}
     if(view==='debts'){setHeader('متابعة الديون','الذمم وكشوف حساب الزبائن');var d=byId('assalOwnerBody');if(d&&d.scrollTop>8)root.classList.add('assal-owner-header-compact');}
     if(view==='daily'){setHeader('بطاقات الديون اليومية','عرض البطاقات والمواد حسب اليوم');renderDaily();var dv=byId('assalOwnerDailyView');if(dv)dv.scrollTop=0;}
     if(view==='finance'){setHeader('متابعة التسديدات','الحسابات المالية • عرض فقط');renderFinance();var fv=byId('assalOwnerFinanceView');if(fv)fv.scrollTop=0;}
+    if(view==='suppliers'){setHeader('ذمم الموردين','التزامات على مكتب عسل • سجل محاسبي تاريخي');renderSuppliers();var sv=byId('assalOwnerSupplierView');if(sv)sv.scrollTop=0;}
     if(view==='attendance'){setHeader('كشف الحضور','حضور الموظفين • عرض فقط');renderAttendance();var av=byId('assalOwnerAttendanceView');if(av)av.scrollTop=0;}
   }
 
+  function compactMoney(v){var n=Math.round(Number(v||0)),a=Math.abs(n),sign=n<0?'-':'';if(a>=1000000000)return sign+(a/1000000000).toLocaleString('en-US',{maximumFractionDigits:1})+' مليار د.ع';if(a>=1000000)return sign+(a/1000000).toLocaleString('en-US',{maximumFractionDigits:1})+' مليون د.ع';return money(n);}
+  function supplierSnapshot(){try{var api=window.ASSAL_OWNER_SUPPLIER_DEBTS_API;if(api&&typeof api.snapshot==='function')return api.snapshot()||{current:[],history:{},loaded:false};}catch(_){ }return {current:[],history:{},loaded:false};}
   function renderHome(){
     var rows=debtRows(),total=rows.reduce(function(s,r){return s+Number(r.debt||0);},0),today=localISO(new Date());
     var cards=cardsFrom(currentDays()[today]).filter(function(c){return c&&!c.deletedAt&&activeLines(c).length;});
     var pays=(Array.isArray(paymentStore()[today])?paymentStore()[today]:[]).filter(function(r){return r&&!r.deletedAt;});
     var paid=pays.filter(function(r){return paymentKind(r)==='تسديد';}).reduce(function(s,r){return s+Math.max(0,num(r.amount));},0);
+    var suppliers=supplierSnapshot(),supplierTotal=(suppliers.current||[]).reduce(function(s,r){return s+Number(r.balance||0);},0);
     var att=attendanceState(),attRec=(att.days&&att.days[today])||{},attMap=attRec.employees||{},attNames=attendanceNames(attMap),attDone=attNames.filter(function(name){return attendanceStatus(attMap[name]).key!=='absent';}).length;
-    var debtMetric=byId('assalOwnerHomeDebtMetric'),debtSub=byId('assalOwnerHomeDebtSub'),dailyMetric=byId('assalOwnerHomeDailyMetric'),finMetric=byId('assalOwnerHomeFinanceMetric'),attMetric=byId('assalOwnerHomeAttendanceMetric'),updated=byId('assalOwnerHomeUpdated'),src=byId('assalOwnerUpdated');
-    if(debtMetric)debtMetric.textContent=money(total);if(debtSub)debtSub.textContent=rows.length+' زبون مدين';if(dailyMetric)dailyMetric.textContent=String(cards.length);if(finMetric)finMetric.textContent=money(paid);if(attMetric)attMetric.textContent=attDone+'/'+attNames.length;if(updated)updated.textContent=src?src.textContent:'آخر تحديث: —';
+    var debtMetric=byId('assalOwnerHomeDebtMetric'),debtSub=byId('assalOwnerHomeDebtSub'),dailyMetric=byId('assalOwnerHomeDailyMetric'),finMetric=byId('assalOwnerHomeFinanceMetric'),supplierMetric=byId('assalOwnerHomeSupplierMetric'),supplierSub=byId('assalOwnerHomeSupplierSub'),attMetric=byId('assalOwnerHomeAttendanceMetric'),updated=byId('assalOwnerHomeUpdated'),src=byId('assalOwnerUpdated');
+    if(debtMetric)debtMetric.textContent=money(total);if(debtSub)debtSub.textContent=rows.length+' زبون مدين';if(dailyMetric)dailyMetric.textContent=String(cards.length);if(finMetric)finMetric.textContent=money(paid);if(supplierMetric)supplierMetric.textContent=compactMoney(supplierTotal);if(supplierSub)supplierSub.textContent=(suppliers.current||[]).length+' مورد';if(attMetric)attMetric.textContent=attDone+'/'+attNames.length;if(updated)updated.textContent=src?src.textContent:'آخر تحديث: —';
   }
+
+  function supplierLogoSeed(key,name){
+    var s=String(key||name||'supplier'),h=0;
+    for(var i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;
+    return Math.abs(h);
+  }
+  function supplierLogoTone(key,name){
+    return supplierLogoSeed('tone|'+String(key||''),name)%6;
+  }
+  function supplierLogoIconIndex(key,name){
+    return supplierLogoSeed('icon|'+String(key||name||''),name)%10;
+  }
+  function supplierLogoInnerSvg(index){
+    switch(Number(index)||0){
+      case 0: return '<rect x="13" y="10" width="22" height="28" rx="5" fill="none" stroke="var(--supplier-logo-mark)" stroke-width="2.6"/><rect x="18" y="14" width="12" height="16" rx="2.6" fill="var(--supplier-logo-mark)" opacity=".18"/><circle cx="24" cy="33.2" r="1.8" fill="var(--supplier-logo-dot)"/>';
+      case 1: return '<rect x="13" y="14" width="22" height="20" rx="5" fill="none" stroke="var(--supplier-logo-mark)" stroke-width="2.6"/><rect x="35" y="20" width="2.6" height="8" rx="1" fill="var(--supplier-logo-mark)"/><path d="M24 17 18.8 26h4.9l-1.4 5L29.2 22h-4.8l1.6-5Z" fill="var(--supplier-logo-dot)"/>';
+      case 2: return '<path d="M20 13c0-2.2 1.8-4 4-4h4v6h2.4a2.6 2.6 0 0 1 2.3 3.9l-3.4 5.9a5 5 0 0 1-4.3 2.5H24v9h-4v-9h-2.5a2.8 2.8 0 0 1-2.4-4.2l3.1-5.2a5.2 5.2 0 0 1 4.5-2.6H24v-3.2h-4Z" fill="var(--supplier-logo-mark)" opacity=".92"/><path d="M27.5 9h3.8c1.5 0 2.7 1.2 2.7 2.7V15h-6.5Z" fill="var(--supplier-logo-dot)"/>';
+      case 3: return '<rect x="15" y="15" width="18" height="18" rx="4" fill="none" stroke="var(--supplier-logo-mark)" stroke-width="2.6"/><rect x="20" y="20" width="8" height="8" rx="1.8" fill="var(--supplier-logo-dot)"/>'+
+        '<path d="M18 9v4M24 9v4M30 9v4M18 35v4M24 35v4M30 35v4M9 18h4M9 24h4M9 30h4M35 18h4M35 24h4M35 30h4" stroke="var(--supplier-logo-mark)" stroke-width="2.4" stroke-linecap="round"/>';
+      case 4: return '<rect x="12" y="16" width="24" height="18" rx="5" fill="none" stroke="var(--supplier-logo-mark)" stroke-width="2.6"/><path d="M18 16l2.2-3h7.6l2.2 3" stroke="var(--supplier-logo-mark)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="24" cy="25" r="5.2" fill="none" stroke="var(--supplier-logo-dot)" stroke-width="2.6"/><circle cx="24" cy="25" r="2" fill="var(--supplier-logo-dot)"/>';
+      case 5: return '<path d="M13.5 19.5h6l6-4v17l-6-4h-6a3 3 0 0 1-3-3v-3a3 3 0 0 1 3-3Z" fill="var(--supplier-logo-mark)"/><path d="M30.5 19c1.9 1.4 3 3.6 3 6s-1.1 4.6-3 6" stroke="var(--supplier-logo-dot)" stroke-width="2.6" stroke-linecap="round" fill="none"/><path d="M34 15c3.1 2.4 5 6.1 5 10s-1.9 7.6-5 10" stroke="var(--supplier-logo-dot)" stroke-width="2.2" stroke-linecap="round" fill="none" opacity=".9"/>';
+      case 6: return '<path d="M31.8 12.2a6.2 6.2 0 0 0-7.9 7.7L14.6 29a3.3 3.3 0 1 0 4.7 4.7l9.2-9.2a6.2 6.2 0 0 0 7.7-7.9l-4.1 4.1-4.5-4.5 4.2-4Z" fill="var(--supplier-logo-mark)"/><circle cx="17.2" cy="31.9" r="1.6" fill="var(--supplier-logo-dot)"/>';
+      case 7: return '<path d="M24 10 34.5 14v8.3c0 7-4.5 12.6-10.5 15.7C18 34.9 13.5 29.3 13.5 22.3V14Z" fill="none" stroke="var(--supplier-logo-mark)" stroke-width="2.6" stroke-linejoin="round"/><path d="m19 24.2 3.4 3.4L29.8 20" stroke="var(--supplier-logo-dot)" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>';
+      case 8: return '<path d="M17 12h14l-2.2 6h-9.6Z" fill="var(--supplier-logo-mark)"/><path d="M17.5 18h13l-1.8 4.6H19.3Z" fill="var(--supplier-logo-dot)" opacity=".96"/><path d="M20.2 22.6h7.6l-1.5 4.1h-4.6Z" fill="var(--supplier-logo-mark)"/><path d="M18 30.4h12M16.8 35h14.4" stroke="var(--supplier-logo-dot)" stroke-width="2.4" stroke-linecap="round"/>';
+      default: return '<circle cx="18" cy="24" r="2.8" fill="var(--supplier-logo-dot)"/><circle cx="30" cy="17" r="2.8" fill="var(--supplier-logo-mark)"/><circle cx="30" cy="31" r="2.8" fill="var(--supplier-logo-mark)"/><path d="M20.7 22.7 27.3 18.3M20.7 25.3 27.3 29.7" stroke="var(--supplier-logo-dot)" stroke-width="2.6" stroke-linecap="round"/>';
+    }
+  }
+  function supplierLogoSvg(name,key,large){
+    var tone=supplierLogoTone(key,name),icon=supplierLogoIconIndex(key,name);
+    return '<span class="assal-owner-supplier-logo tone-'+tone+(large?' large':'')+'" aria-hidden="true">'+
+      '<svg viewBox="0 0 48 48" focusable="false">'+
+        '<rect x="3" y="3" width="42" height="42" rx="14" fill="var(--supplier-logo-bg)"/>'+
+        '<path d="M8 33c6.8-9.1 12.7-14.1 18.1-15.6 4.2-1.2 8.4-.4 13.9 2.7V38H8Z" fill="var(--supplier-logo-mark)" opacity=".10"/>'+
+        '<circle cx="35.5" cy="12.5" r="3.8" fill="var(--supplier-logo-dot)" opacity=".28"/>'+
+        supplierLogoInnerSvg(icon)+
+      '</svg>'+
+    '</span>';
+  }
+
+  function supplierMonthKey(date){return /^\d{4}-\d{2}-\d{2}$/.test(String(date||''))?String(date).slice(0,7):'';}
+  function supplierMonthLabel(key){var m=String(key||'').match(/^(\d{4})-(\d{2})$/);if(!m)return key||'—';try{return new Date(Number(m[1]),Number(m[2])-1,1).toLocaleDateString('ar-IQ',{month:'long',year:'numeric'});}catch(_){return key;}}
+  function supplierDeltaMeta(delta,hasPrev){if(!hasPrev)return {cls:'first',icon:'fa-circle-dot',text:'بداية السجل'};var d=Math.round(Number(delta||0));if(d>0)return {cls:'up',icon:'fa-arrow-trend-up',text:'زاد '+money(d)};if(d<0)return {cls:'down',icon:'fa-arrow-trend-down',text:'نقص '+money(Math.abs(d))};return {cls:'same',icon:'fa-minus',text:'بدون تغيير'};}
+  function supplierDeltaBadge(delta,hasPrev){var m=supplierDeltaMeta(delta,hasPrev);return '<span class="assal-owner-supplier-delta '+m.cls+'"><i class="fa-solid '+m.icon+'"></i>'+esc(m.text)+'</span>';}
+  function supplierHistory(model,key){var h=model&&model.history&&model.history[key];return h&&Array.isArray(h.snapshots)?h.snapshots.slice().sort(function(a,b){return String(a.date).localeCompare(String(b.date));}):[];}
+  function supplierSnapshotIndex(snaps,date){for(var i=0;i<snaps.length;i++)if(String(snaps[i].date||'')===String(date||''))return i;return snaps.length-1;}
+  function supplierPeriodStats(snaps,prefix){var indexes=[];for(var i=0;i<snaps.length;i++){if(String(snaps[i].date||'').indexOf(prefix)===0)indexes.push(i);}if(!indexes.length){var before=-1;for(var j=0;j<snaps.length;j++){if(String(snaps[j].date||'')<prefix)before=j;}var carry=before>=0?Number(snaps[before].balance||0):0;return {indexes:[],count:0,opening:carry,closing:carry,net:0,increases:0,decreases:0};}var first=indexes[0],last=indexes[indexes.length-1],opening=first>0?Number(snaps[first-1].balance||0):Number(snaps[first].balance||0),inc=0,dec=0;indexes.forEach(function(idx){if(idx<=0)return;var d=Number(snaps[idx].balance||0)-Number(snaps[idx-1].balance||0);if(d>0)inc+=d;else if(d<0)dec+=Math.abs(d);});var closing=Number(snaps[last].balance||0);return {indexes:indexes,count:indexes.length,opening:opening,closing:closing,net:closing-opening,increases:inc,decreases:dec};}
+  function supplierTimelineHtml(snaps,indexes){if(!indexes.length)return '<div class="assal-owner-supplier-baseline"><i class="fa-solid fa-circle-info"></i> لا توجد تحديثات مسجلة داخل هذه الفترة؛ يبقى آخر رصيد سابق هو الرصيد المرحّل.</div>';return '<div class="assal-owner-supplier-timeline">'+indexes.slice().reverse().map(function(idx){var s=snaps[idx],hasPrev=idx>0,delta=hasPrev?Number(s.balance||0)-Number(snaps[idx-1].balance||0):0;return '<div class="assal-owner-supplier-move"><span class="assal-owner-supplier-move-date">'+esc(fmtDate(s.date))+'</span><b class="assal-owner-supplier-move-balance">'+esc(money(s.balance))+'</b>'+supplierDeltaBadge(delta,hasPrev)+'</div>';}).join('')+'</div>';}
+  function supplierMonthArchiveHtml(snaps,key,supplierKey,nested){var st=supplierPeriodStats(snaps,key),open=ui.supplierExpandedMonths.has(supplierKey+'|'+key),d=supplierDeltaMeta(st.net,true);return '<article class="assal-owner-supplier-archive-card '+(open?'open':'')+'"><button type="button" class="assal-owner-supplier-archive-toggle" data-owner-supplier-month="'+esc(encodeURIComponent(supplierKey+'|'+key))+'"><span class="assal-owner-supplier-archive-title"><b>'+esc(supplierMonthLabel(key))+'</b><span>'+st.count+' تحديث • إغلاق '+esc(money(st.closing))+'</span></span><span class="assal-owner-supplier-archive-side"><b class="'+d.cls+'">'+esc((st.net>0?'+':'')+money(st.net))+'</b><span>فتح التفاصيل <i class="fa-solid fa-chevron-down"></i></span></span></button><div class="assal-owner-supplier-archive-body">'+supplierTimelineHtml(snaps,st.indexes)+'</div></article>';}
+  function renderSupplierList(model,content){var current=(model.current||[]).slice(),total=current.reduce(function(s,r){return s+Number(r.balance||0);},0),today=localISO(new Date()),month=today.slice(0,7),inc=0,dec=0,net=0,maxDate='',highest=null;
+    current.forEach(function(r){if(!highest||Number(r.balance||0)>Number(highest.balance||0))highest=r;if(r.date&&r.date>maxDate)maxDate=r.date;var snaps=supplierHistory(model,r.key),st=supplierPeriodStats(snaps,month);inc+=st.increases;dec+=st.decreases;net+=st.net;});
+    current.sort(function(a,b){return Number(b.balance||0)-Number(a.balance||0)||String(a.name).localeCompare(String(b.name),'ar');});
+    var netMeta=supplierDeltaMeta(net,true);
+    var html='<section class="assal-owner-supplier-overview"><div class="assal-owner-supplier-overview-head"><div class="assal-owner-supplier-overview-copy"><span><i class="fa-solid fa-building-columns"></i>إجمالي ذمم الموردين</span><b>'+esc(money(total))+'</b></div><span class="assal-owner-supplier-overview-date">آخر تاريخ '+esc(maxDate?fmtDate(maxDate):'—')+'</span></div><div class="assal-owner-supplier-stats"><div class="assal-owner-supplier-stat"><span>عدد الموردين</span><b>'+current.length+'</b></div><div class="assal-owner-supplier-stat up"><span>زيادات هذا الشهر</span><b>'+esc(money(inc))+'</b></div><div class="assal-owner-supplier-stat down"><span>تخفيضات هذا الشهر</span><b>'+esc(money(dec))+'</b></div><div class="assal-owner-supplier-stat '+netMeta.cls+'"><span>صافي تغير الشهر</span><b>'+esc((net>0?'+':'')+money(net))+'</b></div></div><div class="assal-owner-supplier-insight"><span><i class="fa-solid fa-chart-pie"></i> أعلى ذمة حالياً: <b>'+(highest?esc(highest.name):'—')+'</b></span><b>'+(highest?esc(money(highest.balance)):'—')+'</b></div></section>';
+    html+='<div class="assal-owner-supplier-section-head"><div><b>الموردون الحاليون</b><span>مرتّبون حسب قيمة الذمة • اضغط المورد لفتح كشفه التاريخي</span></div><span class="assal-owner-supplier-count">'+current.length+' مورد</span></div>';
+    if(!current.length){html+='<div class="assal-owner-supplier-empty"><i class="fa-solid fa-table-list"></i>لا توجد بيانات في شيت BAG-DEBTS حالياً.<br>أضف الاسم والرصيد والتاريخ ثم اضغط تحديث السيرفر.</div>';content.innerHTML=html;return;}
+    html+='<section class="assal-owner-supplier-list">'+current.map(function(r){var snaps=supplierHistory(model,r.key),idx=supplierSnapshotIndex(snaps,r.date),hasPrev=idx>0,delta=hasPrev?Number(snaps[idx].balance||r.balance)-Number(snaps[idx-1].balance||0):0,share=total>0?Math.max(0,Math.min(100,(Number(r.balance||0)/total)*100)):0;return '<button type="button" class="assal-owner-supplier-card" data-owner-supplier-key="'+esc(encodeURIComponent(r.key))+'">'+supplierLogoSvg(r.name,r.key,false)+'<span class="assal-owner-supplier-card-info"><span class="assal-owner-supplier-name">'+esc(r.name)+'</span><span class="assal-owner-supplier-meta"><span><i class="fa-regular fa-calendar"></i>'+esc(r.date?fmtDate(r.date):'بلا تاريخ')+'</span><span class="assal-owner-supplier-meta-dot">•</span><span><i class="fa-solid fa-clock-rotate-left"></i>'+snaps.length+' سجل</span></span><span class="assal-owner-supplier-share-inline"><span class="assal-owner-supplier-share-track"><span class="assal-owner-supplier-share-fill" style="width:'+share.toFixed(2)+'%"></span></span><span class="assal-owner-supplier-share-text">'+share.toFixed(1)+'%</span></span></span><span class="assal-owner-supplier-account"><span class="assal-owner-supplier-balance-label">الرصيد الحالي</span><b class="assal-owner-supplier-balance">'+esc(money(r.balance))+'</b>'+(hasPrev?supplierDeltaBadge(delta,true):'')+'</span></button>';}).join('')+'</section>';
+    if(!model.loaded)html+='<div class="assal-owner-supplier-baseline"><i class="fa-solid fa-cloud-arrow-down"></i> جاري تحميل الأرشيف التاريخي من حساب المالك…</div>';
+    content.innerHTML=html;
+  }
+  function renderSupplierDetail(model,current,content){var key=current.key,snaps=supplierHistory(model,key),idx=supplierSnapshotIndex(snaps,current.date);if(idx<0)idx=snaps.length-1;var hasPrev=idx>0,prev=hasPrev?Number(snaps[idx-1].balance||0):Number(current.balance||0),lastDelta=Number(current.balance||0)-prev,today=localISO(new Date()),month=today.slice(0,7),year=today.slice(0,4),mstats=supplierPeriodStats(snaps,month),ystats=supplierPeriodStats(snaps,year),modelTotal=(model.current||[]).reduce(function(s,r){return s+Number(r.balance||0);},0),share=modelTotal>0?Number(current.balance||0)/modelTotal*100:0;
+    var html='<button type="button" id="assalOwnerSupplierBackList" class="assal-owner-supplier-detail-back"><i class="fa-solid fa-arrow-right"></i>الموردون</button>';
+    html+='<section class="assal-owner-supplier-detail-hero"><div class="assal-owner-supplier-detail-head">'+supplierLogoSvg(current.name,current.key,true)+'<div><span class="assal-owner-supplier-detail-kicker">كشف ذمة المورد</span><div class="assal-owner-supplier-detail-name">'+esc(current.name)+'</div></div></div><span class="assal-owner-supplier-detail-balance-label">الرصيد الحالي المستحق</span><b class="assal-owner-supplier-detail-balance">'+esc(money(current.balance))+'</b><div class="assal-owner-supplier-detail-asof"><i class="fa-regular fa-calendar-check"></i>الرصيد حسب آخر تحديث في الشيت: '+esc(current.date?fmtDate(current.date):'بلا تاريخ')+'</div><div class="assal-owner-supplier-detail-stats"><div class="assal-owner-supplier-detail-stat"><span>الرصيد السابق</span><b>'+esc(hasPrev?money(prev):'بداية السجل')+'</b></div><div class="assal-owner-supplier-detail-stat"><span>آخر تغير</span><b>'+esc(hasPrev?((lastDelta>0?'+':'')+money(lastDelta)):'—')+'</b></div><div class="assal-owner-supplier-detail-stat"><span>صافي الشهر الحالي</span><b>'+esc((mstats.net>0?'+':'')+money(mstats.net))+'</b></div><div class="assal-owner-supplier-detail-stat"><span>حصة من إجمالي الذمم</span><b>'+share.toFixed(1)+'%</b></div></div></section>';
+    html+='<section class="assal-owner-supplier-period"><div class="assal-owner-supplier-period-head"><b>'+esc(supplierMonthLabel(month))+' • الشهر الحالي</b><span>'+mstats.count+' تحديث</span></div>'+supplierTimelineHtml(snaps,mstats.indexes)+'</section>';
+    var currentYearMonths=Array.from(new Set(snaps.map(function(s){return supplierMonthKey(s.date);}).filter(function(k){return k&&k.slice(0,4)===year&&k!==month;}))).sort().reverse();
+    if(currentYearMonths.length){html+='<div class="assal-owner-supplier-section-head"><div><b>أرشيف أشهر '+esc(year)+'</b><span>آخر حساب من كل شهر محفوظ مع تفاصيل تحديثاته</span></div></div><section class="assal-owner-supplier-archive">'+currentYearMonths.map(function(k){return supplierMonthArchiveHtml(snaps,k,key,false);}).join('')+'</section>';}
+    var years=Array.from(new Set(snaps.map(function(s){return String(s.date||'').slice(0,4);}).filter(function(y){return /^\d{4}$/.test(y)&&y!==year;}))).sort().reverse();
+    if(years.length){html+='<div class="assal-owner-supplier-section-head"><div><b>أرشيف السنوات</b><span>كل سنة مغلقة تبقى محفوظة بأشهرها وتحديثاتها</span></div></div><section class="assal-owner-supplier-archive">'+years.map(function(y){var st=supplierPeriodStats(snaps,y),open=ui.supplierExpandedYears.has(key+'|'+y),months=Array.from(new Set(snaps.filter(function(s){return String(s.date||'').slice(0,4)===y;}).map(function(s){return supplierMonthKey(s.date);}))).sort().reverse();return '<article class="assal-owner-supplier-archive-card '+(open?'open':'')+'"><button type="button" class="assal-owner-supplier-archive-toggle" data-owner-supplier-year="'+esc(encodeURIComponent(key+'|'+y))+'"><span class="assal-owner-supplier-archive-title"><b>سنة '+esc(y)+'</b><span>'+months.length+' شهر • '+st.count+' تحديث</span></span><span class="assal-owner-supplier-archive-side"><b>'+esc(money(st.closing))+'</b><span>صافي '+esc((st.net>0?'+':'')+money(st.net))+' <i class="fa-solid fa-chevron-down"></i></span></span></button><div class="assal-owner-supplier-archive-body"><div class="assal-owner-supplier-year-months">'+months.map(function(m){return supplierMonthArchiveHtml(snaps,m,key,true);}).join('')+'</div></div></article>';}).join('')+'</section>';}
+    if(snaps.length<=1)html+='<div class="assal-owner-supplier-baseline"><i class="fa-solid fa-circle-info"></i> هذا أول رصيد محفوظ لهذا المورد. عند تغيير الرصيد والتاريخ في BAG-DEBTS سيبقى هذا السجل محفوظاً وتظهر الزيادة أو النقص تلقائياً.</div>';
+    content.innerHTML=html;
+  }
+  function renderSuppliers(){var content=byId('assalOwnerSupplierContent');if(!content)return;var model=supplierSnapshot();if(ui.supplierKey){var current=(model.current||[]).find(function(r){return r.key===ui.supplierKey;});if(!current){var h=model.history&&model.history[ui.supplierKey];if(h&&h.snapshots&&h.snapshots.length){var last=h.snapshots[h.snapshots.length-1];current={key:ui.supplierKey,name:h.name,balance:last.balance,date:last.date};}else ui.supplierKey='';}if(current){renderSupplierDetail(model,current,content);return;}}renderSupplierList(model,content);}
 
   function renderDaily(){
     var day=ui.dailyDay||localISO(new Date()),date=byId('assalOwnerDailyDate');ui.dailyDay=day;if(date&&date.value!==day)date.value=day;
@@ -46359,12 +46696,16 @@ body.assal-owner-exclusive > #modal.active{
   }
   function closeAttendancePhoto(){var modal=byId('assalOwnerAttendancePhotoModal'),img=byId('assalOwnerAttendancePhotoImage');if(modal){modal.classList.remove('open');modal.setAttribute('aria-hidden','true');}if(img)img.removeAttribute('src');}
 
-  function refreshVisible(){renderHome();if(ui.view==='daily')renderDaily();if(ui.view==='finance')renderFinance();if(ui.view==='attendance')renderAttendance();}
+  function refreshVisible(){renderHome();if(ui.view==='daily')renderDaily();if(ui.view==='finance')renderFinance();if(ui.view==='suppliers')renderSuppliers();if(ui.view==='attendance')renderAttendance();}
   function bindHub(root){
     if(root.__assalOwnerHubBound)return;root.__assalOwnerHubBound=true;
     root.addEventListener('click',function(e){
-      var section=e.target&&e.target.closest?e.target.closest('[data-owner-section]'):null;if(section){showView(section.getAttribute('data-owner-section'));return;}
+      var section=e.target&&e.target.closest?e.target.closest('[data-owner-section]'):null;if(section){var sectionName=section.getAttribute('data-owner-section');if(sectionName==='suppliers'){ui.supplierKey='';ui.supplierExpandedMonths.clear();ui.supplierExpandedYears.clear();}showView(sectionName);return;}
       if(e.target&&e.target.closest&&e.target.closest('#assalOwnerHubBack')){showView('home');return;}
+      var supplierCard=e.target&&e.target.closest?e.target.closest('[data-owner-supplier-key]'):null;if(supplierCard){ui.supplierKey=decodeURIComponent(supplierCard.getAttribute('data-owner-supplier-key')||'');ui.supplierExpandedMonths.clear();ui.supplierExpandedYears.clear();renderSuppliers();var supplierView=byId('assalOwnerSupplierView');if(supplierView)supplierView.scrollTop=0;return;}
+      if(e.target&&e.target.closest&&e.target.closest('#assalOwnerSupplierBackList')){ui.supplierKey='';ui.supplierExpandedMonths.clear();ui.supplierExpandedYears.clear();renderSuppliers();var supplierListView=byId('assalOwnerSupplierView');if(supplierListView)supplierListView.scrollTop=0;return;}
+      var supplierMonth=e.target&&e.target.closest?e.target.closest('[data-owner-supplier-month]'):null;if(supplierMonth){var monthToken=decodeURIComponent(supplierMonth.getAttribute('data-owner-supplier-month')||'');if(ui.supplierExpandedMonths.has(monthToken))ui.supplierExpandedMonths.delete(monthToken);else ui.supplierExpandedMonths.add(monthToken);renderSuppliers();return;}
+      var supplierYear=e.target&&e.target.closest?e.target.closest('[data-owner-supplier-year]'):null;if(supplierYear){var yearToken=decodeURIComponent(supplierYear.getAttribute('data-owner-supplier-year')||'');if(ui.supplierExpandedYears.has(yearToken))ui.supplierExpandedYears.delete(yearToken);else ui.supplierExpandedYears.add(yearToken);renderSuppliers();return;}
       var dailyMode=e.target&&e.target.closest?e.target.closest('[data-owner-daily-mode]'):null;if(dailyMode){ui.dailySearchMode=dailyMode.getAttribute('data-owner-daily-mode')==='material'?'material':'customer';ui.expanded.clear();renderDaily();var dailyInput=byId('assalOwnerDailySearch');if(dailyInput)dailyInput.focus();return;}
       var shift=e.target&&e.target.closest?e.target.closest('[data-owner-day-shift]'):null;if(shift){ui.dailyDay=shiftDay(ui.dailyDay||localISO(new Date()),Number(shift.getAttribute('data-owner-day-shift')||0));ui.expanded.clear();renderDaily();return;}
       if(e.target&&e.target.closest&&e.target.closest('#assalOwnerDailyToday')){ui.dailyDay=localISO(new Date());ui.expanded.clear();renderDaily();return;}
@@ -46380,22 +46721,23 @@ body.assal-owner-exclusive > #modal.active{
     });
     root.addEventListener('input',function(e){if(e.target&&e.target.id==='assalOwnerDailySearch'){ui.dailyQuery=e.target.value||'';renderDaily();}if(e.target&&e.target.id==='assalOwnerFinanceSearch'){ui.financeQuery=e.target.value||'';renderFinance();}});
     root.addEventListener('change',function(e){if(e.target&&e.target.id==='assalOwnerDailyDate'){ui.dailyDay=e.target.value||localISO(new Date());ui.expanded.clear();renderDaily();}if(e.target&&e.target.id==='assalOwnerFinanceDate'){ui.financeDay=e.target.value||localISO(new Date());renderFinance();}if(e.target&&e.target.id==='assalOwnerAttendanceDate'){ui.attendanceDay=e.target.value||localISO(new Date());renderAttendance();}});
-    [['assalOwnerDailyView','daily'],['assalOwnerFinanceView','finance'],['assalOwnerAttendanceView','attendance']].forEach(function(pair){var view=byId(pair[0]);if(!view)return;view.addEventListener('scroll',function(){if(ui.view!==pair[1])return;root.classList.toggle('assal-owner-header-compact',view.scrollTop>8);},{passive:true});});
+    [['assalOwnerDailyView','daily'],['assalOwnerFinanceView','finance'],['assalOwnerSupplierView','suppliers'],['assalOwnerAttendanceView','attendance']].forEach(function(pair){var view=byId(pair[0]);if(!view)return;view.addEventListener('scroll',function(){if(ui.view!==pair[1])return;root.classList.toggle('assal-owner-header-compact',view.scrollTop>8);},{passive:true});});
     window.addEventListener('assal:payments-saved',refreshVisible);
+    window.addEventListener('assal:owner-suppliers-updated',refreshVisible);
     window.addEventListener('storage',function(e){if(!e||!e.key||e.key==='assal.payments.v1'||e.key==='assal_attendance_state_v2')refreshVisible();});
   }
   function observeOwnerUpdates(){if(ui.observer)return;var targets=[byId('assalOwnerUpdated'),byId('assalOwnerCount'),byId('assalOwnerTotal')].filter(Boolean);if(!targets.length)return;ui.observer=new MutationObserver(function(){setTimeout(refreshVisible,0);});targets.forEach(function(t){ui.observer.observe(t,{childList:true,subtree:true,characterData:true});});}
 
   var originalEnter=window.ASSAL_OWNER_ENTER;
   if(typeof originalEnter==='function'){
-    window.ASSAL_OWNER_ENTER=async function(){var ok=await originalEnter.apply(this,arguments);if(ok===true){ensureHub();ui.dailyDay=localISO(new Date());ui.financeDay=localISO(new Date());ui.attendanceDay=localISO(new Date());ui.dailyQuery='';ui.dailySearchMode='customer';ui.financeQuery='';ui.financeFilter='all';ui.expanded.clear();showView('home');setTimeout(refreshVisible,0);}return ok;};
+    window.ASSAL_OWNER_ENTER=async function(){var ok=await originalEnter.apply(this,arguments);if(ok===true){ensureHub();ui.dailyDay=localISO(new Date());ui.financeDay=localISO(new Date());ui.attendanceDay=localISO(new Date());ui.dailyQuery='';ui.dailySearchMode='customer';ui.financeQuery='';ui.financeFilter='all';ui.supplierKey='';ui.supplierExpandedMonths.clear();ui.supplierExpandedYears.clear();ui.expanded.clear();showView('home');setTimeout(refreshVisible,0);}return ok;};
   }
   var originalExit=window.ASSAL_OWNER_EXIT;
   if(typeof originalExit==='function'){
-    window.ASSAL_OWNER_EXIT=function(){var root=byId('assalOwnerPanel');if(root){root.removeAttribute('data-owner-view');root.classList.remove('assal-owner-header-compact');}ui.view='home';ui.expanded.clear();return originalExit.apply(this,arguments);};
+    window.ASSAL_OWNER_EXIT=function(){var root=byId('assalOwnerPanel');if(root){root.removeAttribute('data-owner-view');root.classList.remove('assal-owner-header-compact');}ui.view='home';ui.supplierKey='';ui.supplierExpandedMonths.clear();ui.supplierExpandedYears.clear();ui.expanded.clear();return originalExit.apply(this,arguments);};
   }
   window.ASSAL_OWNER_SHOW_HOME=function(){showView('home');};
-  window.__ASSAL_OWNER_READONLY_HUB_TEST__={showView:showView,renderHome:renderHome,renderDaily:renderDaily,renderFinance:renderFinance,renderAttendance:renderAttendance};
+  window.__ASSAL_OWNER_READONLY_HUB_TEST__={showView:showView,renderHome:renderHome,renderDaily:renderDaily,renderFinance:renderFinance,renderSuppliers:renderSuppliers,renderAttendance:renderAttendance};
 })();
 </script>
 <!-- ===== /ASSAL OWNER READ-ONLY HUB + COLORED COMPACT CARDS + ATTENDANCE FINAL ===== -->
