@@ -11473,7 +11473,7 @@ function hideCatPanel(){
 
 let __typeIdx = -1;
 
-function getTypeItems(){ return Array.from(document.querySelectorAll('#typeList .cat-item')); }
+function getTypeItems(){ return Array.from(document.querySelectorAll('#typeList .cat-item')).filter(function(el){ return !el.hidden; }); }
 
 function highlightTypeItem(){
   const items = getTypeItems();
@@ -11485,6 +11485,15 @@ function showTypePanel(){
   hideCatPanel(); // إذا مخليه
   const panel = document.getElementById('typePanel');
   if(!panel) return;
+
+  // فرع عسل لا يدخل خانة النوع أصلاً: جملة بصمت ثم الصنف مباشرة.
+  try{
+    if(typeof assalAdvanceBranchWholesaleFromCustomer === 'function' && assalAdvanceBranchWholesaleFromCustomer()){
+      panel.style.display = 'none';
+      document.querySelector('.type-wrap')?.classList.remove('open');
+      return;
+    }
+  }catch(_){ }
 
   panel.style.display = 'block';
   document.querySelector('.type-wrap')?.classList.add('open');
@@ -11947,10 +11956,85 @@ function assalIsWholesaleAllowedCustomer(rawName){
   return !!key && ASSAL_WHOLESALE_ALLOWED_BRANCH_KEYS.has(key);
 }
 
-function assalShouldBlockWholesaleAdd(customer, type){
+function assalNormalizeGuardBillType(type){
   let normalized = String(type == null ? '' : type).trim();
   try{ if(typeof normalizeBillType === 'function') normalized = normalizeBillType(normalized); }catch(_){ }
-  return normalized === 'جملة' && !assalIsWholesaleAllowedCustomer(customer);
+  return normalized;
+}
+
+/*
+  حماية نوع الفاتورة بالاتجاهين:
+  1) أي زبون عادي: ممنوع جملة (السلوك القديم محفوظ).
+  2) فروع مكتب عسل الثلاثة: جملة فقط، وممنوع أجل/نقدي/راجع أو أي نوع آخر.
+*/
+function assalShouldBlockWholesaleAdd(customer, type){
+  const normalized = assalNormalizeGuardBillType(type);
+  const isBranch = assalIsWholesaleAllowedCustomer(customer);
+
+  if(isBranch) return normalized !== 'جملة';
+  return normalized === 'جملة';
+}
+
+function assalApplyBranchWholesaleTypePanel(){
+  const customer = (document.getElementById('cust')?.value || '').trim();
+  const isBranch = assalIsWholesaleAllowedCustomer(customer);
+
+  document.querySelectorAll('#typeList .cat-item').forEach(function(item){
+    const itemType = assalNormalizeGuardBillType(item.getAttribute('data-val') || '');
+    // للفرع نخفي كل شيء عدا جملة. للزبون العادي نعيد القائمة كما كانت حرفياً.
+    item.hidden = !!(isBranch && itemType !== 'جملة');
+  });
+
+  return isBranch;
+}
+
+function assalSyncBranchWholesaleType(refreshPricing){
+  const customer = (document.getElementById('cust')?.value || '').trim();
+  const typeEl = document.getElementById('type');
+  const isBranch = assalIsWholesaleAllowedCustomer(customer);
+
+  assalApplyBranchWholesaleTypePanel();
+
+  if(isBranch && typeEl && assalNormalizeGuardBillType(typeEl.value) !== 'جملة'){
+    typeEl.value = 'جملة';
+    if(refreshPricing !== false){
+      try{ renderItemSuggestions(); }catch(_){ }
+      try{ tryFillPrice(); }catch(_){ }
+    }
+  }
+
+  return isBranch;
+}
+
+/*
+  المسار الطبيعي لفروع عسل:
+  اسم الفرع -> Enter/اختيار -> جملة بصمت -> تجاوز نوع الفاتورة -> الصنف مباشرة.
+  لا Toast، لا Confirm، ولا فتح لقائمة النوع.
+*/
+function assalAdvanceBranchWholesaleFromCustomer(){
+  const customer = (document.getElementById('cust')?.value || '').trim();
+  if(!assalIsWholesaleAllowedCustomer(customer)) return false;
+
+  const typeEl = document.getElementById('type');
+  if(typeEl) typeEl.value = 'جملة';
+
+  try{ assalApplyBranchWholesaleTypePanel(); }catch(_){ }
+  try{ hideCustSuggestions(); }catch(_){ }
+  try{ hideTypePanel(); }catch(_){ }
+  try{ if(typeof hideOrganizerPanel === 'function') hideOrganizerPanel(); }catch(_){ }
+
+  // حدث السعر/الاقتراحات بنفس سلوك اختيار "جملة" الطبيعي.
+  try{ renderItemSuggestions(); }catch(_){ }
+  try{ tryFillPrice(); }catch(_){ }
+
+  const cat = document.getElementById('cat');
+  if(cat){
+    try{ cat.focus({preventScroll:true}); }catch(_){ try{ cat.focus(); }catch(__){ } }
+    try{ cat.select?.(); }catch(_){ }
+  }
+  try{ showCatPanel(); }catch(_){ }
+
+  return true;
 }
 
 function assalWholesaleAddBlockedNow(){
@@ -11964,15 +12048,21 @@ let __assalWholesaleBlockedDialogPromise = null;
 function assalOpenWholesaleBlockedDialog(){
   if(__assalWholesaleBlockedDialogPromise) return __assalWholesaleBlockedDialogPromise;
 
-  const exactMessage = 'يرجى تحويل نوع الفاتورة من جملة إلى أجل لطفاً';
+  const customer = (document.getElementById('cust')?.value || '').trim();
+  const isBranch = assalIsWholesaleAllowedCustomer(customer);
+  const exactMessage = isBranch
+    ? 'فروع مكتب عسل مسموح لها بفاتورة جملة فقط'
+    : 'يرجى تحويل نوع الفاتورة من جملة إلى أجل لطفاً';
   let dialogPromise;
 
   try{
     if(typeof showConfirm === 'function'){
       dialogPromise = showConfirm({
         title: 'تنبيه نوع الفاتورة',
-        message: '<div class="assal-wholesale-credit-confirm-content"><div class="assal-wholesale-credit-confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><div class="assal-wholesale-credit-confirm-copy"><b>لا يمكن إضافة فاتورة جملة لهذا الزبون</b><span>' + exactMessage + '</span></div></div>',
-        okText: 'الذهاب إلى نوع الفاتورة',
+        message: isBranch
+          ? '<div class="assal-wholesale-credit-confirm-content"><div class="assal-wholesale-credit-confirm-icon"><i class="fa-solid fa-tags"></i></div><div class="assal-wholesale-credit-confirm-copy"><b>هذا الزبون أحد فروع مكتب عسل</b><span>' + exactMessage + '</span></div></div>'
+          : '<div class="assal-wholesale-credit-confirm-content"><div class="assal-wholesale-credit-confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><div class="assal-wholesale-credit-confirm-copy"><b>لا يمكن إضافة فاتورة جملة لهذا الزبون</b><span>' + exactMessage + '</span></div></div>',
+        okText: isBranch ? 'اعتماد جملة' : 'الذهاب إلى نوع الفاتورة',
         cancelText: 'إغلاق',
         danger: false,
         modalClass: 'assal-wholesale-credit-confirm'
@@ -11992,6 +12082,11 @@ function assalOpenWholesaleBlockedDialog(){
         setTimeout(function(){
           try{
             const typeEl = document.getElementById('type');
+            if(isBranch && typeEl){
+              typeEl.value = 'جملة';
+              try{ renderItemSuggestions(); }catch(_){ }
+              try{ tryFillPrice(); }catch(_){ }
+            }
             if(typeEl){
               typeEl.focus({preventScroll:true});
               typeEl.select?.();
@@ -12013,7 +12108,12 @@ function assalGuardWholesaleAddAttempt(){
   if(!assalWholesaleAddBlockedNow()) return false;
   try{ assalOpenWholesaleBlockedDialog(); }
   catch(_){
-    try{ window.alert('يرجى تحويل نوع الفاتورة من جملة إلى أجل لطفاً'); }catch(__){ }
+    try{
+      const customer = (document.getElementById('cust')?.value || '').trim();
+      window.alert(assalIsWholesaleAllowedCustomer(customer)
+        ? 'فروع مكتب عسل مسموح لها بفاتورة جملة فقط'
+        : 'يرجى تحويل نوع الفاتورة من جملة إلى أجل لطفاً');
+    }catch(__){ }
   }
   return true;
 }
@@ -14500,8 +14600,18 @@ if(isPrev || isNext){
 
   e.preventDefault();
 
-  const ni = idx + (isNext ? 1 : -1);
+  let ni = idx + (isNext ? 1 : -1);
   if(ni < 0 || ni >= order.length) return;
+
+  // حتى بالسهم للأمام: فرع عسل يتجاوز type ويذهب إلى cat.
+  if(id === 'cust' && isNext){
+    try{
+      if(typeof assalIsWholesaleAllowedCustomer === 'function' &&
+         assalIsWholesaleAllowedCustomer(document.getElementById('cust')?.value || '')){
+        if(typeof assalAdvanceBranchWholesaleFromCustomer === 'function' && assalAdvanceBranchWholesaleFromCustomer()) return;
+      }
+    }catch(_){ }
+  }
 
   const target = document.getElementById(order[ni]);
   if(!target) return;
@@ -14556,6 +14666,14 @@ if(id === 'cust'){
   if(vis) return;
   const org = document.getElementById('organizer');
   const hasOrg = (typeof assalIsValidOrganizerName === 'function') ? assalIsValidOrganizerName(org && org.value) : !!String(org && org.value || '').trim();
+
+  // إذا المنظم مكتمل والزبون فرع عسل: جملة تلقائياً وتجاوز type نهائياً.
+  if(hasOrg){
+    try{
+      if(typeof assalAdvanceBranchWholesaleFromCustomer === 'function' && assalAdvanceBranchWholesaleFromCustomer()) return;
+    }catch(_){ }
+  }
+
   const target = hasOrg ? document.getElementById('type') : org;
 
   closeOverlaysForTarget(target);
@@ -15145,6 +15263,14 @@ document.getElementById('btnAdd').onclick = async () => {
   let note = (document.getElementById('note').value || '').trim();
 
   if (!customer || !item) return;
+
+  // حارس نهائي داخل دالة الإضافة نفسها:
+  // الزبون العادي لا يقبل جملة، وفرع عسل لا يقبل إلا جملة.
+  if(typeof assalShouldBlockWholesaleAdd === 'function' && assalShouldBlockWholesaleAdd(customer, type)){
+    try{ assalOpenWholesaleBlockedDialog(); }catch(_){ }
+    return;
+  }
+
   if(window.__assalAddBusy) return;
   window.__assalAddBusy = true;
   try {
@@ -19615,7 +19741,12 @@ function renderCustSuggestions(){
     li.onclick = ()=>{
       inp.value = name;
       hideCustSuggestions();
-      // بعد الاختيار: روّح على نوع الفاتورة
+      // فرع عسل: جملة تلقائياً وتجاوز نوع الفاتورة إلى الصنف مباشرة.
+      try{
+        if(typeof assalAdvanceBranchWholesaleFromCustomer === 'function' && assalAdvanceBranchWholesaleFromCustomer()) return;
+      }catch(_){ }
+
+      // الزبون العادي يبقى على السلوك القديم: روّح على نوع الفاتورة.
       const target = document.getElementById('type');
   if(target){
     target.focus();
@@ -19650,6 +19781,9 @@ function highlightCustItem(){
 
 // فتح أثناء الكتابة/الفوكس/الضغط
 document.getElementById('cust')?.addEventListener('input',  renderCustSuggestions);
+document.getElementById('cust')?.addEventListener('input', function(){
+  try{ if(typeof assalSyncBranchWholesaleType === 'function') assalSyncBranchWholesaleType(true); }catch(_){ }
+});
 document.getElementById('btnExportDay').onclick = exportDayPDF_Vector;
 
 
@@ -19669,6 +19803,11 @@ document.getElementById('cust')?.addEventListener('keydown', (e)=>{
       e.preventDefault();
       e.stopImmediatePropagation();
       hideCustSuggestions();
+
+      // فرع عسل: جملة تلقائياً -> الصنف مباشرة، بدون إظهار type.
+      try{
+        if(typeof assalAdvanceBranchWholesaleFromCustomer === 'function' && assalAdvanceBranchWholesaleFromCustomer()) return;
+      }catch(_){ }
 
       const target = document.getElementById('type');
       if(target){
@@ -19708,6 +19847,12 @@ document.getElementById('cust')?.addEventListener('keydown', (e)=>{
     else{
       // إذا ماكو تحديد اعتبره تم → روح للنوع
       hideCustSuggestions();
+
+      // فرع عسل: جملة تلقائياً -> الصنف مباشرة.
+      try{
+        if(typeof assalAdvanceBranchWholesaleFromCustomer === 'function' && assalAdvanceBranchWholesaleFromCustomer()) return;
+      }catch(_){ }
+
       const target = document.getElementById('type');
       if(target){
         target.focus();
@@ -28590,43 +28735,108 @@ async function assalSavePaymentEdit(day,key){
   assalPaymentEditNotifySaved();
 }
 
-// ==== حذف حركة تسديد/سحب مع تأكيد ====
-async function deletePayment(idx){
-  const row = paymentsData[idx];
-  if (!row) return;
+// ==== حذف حركة تسديد/سحب — نفس سلوك نوافذ الراجع + هوية ثابتة للبحث ====
+function assalPaymentDeleteConfirmHtml(row, amount){
+  const customer = assalPaymentEditEsc(row?.cust || '—');
+  const kind = assalPaymentEditEsc(row?.kind || 'حركة');
+  const amountText = Math.max(0,Math.round(Number(amount)||0)).toLocaleString('ar-IQ');
+  const dateText = assalPaymentEditEsc(row?.date || '—');
+  const timeText = assalPaymentEditEsc(row?.time || '—');
+  const notesText = assalPaymentEditEsc(String(row?.notes || '').trim() || 'لا توجد');
 
-  const isWithdraw = (row?.kind === 'سحب');
-  const title   = isWithdraw ? 'تأكيد حذف عملية سحب' : 'تأكيد حذف عملية تسديد';
-  const amount  = Number(String(row?.amount ?? 0).replace(/[^\d.]/g,''));
-  const amtTxt  = (isFinite(amount) ? amount : 0).toLocaleString('ar-IQ');
-  const whenTxt = [row?.date, row?.time].filter(Boolean).join(' — ');
+  return '' +
+    '<div class="assal-return-pop assal-return-pop--delete-line">' +
+      '<div class="assal-return-pop__hero">' +
+        '<span class="assal-return-pop__icon"><i class="fa-solid fa-trash-can"></i></span>' +
+        '<div><div class="assal-return-pop__title">مسح الحركة المالية</div><div class="assal-return-pop__sub">تأكيد حذف الحركة المحددة من الحسابات المالية</div></div>' +
+      '</div>' +
+      '<div class="assal-return-pop__box">' +
+        'الزبون: <b>' + customer + '</b><br>' +
+        'الحركة: <span class="assal-return-pop__pill"><i class="fa-solid fa-money-bill-transfer"></i>' + kind + ' — ' + amountText + ' د.ع</span><br>' +
+        'التاريخ والوقت: <b>' + dateText + ' — ' + timeText + '</b><br>' +
+        'الملاحظات: <b>' + notesText + '</b>' +
+      '</div>' +
+      '<div class="assal-return-pop__hint"><span>لن تُمسح الحركة قبل التأكيد. اضغط Enter للتأكيد أو إلغاء للعودة.</span><span class="assal-return-pop__kbd">Enter</span></div>' +
+    '</div>';
+}
 
-  const ok = await showConfirm({
-    title,
-    message: `
-      هل تريد حذف ${isWithdraw ? 'السحب' : 'التسديد'}
-      للزبون "<strong>${row?.cust || ''}</strong>"
-      بمبلغ <strong>${amtTxt}</strong> د.ع
-      ${whenTxt ? `(<em>${whenTxt}</em>)` : ''} ؟
-    `,
-    okText: 'حذف',
-    cancelText: 'رجوع',
-    danger: true
+async function assalPaymentDeleteConfirm(row){
+  const isWithdraw = String(row?.kind || '').trim() === 'سحب';
+  const amount = assalPaymentEditAmount(row?.amount);
+
+  if(typeof showConfirm !== 'function'){
+    return window.confirm('تأكيد مسح حركة ' + (isWithdraw ? 'السحب' : 'التسديد') + '؟');
+  }
+
+  const promise = showConfirm({
+    title:isWithdraw ? 'تأكيد مسح عملية سحب' : 'تأكيد مسح عملية تسديد',
+    message:assalPaymentDeleteConfirmHtml(row,amount),
+    okText:'مسح الحركة',
+    cancelText:'إلغاء',
+    danger:false
   });
-  if (!ok) return;
 
-  // تنفيذ الحذف بعد التأكيد (تومبستون بدل الإزالة الفعلية)
-  // paymentsData.splice(idx, 1);
+  try{
+    const modal = document.getElementById('modal');
+    const okBtn = document.getElementById('modal-confirm');
+    const cancelBtn = document.getElementById('modal-cancel');
+
+    // نفس طبقة وسلوك نوافذ الراجع الحساسة:
+    // Enter للتأكيد + منع النقر خارج النافذة + نفس الهوية البصرية الحمراء للحذف.
+    if(modal) modal.classList.add('assal-return-confirm-modal','assal-action-confirm-delete-line');
+    if(okBtn){
+      okBtn.classList.remove('danger');
+      okBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i> مسح الحركة';
+    }
+    if(cancelBtn) cancelBtn.innerHTML = '<i class="fa-solid fa-xmark"></i> إلغاء';
+
+    if(typeof assalReturnConfirmWithEnter === 'function'){
+      return await assalReturnConfirmWithEnter(promise);
+    }
+    return await promise;
+  }finally{
+    if(typeof assalReturnClearConfirmDecor === 'function') assalReturnClearConfirmDecor();
+  }
+}
+
+async function deletePayment(day,key){
+  const sourceDay = getDayKey(day);
+  const stableKey = String(key || '');
+
+  // لا نعتمد index أو ترتيب نتائج البحث نهائياً.
+  const ref = assalFindPaymentRef(sourceDay,stableKey);
+  if(!ref || !ref.row || ref.row.deletedAt){
+    try{ showToast && showToast('error','تعذر العثور على الحركة المالية'); }catch(_){ }
+    return;
+  }
+
+  const beforeKey = assalPaymentStableKey(ref.row);
+  const ok = await assalPaymentDeleteConfirm(ref.row);
+  if(!ok) return;
+
+  // أعد العثور عليها بعد التأكيد حتى لا نحذف حركة أخرى إذا تغيّر العرض أو البحث.
+  const fresh = assalFindPaymentRef(sourceDay,stableKey);
+  if(!fresh || !fresh.row || fresh.row.deletedAt){
+    try{ showToast && showToast('warn','تغيّرت الحركة قبل المسح؛ لم يتم حذف أي شيء'); }catch(_){ }
+    return;
+  }
+
+  // حماية إضافية لهوية السطر قبل وضع tombstone.
+  if(assalPaymentStableKey(fresh.row) !== beforeKey && !String(fresh.row.id || fresh.row._id || '').trim()){
+    try{ showToast && showToast('warn','تغيّرت بيانات الحركة قبل المسح؛ أعد المحاولة'); }catch(_){ }
+    return;
+  }
+
   const nowIso = new Date().toISOString();
-  row.id = row.id || row._id || __paymentKey__(row); // تثبيت هوية السطر
-  row.deletedAt = nowIso;  // علامة حذف للمزامنة
-  row.updatedAt = nowIso;  // آخر تعديل
+  fresh.row.id = fresh.row.id || fresh.row._id || stableKey || assalPaymentStableKey(fresh.row);
+  fresh.row.deletedAt = nowIso;
+  fresh.row.updatedAt = nowIso;
 
-  savePayments(currentDay, paymentsData);   // تبقى مثل ما هي
+  // الحفظ يتم في يوم الحركة الأصلي، حتى لو ظهرت من بحث كل الأيام.
+  savePayments(sourceDay, fresh.arr);
   renderPaymentsRows();
 
-  // نفس أسلوب التوستات عندك
-  (typeof showToast === 'function') && showToast('error', 'تم حذف الحركة من الحسابات');
+  (typeof showToast === 'function') && showToast('error','تم حذف الحركة من الحسابات');
 }
 
 
@@ -28791,7 +29001,7 @@ function renderPaymentsRows(){
         </div>
         <div>${editActions}</div>
         <div>
-          <button type="button" class="payment-del-btn" data-idx="${paymentsData.indexOf(row)}" title="حذف الحركة" ${isEditing ? 'disabled' : ''}>
+          <button type="button" class="payment-del-btn" data-day="${dayAttr}" data-key="${keyAttr}" title="مسح الحركة" aria-label="مسح الحركة" ${isEditing ? 'disabled' : ''}>
             <i class="fa-solid fa-trash-can"></i>
           </button>
         </div>
@@ -28974,11 +29184,12 @@ function renderPaymentsRows(){
       return;
     }
 
-    // حذف
+    // مسح الحركة — يعتمد يوم الحركة + مفتاحها الثابت، لذلك يعمل أيضاً مع نتائج بحث كل الأيام.
     const delBtn = e.target.closest('.payment-del-btn');
     if(delBtn){
-      const idx = Number(delBtn.getAttribute('data-idx'));
-      deletePayment(idx);
+      const day = decodeURIComponent(delBtn.getAttribute('data-day') || '');
+      const key = decodeURIComponent(delBtn.getAttribute('data-key') || '');
+      deletePayment(day,key);
       return;
     }
 
