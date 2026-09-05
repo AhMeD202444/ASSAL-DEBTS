@@ -41008,6 +41008,7 @@ html body .card .item.assal-smart-added-item-safe-final{
 .assal-cr-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;padding:0 12px 12px}
 .assal-cr-btn{height:35px;padding:0 12px;border-radius:10px;border:1px solid transparent;font-weight:950;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px}
 .assal-cr-btn.send,.assal-cr-btn.approve{color:#fff;background:linear-gradient(135deg,#0891b2,#2563eb);border-color:rgba(125,211,252,.25)}
+.assal-cr-btn.send.is-waiting-order{color:#dbeafe;background:linear-gradient(135deg,#334155,#1e293b);border-color:rgba(148,163,184,.24);box-shadow:none}
 .assal-cr-btn.reject,.assal-cr-btn.delete{color:#ffe4e6;background:linear-gradient(135deg,#4c1d32,#6b2846);border-color:rgba(251,113,133,.24)}
 .assal-cr-btn.delete-only{color:#e2e8f0;background:linear-gradient(135deg,#334155,#1e293b);border-color:rgba(148,163,184,.24)}
 .assal-cr-btn:disabled i.fa-spinner{animation:assal-cr-spin .8s linear infinite}
@@ -41118,6 +41119,7 @@ html body .card .item.assal-smart-added-item-safe-final{
   var refreshTimer = 0;
   var activeTab = 'drafts';
   var busyIds = new Set();
+  var uncertainSendIds = new Set();
   var requestCache = [];
   var originalSave = null;
   var legacyDraftsCleared = 0;
@@ -41792,6 +41794,60 @@ html body .card .item.assal-smart-added-item-safe-final{
   }
 
 
+  /*
+   * إرسال مسودة الأدمن فقط — مسار متسلسل ومكرر بأمان:
+   * POST واحد -> تحقق بنفس Request ID -> إعادة واحدة فقط بنفس ID -> تحقق نهائي.
+   * لا يوجد POST و GET متوازيان، لذلك لا يسبق التحقق عملية التثبيت على Apps Script.
+   */
+  async function submitAdminDraftSequential(body,expected,allowedStatuses,opts){
+    opts=opts||{};
+    function stage(name){try{if(typeof opts.onStage==='function')opts.onStage(name);}catch(_){ }}
+    function fromPost(r){var j=r&&r.json||{};return {ok:true,json:j,request:j&&j.request?j.request:null,verified:false};}
+    function fromVerify(v){return {ok:true,json:null,request:v&&v.request?v.request:null,verified:true,recovered:true};}
+    function checkVerify(v){
+      if(v&&v.mismatch)throw requestTransportError('ASSAL_REQUEST_DEFINITE','تعارض في معرّف الطلب على السيرفر');
+      if(v&&v.confirmed)return fromVerify(v);
+      return null;
+    }
+
+    stage('send');
+    var firstPost=await serverPostResult('card-request-submit',body,Math.max(5000,Number(opts.postTimeout)||8000));
+    if(firstPost&&firstPost.ok)return fromPost(firstPost);
+    if(firstPost&&firstPost.definite)throw requestTransportError('ASSAL_REQUEST_DEFINITE',firstPost.message||'السيرفر رفض إرسال الطلب');
+
+    stage('verify');
+    var firstCheck=await verifyRequestState(expected,allowedStatuses,{
+      attempts:Math.max(1,Number(opts.verifyAttempts)||3),
+      firstDelay:opts.verifyFirstDelay==null?350:Number(opts.verifyFirstDelay),
+      delay:Math.max(250,Number(opts.verifyDelay)||550),
+      timeout:Math.max(1800,Number(opts.verifyTimeout)||2400)
+    });
+    var recovered=checkVerify(firstCheck);if(recovered)return recovered;
+    if(!online())throw requestTransportError('ASSAL_REQUEST_DEFINITE','لا يوجد اتصال بالإنترنت');
+
+    /* إعادة واحدة فقط بعد انتهاء محاولة الإرسال الأولى والتحقق منها؛ نفس المعرّف يمنع إنشاء طلب جديد. */
+    stage('retry');
+    await waitRequestMs(Math.max(400,Number(opts.retryDelay)||700));
+    var secondPost=await serverPostResult('card-request-submit',body,Math.max(5000,Number(opts.retryPostTimeout)||8000));
+    if(secondPost&&secondPost.ok)return fromPost(secondPost);
+    if(secondPost&&secondPost.definite)throw requestTransportError('ASSAL_REQUEST_DEFINITE',secondPost.message||'السيرفر رفض إعادة إرسال الطلب');
+
+    stage('final-verify');
+    var finalCheck=await verifyRequestState(expected,allowedStatuses,{
+      attempts:Math.max(1,Number(opts.finalVerifyAttempts)||3),
+      firstDelay:opts.finalVerifyFirstDelay==null?350:Number(opts.finalVerifyFirstDelay),
+      delay:Math.max(300,Number(opts.finalVerifyDelay)||650),
+      timeout:Math.max(1800,Number(opts.finalVerifyTimeout)||2600)
+    });
+    recovered=checkVerify(finalCheck);if(recovered)return recovered;
+
+    throw requestTransportError(
+      'ASSAL_REQUEST_UNKNOWN',
+      safe((secondPost&&secondPost.message)||(firstPost&&firstPost.message)||(finalCheck&&finalCheck.message)||'تعذر حسم وصول الطلب')
+    );
+  }
+
+
   function nextPaint(){return new Promise(function(resolve){try{requestAnimationFrame(function(){requestAnimationFrame(resolve);});}catch(_){setTimeout(resolve,0);}});}
   function ensureProgressToast(){
     var host=document.getElementById('assalCrProgressHost');
@@ -42126,18 +42182,54 @@ html body .card .item.assal-smart-added-item-safe-final{
     var beforeText=safe(rec.attendanceBeforeLabel||'');if(!beforeText){if(before&&before.__assalMissing)beforeText='لا يوجد تسجيل';else if(before.halfDay||before.status==='half-day')beforeText='دوام نصف يوم';else if(before.leave||before.status==='leave')beforeText='مجاز';else if(before.duty||before.status==='duty')beforeText='واجب';else if(before.present)beforeText='حاضر'+(before.time?' • '+before.time:'');else beforeText='لا يوجد تسجيل';}
     return '<div class="assal-cr-payment"><div class="assal-cr-payment-top"><div class="assal-cr-payment-title"><i class="fa-solid fa-circle-half-stroke"></i><span>طلب دوام نصف يوم</span></div><span class="assal-cr-payment-kind">حضور</span></div><div class="assal-cr-payment-grid"><div class="assal-cr-payment-cell"><span>الموظف</span><b>'+esc(employee)+'</b></div><div class="assal-cr-payment-cell"><span>التاريخ</span><b>'+esc(day)+'</b></div><div class="assal-cr-payment-cell assal-cr-payment-note"><span>الحالة الحالية</span><b>'+esc(beforeText)+'</b></div></div><div class="assal-cr-changes">'+changeHtml({scope:'card',field:'__attendance_half_day__',before:beforeText,after:'دوام نصف يوم'})+'</div></div>';
   }
+  function draftTargetKey(rec){
+    var card=safe(rec&&rec.cardId).trim();
+    if(card)return card;
+    var payment=safe(rec&&rec.paymentId).trim();
+    if(payment)return 'PAYMENT:'+payment;
+    /* لا نجمع المسودات ناقصة المفتاح مع بعضها؛ كل طلب بلا target واضح مستقل. */
+    return 'REQUEST:'+safe(rec&&rec.id);
+  }
+  function draftIndex(rec){
+    var rid=safe(rec&&rec.id);
+    for(var i=0;i<state.drafts.length;i++)if(safe(state.drafts[i]&&state.drafts[i].id)===rid)return i;
+    return -1;
+  }
+  function hasOlderDraftForSameTarget(rec){
+    var idx=draftIndex(rec);if(idx<=0)return false;
+    var key=draftTargetKey(rec);
+    for(var i=0;i<idx;i++){
+      var x=state.drafts[i];
+      if(safe(x&&x.id)!==safe(rec&&rec.id)&&draftTargetKey(x)===key)return true;
+    }
+    return false;
+  }
+  function draftSendState(rec){
+    var rid=safe(rec&&rec.id);
+    if(busyIds.has(rid))return 'busy';
+    if(uncertainSendIds.has(rid))return 'verify';
+    if(hasOlderDraftForSameTarget(rec))return 'waiting';
+    return 'ready';
+  }
+
   function cardHtml(rec,mode){
     var changes=Array.isArray(rec.changes)?rec.changes:summarizeOps(rec.ops||[]),isBundle=isNewCardBundle(rec),isPayment=isPaymentDraft(rec),isAttendance=isAttendanceHalfDayRequest(rec),isSingleCustomerChange=isSingleCardCustomerChangeRequest(rec),bundleOp=isBundle?cardAddOperation(rec):null,bundleCard=isBundle?(clone(rec.afterCard)||(bundleOp&&clone(bundleOp.after))||{}):null;
     var bundleLines=isBundle&&Array.isArray(bundleCard.lines)?bundleCard.lines:[],shown=changes.slice(0,8),more=Math.max(0,changes.length-shown.length),status=safe(rec.status||'draft');
     var localPending=isMain()&&status==='pending_review'&&isAppliedLocal(rec.id);if(localPending)status='approved_pending_upload';
     var cls=status==='applied'?'applied':(status==='rejected'?'rejected':(status==='conflict'?'conflict':'pending'));
-    var time=rec.sentAt||rec.createdAt||rec.updatedAt||'',isBusy=busyIds.has(safe(rec.id))||safe(activeUploadRequestId)===safe(rec.id),dis=isBusy?' disabled':'';
+    var time=rec.sentAt||rec.createdAt||rec.updatedAt||'',rid=safe(rec.id),sendState=mode==='draft'?draftSendState(rec):'ready';
+    var isBusy=busyIds.has(rid)||uncertainSendIds.has(rid)||safe(activeUploadRequestId)===rid;
+    var busyDis=isBusy?' disabled':'',sendBlocked=sendState==='waiting',sendDis=(isBusy||sendBlocked)?' disabled':'';
     var spin=isBusy?'fa-spinner fa-spin':'fa-list-check',actions='';
-    if(mode==='draft')actions=(isAttendance||isSingleCustomerChange)?'<button class="assal-cr-btn send" data-cr-send="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner fa-spin':'fa-paper-plane')+'"></i> '+(isBusy?'جاري الإرسال':'إرسال')+'</button><button class="assal-cr-btn delete-only" data-cr-dismiss-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-regular fa-trash-can"></i> حذف الطلب</button>':'<button class="assal-cr-btn send" data-cr-send="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner fa-spin':'fa-paper-plane')+'"></i> '+(isBusy?'جاري الإرسال':'إرسال')+'</button><button class="assal-cr-btn delete" data-cr-delete-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-solid fa-rotate-left"></i> '+(isBundle?'حذف البطاقة والتراجع':'حذف وإرجاع الأصل')+'</button><button class="assal-cr-btn delete-only" data-cr-dismiss-draft="'+esc(rec.id)+'"'+dis+'><i class="fa-regular fa-trash-can"></i> حذف الحركة</button>';
-    else if(mode==='admin-archive')actions='<button class="assal-cr-btn delete" data-cr-hide-archive="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner fa-spin':'fa-trash-can')+'"></i> '+(isBusy?'جاري الحذف':'حذف')+'</button>';
+    var sendIcon=sendState==='verify'?'fa-magnifying-glass fa-beat-fade':(sendState==='busy'?'fa-spinner fa-spin':(sendBlocked?'fa-hourglass-half':'fa-paper-plane'));
+    var sendLabel=sendState==='verify'?'جاري التحقق':(sendState==='busy'?'جاري الإرسال':(sendBlocked?'بانتظار الأقدم':'إرسال'));
+    var sendClass=sendBlocked?' is-waiting-order':'';
+    var sendTitle=sendBlocked?' title="أرسل أقدم تعديل لنفس البطاقة أو الحركة أولاً"':'';
+    if(mode==='draft')actions=(isAttendance||isSingleCustomerChange)?'<button type="button" class="assal-cr-btn send'+sendClass+'" data-cr-send="'+esc(rec.id)+'"'+sendTitle+sendDis+'><i class="fa-solid '+sendIcon+'"></i> '+sendLabel+'</button><button type="button" class="assal-cr-btn delete-only" data-cr-dismiss-draft="'+esc(rec.id)+'"'+busyDis+'><i class="fa-regular fa-trash-can"></i> حذف الطلب</button>':'<button type="button" class="assal-cr-btn send'+sendClass+'" data-cr-send="'+esc(rec.id)+'"'+sendTitle+sendDis+'><i class="fa-solid '+sendIcon+'"></i> '+sendLabel+'</button><button type="button" class="assal-cr-btn delete" data-cr-delete-draft="'+esc(rec.id)+'"'+busyDis+'><i class="fa-solid fa-rotate-left"></i> '+(isBundle?'حذف البطاقة والتراجع':'حذف وإرجاع الأصل')+'</button><button type="button" class="assal-cr-btn delete-only" data-cr-dismiss-draft="'+esc(rec.id)+'"'+busyDis+'><i class="fa-regular fa-trash-can"></i> حذف الحركة</button>';
+    else if(mode==='admin-archive')actions='<button type="button" class="assal-cr-btn delete" data-cr-hide-archive="'+esc(rec.id)+'"'+busyDis+'><i class="fa-solid '+(isBusy?'fa-spinner fa-spin':'fa-trash-can')+'"></i> '+(isBusy?'جاري الحذف':'حذف')+'</button>';
     else if(mode==='main-incoming'){
-      if(status==='approved_pending_upload')actions='<button class="assal-cr-btn retry '+(isBusy?'is-busy':'')+'" data-cr-retry="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+spin+'"></i> '+(isBusy?'جاري التثبيت':'إكمال التثبيت')+'</button>';
-      else actions='<button class="assal-cr-btn approve '+(isBusy?'is-busy':'')+'" data-cr-approve="'+esc(rec.id)+'"'+dis+'><i class="fa-solid '+(isBusy?'fa-spinner fa-spin':'fa-check')+'"></i> '+(isBusy?'جاري التنفيذ':'موافقة')+'</button><button class="assal-cr-btn reject" data-cr-reject="'+esc(rec.id)+'"'+dis+'><i class="fa-solid fa-xmark"></i> رفض</button>';
+      if(status==='approved_pending_upload')actions='<button type="button" class="assal-cr-btn retry '+(isBusy?'is-busy':'')+'" data-cr-retry="'+esc(rec.id)+'"'+busyDis+'><i class="fa-solid '+spin+'"></i> '+(isBusy?'جاري التثبيت':'إكمال التثبيت')+'</button>';
+      else actions='<button type="button" class="assal-cr-btn approve '+(isBusy?'is-busy':'')+'" data-cr-approve="'+esc(rec.id)+'"'+busyDis+'><i class="fa-solid '+(isBusy?'fa-spinner fa-spin':'fa-check')+'"></i> '+(isBusy?'جاري التنفيذ':'موافقة')+'</button><button type="button" class="assal-cr-btn reject" data-cr-reject="'+esc(rec.id)+'"'+busyDis+'><i class="fa-solid fa-xmark"></i> رفض</button>';
     }
     var conflict=rec.conflictNote?'<div class="assal-cr-conflict"><i class="fa-solid fa-triangle-exclamation"></i> '+esc(rec.conflictNote)+'</div>':'';
     var subtitle=esc(rec.cardDay||rec.afterDay||rec.beforeDay||'—')+' • '+esc(fmtDateTime(time))+' • '+(isAttendance?'طلب حضور':(isSingleCustomerChange?'تغيير زبون البطاقة':(isBundle?'بطاقة جديدة — '+bundleLines.length+' مادة':(isPayment?'حركة حسابات مالية':changes.length+' تغيير'))));
@@ -42150,9 +42242,9 @@ html body .card .item.assal-smart-added-item-safe-final{
     if(isAdmin()){
       root.querySelector('#assalCrTitle').textContent='طلبات التعديل — الأدمن';root.querySelector('#assalCrSub').textContent='تعديلات البطاقات والحسابات وطلبات الحضور بانتظار الإرسال';
       tabs.innerHTML='<button class="assal-cr-tab '+(activeTab==='drafts'?'active':'')+'" data-cr-tab="drafts"><i class="fa-solid fa-pen-ruler"></i> التعديلات ('+state.drafts.length+')</button><button class="assal-cr-tab '+(activeTab==='archive'?'active':'')+'" data-cr-tab="archive"><i class="fa-solid fa-box-archive"></i> الأرشيف ('+state.archive.length+')</button>';
-      var arr=activeTab==='archive'?state.archive.slice().reverse():state.drafts.slice().reverse();
+      var arr=activeTab==='archive'?state.archive.slice().reverse():state.drafts.slice();
       sum.textContent=activeTab==='archive'?'الطلبات المرسلة وحالتها الحالية':'كل تعديل محفوظ جديد يظهر هنا تلقائياً';
-      sendAll.style.display=activeTab==='drafts'?'inline-flex':'none';sendAll.disabled=!state.drafts.length;
+      sendAll.style.display=activeTab==='drafts'?'inline-flex':'none';sendAll.disabled=!state.drafts.length||busyIds.size>0||uncertainSendIds.size>0;
       list.innerHTML=arr.length?arr.map(function(x){return cardHtml(x,activeTab==='archive'?'admin-archive':'draft');}).join(''):'<div class="assal-cr-empty"><div><i class="fa-regular fa-folder-open"></i>'+(activeTab==='archive'?'لا توجد طلبات في الأرشيف حالياً':'لا توجد تعديلات جديدة بانتظار الإرسال')+'</div></div>';
     }else{
       root.querySelector('#assalCrTitle').textContent='طلبات التعديل الواردة — الحاسبة الرئيسية';root.querySelector('#assalCrSub').textContent='الموافقة تطبق التعديل محلياً ثم ترفع نسخة الرئيسية المحمية';
@@ -42248,44 +42340,94 @@ html body .card .item.assal-smart-added-item-safe-final{
     try{renderBoard();renderRail();refreshStats();showToast('info',newCardBundle?'تم حذف البطاقة الجديدة ومسودتها':'تم حذف التعديل وإرجاع القيمة الأصلية');}catch(_){ }
     renderModal();updateButton();
   }
+  function scheduleUncertainSendCheck(reqId){
+    reqId=safe(reqId);if(!reqId||uncertainSendIds.has(reqId))return;
+    uncertainSendIds.add(reqId);if(isModalOpen())renderModal();updateButton();
+    setTimeout(async function(){
+      var existedBefore=!!findDraft(reqId);
+      try{await refreshFromServer(false);}catch(_){ }
+      var stillLocal=!!findDraft(reqId);
+      uncertainSendIds.delete(reqId);
+      if(isModalOpen())renderModal();updateButton();
+      if(existedBefore&&!stillLocal){
+        try{showToast('success','تم التأكد تلقائياً من وصول طلب التعديل إلى السيرفر');}catch(_){ }
+      }else if(stillLocal){
+        try{showToast('warn','لم يظهر الطلب على السيرفر بعد التحقق؛ بقي محفوظاً محلياً ويمكن إعادة إرساله بنفس المعرّف');}catch(_){ }
+      }
+    },1200);
+  }
+
   async function sendDraft(reqId,quiet){
-    var d=findDraft(reqId);if(!d||busyIds.has(reqId))return false;
-    var older=state.drafts.some(function(x){return safe(x.cardId)===safe(d.cardId)&&new Date(x.createdAt||0)<new Date(d.createdAt||0);});
-    if(older){if(!quiet)try{showToast('warn','أرسل أقدم تعديل لهذه البطاقة أولاً');}catch(_){}return false;}
+    reqId=safe(reqId);
+    var d=findDraft(reqId);
+    if(!d){
+      if(!quiet)try{showToast('error','تعذر العثور على مسودة الطلب. حدّث نافذة الطلبات.');}catch(_){ }
+      return false;
+    }
+    if(busyIds.has(reqId)||uncertainSendIds.has(reqId)){
+      if(!quiet)try{showToast('info',uncertainSendIds.has(reqId)?'جاري التحقق من وصول هذا الطلب؛ انتظر لحظات':'هذا الطلب قيد الإرسال حالياً');}catch(_){ }
+      return false;
+    }
+    if(hasOlderDraftForSameTarget(d)){
+      if(!quiet)try{showToast('warn','يوجد تعديل أقدم لنفس البطاقة أو الحركة. أرسل الطلب الظاهر قبله أولاً.');}catch(_){ }
+      if(isModalOpen())renderModal();
+      return false;
+    }
+
     busyIds.add(reqId);
     if(isModalOpen())renderModal();
+    updateButton();
     try{
-      if(!quiet){progressSet('','إرسال طلب التعديل','تجهيز الطلب والتحقق من محتواه',18,'fa-solid fa-file-circle-check');await nextPaint();}
+      if(!quiet){progressSet('','إرسال طلب التعديل','تجهيز الطلب والتحقق من محتواه',16,'fa-solid fa-file-circle-check');await nextPaint();}
       var payload=clone(d);payload.status='pending_review';payload.sentAt=now();payload.adminEmail=ADMIN_EMAIL;
       /* النسخ الكاملة مطلوبة للإرجاع المحلي قبل الإرسال فقط؛ السيرفر يستلم العمليات الدقيقة دون تكرار البطاقة كاملة. */
       delete payload.beforeCard; delete payload.afterCard;
       delete payload.beforePayment; delete payload.afterPayment;
-      if(!quiet){progressSet('','إرسال طلب التعديل','إرسال الطلب — لا تحتاج إلى الضغط مرة أخرى',48,'fa-solid fa-paper-plane');await nextPaint();}
-      var verified=await postAndVerifyRequestReliable('card-request-submit',{version:VERSION,actorEmail:email(),request:payload},payload,['pending_review','approved_pending_upload','applied'],{
-        rounds:2,postTimeout:45000,attempts:8,firstDelay:600,verifyTimeout:4200,delay:1100,
-        settleAttempts:4,settleFirstDelay:1400,settleDelay:1800,settleVerifyTimeout:5000,retryDelay:1200,
-        onStage:function(stage,round){
-          if(quiet)return;
-          if(stage==='settle')progressSet('','إرسال طلب التعديل','تأخر الرد — جاري التأكد من وصول نفس الطلب تلقائياً',64,'fa-solid fa-magnifying-glass');
-          else if(stage==='retry'&&round===2)progressSet('','إرسال طلب التعديل','إعادة الإرسال الآمنة تلقائياً بنفس المعرّف (2/2)',74,'fa-solid fa-rotate fa-spin');
+
+      if(!quiet){progressSet('','إرسال طلب التعديل','إرسال الطلب إلى السيرفر بنفس المعرّف',42,'fa-solid fa-paper-plane');await nextPaint();}
+      var verified=await submitAdminDraftSequential(
+        {version:VERSION,actorEmail:email(),request:payload},
+        payload,
+        ['pending_review','approved_pending_upload','applied'],
+        {
+          postTimeout:8000,
+          verifyAttempts:3,verifyFirstDelay:350,verifyDelay:550,verifyTimeout:2400,
+          retryDelay:700,retryPostTimeout:8000,
+          finalVerifyAttempts:3,finalVerifyFirstDelay:350,finalVerifyDelay:650,finalVerifyTimeout:2600,
+          onStage:function(stage){
+            if(quiet)return;
+            if(stage==='verify')progressSet('','إرسال طلب التعديل','تأخر رد الإرسال — التحقق الآن من نفس Request ID',61,'fa-solid fa-magnifying-glass');
+            else if(stage==='retry')progressSet('','إرسال طلب التعديل','لم يظهر الطلب بعد — إعادة آمنة واحدة بنفس المعرّف',74,'fa-solid fa-rotate fa-spin');
+            else if(stage==='final-verify')progressSet('','إرسال طلب التعديل','التحقق النهائي من وصول نفس الطلب',86,'fa-solid fa-shield-halved');
+          }
         }
-      });
-      if(!quiet){progressSet('','إرسال طلب التعديل','تثبيت الطلب في الأرشيف المحلي',88,'fa-solid fa-box-archive');await nextPaint();}
-      var res=verified&&verified.json||{},record=(verified&&verified.request)||(res&&res.request)||payload;record.status=record.status||'pending_review';record.sentAt=record.sentAt||payload.sentAt;
-      state.drafts=state.drafts.filter(function(x){return safe(x.id)!==safe(reqId);});state.archive.push(record);schedulePersist();
+      );
+
+      if(!quiet){progressSet('','إرسال طلب التعديل','تم الوصول للسيرفر — تثبيت الطلب محلياً',92,'fa-solid fa-box-archive');await nextPaint();}
+      var res=verified&&verified.json||{},record=(verified&&verified.request)||(res&&res.request)||payload;
+      record.status=record.status||'pending_review';record.sentAt=record.sentAt||payload.sentAt;
+      state.drafts=state.drafts.filter(function(x){return safe(x.id)!==reqId;});
+      state.archive.push(record);schedulePersist();
       updateButton();if(isModalOpen())renderModal();
-      if(!quiet)progressSuccess('تم إرسال طلب التعديل','تم التأكد من نفس الطلب بدون تكرار يدوي');
+      if(!quiet)progressSuccess('تم إرسال طلب التعديل','تم تثبيت نفس الطلب بدون تكرار أو انتظار صامت');
       if(isAttendanceHalfDayRequest(record))notifyAttendanceHalfDayUi();
       if(isSingleCardCustomerChangeRequest(record))notifySingleCardCustomerChangeUi();
       return true;
     }catch(err){
       if(!quiet){
-        if(err&&err.code==='ASSAL_REQUEST_UNKNOWN')progressUnknown('تعذر حسم الإرسال','توقفت المحاولات الآمنة عند 2/2 ولم ندخل في حلقة. حدّث الطلبات قبل أي محاولة يدوية — '+safe(err&&err.message||err));
-        else progressError('فشل إرسال الطلب',safe(err&&err.message||err));
+        if(err&&err.code==='ASSAL_REQUEST_UNKNOWN'){
+          progressUnknown('الإرسال غير محسوم بعد','لم نعتبره فاشلاً ولم نحذف المسودة. جاري تحقق تلقائي من السيرفر بنفس Request ID.');
+        }else{
+          progressError('فشل إرسال الطلب',safe(err&&err.message||err));
+        }
       }
+      if(err&&err.code==='ASSAL_REQUEST_UNKNOWN')scheduleUncertainSendCheck(reqId);
       return false;
+    }finally{
+      busyIds.delete(reqId);
+      if(isModalOpen())renderModal();
+      updateButton();
     }
-    finally{busyIds.delete(reqId);if(isModalOpen())renderModal();}
   }
   async function sendAllDrafts(){
     var ids=state.drafts.map(function(x){return x.id;});if(!ids.length)return;var ok=typeof showConfirm==='function'?await showConfirm({title:'إرسال كل التعديلات',message:'سيتم إرسال '+ids.length+' طلب تعديل واحداً بعد الآخر إلى الحاسبة الرئيسية.',okText:'إرسال الكل',cancelText:'تراجع',danger:false}):true;if(!ok)return;
@@ -42490,6 +42632,7 @@ html body .card .item.assal-smart-added-item-safe-final{
   function handleListClick(e){var b=e.target.closest('button');if(!b)return;
     if(b.hasAttribute('data-cr-wholesale-toggle')){var foldId=safe(b.getAttribute('data-cr-wholesale-toggle'));if(!foldId)return;e.preventDefault();if(wholesaleRequestExpandedIds.has(foldId))wholesaleRequestExpandedIds.delete(foldId);else wholesaleRequestExpandedIds.add(foldId);renderModal();return;}
     var idv=b.getAttribute('data-cr-send')||b.getAttribute('data-cr-delete-draft')||b.getAttribute('data-cr-dismiss-draft')||b.getAttribute('data-cr-hide-archive')||b.getAttribute('data-cr-approve')||b.getAttribute('data-cr-reject')||b.getAttribute('data-cr-retry');if(!idv)return;e.preventDefault();
+    if(b.disabled){if(b.hasAttribute('data-cr-send')&&!busyIds.has(idv)&&!uncertainSendIds.has(idv))try{showToast('warn','أرسل أقدم تعديل لنفس البطاقة أو الحركة أولاً');}catch(_){ }return;}
     var task=null;if(b.hasAttribute('data-cr-send'))task=sendDraft(idv,false);else if(b.hasAttribute('data-cr-delete-draft'))task=deleteDraft(idv);else if(b.hasAttribute('data-cr-dismiss-draft'))task=dismissDraftOnly(idv);else if(b.hasAttribute('data-cr-hide-archive'))task=hideArchive(idv);else if(b.hasAttribute('data-cr-approve'))task=approveRequest(idv);else if(b.hasAttribute('data-cr-reject'))task=rejectRequest(idv);else if(b.hasAttribute('data-cr-retry'))task=retryUpload(idv);if(task&&typeof task.catch==='function')task.catch(function(err){try{console.error('[ASSAL request action]',err);}catch(_){ }});
   }
 
@@ -46964,7 +47107,7 @@ body.assal-owner-exclusive > #modal.active{
   var LOCAL_STATE_KEY='ASSAL_DEBT_TRANSFER_LOCK_STATE_V1';
   var COMMAND_BILL_TYPE='debt-transfer-lock';
   var COMMAND_FIELD='__debt_transfer_lock__';
-  var POLL_MAIN_MS=8000;
+  var POLL_MAIN_MS=2500;
   var POLL_ADMIN_IDLE_MS=30000;
   var POLL_ADMIN_FAST_MS=3000;
   var ADMIN_FAST_WINDOW_MS=90000;
@@ -46988,6 +47131,15 @@ body.assal-owner-exclusive > #modal.active{
   function email(){return safe(window.ASSAL_LOGIN_EMAIL||'').trim().toLowerCase()}
   function isAdmin(){try{return window.ASSAL_IS_ADMIN_DEBTS===true||email()===ADMIN_EMAIL}catch(_){return false}}
   function isMain(){try{return window.ASSAL_IS_MAIN_DEBTS===true||email()===MAIN_EMAIL}catch(_){return false}}
+  function storedDeviceRole(){try{var r=safe(localStorage.getItem('assal:deviceRole')).trim();return r==='main'||r==='sub'?r:''}catch(_){return ''}}
+  /* Fail-closed عند الريفرش: قبل اكتمال Firebase نثق فقط بدور الجهاز المحلي السابق،
+     وبعد ظهور إيميل الدخول تصبح صلاحية الحساب الفعلية هي الحاسمة. */
+  function isMainLockRole(){
+    if(isMain())return true;
+    var e=email();if(e)return false;
+    return storedDeviceRole()==='main';
+  }
+  function isAuthorizedLockRole(){return isAdmin()||isMainLockRole()}
   function isAuthorized(){return isAdmin()||isMain()}
   function validDay(v){return /^\d{4}-\d{2}-\d{2}$/.test(safe(v))}
   function now(){return new Date().toISOString()}
@@ -46998,7 +47150,7 @@ body.assal-owner-exclusive > #modal.active{
   function cardUnlockKey(day,cardId){var d=safe(day).trim(),c=safe(cardId).trim();return validDay(d)&&c?d+'::'+c:''}
   function parseCardUnlockKey(key){var s=safe(key),p=s.indexOf('::');if(p<0)return {day:'',cardId:''};return {day:s.slice(0,p),cardId:s.slice(p+2)}}
   function globalSearchMode(){try{return !!(document.getElementById('globalSearch')&&document.getElementById('globalSearch').checked)}catch(_){return false}}
-  function isDayLocked(day){var d=safe(day),lockDay=currentLockDay();return !!(isMain()&&validDay(d)&&validDay(lockDay)&&d<=lockDay&&viewState.unlockedDay!==d)}
+  function isDayLocked(day){var d=safe(day),lockDay=currentLockDay();return !!(isMainLockRole()&&validDay(d)&&validDay(lockDay)&&d<=lockDay&&viewState.unlockedDay!==d)}
   function isCardLocked(day,cardId){var d=safe(day).trim(),c=safe(cardId).trim();if(!isDayLocked(d))return false;var k=cardUnlockKey(d,c);return !(k&&viewState.unlockedCardKey===k)}
   function cardDayFromTarget(target){
     try{
@@ -47139,7 +47291,7 @@ body.assal-owner-exclusive > #modal.active{
     if(badgeTapState)badgeTapState.set(badge,state);else badge.__assalDebtLockTapState=state;
   }
   function decorateRailDay(row,day){
-    if(!row||!validDay(day)||!isAuthorized())return;
+    if(!row||!validDay(day)||!isAuthorizedLockRole())return;
     var badge=row.querySelector('.meta');
     if(!badge)return;
     var adminControl=isAdmin();
@@ -47149,7 +47301,7 @@ body.assal-owner-exclusive > #modal.active{
 
     /* الأدمن يعرض الحالة المؤكدة من السيرفر. الرئيسية تعرض حالتها المحلية فور تطبيق الأمر،
        حتى لا تنتظر دورة acknowledgement ثانية قبل ظهور البادج الذهبي. */
-    var displayLockDay=isMain()&&validDay(localState.lockDay)?localState.lockDay:(validDay(confirmedLockDay)?confirmedLockDay:'');
+    var displayLockDay=isMainLockRole()&&validDay(localState.lockDay)?localState.lockDay:(validDay(confirmedLockDay)?confirmedLockDay:'');
     var pendingHere=!!(adminControl&&pendingCommand&&pendingCommand.targetDay===day);
     var lockedHere=!!(displayLockDay&&day<=displayLockDay);
     if(pendingHere)badge.classList.add('is-pending');
@@ -47396,7 +47548,7 @@ body.assal-owner-exclusive > #modal.active{
     if(had&&!viewState.renderQueued){viewState.renderQueued=true;setTimeout(function(){viewState.renderQueued=false;try{if(typeof renderBoard==='function')renderBoard()}catch(_){ }},0)}
   }
   function syncLockUi(reason){
-    if(!isMain()){hideLockPanel();setBodyLockMode('current','');return false}
+    if(!isMainLockRole()){hideLockPanel();setBodyLockMode('current','');return false}
     var existingHost=byId('assalDebtTransferLockHost');if(existingHost)mountLockPanel(existingHost);
     var day=selectedDayValue(),lockDay=validDay(localState.lockDay)?localState.lockDay:'';
     var changed=day!==viewState.selectedDay||lockDay!==viewState.lockDay;
@@ -47493,7 +47645,7 @@ body.assal-owner-exclusive > #modal.active{
   window.addEventListener('focus',function(){lastPollAt=0;pollServer(false);syncLockUi('focus')},false);
   window.addEventListener('pageshow',function(){syncLockUi('pageshow')},false);
   document.addEventListener('visibilitychange',function(){if(!document.hidden){lastPollAt=0;pollServer(false);syncLockUi('visibility')}},false);
-  window.addEventListener('assal:auth-ready',function(){lastPollAt=0;setTimeout(boot,250)},false);
+  window.addEventListener('assal:auth-ready',function(){lastPollAt=0;syncLockUi('auth-ready');refreshRail();setTimeout(boot,80)},false);
 
   window.ASSAL_DEBT_TRANSFER_LOCK={
     version:VERSION,
@@ -47507,7 +47659,7 @@ body.assal-owner-exclusive > #modal.active{
     clearModalCardContext:function(){viewState.contextDay='';viewState.contextCardId=''},
     refreshVisibleCards:refreshVisibleCardLocks,
     refresh:function(){lastPollAt=0;return pollServer(true)},
-    getState:function(){return {role:isAdmin()?'admin':(isMain()?'main':''),confirmedLockDay:confirmedLockDay,pending:pendingCommand?clone(pendingCommand):null,localLockDay:localState.lockDay,selectedDay:selectedDayValue(),locked:isLockedNow(),unlockedDay:viewState.unlockedDay,unlockedCardKey:viewState.unlockedCardKey,promptDay:viewState.promptDay,promptCardKey:viewState.promptCardKey}}
+    getState:function(){return {role:isAdmin()?'admin':(isMain()?'main':(isMainLockRole()?'main-pending-auth':'')),confirmedLockDay:confirmedLockDay,pending:pendingCommand?clone(pendingCommand):null,localLockDay:localState.lockDay,selectedDay:selectedDayValue(),locked:isLockedNow(),unlockedDay:viewState.unlockedDay,unlockedCardKey:viewState.unlockedCardKey,promptDay:viewState.promptDay,promptCardKey:viewState.promptCardKey}}
   };
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,false);else boot();
