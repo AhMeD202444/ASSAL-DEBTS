@@ -4,6 +4,25 @@
 <script id="assal-auth-first-paint-guard-script">
 (function(){
   try{ document.documentElement.classList.add('assal-auth-pending'); }catch(_){ }
+
+  /*
+   * First-paint debt-lock projection:
+   * نحضر حالة عرض تاريخ نقل الدين قبل بناء body بالكامل.
+   * لا يغيّر القفل نفسه؛ فقط يجهز شكل العرض من نفس localStorage.
+   */
+  try{
+    var raw=localStorage.getItem('ASSAL_DEBT_TRANSFER_LOCK_STATE_V1');
+    if(raw){
+      var st=JSON.parse(raw||'{}');
+      var d=String(st&&st.lockDay||'');
+      if(/^\d{4}-\d{2}-\d{2}$/.test(d)){
+        var p=d.split('-');
+        var displayDate=p[2]+'/'+p[1]+'/'+p[0];
+        document.documentElement.classList.add('assal-has-debt-transfer-lock-date');
+        document.documentElement.style.setProperty('--assal-debt-transfer-lock-date','"'+displayDate+'"');
+      }
+    }
+  }catch(_){ }
 })();
 </script>
 <style id="assal-auth-first-paint-guard-style">
@@ -6486,6 +6505,134 @@ body.assal-card-audit-modal-open{overflow:hidden !important;}
 </style>
 
 
+
+<style id="assal-debt-transfer-rail-summary-style">
+/* ===== ASSAL: حالة نقل الدين أسفل الأيام — واجهة فقط ===== */
+.assal-debt-transfer-rail-summary{
+  position:relative;
+  display:none;
+  width:100%;
+  margin:10px 0 1px;
+  padding:10px 11px 11px;
+  border-radius:17px;
+  overflow:hidden;
+  isolation:isolate;
+  box-sizing:border-box;
+  text-align:center;
+  color:#f8fafc;
+  border:1px solid rgba(245,158,11,.30);
+  background:
+    radial-gradient(180px 90px at 50% -28%,rgba(245,158,11,.17),transparent 72%),
+    radial-gradient(120px 80px at 100% 100%,rgba(124,58,237,.08),transparent 74%),
+    linear-gradient(180deg,#121a2d 0%,#0b1427 100%);
+  box-shadow:
+    0 10px 24px rgba(0,0,0,.18),
+    inset 0 1px 0 rgba(255,255,255,.045);
+}
+.assal-debt-transfer-rail-summary::before{
+  content:"";
+  position:absolute;
+  top:0;
+  left:18px;
+  right:18px;
+  height:2px;
+  border-radius:0 0 999px 999px;
+  background:linear-gradient(90deg,transparent,#f59e0b,#fde68a,#f59e0b,transparent);
+  opacity:.78;
+  pointer-events:none;
+}
+.assal-debt-transfer-rail-summary::after{
+  content:"";
+  position:absolute;
+  width:96px;
+  height:96px;
+  left:50%;
+  top:-58px;
+  transform:translateX(-50%);
+  border-radius:999px;
+  background:rgba(245,158,11,.11);
+  filter:blur(18px);
+  pointer-events:none;
+  z-index:-1;
+}
+html.assal-has-debt-transfer-lock-date .assal-debt-transfer-rail-summary,
+.assal-debt-transfer-rail-summary.is-visible{
+  display:grid;
+  grid-template-columns:1fr;
+  justify-items:center;
+  align-items:center;
+  gap:7px;
+}
+.assal-debt-transfer-rail-summary__head{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  min-width:0;
+}
+.assal-debt-transfer-rail-summary__icon{
+  width:28px;
+  height:28px;
+  flex:0 0 28px;
+  display:grid;
+  place-items:center;
+  border-radius:9px;
+  color:#fff7ed;
+  font-size:10.5px;
+  background:linear-gradient(145deg,#d97706,#92400e);
+  border:1px solid rgba(253,230,138,.26);
+  box-shadow:
+    0 7px 15px rgba(146,64,14,.22),
+    inset 0 1px 0 rgba(255,255,255,.14);
+}
+.assal-debt-transfer-rail-summary__label{
+  color:#e5e7eb;
+  font-size:11px;
+  font-weight:950;
+  line-height:1.35;
+  white-space:nowrap;
+  letter-spacing:-.1px;
+}
+.assal-debt-transfer-rail-summary__date{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:112px;
+  min-height:32px;
+  padding:5px 14px;
+  border-radius:11px;
+  border:1px solid rgba(251,191,36,.36);
+  background:
+    linear-gradient(180deg,rgba(245,158,11,.20),rgba(146,64,14,.14));
+  color:#fde68a;
+  font-size:12.5px;
+  font-weight:950;
+  line-height:1;
+  direction:ltr;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.45px;
+  text-shadow:0 1px 0 rgba(0,0,0,.25);
+  box-shadow:
+    0 7px 16px rgba(146,64,14,.12),
+    inset 0 1px 0 rgba(255,255,255,.07);
+}
+.assal-debt-transfer-rail-summary__date:empty::before{
+  content:var(--assal-debt-transfer-lock-date,"");
+}
+
+@media (max-width:980px){
+  .assal-debt-transfer-rail-summary{
+    margin:9px 0 1px;
+    padding:9px 9px 10px;
+    border-radius:15px;
+  }
+  .assal-debt-transfer-rail-summary__date{
+    min-height:31px;
+    font-size:12px;
+  }
+}
+</style>
+
 <style id="assal-layout-narrow-side-columns-final">
 /* ===== ASSAL FINAL: توازن عرض عمودي الفواتير السابقة وملخص اليوم مع توسيع كروت اليوم =====
    تعديل CSS فقط: زيادة بسيطة لعرض الأعمدة الجانبية بعد التضييق، بدون لمس الحفظ أو الديون أو IndexedDB أو السيرفر أو منطق زر تم التجهيز. */
@@ -10291,7 +10438,17 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
 
 
       </div>
+
       <div id="rail" class="timeline"></div>
+
+      <div id="assalDebtTransferRailSummary" class="assal-debt-transfer-rail-summary" aria-live="polite">
+        <span class="assal-debt-transfer-rail-summary__head">
+          <span class="assal-debt-transfer-rail-summary__icon" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+          <span class="assal-debt-transfer-rail-summary__label">نقل الدين مثبت لغاية</span>
+        </span>
+        <span id="assalDebtTransferRailSummaryDate" class="assal-debt-transfer-rail-summary__date"></span>
+      </div>
+
     </aside>
 
     <!-- Board -->
@@ -19089,8 +19246,65 @@ function makeFilterPredicate(fraw){
     
     
     
+// ===== عرض تاريخ نقل الدين داخل عمود الفواتير السابقة — قراءة فقط =====
+function renderDebtTransferRailSummary(){
+  const box = document.getElementById('assalDebtTransferRailSummary');
+  const dateEl = document.getElementById('assalDebtTransferRailSummaryDate');
+  if(!box || !dateEl) return;
+
+  let lockDay = '';
+  let role = '';
+  let apiReady = false;
+
+  /* المصدر الأول إذا طبقة القفل أصبحت جاهزة. */
+  try{
+    const api = window.ASSAL_DEBT_TRANSFER_LOCK;
+    if(api && typeof api.getState === 'function'){
+      apiReady = true;
+      const st = api.getState() || {};
+      role = String(st.role || '');
+      lockDay = String(st.localLockDay || st.confirmedLockDay || '');
+    }
+  }catch(_){}
+
+  /*
+   * First-paint fallback:
+   * طبقة القفل موجودة لاحقاً في الملف، لذلك بعد Refresh لا ننتظر Firebase/Auth.
+   * نقرأ نفس المفتاح الذي تستعمله طبقة القفل نفسها ونرسم التاريخ فوراً.
+   */
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(lockDay)){
+    try{
+      const localRaw = JSON.parse(localStorage.getItem('ASSAL_DEBT_TRANSFER_LOCK_STATE_V1') || '{}');
+      const localDay = String(localRaw && localRaw.lockDay || '');
+      if(/^\d{4}-\d{2}-\d{2}$/.test(localDay)) lockDay = localDay;
+    }catch(_){}
+  }
+
+  const valid = /^\d{4}-\d{2}-\d{2}$/.test(lockDay);
+  const allowedRole = !apiReady || role === 'main' || role === 'main-pending-auth' || role === 'admin';
+
+  if(!valid || !allowedRole){
+    /* إذا API بعده غير جاهز، نخلي First-Paint المحضر بالـHEAD كما هو. */
+    if(!apiReady && document.documentElement.classList.contains('assal-has-debt-transfer-lock-date')) return;
+    document.documentElement.classList.remove('assal-has-debt-transfer-lock-date');
+    document.documentElement.style.removeProperty('--assal-debt-transfer-lock-date');
+    box.classList.remove('is-visible');
+    dateEl.textContent = '';
+    return;
+  }
+
+  const p = lockDay.split('-');
+  const displayDate = `${p[2]}/${p[1]}/${p[0]}`;
+  document.documentElement.classList.add('assal-has-debt-transfer-lock-date');
+  document.documentElement.style.setProperty('--assal-debt-transfer-lock-date','"'+displayDate+'"');
+  dateEl.textContent = displayDate;
+  box.classList.add('is-visible');
+}
+
+
 // ===== Rail — شهر واحد فقط + منطق العبور (آخر يوم ↔ أول يوم) =====
 function renderRail(){
+  try{ renderDebtTransferRailSummary(); }catch(_){ }
   const host = document.getElementById('rail');
   host.innerHTML = '';
 
