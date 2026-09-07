@@ -5180,6 +5180,215 @@ body{ padding-top: var(--hdr-h); }
 
 
 
+
+/* =========================================================
+   ASSAL DAILY DELIVERY CLOSE GATE
+   إقفال الحسابات اليومية — نافذة إلزامية بلا إلغاء أو لمس خارجي
+========================================================= */
+html.assal-daily-delivery-lock,
+html.assal-daily-delivery-lock body{
+  overflow:hidden !important;
+  overscroll-behavior:none !important;
+}
+html.assal-daily-delivery-lock body > :not(#assalDailyDeliveryGate):not(script):not(style):not(link):not(noscript){
+  pointer-events:none !important;
+  user-select:none !important;
+}
+.assal-daily-delivery-gate{
+  position:fixed;
+  inset:0;
+  z-index:2147483647;
+  display:grid;
+  place-items:center;
+  padding:18px;
+  direction:rtl;
+  background:
+    radial-gradient(700px 380px at 82% 0%,rgba(245,158,11,.13),transparent 64%),
+    radial-gradient(660px 360px at 12% 100%,rgba(124,58,237,.14),transparent 66%),
+    rgba(2,6,23,.82);
+  backdrop-filter:blur(7px);
+  touch-action:none;
+  overscroll-behavior:none;
+  font-family:var(--ui-font,"Cairo",system-ui);
+}
+.assal-daily-delivery-card{
+  width:min(560px,calc(100vw - 28px));
+  position:relative;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  gap:0;
+  border-radius:24px;
+  color:#e7eef9;
+  background:
+    radial-gradient(circle at 15% -8%,rgba(245,158,11,.24),transparent 36%),
+    radial-gradient(circle at 88% 12%,rgba(124,58,237,.18),transparent 35%),
+    linear-gradient(180deg,rgba(15,23,42,.995),rgba(3,9,22,.995));
+  border:1px solid rgba(251,191,36,.28);
+  box-shadow:0 30px 90px rgba(0,0,0,.68),inset 0 1px 0 rgba(255,255,255,.075);
+}
+.assal-daily-delivery-card::before{
+  content:"";
+  position:absolute;
+  inset:0 18px auto;
+  height:3px;
+  border-radius:0 0 999px 999px;
+  background:linear-gradient(90deg,transparent,#f59e0b,#fde68a,#f59e0b,transparent);
+  opacity:.88;
+}
+.assal-daily-delivery-head{
+  display:flex;
+  align-items:center;
+  gap:13px;
+  padding:20px 20px 14px;
+  border-bottom:1px solid rgba(148,163,184,.12);
+  text-align:right;
+}
+.assal-daily-delivery-icon{
+  width:52px;
+  height:52px;
+  flex:0 0 52px;
+  display:grid;
+  place-items:center;
+  border-radius:18px;
+  font-size:20px;
+  color:#fff7ed;
+  background:linear-gradient(145deg,#d97706,#92400e);
+  border:1px solid rgba(253,230,138,.30);
+  box-shadow:0 15px 32px rgba(146,64,14,.28),inset 0 1px 0 rgba(255,255,255,.18);
+}
+.assal-daily-delivery-title{
+  color:#fff;
+  font-size:18px;
+  font-weight:950;
+  line-height:1.35;
+}
+.assal-daily-delivery-sub{
+  margin-top:3px;
+  color:#aebdd2;
+  font-size:11.5px;
+  font-weight:800;
+}
+.assal-daily-delivery-body{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:12px;
+  padding:17px 20px 16px;
+  text-align:center;
+}
+.assal-daily-delivery-message{
+  max-width:470px;
+  color:#dbe5f3;
+  font-size:14px;
+  font-weight:850;
+  line-height:1.9;
+}
+.assal-daily-delivery-day{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  min-height:30px;
+  padding:4px 11px;
+  border-radius:999px;
+  color:#fde68a;
+  background:rgba(245,158,11,.16);
+  border:1px solid rgba(251,191,36,.31);
+  font-size:11px;
+  font-weight:950;
+  direction:ltr;
+}
+.assal-daily-delivery-field{
+  width:min(360px,100%);
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  text-align:center;
+}
+.assal-daily-delivery-field label{
+  color:#cbd5e1;
+  font-size:11px;
+  font-weight:900;
+}
+.assal-daily-delivery-amount-wrap{
+  position:relative;
+  width:100%;
+}
+.assal-daily-delivery-amount{
+  width:100%;
+  height:56px;
+  padding:0 54px 0 14px;
+  border-radius:16px;
+  outline:0;
+  direction:ltr;
+  text-align:center;
+  font-family:var(--ui-font,"Cairo",system-ui);
+  font-size:22px;
+  font-weight:950;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.3px;
+  color:#fff7ed;
+  caret-color:#fde68a;
+  background:linear-gradient(180deg,rgba(120,53,15,.22),rgba(15,23,42,.82));
+  border:1px solid rgba(251,191,36,.34);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.055),0 12px 28px rgba(0,0,0,.18);
+}
+.assal-daily-delivery-amount:focus{
+  border-color:rgba(253,230,138,.72);
+  box-shadow:0 0 0 3px rgba(245,158,11,.12),inset 0 1px 0 rgba(255,255,255,.065),0 14px 32px rgba(146,64,14,.16);
+}
+.assal-daily-delivery-currency{
+  position:absolute;
+  inset-inline-end:13px;
+  top:50%;
+  transform:translateY(-50%);
+  color:#fbbf24;
+  font-size:10px;
+  font-weight:950;
+  pointer-events:none;
+}
+.assal-daily-delivery-note{
+  min-height:19px;
+  color:#94a3b8;
+  font-size:10.5px;
+  font-weight:800;
+}
+.assal-daily-delivery-note.is-error{color:#fecaca;}
+.assal-daily-delivery-actions{
+  width:100%;
+  padding:0 20px 20px;
+  display:flex;
+  justify-content:center;
+}
+.assal-daily-delivery-save{
+  width:min(300px,100%);
+  height:46px;
+  border-radius:14px;
+  border:1px solid rgba(251,191,36,.32);
+  color:#fff;
+  background:linear-gradient(135deg,#d97706,#b45309);
+  box-shadow:0 14px 30px rgba(180,83,9,.22),inset 0 1px 0 rgba(255,255,255,.15);
+  font-family:inherit;
+  font-size:14px;
+  font-weight:950;
+  cursor:pointer;
+}
+.assal-daily-delivery-save:disabled{
+  opacity:.48;
+  cursor:not-allowed;
+  box-shadow:none;
+}
+.assal-daily-delivery-save:not(:disabled):active{transform:translateY(1px);}
+@media(max-width:520px){
+  .assal-daily-delivery-gate{padding:10px;}
+  .assal-daily-delivery-card{width:100%;border-radius:21px;}
+  .assal-daily-delivery-head{padding:17px 15px 13px;gap:10px;}
+  .assal-daily-delivery-icon{width:46px;height:46px;flex-basis:46px;border-radius:15px;font-size:18px;}
+  .assal-daily-delivery-title{font-size:16px;}
+  .assal-daily-delivery-body{padding:15px 14px 14px;}
+  .assal-daily-delivery-actions{padding:0 14px 15px;}
+}
+
 /* =========================================================
    ASSAL RETURN CONFIRM WINDOWS — COLOR + ENTER ACCEPT
    واجهة تحذير الراجع فقط: ألوان أنيقة + Enter يقبل الراجع
@@ -10010,6 +10219,7 @@ html body .payment-row.is-editing .assal-payment-edit-notes{text-align:right !im
     assalAttendanceSyncAdminExit();
     switchView('main'); document.documentElement.classList.remove('assal-attendance-locked'); if(document.body) document.body.classList.remove('assal-attendance-locked');
     try{ if(record && window.showToast){ window.showToast('success','تم تسجيل حضور ' + record.employee); } }catch(_){ }
+    try{ window.dispatchEvent(new CustomEvent('assal:attendance-gate-closed',{detail:{record:record||null}})); }catch(_){ try{ window.dispatchEvent(new Event('assal:attendance-gate-closed')); }catch(__){ } }
   }
   function openAfterAnyConfirmed(){
     var map = todayMap();
@@ -13901,6 +14111,47 @@ const SYNC = {
 };
     
     /* ====== Customers from Excel (Sheet: CUSTOMER / Column: NAME) ====== */
+
+/* ===== ASSAL DAILY DELIVERY SPECIAL CUSTOMER =====
+   "تسليم" هو اسم محاسبي خاص بالحسابات المالية فقط، وليس زبون ديون/جرد. */
+window.ASSAL_DAILY_DELIVERY_NAME = 'تسليم';
+
+function assalSpecialCustomerNorm(raw){
+  return String(raw == null ? '' : raw)
+    .trim()
+    .replace(/[\u064B-\u0652\u0640]/g,'')
+    .replace(/[إأآا]/g,'ا')
+    .replace(/[ىي]/g,'ي')
+    .replace(/ة/g,'ه')
+    .replace(/\s+/g,' ');
+}
+function assalIsDeliveryCustomerName(raw){
+  return assalSpecialCustomerNorm(raw) === assalSpecialCustomerNorm(window.ASSAL_DAILY_DELIVERY_NAME);
+}
+function assalDeliveryCustomerNameFromDB(){
+  try{
+    var rows = (typeof database !== 'undefined' && database && Array.isArray(database.CUSTOMER)) ? database.CUSTOMER : [];
+    for(var i=0;i<rows.length;i++){
+      var row = rows[i] || {};
+      for(var k in row){
+        if(!Object.prototype.hasOwnProperty.call(row,k)) continue;
+        var v = String(row[k] == null ? '' : row[k]).trim();
+        if(v && assalIsDeliveryCustomerName(v)) return v;
+      }
+    }
+  }catch(_){ }
+  return '';
+}
+function assalIsDeliveryFinancialRow(row){
+  if(!row || typeof row !== 'object') return false;
+  if(row.excludeFromDebt === true) return true;
+  if(String(row.assalSpecial || '') === 'daily-delivery') return true;
+  return assalIsDeliveryCustomerName(row.cust || row.customer || row.name || '');
+}
+window.assalIsDeliveryCustomerName = assalIsDeliveryCustomerName;
+window.assalDeliveryCustomerNameFromDB = assalDeliveryCustomerNameFromDB;
+window.assalIsDeliveryFinancialRow = assalIsDeliveryFinancialRow;
+
 let CUSTOMERS = [];
 
 function rebuildCustomersFromDB(){
@@ -13940,7 +14191,7 @@ function rebuildCustomersFromDB(){
 
     for(const r of rows){
       const name = pickCustomerNameLocal(r);
-      if(name) out.push(name);
+      if(name && !assalIsDeliveryCustomerName(name)) out.push(name);
     }
 
     CUSTOMERS = Array.from(new Set(out)).sort((a,b)=> a.localeCompare(b,'ar'));
@@ -15750,6 +16001,7 @@ function assalDebtBadgePickAnyText(obj, preferredKeys){
 function assalSheetCustomerAddName(map, rawName){
   const name = (rawName==null?'':String(rawName)).trim();
   if(!name) return;
+  if(typeof assalIsDeliveryCustomerName === 'function' && assalIsDeliveryCustomerName(name)) return;
   if(assalDebtBadgeIsPlainNumberText(name)) return;
   const key = assalDebtBadgeNrm(name);
   if(!key) return;
@@ -16170,6 +16422,7 @@ function assalBuildCustomerDebtMap(){
       const arr = Array.isArray(store[dayKey]) ? store[dayKey] : [];
       arr.forEach(row=>{
         if(!row || row.deletedAt) return;
+        if(typeof assalIsDeliveryFinancialRow === 'function' && assalIsDeliveryFinancialRow(row)) return;
         const name = row.cust || row.customer || row.name || '';
         const amt  = assalDebtBadgeNum(row.amount);
         if(!name || !amt) return;
@@ -16284,6 +16537,7 @@ function assalGetCustomerDebtBreakdown(customer){
       const arr = Array.isArray(store[dayKey]) ? store[dayKey] : [];
       arr.forEach(row=>{
         if(!row || row.deletedAt) return;
+        if(typeof assalIsDeliveryFinancialRow === 'function' && assalIsDeliveryFinancialRow(row)) return;
         const cust = row.cust || row.customer || row.name || '';
         const realName = (typeof assalSheetCustomerDisplayName === 'function') ? (assalSheetCustomerDisplayName(cust) || cust) : cust;
         if(assalDebtBadgeNrm(realName || '') !== key) return;
@@ -27955,7 +28209,16 @@ searchClear?.addEventListener('click', ()=>{
 
  // لا تنسَ تصلّح getAllCustomers فوق بالمشروع كله
 function getAllCustomers(){
-  return Array.isArray(CUSTOMERS) ? [...CUSTOMERS] : [];
+  const out = Array.isArray(CUSTOMERS) ? [...CUSTOMERS] : [];
+  try{
+    const delivery = (typeof window.assalDeliveryCustomerNameFromDB === 'function')
+      ? String(window.assalDeliveryCustomerNameFromDB() || '').trim()
+      : '';
+    if(delivery && !out.some(n => typeof window.assalIsDeliveryCustomerName === 'function' && window.assalIsDeliveryCustomerName(n))){
+      out.push(delivery);
+    }
+  }catch(_){ }
+  return out;
 }
 
 
@@ -29932,6 +30195,392 @@ function exportPayments_Print(list){
 }
 
 
+/* =========================================================
+   ASSAL DAILY DELIVERY CLOSE GATE
+   - حالياً: الحاسبة الرئيسية فقط
+   - الرئيسية: بعد إغلاق نافذة البصمة/وجود حضور مؤكد لليوم
+   - حساب الأدمن: لا تظهر له هذه النافذة
+   - الشرط: لا يوجد صف "تسليم" فعال في حسابات اليوم السابق
+   - الحفظ: سحب مالي خاص، مستثنى صراحةً من جميع حسابات الديون
+========================================================= */
+(function installAssalDailyDeliveryGate(){
+  if(window.__ASSAL_DAILY_DELIVERY_GATE_FINAL__) return;
+  window.__ASSAL_DAILY_DELIVERY_GATE_FINAL__ = true;
+
+  const ADMIN_EMAIL = 'admin-debts@assal.com';
+  const MAIN_EMAIL  = 'assal-debts@assal.com';
+  const SPECIAL_NAME = String(window.ASSAL_DAILY_DELIVERY_NAME || 'تسليم');
+
+  let gate = null;
+  let amountInput = null;
+  let saveBtn = null;
+  let msgEl = null;
+  let saving = false;
+  let authReady = false;
+  let lastObservedToday = localDayKey(new Date());
+
+  function localDayKey(d){
+    d = d instanceof Date ? d : new Date(d);
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+  function previousLocalDay(){
+    const d = new Date();
+    d.setHours(12,0,0,0);
+    d.setDate(d.getDate()-1);
+    return localDayKey(d);
+  }
+  function displayDay(iso){
+    const p = String(iso||'').split('-');
+    return p.length===3 ? `${p[2]}/${p[1]}/${p[0]}` : String(iso||'');
+  }
+  function loginEmail(){
+    try{return String(window.ASSAL_LOGIN_EMAIL||'').trim().toLowerCase();}catch(_){return '';}
+  }
+  function role(){
+    const e = loginEmail();
+    try{
+      if(window.ASSAL_IS_ADMIN_DEBTS===true || e===ADMIN_EMAIL) return 'admin';
+      if(window.ASSAL_IS_MAIN_DEBTS===true || e===MAIN_EMAIL) return 'main';
+    }catch(_){ }
+    return '';
+  }
+  function eligible(){ return role()==='main'; }
+
+  function deliveryName(raw){
+    try{
+      if(typeof window.assalIsDeliveryCustomerName==='function') return !!window.assalIsDeliveryCustomerName(raw);
+    }catch(_){ }
+    return String(raw||'').trim()===SPECIAL_NAME;
+  }
+  function activeDeliveryRow(row){
+    return !!(row && !row.deletedAt && deliveryName(row.cust||row.customer||row.name||''));
+  }
+  function mergedPaymentStore(){
+    try{
+      if(typeof window.assalDebtMergePaymentStores==='function'){
+        const s = window.assalDebtMergePaymentStores();
+        if(s && typeof s==='object') return s;
+      }
+    }catch(_){ }
+    try{
+      const s = (typeof window.loadPaymentsStore==='function') ? window.loadPaymentsStore() : null;
+      if(s && typeof s==='object') return s;
+    }catch(_){ }
+    return paymentsStore && typeof paymentsStore==='object' ? paymentsStore : {};
+  }
+  function hasDeliveryForDay(day){
+    const store = mergedPaymentStore();
+    const arr = Array.isArray(store && store[day]) ? store[day] : [];
+    return arr.some(activeDeliveryRow);
+  }
+
+  function attendanceGateOpen(){
+    const el = document.getElementById('assalAttendanceGate');
+    return !!(el && el.classList.contains('assal-attendance-active') && el.getAttribute('aria-hidden')!=='true');
+  }
+  function readAttendanceState(){
+    try{
+      if(typeof window.ASSAL_ATTENDANCE_EXPORT==='function'){
+        const x = window.ASSAL_ATTENDANCE_EXPORT();
+        if(x && typeof x==='object') return x;
+      }
+    }catch(_){ }
+    try{
+      const x = JSON.parse(localStorage.getItem('assal_attendance_state_v2')||'{}');
+      if(x && typeof x==='object') return x;
+    }catch(_){ }
+    return {};
+  }
+  function attendanceDoneToday(){
+    try{
+      const st = readAttendanceState();
+      const rec = st && st.days && st.days[localDayKey(new Date())];
+      const emps = rec && rec.employees && typeof rec.employees==='object' ? rec.employees : {};
+      return Object.keys(emps).some(k=>{
+        const r = emps[k] || {};
+        const s = String(r.status||'').trim().toLowerCase();
+        return r.present===true || r.leave===true || r.duty===true || r.halfDay===true ||
+               s==='present' || s==='leave' || s==='duty' || s==='half-day' || s==='halfday';
+      });
+    }catch(_){ return false; }
+  }
+
+  function latinDigits(s){
+    return String(s==null?'':s)
+      .replace(/[\u0660-\u0669]/g,ch=>String(ch.charCodeAt(0)-0x0660))
+      .replace(/[\u06F0-\u06F9]/g,ch=>String(ch.charCodeAt(0)-0x06F0));
+  }
+  function digitsOnly(s){ return latinDigits(s).replace(/[^\d]/g,''); }
+  function formatAmountText(s){
+    const d = digitsOnly(s);
+    if(!d) return '';
+    const n = Number(d);
+    return Number.isFinite(n) ? Math.round(n).toLocaleString('en-US') : '';
+  }
+  function parsedAmount(){
+    const d = digitsOnly(amountInput && amountInput.value);
+    if(!d) return null; // null = المستخدم لم يكتب شيئاً، بينما 0 مبلغ مقصود ومسموح
+    const n = Number(d);
+    return Number.isFinite(n) ? Math.max(0,Math.round(n)) : null;
+  }
+  function syncSaveState(){
+    if(!saveBtn) return;
+    saveBtn.disabled = saving || parsedAmount()===null;
+    if(saveBtn){
+      saveBtn.innerHTML = saving
+        ? '<i class="fa-solid fa-spinner fa-spin"></i> جاري تثبيت التسليم'
+        : '<i class="fa-solid fa-lock"></i> تثبيت التسليم وختم اليوم';
+    }
+  }
+  function setMessage(t,isError){
+    if(!msgEl) return;
+    msgEl.textContent = t||'';
+    msgEl.classList.toggle('is-error',!!isError);
+  }
+
+  function createGate(day){
+    if(gate && gate.isConnected) return gate;
+    gate = document.createElement('div');
+    gate.id = 'assalDailyDeliveryGate';
+    gate.className = 'assal-daily-delivery-gate';
+    gate.setAttribute('role','dialog');
+    gate.setAttribute('aria-modal','true');
+    gate.setAttribute('aria-label','إقفال حسابات اليوم السابق');
+    gate.innerHTML = `
+      <div class="assal-daily-delivery-card" role="document">
+        <div class="assal-daily-delivery-head">
+          <div class="assal-daily-delivery-icon"><i class="fa-solid fa-cash-register"></i></div>
+          <div>
+            <div class="assal-daily-delivery-title">إقفال حسابات اليوم السابق</div>
+            <div class="assal-daily-delivery-sub">تسجيل مبلغ التسليم قبل الدخول إلى التطبيق</div>
+          </div>
+        </div>
+        <div class="assal-daily-delivery-body">
+          <div class="assal-daily-delivery-message">
+            يرجى كتابة مبلغ <b>التسليم</b> لختم حسابات اليوم السابق.
+          </div>
+          <div class="assal-daily-delivery-day"><i class="fa-regular fa-calendar-check"></i><span>${displayDay(day)}</span></div>
+          <div class="assal-daily-delivery-field">
+            <label for="assalDailyDeliveryAmount">مبلغ التسليم</label>
+            <div class="assal-daily-delivery-amount-wrap">
+              <input id="assalDailyDeliveryAmount" class="assal-daily-delivery-amount"
+                     type="text" inputmode="numeric" autocomplete="off" spellcheck="false"
+                     placeholder="0" aria-label="مبلغ التسليم" />
+              <span class="assal-daily-delivery-currency">د.ع</span>
+            </div>
+          </div>
+          <div id="assalDailyDeliveryMsg" class="assal-daily-delivery-note">يُحفظ تلقائياً في الحسابات المالية بتاريخ اليوم السابق.</div>
+        </div>
+        <div class="assal-daily-delivery-actions">
+          <button id="assalDailyDeliverySave" type="button" class="assal-daily-delivery-save" disabled>
+            <i class="fa-solid fa-lock"></i> تثبيت التسليم وختم اليوم
+          </button>
+        </div>
+      </div>`;
+
+    document.body.appendChild(gate);
+    document.documentElement.classList.add('assal-daily-delivery-lock');
+    document.body.classList.add('assal-daily-delivery-lock');
+
+    amountInput = gate.querySelector('#assalDailyDeliveryAmount');
+    saveBtn = gate.querySelector('#assalDailyDeliverySave');
+    msgEl = gate.querySelector('#assalDailyDeliveryMsg');
+
+    amountInput.addEventListener('input',()=>{
+      const old = amountInput.value;
+      const next = formatAmountText(old);
+      if(old!==next) amountInput.value = next;
+      setMessage('يُحفظ تلقائياً في الحسابات المالية بتاريخ اليوم السابق.',false);
+      syncSaveState();
+    });
+
+    saveBtn.addEventListener('click',()=>{ void saveDelivery(day); });
+
+    gate.addEventListener('pointerdown',ev=>{
+      if(ev.target===gate){
+        ev.preventDefault();
+        ev.stopPropagation();
+        try{amountInput.focus({preventScroll:true});}catch(_){amountInput.focus();}
+      }
+    },true);
+    gate.addEventListener('click',ev=>{
+      if(ev.target===gate){ ev.preventDefault(); ev.stopPropagation(); }
+    },true);
+    gate.addEventListener('contextmenu',ev=>{ ev.preventDefault(); ev.stopPropagation(); },true);
+    gate.addEventListener('wheel',ev=>{ if(ev.target===gate){ev.preventDefault();ev.stopPropagation();} },{capture:true,passive:false});
+
+    syncSaveState();
+    setTimeout(()=>{ try{amountInput.focus({preventScroll:true});}catch(_){amountInput.focus();} },0);
+    return gate;
+  }
+
+  function destroyGate(){
+    saving = false;
+    try{ if(gate) gate.remove(); }catch(_){ }
+    gate = null; amountInput = null; saveBtn = null; msgEl = null;
+    document.documentElement.classList.remove('assal-daily-delivery-lock');
+    document.body.classList.remove('assal-daily-delivery-lock');
+  }
+
+  async function saveDelivery(day){
+    if(saving) return;
+    const amount = parsedAmount();
+    if(amount===null){
+      setMessage('اكتب مبلغ التسليم أولاً.',true);
+      try{amountInput.focus();}catch(_){ }
+      return;
+    }
+
+    saving = true;
+    syncSaveState();
+    setMessage('جاري التحقق من حسابات اليوم السابق…',false);
+
+    try{
+      // فحص ثانٍ مباشرة قبل الحفظ لمنع أي تكرار.
+      if(hasDeliveryForDay(day)){
+        destroyGate();
+        try{window.showToast?.('info','التسليم مسجل مسبقاً لليوم السابق.');}catch(_){ }
+        return;
+      }
+
+      // أحدث مخزن محلي؛ لا نكتب فوق حركات موجودة.
+      try{
+        const latest = (typeof window.loadPaymentsStore==='function') ? window.loadPaymentsStore() : null;
+        if(latest && typeof latest==='object') paymentsStore = latest;
+      }catch(_){ }
+
+      const arr = Array.isArray(paymentsStore && paymentsStore[day]) ? paymentsStore[day].slice() : [];
+
+      // ID ثابت لليوم: حتى لو جرى الإدخال من جهازين قبل اكتمال المزامنة، هو نفس السجل لا سجلان.
+      const fixedId = 'assal_daily_delivery_' + day;
+      const now = new Date();
+      const stamp = now.toISOString();
+      const time = now.toLocaleTimeString('ar-IQ',{hour:'numeric',minute:'2-digit'});
+
+      const row = {
+        id: fixedId,
+        cust: SPECIAL_NAME,
+        kind: 'سحب',
+        amount: amount,
+        notes: 'تسليم وإقفال حسابات اليوم السابق',
+        date: day,
+        time: time,
+        createdAt: stamp,
+        updatedAt: stamp,
+        assalSpecial: 'daily-delivery',
+        excludeFromDebt: true,
+        source: 'daily-close-gate'
+      };
+
+      const sameId = arr.findIndex(r=>r && String(r.id||r._id||'')===fixedId);
+      if(sameId>=0) arr[sameId] = row;
+      else arr.push(row);
+
+      savePayments(day, arr);
+
+      // تحقق من نفس المخزن بعد الحفظ قبل فتح التطبيق.
+      const liveArr = Array.isArray(paymentsStore && paymentsStore[day]) ? paymentsStore[day] : [];
+      if(!liveArr.some(activeDeliveryRow)){
+        throw new Error('تعذر التحقق من تثبيت سجل التسليم');
+      }
+
+      try{
+        if(currentDay===day) setCurrentDay(day);
+        else if(typeof renderPaymentsRows==='function') renderPaymentsRows();
+      }catch(_){ }
+
+      destroyGate();
+      try{
+        window.dispatchEvent(new CustomEvent('assal:daily-delivery-saved',{detail:{day:day,amount:amount,id:fixedId}}));
+      }catch(_){ }
+      try{window.showToast?.('success','تم تثبيت تسليم '+formatAmountText(String(amount))+' د.ع لليوم السابق.');}catch(_){ }
+    }catch(err){
+      saving = false;
+      syncSaveState();
+      setMessage((err&&err.message)||'تعذر حفظ التسليم. حاول مرة أخرى.',true);
+      try{amountInput&&amountInput.focus();}catch(_){ }
+    }
+  }
+
+  function maybeShow(reason){
+    if(!eligible()) return false;
+    if(gate && gate.isConnected) return true;
+
+    const yesterday = previousLocalDay();
+    if(hasDeliveryForDay(yesterday)) return false;
+
+    const r = role();
+    if(r==='main'){
+      // الرئيسية لا تتقدم على نافذة البصمة.
+      if(attendanceGateOpen()) return false;
+      if(!attendanceDoneToday()) return false;
+    }
+
+    createGate(yesterday);
+    return true;
+  }
+
+  // قفل Escape/Tab/Enter على مستوى الوثيقة أثناء ظهور النافذة.
+  document.addEventListener('keydown',ev=>{
+    if(!gate || !gate.isConnected) return;
+    if(ev.key==='Escape'){
+      ev.preventDefault(); ev.stopImmediatePropagation();
+      try{amountInput.focus({preventScroll:true});}catch(_){ }
+      return;
+    }
+    if(ev.key==='Enter'){
+      ev.preventDefault(); ev.stopImmediatePropagation();
+      if(!saving) void saveDelivery(previousLocalDay());
+      return;
+    }
+    if(ev.key==='Tab'){
+      const focusables=[amountInput,saveBtn].filter(Boolean).filter(el=>!el.disabled);
+      if(!focusables.length){ev.preventDefault();return;}
+      const idx=focusables.indexOf(document.activeElement);
+      let next=ev.shiftKey?idx-1:idx+1;
+      if(idx<0)next=0;
+      if(next<0)next=focusables.length-1;
+      if(next>=focusables.length)next=0;
+      ev.preventDefault();
+      try{focusables[next].focus({preventScroll:true});}catch(_){focusables[next].focus();}
+    }
+  },true);
+
+  window.addEventListener('assal:attendance-gate-closed',()=>{
+    setTimeout(()=>maybeShow('after-attendance'),40);
+  },false);
+
+  window.addEventListener('assal:auth-ready',()=>{
+    authReady = true;
+    // الحاسبة الرئيسية فقط؛ وستنتظر البصمة تلقائياً عبر الشروط أعلاه.
+    setTimeout(()=>maybeShow('auth-ready'),180);
+    setTimeout(()=>maybeShow('auth-ready-settle'),1800);
+  },false);
+
+  // احتياط إذا كانت الجلسة جاهزة قبل ربط الحدث + مراقبة انتقال اليوم أثناء بقاء الصفحة مفتوحة.
+  setTimeout(()=>maybeShow('initial-settle'),2600);
+  setInterval(()=>{
+    const today = localDayKey(new Date());
+    if(today!==lastObservedToday){
+      lastObservedToday=today;
+      setTimeout(()=>maybeShow('day-rollover'),350);
+    }else if(authReady && !gate){
+      maybeShow('periodic-safe-check');
+    }
+  },30000);
+
+  window.ASSAL_DAILY_DELIVERY_GATE = {
+    check:()=>maybeShow('manual-check'),
+    isOpen:()=>!!(gate&&gate.isConnected),
+    previousDay:()=>previousLocalDay(),
+    hasPrevious:()=>hasDeliveryForDay(previousLocalDay())
+  };
+})();
+
+
 })();
 
 
@@ -30482,6 +31131,7 @@ clearAlertsBtn.addEventListener('click', function(){
       var arr = Array.isArray(store[dayKey]) ? store[dayKey] : [];
       arr.forEach(function(row){
         if(!row || row.deletedAt) return;
+        if(typeof window.assalIsDeliveryFinancialRow === 'function' && window.assalIsDeliveryFinancialRow(row)) return;
         var name = row.cust || row.customer || row.name || '';
         var amt  = toNumber(row.amount);
         if(!name || !amt) return;
@@ -31634,6 +32284,7 @@ async function assalAdvGetTodayLocalRecords(){
   function addName(list, seen, raw){
     var name = String(raw == null ? '' : raw).trim();
     if(!name || plainNumberText(name)) return;
+    if(typeof window.assalIsDeliveryCustomerName === 'function' && window.assalIsDeliveryCustomerName(name)) return;
     var k = nrm(name);
     if(!k || seen.has(k)) return;
     seen.add(k);
@@ -41493,6 +42144,7 @@ html body .card .item.assal-smart-added-item-safe-final{
       var arr=Array.isArray(store[day])?store[day]:[];
       arr.forEach(function(row,index){
         if(!row||typeof row!=='object')return;
+        if(typeof window.assalIsDeliveryFinancialRow==='function'&&window.assalIsDeliveryFinancialRow(row))return;
         var key=paymentIdentity(row,index),full=cleanValue(row,true)||{},comp=comparePayment(row);
         map.set(key,{paymentId:key,day:safe(day),index:index,row:full,compare:comp,text:JSON.stringify(comp)});
       });
