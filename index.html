@@ -71894,7 +71894,7 @@ body.assal-owner-exclusive{
 }
 
 /* اخفِ فعلياً كل واجهات التطبيق الأصلية أثناء جلسة المالك. */
-body.assal-owner-exclusive > :not(#assalOwnerPanel):not(#assalLedgerStatementBackdrop):not(#assalLedgerResultsBackdrop):not(#modal):not(#modal-backdrop):not(.toasts):not(script):not(style):not(link):not(noscript){
+body.assal-owner-exclusive > :not(#assalOwnerPanel):not(#assalOwnerReportPreview):not(#assalOwnerReportExportHost):not(#assalLedgerStatementBackdrop):not(#assalLedgerResultsBackdrop):not(#modal):not(#modal-backdrop):not(.toasts):not(script):not(style):not(link):not(noscript){
   display:none !important;
   visibility:hidden !important;
   pointer-events:none !important;
@@ -75584,6 +75584,453 @@ body.assal-owner-exclusive > #modal.active{
   }
   
 }
+
+/* تقرير المالك JPG — عرض وتصدير فقط دون أي كتابة على البيانات. */
+.assal-owner-action.report{
+  border-color:rgba(56,189,248,.34);
+  background:linear-gradient(135deg,rgba(8,145,178,.28),rgba(37,99,235,.26));
+  color:#ecfeff;
+}
+.assal-owner-action.report:hover{
+  border-color:rgba(125,211,252,.55);
+  background:linear-gradient(135deg,rgba(8,145,178,.40),rgba(37,99,235,.38));
+}
+.assal-owner-action.report:disabled{
+  opacity:.62;
+  cursor:wait;
+}
+.assal-owner-action.report.is-exporting i{
+  animation:spin .9s linear infinite;
+}
+@media(max-width:820px){
+  .assal-owner-action.report{
+    width:40px !important;
+    padding:0 !important;
+  }
+  .assal-owner-action.report span{
+    display:none !important;
+  }
+  #assalOwnerPanel.assal-owner-header-compact .assal-owner-action.report{
+    width:36px !important;
+  }
+}
+#assalOwnerReportExportHost{
+  position:fixed;
+  top:0;
+  left:-20000px;
+  width:1240px;
+  min-height:1754px;
+  display:block !important;
+  visibility:visible !important;
+  opacity:1 !important;
+  pointer-events:none !important;
+  z-index:-1;
+  direction:rtl;
+  font-family:"Cairo",Arial,sans-serif !important;
+}
+body.assal-owner-exclusive > #assalOwnerReportExportHost{
+  display:block !important;
+  visibility:visible !important;
+  pointer-events:none !important;
+}
+.assal-owner-report-sheet,
+.assal-owner-report-sheet *{
+  box-sizing:border-box;
+  font-family:"Cairo",Arial,sans-serif !important;
+}
+.assal-owner-report-sheet{
+  width:1240px;
+  min-height:1754px;
+  padding:42px;
+  color:#172033;
+  background:
+    radial-gradient(520px 260px at 100% 0%,rgba(14,165,233,.12),transparent 66%),
+    radial-gradient(500px 250px at 0% 0%,rgba(124,58,237,.09),transparent 68%),
+    #f3f6fb;
+}
+.assal-owner-report-head{
+  position:relative;
+  overflow:hidden;
+  min-height:180px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:24px;
+  padding:32px 36px;
+  border-radius:28px;
+  color:#fff;
+  background:linear-gradient(135deg,#0b1730 0%,#12385a 58%,#0f766e 100%);
+  box-shadow:0 18px 45px rgba(15,23,42,.18);
+}
+.assal-owner-report-head::after{
+  content:"";
+  position:absolute;
+  width:330px;
+  height:330px;
+  left:-95px;
+  top:-155px;
+  border-radius:50%;
+  border:58px solid rgba(255,255,255,.06);
+}
+.assal-owner-report-brand{
+  position:relative;
+  z-index:1;
+  display:flex;
+  align-items:center;
+  gap:18px;
+}
+.assal-owner-report-mark{
+  width:74px;
+  height:74px;
+  flex:0 0 auto;
+  display:grid;
+  place-items:center;
+  border-radius:22px;
+  font-size:34px;
+  font-weight:950;
+  background:linear-gradient(145deg,#2dd4bf,#38bdf8);
+  box-shadow:0 14px 30px rgba(14,165,233,.25),inset 0 1px 0 rgba(255,255,255,.35);
+}
+.assal-owner-report-brand h1{
+  margin:0;
+  font-size:34px;
+  line-height:1.25;
+  font-weight:950;
+  letter-spacing:.1px;
+}
+.assal-owner-report-brand p{
+  margin:8px 0 0;
+  color:#d9edf8;
+  font-size:15px;
+  font-weight:700;
+}
+.assal-owner-report-head-meta{
+  position:relative;
+  z-index:1;
+  min-width:280px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  text-align:left;
+  direction:rtl;
+}
+.assal-owner-report-head-meta b{
+  font-size:18px;
+  font-weight:950;
+}
+.assal-owner-report-head-meta span{
+  font-size:13px;
+  color:#dcecf7;
+}
+.assal-owner-report-safe{
+  align-self:flex-start;
+  margin-top:4px;
+  padding:6px 11px;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:999px;
+  background:rgba(255,255,255,.09);
+  color:#eafffb !important;
+  font-size:11px !important;
+  font-weight:900;
+}
+.assal-owner-report-kpis{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:14px;
+  margin-top:20px;
+}
+.assal-owner-report-kpi{
+  min-height:116px;
+  padding:18px 19px;
+  border:1px solid #dbe3ee;
+  border-radius:20px;
+  background:#fff;
+  box-shadow:0 10px 28px rgba(15,23,42,.07);
+}
+.assal-owner-report-kpi .label{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:#69758a;
+  font-size:13px;
+  font-weight:850;
+}
+.assal-owner-report-kpi .dot{
+  display:inline-block;
+  width:9px;
+  height:9px;
+  border-radius:50%;
+  background:#38bdf8;
+}
+.assal-owner-report-kpi strong{
+  display:block;
+  margin-top:9px;
+  color:#10223d;
+  font-size:27px;
+  line-height:1.25;
+  font-weight:950;
+  font-variant-numeric:tabular-nums;
+}
+.assal-owner-report-kpi small{
+  display:block;
+  margin-top:6px;
+  color:#8b97a9;
+  font-size:10.8px;
+  font-weight:750;
+}
+.assal-owner-report-kpi.debt .dot{background:#f59e0b}
+.assal-owner-report-kpi.return .dot{background:#ef4444}
+.assal-owner-report-kpi.pay .dot{background:#10b981}
+.assal-owner-report-kpi.delivery .dot{background:#8b5cf6}
+.assal-owner-report-kpi.supplier .dot{background:#0ea5e9}
+.assal-owner-report-kpi.total .dot{background:#0f766e}
+.assal-owner-report-section{
+  margin-top:20px;
+  overflow:hidden;
+  border:1px solid #dbe3ee;
+  border-radius:22px;
+  background:#fff;
+  box-shadow:0 10px 28px rgba(15,23,42,.055);
+}
+.assal-owner-report-section-head{
+  min-height:64px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:14px 20px;
+  border-bottom:1px solid #e7edf4;
+  background:linear-gradient(180deg,#fbfdff,#f7f9fc);
+}
+.assal-owner-report-section-head b{
+  color:#12233c;
+  font-size:18px;
+  font-weight:950;
+}
+.assal-owner-report-section-head span{
+  color:#7b8799;
+  font-size:11.5px;
+  font-weight:750;
+}
+.assal-owner-report-table{
+  width:100%;
+  border-collapse:collapse;
+  table-layout:fixed;
+}
+.assal-owner-report-table th{
+  padding:10px 12px;
+  color:#536177;
+  background:#f4f7fb;
+  border-bottom:1px solid #dde5ef;
+  font-size:11px;
+  font-weight:950;
+  text-align:right;
+}
+.assal-owner-report-table td{
+  padding:10px 12px;
+  color:#26344a;
+  border-bottom:1px solid #edf1f5;
+  font-size:11.5px;
+  font-weight:700;
+  vertical-align:top;
+  word-wrap:break-word;
+}
+.assal-owner-report-table tr:last-child td{border-bottom:0}
+.assal-owner-report-table tbody tr:nth-child(even) td{background:#fbfcfe}
+.assal-owner-report-table .money{
+  color:#10233d;
+  font-weight:950;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+.assal-owner-report-table .negative{color:#b91c1c}
+.assal-owner-report-table .positive{color:#047857}
+.assal-owner-report-empty{
+  padding:24px;
+  color:#8995a6;
+  text-align:center;
+  font-size:12px;
+  font-weight:800;
+  background:#fbfcfe;
+}
+.assal-owner-report-duo{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:20px;
+  align-items:start;
+}
+.assal-owner-report-attendance-summary{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:9px;
+  padding:14px 16px 0;
+}
+.assal-owner-report-attendance-chip{
+  padding:10px 8px;
+  border:1px solid #e0e7ef;
+  border-radius:13px;
+  text-align:center;
+  background:#f8fafc;
+}
+.assal-owner-report-attendance-chip span{
+  display:block;
+  color:#7b8799;
+  font-size:9.5px;
+  font-weight:800;
+}
+.assal-owner-report-attendance-chip b{
+  display:block;
+  margin-top:2px;
+  color:#162a45;
+  font-size:17px;
+  font-weight:950;
+}
+.assal-owner-report-foot{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  margin-top:20px;
+  padding:14px 18px;
+  border:1px solid #dbe3ee;
+  border-radius:16px;
+  background:rgba(255,255,255,.82);
+  color:#7b8799;
+  font-size:10.5px;
+  font-weight:750;
+}
+.assal-owner-report-preview{
+  position:fixed;
+  inset:0;
+  z-index:2147483500;
+  display:none;
+  align-items:center;
+  justify-content:center;
+}
+.assal-owner-report-preview.active{display:flex}
+#assalOwnerPanel #assalOwnerReportPreview.active,
+body.assal-owner-exclusive > #assalOwnerReportPreview.active{
+  display:flex !important;
+  visibility:visible !important;
+  pointer-events:auto !important;
+}
+.assal-owner-report-preview__backdrop{
+  position:absolute;
+  inset:0;
+  background:rgba(2,6,23,.72);
+  backdrop-filter:blur(5px);
+}
+.assal-owner-report-preview__dialog{
+  position:relative;
+  z-index:1;
+  width:min(980px,calc(100vw - 24px));
+  max-height:calc(100vh - 24px);
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  padding:14px;
+  border:1px solid rgba(124,58,237,.26);
+  border-radius:18px;
+  background:linear-gradient(180deg,#0f1a33,#0d172d);
+  box-shadow:0 24px 64px rgba(0,0,0,.55);
+}
+.assal-owner-report-preview__head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.assal-owner-report-preview__titles{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  color:#e7eef9;
+}
+.assal-owner-report-preview__titles b{
+  font-size:17px;
+  font-weight:950;
+}
+.assal-owner-report-preview__titles span{
+  font-size:12.5px;
+  color:#b8c4d8;
+}
+.assal-owner-report-preview__actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.assal-owner-report-preview__btn{
+  height:38px;
+  border-radius:12px;
+  border:1px solid var(--stroke);
+  padding:0 14px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  cursor:pointer;
+  font-weight:900;
+  font-family:"Cairo",Arial,sans-serif;
+}
+.assal-owner-report-preview__btn.save{
+  border-color:transparent;
+  background:linear-gradient(135deg,var(--brand),var(--brand-2));
+  color:#fff;
+  box-shadow:0 12px 28px rgba(124,58,237,.35);
+}
+.assal-owner-report-preview__btn.close{
+  background:linear-gradient(180deg,#7f1d1d,#4c0b0b);
+  color:#fecaca;
+  border:1px solid rgba(127,29,29,.6);
+}
+.assal-owner-report-preview__btn:disabled{
+  opacity:.72;
+  cursor:wait;
+}
+.assal-owner-report-preview__stage{
+  flex:1 1 auto;
+  min-height:0;
+  overflow:auto;
+  border:1px solid rgba(148,163,184,.2);
+  border-radius:16px;
+  background:linear-gradient(180deg,#eaf0f8,#dde6f3);
+  padding:14px;
+}
+.assal-owner-report-preview__page{
+  width:min(100%,520px);
+  margin:0 auto;
+}
+.assal-owner-report-preview__page img{
+  display:block;
+  width:100%;
+  height:auto;
+  border-radius:14px;
+  background:#fff;
+  box-shadow:0 18px 45px rgba(15,23,42,.22);
+}
+.assal-owner-report-preview__hint{
+  text-align:center;
+  color:#c8d2e2;
+  font-size:12px;
+  font-weight:700;
+}
+@media(max-width:700px){
+  .assal-owner-report-preview__dialog{
+    width:min(100vw,calc(100vw - 12px));
+    max-height:calc(100vh - 12px);
+    padding:10px;
+    border-radius:16px;
+  }
+  .assal-owner-report-preview__page{
+    width:min(100%,360px);
+  }
+  .assal-owner-report-preview__actions,
+  .assal-owner-report-preview__btn{
+    width:100%;
+  }
+}
 </style>
 
 <script id="assal-owner-readonly-hub-final-script">
@@ -75593,7 +76040,7 @@ body.assal-owner-exclusive > #modal.active{
   if (window.__ASSAL_OWNER_READONLY_HUB_FINAL__) return;
   window.__ASSAL_OWNER_READONLY_HUB_FINAL__ = true;
 
-  var ui = {view: 'home', dailyDay: '', dailyQuery: '', dailySearchMode: 'customer', financeDay: '', financeQuery: '', financeFilter: 'all', attendanceDay: '', supplierKey: '', supplierExpandedMonths: new Set(), supplierExpandedYears: new Set(), expanded: new Set(), observer: null, headerObserver: null, headerGuardTimer: 0};
+  var ui = {view: 'home', dailyDay: '', dailyQuery: '', dailySearchMode: 'customer', financeDay: '', financeQuery: '', financeFilter: 'all', attendanceDay: '', supplierKey: '', supplierExpandedMonths: new Set(), supplierExpandedYears: new Set(), expanded: new Set(), observer: null, headerObserver: null, headerGuardTimer: 0, reportBusy: false, reportSaving: false, reportPreview: null};
   function byId(id) {
     return document.getElementById(id);
 
@@ -75843,6 +76290,14 @@ body.assal-owner-exclusive > #modal.active{
     back.title = 'العودة إلى لوحة المالك';
     back.innerHTML = '<i class="fa-solid fa-house"></i><span>الرئيسية</span>';
     actions.insertBefore(back, actions.firstChild);
+    var reportBtn = document.createElement('button');
+    reportBtn.id = 'assalOwnerExportReport';
+    reportBtn.type = 'button';
+    reportBtn.className = 'assal-owner-action report';
+    reportBtn.title = 'تصدير تقرير المالك اليومي بصيغة JPG';
+    reportBtn.innerHTML = '<i class="fa-solid fa-file-image"></i><span>تقرير JPG</span>';
+    actions.insertBefore(reportBtn, byId('assalOwnerRefresh') || actions.lastChild);
+    reportBtn.addEventListener('click', exportOwnerReportJpg);
     var home = document.createElement('main');
     home.id = 'assalOwnerHome';
     home.className = 'assal-owner-hub-view';
@@ -76088,6 +76543,638 @@ body.assal-owner-exclusive > #modal.active{
     if (supplierSub) supplierSub.textContent = (suppliers.current || []).length + ' مورد';
     if (attMetric) attMetric.textContent = attDone + '/' + attNames.length;
     if (updated) updated.textContent = src ? src.textContent : 'آخر تحديث: —';
+  }
+
+
+
+  // تقرير المالك JPG: قراءة فقط من نفس مصادر لوحة المالك دون أي كتابة.
+  function ownerReportIsReturnLine(line, card) {
+    if (!line) return false;
+    if (line.returned) return true;
+    var raw = String(line.type || line.billType || (card && (card.billType || card.type || card.kind)) || '').trim();
+    try {
+      if (typeof window.normalizeBillType === 'function') raw = window.normalizeBillType(raw);
+
+    } catch (_) {
+
+    }
+    return raw === 'راجع';
+  }
+
+  function ownerReportCardDebtEffect(card) {
+    try {
+      if (typeof window.assalDebtCardEffectForLedger === 'function') {
+        var exact = Math.round(Number(window.assalDebtCardEffectForLedger(card)) || 0);
+        return isFinite(exact) ? exact : 0;
+
+      }
+    } catch (_) {
+
+    }
+    var s = cardSums(card), fallback = Math.round(Number(s && (s.final != null ? s.final : s.finalAmount) || 0));
+    return isFinite(fallback) ? fallback : 0;
+  }
+
+  function ownerReportDeliveryRow(store, day) {
+    function isDelivery(r) {
+      if (!r || r.deletedAt) return false;
+      try {
+        if (typeof window.assalIsDeliveryFinancialRow === 'function') return !!window.assalIsDeliveryFinancialRow(r);
+
+      } catch (_) {
+
+      }
+      return String(r.assalSpecial || '') === 'daily-delivery' || norm(paymentCustomer(r)) === norm('تسليم');
+    }
+    var preferred = [shiftDay(day, -1), day];
+    for (var i = 0; i < preferred.length; i++) {
+      var key = preferred[i], rows = Array.isArray(store && store[key]) ? store[key].filter(isDelivery) : [];
+      if (rows.length) return {day: key, row: rows.sort(function(a, b) { return paymentSortValue(b) - paymentSortValue(a); })[0]};
+    }
+    var keys = Object.keys(store || {}).filter(function(k) { return /^\d{4}-\d{2}-\d{2}$/.test(k) && k <= day; }).sort().reverse();
+    for (var j = 0; j < keys.length; j++) {
+      var list = Array.isArray(store[keys[j]]) ? store[keys[j]].filter(isDelivery) : [];
+      if (list.length) return {day: keys[j], row: list.sort(function(a, b) { return paymentSortValue(b) - paymentSortValue(a); })[0]};
+    }
+    return null;
+  }
+
+  function ownerReportGeneratedText(now) {
+    try {
+      return now.toLocaleString('ar-IQ', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'});
+
+    } catch (_) {
+      return fmtDate(localISO(now)) + ' • ' + now.toLocaleTimeString();
+
+    }
+  }
+
+  function ownerReportEmpty(text) {
+    return '<div class="assal-owner-report-empty">' + esc(text) + '</div>';
+  }
+
+  function ownerReportBuildNode() {
+    var root = byId('assalOwnerPanel');
+    if (!root) throw new Error('OWNER_PANEL_NOT_READY');
+    var old = byId('assalOwnerReportExportHost');
+    if (old) old.remove();
+
+    var day = localISO(new Date()), now = new Date(), daysMap = currentDays() || {}, store = paymentStore() || {};
+    var cards = cardsFrom(daysMap[day]).filter(function(card) { return card && !card.deletedAt && activeLines(card).length; });
+    var debtToday = 0, debtDetails = [], returnToday = 0, returnDetails = [];
+
+    cards.forEach(function(card, cardIndex) {
+      var effect = ownerReportCardDebtEffect(card), cname = cardName(card), ctime = cardTime(card), lines = activeLines(card);
+      if (effect > 0) {
+        debtToday += effect;
+        debtDetails.push({customer: cname, items: lines.length, time: ctime || '—', amount: effect});
+      }
+      lines.forEach(function(line) {
+        if (!ownerReportIsReturnLine(line, card)) return;
+        var amount = Math.abs(lineAmount(line));
+        returnToday += amount;
+        returnDetails.push({customer: cname, item: lineName(line), time: ctime || '—', amount: amount});
+      });
+    });
+
+    var dayPayments = (Array.isArray(store[day]) ? store[day] : []).filter(function(row) { return row && !row.deletedAt; });
+    var paymentRows = dayPayments.filter(function(row) {
+      try {
+        if (typeof window.assalIsDeliveryFinancialRow === 'function' && window.assalIsDeliveryFinancialRow(row)) return false;
+
+      } catch (_) {
+
+      }
+      return paymentKind(row) === 'تسديد';
+    }).sort(function(a, b) { return paymentSortValue(b) - paymentSortValue(a); });
+    var paymentTotal = paymentRows.reduce(function(sum, row) { return sum + Math.max(0, num(row.amount)); }, 0);
+    var delivery = ownerReportDeliveryRow(store, day), deliveryAmount = delivery ? Math.abs(num(delivery.row.amount)) : 0;
+
+    var suppliers = supplierSnapshot(), supplierRows = Array.isArray(suppliers.current) ? suppliers.current.slice() : [];
+    supplierRows.sort(function(a, b) { return Number(b.balance || 0) - Number(a.balance || 0); });
+    var supplierTotal = supplierRows.reduce(function(sum, row) { return sum + Number(row.balance || 0); }, 0);
+
+    var debts = debtRows(), totalDebt = debts.reduce(function(sum, row) { return sum + Math.max(0, Number(row.debt || 0)); }, 0);
+
+    var attState = attendanceState(), attDay = (attState.days && attState.days[day]) || {}, attMap = attDay.employees || {}, attNames = attendanceNames(attMap);
+    var attCounts = {present: 0, leave: 0, duty: 0, absent: 0}, attendanceRows = [];
+    attNames.forEach(function(name) {
+      var rec = attMap[name] || null, status = attendanceStatus(rec);
+      attCounts[status.key] = (attCounts[status.key] || 0) + 1;
+      attendanceRows.push({name: name, status: status.label, time: attendanceTime(rec, status)});
+    });
+
+    var updatedText = byId('assalOwnerUpdated') ? String(byId('assalOwnerUpdated').textContent || '').trim() : '';
+    var debtRowsHtml = debtDetails.length ? debtDetails.map(function(row, index) {
+      return '<tr><td>' + (index + 1) + '</td><td>' + esc(row.customer) + '</td><td>' + row.items + '</td><td>' + esc(row.time) + '</td><td class="money">' + esc(money(row.amount)) + '</td></tr>';
+    }).join('') : '';
+    var returnRowsHtml = returnDetails.length ? returnDetails.map(function(row, index) {
+      return '<tr><td>' + (index + 1) + '</td><td>' + esc(row.customer) + '</td><td>' + esc(row.item) + '</td><td>' + esc(row.time) + '</td><td class="money negative">' + esc(money(row.amount)) + '</td></tr>';
+    }).join('') : '';
+    var paymentRowsHtml = paymentRows.length ? paymentRows.map(function(row, index) {
+      var meta = [String(row.time || '').trim(), paymentNotes(row)].filter(Boolean).join(' • ') || '—';
+      return '<tr><td>' + (index + 1) + '</td><td>' + esc(paymentCustomer(row)) + '</td><td>' + esc(meta) + '</td><td class="money positive">' + esc(money(Math.abs(num(row.amount)))) + '</td></tr>';
+    }).join('') : '';
+    var supplierRowsHtml = supplierRows.length ? supplierRows.map(function(row, index) {
+      return '<tr><td>' + (index + 1) + '</td><td>' + esc(row.name || 'مورد') + '</td><td>' + esc(fmtDate(row.date || '')) + '</td><td class="money">' + esc(money(Number(row.balance || 0))) + '</td></tr>';
+    }).join('') : '';
+    var attendanceRowsHtml = attendanceRows.length ? attendanceRows.map(function(row, index) {
+      return '<tr><td>' + (index + 1) + '</td><td>' + esc(row.name) + '</td><td>' + esc(row.status) + '</td><td>' + esc(row.time) + '</td></tr>';
+    }).join('') : '';
+
+    var host = document.createElement('div');
+    host.id = 'assalOwnerReportExportHost';
+    host.setAttribute('aria-hidden', 'true');
+    host.__assalOwnerReportData = {
+      day: day,
+      generatedText: ownerReportGeneratedText(now),
+      updatedText: updatedText || 'البيانات الحالية في لوحة المالك',
+      debtToday: debtToday,
+      debtDetails: debtDetails.map(function(row) { return {customer: row.customer, items: row.items, time: row.time, amount: row.amount}; }),
+      returnToday: returnToday,
+      returnDetails: returnDetails.map(function(row) { return {customer: row.customer, item: row.item, time: row.time, amount: row.amount}; }),
+      paymentTotal: paymentTotal,
+      paymentDetails: paymentRows.map(function(row) {
+        return {customer: paymentCustomer(row), meta: [String(row.time || '').trim(), paymentNotes(row)].filter(Boolean).join(' • ') || '—', amount: Math.abs(num(row.amount))};
+      }),
+      delivery: delivery ? {amount: deliveryAmount, day: delivery.day} : null,
+      supplierTotal: supplierTotal,
+      supplierDetails: supplierRows.map(function(row) { return {name: row.name || 'مورد', date: fmtDate(row.date || ''), balance: Number(row.balance || 0)}; }),
+      totalDebt: totalDebt,
+      debtCustomersCount: debts.length,
+      attendanceCounts: {present: attCounts.present, leave: attCounts.leave, duty: attCounts.duty, absent: attCounts.absent},
+      attendanceDetails: attendanceRows.map(function(row) { return {name: row.name, status: row.status, time: row.time}; })
+    };
+    host.innerHTML =
+      '<div class="assal-owner-report-sheet">' +
+        '<section class="assal-owner-report-head">' +
+          '<div class="assal-owner-report-brand"><div class="assal-owner-report-mark">A</div><div><h1>تقرير المالك اليومي</h1><p>مكتب عسل • ملخص تنفيذي وحركة اليوم بالتفصيل</p></div></div>' +
+          '<div class="assal-owner-report-head-meta"><b>' + esc(fmtDate(day)) + '</b><span>' + esc(ownerReportGeneratedText(now)) + '</span><span>' + esc(updatedText || 'البيانات الحالية في لوحة المالك') + '</span><span class="assal-owner-report-safe">قراءة فقط • لم يتم تغيير أي بيانات</span></div>' +
+        '</section>' +
+        '<section class="assal-owner-report-kpis">' +
+          '<div class="assal-owner-report-kpi debt"><span class="label"><i class="dot"></i>ديون اليوم</span><strong>' + esc(money(debtToday)) + '</strong><small>صافي أثر بطاقات الدين المسجلة اليوم</small></div>' +
+          '<div class="assal-owner-report-kpi return"><span class="label"><i class="dot"></i>راجع اليوم</span><strong>' + esc(money(returnToday)) + '</strong><small>' + returnDetails.length + ' حركة راجع</small></div>' +
+          '<div class="assal-owner-report-kpi pay"><span class="label"><i class="dot"></i>تسديدات اليوم</span><strong>' + esc(money(paymentTotal)) + '</strong><small>' + paymentRows.length + ' حركة تسديد في الحسابات المالية</small></div>' +
+          '<div class="assal-owner-report-kpi delivery"><span class="label"><i class="dot"></i>تسليم</span><strong>' + (delivery ? esc(money(deliveryAmount)) : 'غير مسجل') + '</strong><small>' + (delivery ? ('إقفال بتاريخ ' + esc(fmtDate(delivery.day))) : 'لا يوجد سجل تسليم متاح') + '</small></div>' +
+          '<div class="assal-owner-report-kpi supplier"><span class="label"><i class="dot"></i>ذمم الموردين</span><strong>' + esc(money(supplierTotal)) + '</strong><small>' + supplierRows.length + ' مورد في الرصيد الحالي</small></div>' +
+          '<div class="assal-owner-report-kpi total"><span class="label"><i class="dot"></i>مجموع ديون الزبائن الحالية</span><strong>' + esc(money(totalDebt)) + '</strong><small>' + debts.length + ' زبون مدين حالياً</small></div>' +
+        '</section>' +
+        '<section class="assal-owner-report-section"><div class="assal-owner-report-section-head"><b>تفاصيل ديون اليوم</b><span>' + debtDetails.length + ' بطاقة ذات أثر دين موجب</span></div>' +
+          (debtDetails.length ? '<table class="assal-owner-report-table"><thead><tr><th style="width:55px">#</th><th>الزبون</th><th style="width:105px">المواد</th><th style="width:125px">الوقت</th><th style="width:185px">الدين</th></tr></thead><tbody>' + debtRowsHtml + '</tbody></table>' : ownerReportEmpty('لا توجد ديون جديدة مسجلة في بطاقات هذا اليوم.')) +
+        '</section>' +
+        '<section class="assal-owner-report-duo">' +
+          '<div class="assal-owner-report-section"><div class="assal-owner-report-section-head"><b>راجع اليوم</b><span>' + returnDetails.length + ' حركة</span></div>' +
+            (returnDetails.length ? '<table class="assal-owner-report-table"><thead><tr><th style="width:48px">#</th><th>الزبون</th><th>المادة</th><th style="width:95px">الوقت</th><th style="width:145px">المبلغ</th></tr></thead><tbody>' + returnRowsHtml + '</tbody></table>' : ownerReportEmpty('لا توجد حركات راجع في هذا اليوم.')) +
+          '</div>' +
+          '<div class="assal-owner-report-section"><div class="assal-owner-report-section-head"><b>تسديدات اليوم</b><span>' + paymentRows.length + ' حركة</span></div>' +
+            (paymentRows.length ? '<table class="assal-owner-report-table"><thead><tr><th style="width:48px">#</th><th>الزبون</th><th>الوقت / الملاحظة</th><th style="width:155px">المبلغ</th></tr></thead><tbody>' + paymentRowsHtml + '</tbody></table>' : ownerReportEmpty('لا توجد تسديدات مالية مسجلة في هذا اليوم.')) +
+          '</div>' +
+        '</section>' +
+        '<section class="assal-owner-report-duo">' +
+          '<div class="assal-owner-report-section"><div class="assal-owner-report-section-head"><b>حسابات ذمم الموردين</b><span>الإجمالي ' + esc(money(supplierTotal)) + '</span></div>' +
+            (supplierRows.length ? '<table class="assal-owner-report-table"><thead><tr><th style="width:48px">#</th><th>المورد</th><th style="width:125px">تاريخ الرصيد</th><th style="width:165px">الرصيد</th></tr></thead><tbody>' + supplierRowsHtml + '</tbody></table>' : ownerReportEmpty('لا توجد ذمم موردين متاحة حالياً.')) +
+          '</div>' +
+          '<div class="assal-owner-report-section"><div class="assal-owner-report-section-head"><b>حضور الكادر</b><span>' + attNames.length + ' موظف</span></div>' +
+            '<div class="assal-owner-report-attendance-summary"><div class="assal-owner-report-attendance-chip"><span>حاضر</span><b>' + attCounts.present + '</b></div><div class="assal-owner-report-attendance-chip"><span>مجاز</span><b>' + attCounts.leave + '</b></div><div class="assal-owner-report-attendance-chip"><span>واجب</span><b>' + attCounts.duty + '</b></div><div class="assal-owner-report-attendance-chip"><span>غائب</span><b>' + attCounts.absent + '</b></div></div>' +
+            (attendanceRows.length ? '<table class="assal-owner-report-table" style="margin-top:12px"><thead><tr><th style="width:48px">#</th><th>الموظف</th><th style="width:110px">الحالة</th><th>التفصيل</th></tr></thead><tbody>' + attendanceRowsHtml + '</tbody></table>' : ownerReportEmpty('لا توجد بيانات حضور متاحة لهذا اليوم.')) +
+          '</div>' +
+        '</section>' +
+        '<footer class="assal-owner-report-foot"><span>ASSAL DEBTS • OWNER DAILY REPORT</span><span>تم إنشاء التقرير تلقائياً من واجهة المالك بتاريخ ' + esc(fmtDate(day)) + '</span></footer>' +
+      '</div>';
+    document.body.appendChild(host);
+    return host;
+  }
+
+  function ownerReportCanvasRound(ctx, x, y, w, h, r, fill, stroke) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
+  }
+
+  function ownerReportCanvasFont(ctx, weight, size) {
+    ctx.font = String(weight) + ' ' + String(size) + 'px "Cairo", Arial, sans-serif';
+    ctx.textBaseline = 'middle';
+    ctx.direction = 'rtl';
+  }
+
+  function ownerReportCanvasFit(ctx, text, maxWidth, weight, size, minSize) {
+    var s = size;
+    for (; s >= (minSize || 10); s -= 1) {
+      ownerReportCanvasFont(ctx, weight, s);
+      if (ctx.measureText(String(text == null ? '' : text)).width <= maxWidth) return s;
+    }
+    return minSize || 10;
+  }
+
+  function ownerReportCanvasText(ctx, text, x, y, weight, size, color, align, maxWidth) {
+    var value = String(text == null ? '' : text);
+    if (maxWidth) size = ownerReportCanvasFit(ctx, value, maxWidth, weight, size, 10);
+    ownerReportCanvasFont(ctx, weight, size);
+    ctx.textAlign = align || 'right';
+    ctx.fillStyle = color || '#172033';
+    ctx.fillText(value, x, y);
+  }
+
+  function ownerReportCanvasSectionHeight(rows, emptyRows, withSummary) {
+    var count = Math.max(emptyRows || 1, Number(rows || 0));
+    return 54 + (withSummary ? 58 : 0) + 32 + count * 32 + 12;
+  }
+
+  function ownerReportCanvasTable(ctx, x, y, w, rows, columns, emptyText) {
+    var headerH = 32, rowH = 32, pad = 8;
+    ctx.fillStyle = '#f4f7fb';
+    ctx.fillRect(x, y, w, headerH);
+    var widths = [], used = 0;
+    columns.forEach(function(col, index) {
+      var cw = index === columns.length - 1 ? (w - used) : Math.round(w * col.ratio);
+      widths.push(cw); used += cw;
+    });
+    var cursor = x + w;
+    columns.forEach(function(col, index) {
+      var cw = widths[index], left = cursor - cw;
+      ownerReportCanvasText(ctx, col.title, col.align === 'left' ? left + pad : (col.align === 'center' ? left + cw / 2 : cursor - pad), y + headerH / 2, 700, 11, '#536177', col.align || 'right', cw - pad * 2);
+      if (index) { ctx.strokeStyle = '#dde5ef'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cursor, y); ctx.lineTo(cursor, y + headerH + Math.max(1, rows.length) * rowH); ctx.stroke(); }
+      cursor = left;
+    });
+    if (!rows.length) {
+      ctx.fillStyle = '#fbfcfe';
+      ctx.fillRect(x, y + headerH, w, rowH);
+      ownerReportCanvasText(ctx, emptyText || 'لا توجد بيانات', x + w / 2, y + headerH + rowH / 2, 600, 11, '#8995a6', 'center', w - 24);
+      return headerH + rowH;
+    }
+    rows.forEach(function(row, rowIndex) {
+      var ry = y + headerH + rowIndex * rowH;
+      ctx.fillStyle = rowIndex % 2 ? '#fbfcfe' : '#ffffff';
+      ctx.fillRect(x, ry, w, rowH);
+      ctx.strokeStyle = '#edf1f5'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, ry + rowH); ctx.lineTo(x + w, ry + rowH); ctx.stroke();
+      var cur = x + w;
+      columns.forEach(function(col, index) {
+        var cw = widths[index], left = cur - cw, value = typeof col.value === 'function' ? col.value(row, rowIndex) : row[col.key];
+        var color = typeof col.color === 'function' ? col.color(row) : (col.color || '#26344a');
+        var align = col.align || 'right';
+        ownerReportCanvasText(ctx, value, align === 'left' ? left + pad : (align === 'center' ? left + cw / 2 : cur - pad), ry + rowH / 2, col.weight || 600, col.size || 11, color, align, cw - pad * 2);
+        cur = left;
+      });
+    });
+    return headerH + rows.length * rowH;
+  }
+
+  function ownerReportCanvasSection(ctx, x, y, w, title, meta, rows, columns, emptyText, summaryFn) {
+    var h = ownerReportCanvasSectionHeight(rows.length, 1, !!summaryFn);
+    ownerReportCanvasRound(ctx, x, y, w, h, 18, '#ffffff', '#dbe3ee');
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(x + 1, y + 1, w - 2, 52);
+    ownerReportCanvasText(ctx, title, x + w - 16, y + 27, 700, 16, '#12233c', 'right', w * .62);
+    ownerReportCanvasText(ctx, meta || '', x + 16, y + 27, 600, 10, '#7b8799', 'left', w * .32);
+    var tableY = y + 54;
+    if (summaryFn) tableY += summaryFn(ctx, x, tableY, w) || 58;
+    ownerReportCanvasTable(ctx, x + 10, tableY, w - 20, rows, columns, emptyText);
+    return h;
+  }
+
+  async function ownerReportCanvas(node) {
+    /* نفس آلية صورة واتساب: رسم مباشر على Canvas ثم تحويله إلى JPG بدون html2canvas/html2pdf. */
+    var data = node && node.__assalOwnerReportData;
+    if (!data) throw new Error('OWNER_REPORT_DATA_NOT_READY');
+    try {
+      if (document.fonts && document.fonts.load) {
+        await Promise.all([
+          document.fonts.load('400 18px Cairo'),
+          document.fonts.load('600 18px Cairo'),
+          document.fonts.load('700 28px Cairo')
+        ]);
+        await document.fonts.ready;
+      }
+    } catch (_) {}
+
+    var W = 1240, A4H = 1754, M = 40, gap = 14, inner = W - M * 2;
+    var debtH = ownerReportCanvasSectionHeight(data.debtDetails.length, 1, false);
+    var pair1H = Math.max(ownerReportCanvasSectionHeight(data.returnDetails.length, 1, false), ownerReportCanvasSectionHeight(data.paymentDetails.length, 1, false));
+    var pair2H = Math.max(ownerReportCanvasSectionHeight(data.supplierDetails.length, 1, false), ownerReportCanvasSectionHeight(data.attendanceDetails.length, 1, true));
+    var logicalH = M + 160 + 18 + 210 + 18 + debtH + 18 + pair1H + 18 + pair2H + 60 + M;
+    var work = document.createElement('canvas');
+    work.width = W;
+    work.height = Math.max(A4H, logicalH);
+    var ctx = work.getContext('2d', {alpha: false, desynchronized: true}) || work.getContext('2d');
+    if (!ctx) throw new Error('OWNER_REPORT_CANVAS_CONTEXT_FAILED');
+    ctx.imageSmoothingEnabled = true;
+    ctx.fillStyle = '#f3f6fb';
+    ctx.fillRect(0, 0, W, work.height);
+
+    var glow = ctx.createRadialGradient(W - 100, 80, 20, W - 100, 80, 300);
+    glow.addColorStop(0, 'rgba(14,165,233,.10)'); glow.addColorStop(1, 'rgba(14,165,233,0)');
+    ctx.fillStyle = glow; ctx.fillRect(W - 440, 0, 440, 360);
+    var glow2 = ctx.createRadialGradient(100, 100, 20, 100, 100, 260);
+    glow2.addColorStop(0, 'rgba(124,58,237,.08)'); glow2.addColorStop(1, 'rgba(124,58,237,0)');
+    ctx.fillStyle = glow2; ctx.fillRect(0, 0, 380, 340);
+
+    var y = M;
+    var head = ctx.createLinearGradient(M, y, W - M, y + 160);
+    head.addColorStop(0, '#0b1730'); head.addColorStop(.58, '#12385a'); head.addColorStop(1, '#0f766e');
+    ownerReportCanvasRound(ctx, M, y, inner, 160, 24, head, null);
+    var mark = ctx.createLinearGradient(W - 170, y + 28, W - 80, y + 118);
+    mark.addColorStop(0, '#2dd4bf'); mark.addColorStop(1, '#38bdf8');
+    ownerReportCanvasRound(ctx, W - M - 92, y + 34, 72, 72, 20, mark, null);
+    ownerReportCanvasText(ctx, 'A', W - M - 56, y + 70, 700, 32, '#ffffff', 'center', 56);
+    ownerReportCanvasText(ctx, 'تقرير المالك اليومي', W - M - 118, y + 54, 700, 28, '#ffffff', 'right', 560);
+    ownerReportCanvasText(ctx, 'مكتب عسل • ملخص تنفيذي وحركة اليوم بالتفصيل', W - M - 118, y + 94, 600, 14, '#d9edf8', 'right', 590);
+    ownerReportCanvasText(ctx, fmtDate(data.day), M + 22, y + 42, 700, 16, '#ffffff', 'left', 300);
+    ownerReportCanvasText(ctx, data.generatedText, M + 22, y + 76, 600, 11, '#dcecf7', 'left', 430);
+    ownerReportCanvasText(ctx, data.updatedText, M + 22, y + 104, 600, 10, '#dcecf7', 'left', 430);
+    ownerReportCanvasRound(ctx, M + 22, y + 122, 188, 25, 12, 'rgba(255,255,255,.10)', 'rgba(255,255,255,.20)');
+    ownerReportCanvasText(ctx, 'قراءة فقط • بدون تغيير بيانات', M + 116, y + 135, 700, 9, '#eafffb', 'center', 170);
+    y += 178;
+
+    var kpis = [
+      {label:'ديون اليوم', value:money(data.debtToday), sub:data.debtDetails.length + ' بطاقة دين', tone:'#f59e0b'},
+      {label:'راجع اليوم', value:money(data.returnToday), sub:data.returnDetails.length + ' حركة راجع', tone:'#ef4444'},
+      {label:'تسديدات اليوم', value:money(data.paymentTotal), sub:data.paymentDetails.length + ' حركة تسديد', tone:'#10b981'},
+      {label:'تسليم', value:data.delivery ? money(data.delivery.amount) : 'غير مسجل', sub:data.delivery ? ('إقفال ' + fmtDate(data.delivery.day)) : 'لا يوجد سجل', tone:'#8b5cf6'},
+      {label:'ذمم الموردين', value:money(data.supplierTotal), sub:data.supplierDetails.length + ' مورد', tone:'#0ea5e9'},
+      {label:'مجموع ديون الزبائن', value:money(data.totalDebt), sub:data.debtCustomersCount + ' زبون مدين', tone:'#0f766e'}
+    ];
+    var kw = (inner - gap * 2) / 3, kh = 96;
+    kpis.forEach(function(k, i) {
+      var col = i % 3, row = Math.floor(i / 3), x = M + (2 - col) * (kw + gap), ky = y + row * (kh + gap);
+      ownerReportCanvasRound(ctx, x, ky, kw, kh, 16, '#ffffff', '#dbe3ee');
+      ownerReportCanvasRound(ctx, x + kw - 18, ky + 16, 6, 48, 3, k.tone, null);
+      ownerReportCanvasText(ctx, k.label, x + kw - 30, ky + 25, 700, 11, '#69758a', 'right', kw - 50);
+      ownerReportCanvasText(ctx, k.value, x + kw - 30, ky + 55, 700, 22, '#10223d', 'right', kw - 50);
+      ownerReportCanvasText(ctx, k.sub, x + kw - 30, ky + 79, 600, 9, '#8b97a9', 'right', kw - 50);
+    });
+    y += 210 + 18;
+
+    var debtCols = [
+      {title:'الزبون', key:'customer', ratio:.38, align:'right', weight:700},
+      {title:'المواد', key:'items', ratio:.14, align:'center'},
+      {title:'الوقت', key:'time', ratio:.18, align:'center'},
+      {title:'الدين', ratio:.30, align:'left', weight:700, color:'#9f1239', value:function(r){return money(r.amount);}}
+    ];
+    var dh = ownerReportCanvasSection(ctx, M, y, inner, 'تفاصيل ديون اليوم', data.debtDetails.length + ' بطاقة ذات أثر دين موجب', data.debtDetails, debtCols, 'لا توجد ديون جديدة مسجلة في بطاقات هذا اليوم.');
+    y += dh + 18;
+
+    var half = (inner - gap) / 2;
+    var returnCols = [
+      {title:'الزبون', key:'customer', ratio:.34, align:'right', weight:700},
+      {title:'المادة', key:'item', ratio:.34, align:'right'},
+      {title:'المبلغ', ratio:.32, align:'left', weight:700, color:'#b91c1c', value:function(r){return money(r.amount);}}
+    ];
+    var payCols = [
+      {title:'الزبون', key:'customer', ratio:.38, align:'right', weight:700},
+      {title:'الوقت / الملاحظة', key:'meta', ratio:.36, align:'right'},
+      {title:'المبلغ', ratio:.26, align:'left', weight:700, color:'#047857', value:function(r){return money(r.amount);}}
+    ];
+    ownerReportCanvasSection(ctx, M + half + gap, y, half, 'راجع اليوم', data.returnDetails.length + ' حركة', data.returnDetails, returnCols, 'لا توجد حركات راجع في هذا اليوم.');
+    ownerReportCanvasSection(ctx, M, y, half, 'تسديدات اليوم', data.paymentDetails.length + ' حركة', data.paymentDetails, payCols, 'لا توجد تسديدات مالية مسجلة في هذا اليوم.');
+    y += pair1H + 18;
+
+    var supplierCols = [
+      {title:'المورد', key:'name', ratio:.42, align:'right', weight:700},
+      {title:'التاريخ', key:'date', ratio:.25, align:'center'},
+      {title:'الرصيد', ratio:.33, align:'left', weight:700, value:function(r){return money(r.balance);}}
+    ];
+    var attCols = [
+      {title:'الموظف', key:'name', ratio:.42, align:'right', weight:700},
+      {title:'الحالة', key:'status', ratio:.24, align:'center'},
+      {title:'التفصيل', key:'time', ratio:.34, align:'right'}
+    ];
+    ownerReportCanvasSection(ctx, M + half + gap, y, half, 'حسابات ذمم الموردين', 'الإجمالي ' + money(data.supplierTotal), data.supplierDetails, supplierCols, 'لا توجد ذمم موردين متاحة حالياً.');
+    ownerReportCanvasSection(ctx, M, y, half, 'حضور الكادر', data.attendanceDetails.length + ' موظف', data.attendanceDetails, attCols, 'لا توجد بيانات حضور متاحة لهذا اليوم.', function(c, sx, sy, sw) {
+      var labels = [
+        ['حاضر', data.attendanceCounts.present], ['مجاز', data.attendanceCounts.leave], ['واجب', data.attendanceCounts.duty], ['غائب', data.attendanceCounts.absent]
+      ], chipGap = 6, chipW = (sw - 20 - chipGap * 3) / 4;
+      labels.forEach(function(item, i) {
+        var cx = sx + 10 + i * (chipW + chipGap);
+        ownerReportCanvasRound(c, cx, sy + 6, chipW, 44, 10, '#f8fafc', '#e0e7ef');
+        ownerReportCanvasText(c, item[0], cx + chipW / 2, sy + 19, 600, 8, '#7b8799', 'center', chipW - 10);
+        ownerReportCanvasText(c, item[1], cx + chipW / 2, sy + 35, 700, 14, '#162a45', 'center', chipW - 10);
+      });
+      return 58;
+    });
+    y += pair2H + 18;
+
+    ownerReportCanvasRound(ctx, M, y, inner, 44, 14, 'rgba(255,255,255,.88)', '#dbe3ee');
+    ownerReportCanvasText(ctx, 'ASSAL DEBTS • OWNER DAILY REPORT', W - M - 16, y + 22, 700, 9, '#7b8799', 'right', inner / 2);
+    ownerReportCanvasText(ctx, 'تم إنشاء التقرير تلقائياً بتاريخ ' + fmtDate(data.day), M + 16, y + 22, 600, 9, '#7b8799', 'left', inner / 2);
+
+    if (work.height === A4H) return work;
+    var finalCanvas = document.createElement('canvas');
+    finalCanvas.width = W;
+    finalCanvas.height = A4H;
+    var fctx = finalCanvas.getContext('2d', {alpha: false}) || finalCanvas.getContext('2d');
+    if (!fctx) return work;
+    fctx.fillStyle = '#f3f6fb';
+    fctx.fillRect(0, 0, W, A4H);
+    var scale = Math.min(1, (A4H - 16) / work.height), dw = Math.round(W * scale), dh2 = Math.round(work.height * scale), dx = Math.round((W - dw) / 2), dy = Math.round((A4H - dh2) / 2);
+    fctx.drawImage(work, 0, 0, work.width, work.height, dx, dy, dw, dh2);
+    return finalCanvas;
+  }
+
+  function ownerReportBytesLabel(bytes) {
+    var n = Math.max(0, Number(bytes) || 0);
+    if (!n) return '0 KB';
+    if (n >= 1048576) return (Math.round((n / 1048576) * 10) / 10) + ' MB';
+    return Math.max(1, Math.round(n / 1024)) + ' KB';
+  }
+
+  function ownerReportDataUrlToBlob(dataUrl) {
+    var parts = String(dataUrl || '').split(','), header = parts[0] || '', body = parts[1] || '';
+    var match = header.match(/data:([^;]+);base64/i), mime = match ? match[1] : 'image/jpeg';
+    var binary = atob(body), len = binary.length, bytes = new Uint8Array(len);
+    for (var i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], {type: mime});
+  }
+
+  function ownerReportCanvasToBlob(canvas) {
+    return new Promise(function(resolve, reject) {
+      if (!canvas) { reject(new Error('CANVAS_EMPTY')); return; }
+      try {
+        if (typeof canvas.toBlob === 'function') {
+          canvas.toBlob(function(blob) {
+            if (!blob) { reject(new Error('JPG_EMPTY')); return; }
+            resolve(blob);
+          }, 'image/jpeg', .94);
+          return;
+        }
+        resolve(ownerReportDataUrlToBlob(canvas.toDataURL('image/jpeg', .94)));
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
+  function ownerReportFileName() {
+    return 'ASSAL_OWNER_REPORT_' + localISO(new Date()) + '.jpg';
+  }
+
+  async function ownerReportAssetFromCanvas(canvas, filename) {
+    var blob = await ownerReportCanvasToBlob(canvas), url = URL.createObjectURL(blob);
+    return {blob: blob, url: url, filename: filename || ownerReportFileName(), size: blob.size || 0};
+  }
+
+  function ownerReportReleasePreviewAsset() {
+    var current = ui.reportPreview;
+    if (!current) return;
+    try { if (current.url) URL.revokeObjectURL(current.url); } catch (_) {}
+    ui.reportPreview = null;
+  }
+
+  function ownerReportEnsurePreviewModal() {
+    var modal = byId('assalOwnerReportPreview');
+    if (modal) return modal;
+    modal = document.createElement('div');
+    modal.id = 'assalOwnerReportPreview';
+    modal.className = 'assal-owner-report-preview';
+    modal.innerHTML =
+      '<div class="assal-owner-report-preview__backdrop" data-owner-report-close="1"></div>' +
+      '<div class="assal-owner-report-preview__dialog" role="dialog" aria-modal="true" aria-label="معاينة تقرير المالك بصيغة JPG">' +
+        '<div class="assal-owner-report-preview__head">' +
+          '<div class="assal-owner-report-preview__titles"><b>معاينة تقرير المالك</b><span id="assalOwnerReportPreviewMeta">صيغة JPG بنسبة A4</span></div>' +
+          '<div class="assal-owner-report-preview__actions"><button type="button" id="assalOwnerReportPreviewSave" class="assal-owner-report-preview__btn save"><i class="fa-solid fa-download"></i><span>حفظ الصورة</span></button><button type="button" id="assalOwnerReportPreviewClose" class="assal-owner-report-preview__btn close"><i class="fa-solid fa-xmark"></i><span>إغلاق</span></button></div>' +
+        '</div>' +
+        '<div class="assal-owner-report-preview__stage nice-scroll"><div class="assal-owner-report-preview__page"><img id="assalOwnerReportPreviewImage" alt="معاينة تقرير المالك"></div></div>' +
+        '<div class="assal-owner-report-preview__hint">المعاينة مصغرة داخل النافذة • عند الضغط على حفظ ينزل الملف إلى التنزيلات من المتصفح</div>' +
+      '</div>';
+    (byId('assalOwnerPanel') || document.body).appendChild(modal);
+    modal.addEventListener('click', function(evt) {
+      var target = evt.target;
+      if (target && target.getAttribute && target.getAttribute('data-owner-report-close') === '1') ownerReportClosePreview();
+    });
+    var closeBtn = byId('assalOwnerReportPreviewClose');
+    if (closeBtn) closeBtn.addEventListener('click', ownerReportClosePreview);
+    var saveBtn = byId('assalOwnerReportPreviewSave');
+    if (saveBtn) saveBtn.addEventListener('click', ownerReportSavePreview);
+    document.addEventListener('keydown', function(evt) {
+      if (evt.key === 'Escape') {
+        var active = byId('assalOwnerReportPreview');
+        if (active && active.classList.contains('active')) ownerReportClosePreview();
+      }
+    });
+    return modal;
+  }
+
+  function ownerReportOpenPreview(asset) {
+    if (!asset || !asset.url) return;
+    var modal = ownerReportEnsurePreviewModal(), img = byId('assalOwnerReportPreviewImage'), meta = byId('assalOwnerReportPreviewMeta');
+    ownerReportReleasePreviewAsset();
+    ui.reportPreview = asset;
+    if (img) img.src = asset.url;
+    if (meta) meta.textContent = 'صيغة JPG بنسبة A4 • ' + ownerReportBytesLabel(asset.size) + ' • جاهز للحفظ';
+    modal.classList.add('active');
+    document.body.classList.add('modal-open');
+  }
+
+  function ownerReportClosePreview() {
+    var modal = byId('assalOwnerReportPreview'), img = byId('assalOwnerReportPreviewImage'), meta = byId('assalOwnerReportPreviewMeta');
+    if (modal) modal.classList.remove('active');
+    document.body.classList.remove('modal-open');
+    setTimeout(function() {
+      if (img) img.removeAttribute('src');
+      if (meta) meta.textContent = 'صيغة JPG بنسبة A4';
+      ownerReportReleasePreviewAsset();
+    }, 120);
+  }
+
+  function ownerReportDownloadAsset(asset) {
+    return new Promise(function(resolve, reject) {
+      if (!asset || !asset.url) { reject(new Error('REPORT_ASSET_EMPTY')); return; }
+      try {
+        var a = document.createElement('a');
+        a.href = asset.url;
+        a.download = asset.filename || ownerReportFileName();
+        a.rel = 'noopener';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        try { a.dispatchEvent(new MouseEvent('click', {view: window, bubbles: true, cancelable: true})); }
+        catch (_) { a.click(); }
+        a.remove();
+        setTimeout(function() { resolve('download'); }, 140);
+      } catch (err) {
+        try {
+          window.open(asset.url, '_blank', 'noopener');
+          resolve('open');
+        } catch (err2) {
+          reject(err || err2);
+        }
+      }
+    });
+  }
+
+  async function ownerReportSavePreview() {
+    if (ui.reportSaving) return;
+    var asset = ui.reportPreview;
+    if (!asset) {
+      try { window.showToast && window.showToast('warn', 'لا توجد معاينة جاهزة للحفظ'); } catch (_) {}
+      return;
+    }
+    var btn = byId('assalOwnerReportPreviewSave'), oldHtml = btn ? btn.innerHTML : '';
+    ui.reportSaving = true;
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>جاري الحفظ</span>';
+    }
+    try {
+      try {
+        window.showToast && window.showToast('info', 'جارٍ تجهيز ملف التقرير...', 900);
+        window.showToast && window.showToast('info', 'جارٍ حفظ الصورة في التنزيلات...', 1000);
+      } catch (_) {}
+      var mode = await ownerReportDownloadAsset(asset);
+      try {
+        window.showToast && window.showToast('success', mode === 'download' ? 'تم إرسال صورة التقرير إلى التنزيلات' : 'تم فتح صورة التقرير للحفظ');
+      } catch (_) {}
+    } catch (err) {
+      console.error('[ASSAL owner report save]', err);
+      try { window.showToast && window.showToast('error', 'تعذر حفظ صورة التقرير'); } catch (_) {}
+    } finally {
+      ui.reportSaving = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = oldHtml || '<i class="fa-solid fa-download"></i><span>حفظ الصورة</span>';
+      }
+    }
+  }
+
+  async function exportOwnerReportJpg() {
+    if (ui.reportBusy) return;
+    if (window.ASSAL_OWNER_VIEWER !== true) {
+      try { window.showToast && window.showToast('error', 'تقرير المالك متاح لحساب المالك فقط'); } catch (_) {}
+      return;
+    }
+    var btn = byId('assalOwnerExportReport'), oldHtml = btn ? btn.innerHTML : '';
+    ui.reportBusy = true;
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add('is-exporting');
+      btn.innerHTML = '<i class="fa-solid fa-spinner"></i><span>جاري التحضير</span>';
+    }
+    var node = null;
+    try {
+      try { window.showToast && window.showToast('info', 'جارٍ تجهيز معاينة تقرير المالك...', 1200); } catch (_) {}
+      node = ownerReportBuildNode();
+      await new Promise(function(resolve) { requestAnimationFrame(function() { requestAnimationFrame(resolve); }); });
+      try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (_) {}
+      var canvas = await ownerReportCanvas(node), asset = await ownerReportAssetFromCanvas(canvas, ownerReportFileName());
+      ownerReportOpenPreview(asset);
+      try { window.showToast && window.showToast('success', 'تم إنشاء المعاينة. اضغط حفظ لتنزيل الصورة.'); } catch (_) {}
+    } catch (err) {
+      console.error('[ASSAL owner report]', err);
+      try { window.showToast && window.showToast('error', 'تعذر إنشاء معاينة تقرير المالك'); } catch (_) {}
+    } finally {
+      if (node) try { node.remove(); } catch (_) {}
+      ui.reportBusy = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('is-exporting');
+        btn.innerHTML = oldHtml || '<i class="fa-solid fa-file-image"></i><span>تقرير JPG</span>';
+      }
+    }
   }
 
   function supplierLogoSeed(key, name) {
