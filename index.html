@@ -71147,8 +71147,20 @@ body.assal-ledger-owner-context .assal-ledger-results-body .assal-ledger-stat{
 
   }
 
+  function setOwnerReportServerReady(ready) {
+    window.__ASSAL_OWNER_REPORT_SERVER_READY__ = !!ready;
+    var report = byId('assalOwnerReportOpen');
+    if (!report) return;
+    var blocked = state.syncing || !ready;
+    report.disabled = !!blocked;
+    report.classList.toggle('is-sync-waiting', !!blocked && !report.classList.contains('is-busy'));
+    report.setAttribute('aria-disabled', blocked ? 'true' : 'false');
+    report.title = blocked ? 'انتظر اكتمال جلب آخر نسخة من السيرفر' : 'تقرير المالك';
+  }
+
   function setSyncing(on, text) {
     state.syncing = !!on;
+    if (on) setOwnerReportServerReady(false);
     var line = document.querySelector('#assalOwnerPanel .assal-owner-update-line');
     var live = document.querySelector('#assalOwnerPanel .assal-owner-live');
     var updated = byId('assalOwnerUpdated');
@@ -71161,6 +71173,7 @@ body.assal-ledger-owner-context .assal-ledger-results-body .assal-ledger-stat{
 
     }
     if (on && updated) updated.textContent = 'يمكنك استعمال الواجهة أثناء التحديث';
+    if (!on) setOwnerReportServerReady(window.__ASSAL_OWNER_REPORT_SERVER_READY__ === true);
   }
 
   function renderEntrySkeleton() {
@@ -71198,7 +71211,13 @@ body.assal-ledger-owner-context .assal-ledger-results-body .assal-ledger-stat{
         return null;
 
       };
-      await window.smartImportFromServer();
+      var result = await window.smartImportFromServer();
+      if (!result || result.ok !== true) {
+        var importError = result && result.error;
+        if (!(importError instanceof Error)) importError = new Error('OWNER_SERVER_PULL_FAILED');
+        throw importError;
+      }
+      return result;
     } finally {
       if (typeof previousToast === 'function') window.showToast = previousToast;
       else try {
@@ -71257,6 +71276,7 @@ body.assal-ledger-owner-context .assal-ledger-results-body .assal-ledger-stat{
       if (supplierChanged) await saveSupplierDebtStore();
       state.lastUpdated = Date.now();
       renderSummary();
+      setOwnerReportServerReady(true);
       try {
         window.dispatchEvent(new CustomEvent('assal:owner-suppliers-updated'));
 
@@ -71269,15 +71289,13 @@ body.assal-ledger-owner-context .assal-ledger-results-body .assal-ledger-stat{
       })) showBriefing();
     } catch (err) {
       console.error('[ASSAL owner] background sync', err);
+      setOwnerReportServerReady(false);
       var updated = byId('assalOwnerUpdated');
       if (updated) updated.textContent = 'تعذر التحديث — المعروض آخر نسخة متوفرة';
-      if (isManual) {
-        try {
-          window.showToast && window.showToast('error', 'فشل جلب أحدث نسخة من السيرفر');
+      try {
+        window.showToast && window.showToast('error', 'فشل سحب آخر نسخة من السيرفر — أعد المحاولة من زر التحديث', 3400);
 
-        } catch (_) {
-
-        }
+      } catch (_) {
 
       }
       if (!state.rows.length) {
@@ -71313,6 +71331,8 @@ body.assal-ledger-owner-context .assal-ledger-results-body .assal-ledger-stat{
     if (!isOwnerEmail(email)) return false;
     if (!uid) throw new Error('OWNER_UID_MISSING');
     state.user = {uid: uid, email: email};
+    window.__ASSAL_OWNER_REPORT_SERVER_READY__ = false;
+    setOwnerReportServerReady(false);
     activate();
     // لا ننتظر السيرفر أو Firestore أو Excel: افتح اللوحة الآن، ثم أكمل بصمت.
     renderCachedImmediately();
@@ -75608,6 +75628,12 @@ body.assal-owner-exclusive > #modal.active{
   cursor:wait;
 }
 
+.assal-owner-action.owner-report-icon.is-sync-waiting:not(.is-busy){
+  opacity:.46;
+  filter:saturate(.45);
+  cursor:not-allowed;
+}
+
 .assal-owner-action.owner-report-icon.is-busy > i{
   opacity:0;
 }
@@ -76136,7 +76162,7 @@ body.assal-owner-exclusive > #modal.active{
     ['assalOwnerReportOpen','assalOwnerReportPrev','assalOwnerReportNext','assalOwnerReportToday','assalOwnerReportShare','assalOwnerReportDownload'].forEach(function(id) {
       var el = byId(id);
       if (!el) return;
-      el.disabled = !!flag;
+      el.disabled = id === 'assalOwnerReportOpen' ? (!!flag || window.__ASSAL_OWNER_REPORT_SERVER_READY__ !== true) : !!flag;
     });
     var action = byId('assalOwnerReportOpen');
     if (action) {
@@ -76584,11 +76610,14 @@ body.assal-owner-exclusive > #modal.active{
 
   async function ownerReportMakeImage(data) {
     await ownerReportEnsureFonts();
-    var W = 1754, H = 1240, canvas = document.createElement('canvas');
-    canvas.width = W;
-    canvas.height = H;
+    /* وضوح 2X: نحافظ على جميع المقاسات المنطقية والتصميم نفسه، لكن نرسم فعلياً بدقة 3508×2480. */
+    var W = 1754, H = 1240, renderScale = 2, canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(W * renderScale));
+    canvas.height = Math.max(1, Math.round(H * renderScale));
     var ctx = canvas.getContext('2d', {alpha: false, desynchronized: true}) || canvas.getContext('2d');
     if (!ctx) throw new Error('OWNER_REPORT_CONTEXT_FAILED');
+    if (ctx.setTransform) ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
+    ctx.imageSmoothingEnabled = true;
     ctx.fillStyle = '#eaf1f8';
     ctx.fillRect(0, 0, W, H);
 
@@ -76670,7 +76699,7 @@ body.assal-owner-exclusive > #modal.active{
       canvas.toBlob(function(blob) {
         if (!blob) return reject(new Error('OWNER_REPORT_BLOB_FAILED'));
         resolve(blob);
-      }, 'image/jpeg', 0.96);
+      }, 'image/jpeg', 0.98);
     });
   }
 
@@ -76732,17 +76761,18 @@ body.assal-owner-exclusive > #modal.active{
           return;
         }
       }
+      ownerReportSetStatus('المشاركة المباشرة غير مدعومة في هذا المتصفح. استخدم زر التحميل إذا احتجت حفظ الصورة.');
+      ownerReportToast('warn', 'المشاركة غير مدعومة في هذا المتصفح', 2800);
     } catch (err) {
       if (err && err.name === 'AbortError') {
-        ownerReportSetStatus('تم إلغاء المشاركة. تقدر تستخدم زر التحميل.');
+        ownerReportSetStatus('تم إلغاء المشاركة.');
         ownerReportToast('warn', 'تم إلغاء المشاركة', 2200);
         return;
       }
       console.warn('[ASSAL owner report share]', err);
+      ownerReportSetStatus('تعذر فتح المشاركة حالياً.');
+      ownerReportToast('error', 'تعذر فتح المشاركة', 2600);
     }
-    var mode = await ownerReportDownload();
-    ownerReportSetStatus(mode === 'open' ? 'تم فتح الصورة في تبويب جديد للحفظ اليدوي.' : 'تم إرسال الصورة إلى التنزيلات.');
-    ownerReportToast('success', mode === 'open' ? 'تم فتح الصورة للحفظ اليدوي' : 'بدأ تنزيل الصورة', 2400);
   }
 
   async function ownerReportGenerate(day) {
@@ -76809,8 +76839,11 @@ body.assal-owner-exclusive > #modal.active{
     reportBtn.id = 'assalOwnerReportOpen';
     reportBtn.type = 'button';
     reportBtn.className = 'assal-owner-action owner-report-icon';
-    reportBtn.title = 'تقرير المالك';
+    reportBtn.title = 'انتظر اكتمال جلب آخر نسخة من السيرفر';
     reportBtn.setAttribute('aria-label', 'تقرير المالك');
+    reportBtn.setAttribute('aria-disabled', 'true');
+    reportBtn.disabled = true;
+    reportBtn.classList.add('is-sync-waiting');
     reportBtn.innerHTML = '<i class="fa-solid fa-file-image"></i>';
     actions.insertBefore(reportBtn, back.nextSibling);
     var home = document.createElement('main');
@@ -76876,7 +76909,7 @@ body.assal-owner-exclusive > #modal.active{
     reportModal.id = 'assalOwnerReportModal';
     reportModal.className = 'assal-owner-report-modal';
     reportModal.setAttribute('aria-hidden', 'true');
-    reportModal.innerHTML = '<div class="assal-owner-report-backdrop" data-owner-report-close="1"></div><section class="assal-owner-report-card" role="dialog" aria-modal="true" aria-label="معاينة تقرير المالك"><div class="assal-owner-report-stage nice-scroll"><div class="assal-owner-report-preview" id="assalOwnerReportPreview"><div class="assal-owner-report-loading">جاري تجهيز صورة التقرير…</div></div></div><div class="assal-owner-report-controls"><div class="assal-owner-report-nav-row"><button type="button" class="assal-owner-report-btn ghost" id="assalOwnerReportPrev"><i class="fa-solid fa-chevron-right"></i><span>السابق</span></button><button type="button" class="assal-owner-report-btn date-pill" id="assalOwnerReportDateLabel" disabled>—</button><button type="button" class="assal-owner-report-btn ghost" id="assalOwnerReportNext"><span>التالي</span><i class="fa-solid fa-chevron-left"></i></button></div><div class="assal-owner-report-action-row"><button type="button" class="assal-owner-report-btn secondary" id="assalOwnerReportToday"><i class="fa-solid fa-calendar-day"></i><span>اليوم</span></button><button type="button" class="assal-owner-report-btn secondary" id="assalOwnerReportDownload"><i class="fa-solid fa-download"></i><span>تحميل</span></button><button type="button" class="assal-owner-report-btn primary" id="assalOwnerReportShare"><i class="fa-solid fa-share-nodes"></i><span>مشاركة / حفظ</span></button><button type="button" class="assal-owner-report-btn ghost" id="assalOwnerReportClose"><i class="fa-solid fa-xmark"></i><span>إغلاق</span></button></div></div><div class="assal-owner-report-note" id="assalOwnerReportStatus">المعاينة تعرض الصورة فقط، وتقدر تغيّر التاريخ أو تحفظها مباشرة.</div></section>';
+    reportModal.innerHTML = '<div class="assal-owner-report-backdrop" data-owner-report-close="1"></div><section class="assal-owner-report-card" role="dialog" aria-modal="true" aria-label="معاينة تقرير المالك"><div class="assal-owner-report-stage nice-scroll"><div class="assal-owner-report-preview" id="assalOwnerReportPreview"><div class="assal-owner-report-loading">جاري تجهيز صورة التقرير…</div></div></div><div class="assal-owner-report-controls"><div class="assal-owner-report-nav-row"><button type="button" class="assal-owner-report-btn ghost" id="assalOwnerReportPrev"><i class="fa-solid fa-chevron-right"></i><span>السابق</span></button><button type="button" class="assal-owner-report-btn date-pill" id="assalOwnerReportDateLabel" disabled>—</button><button type="button" class="assal-owner-report-btn ghost" id="assalOwnerReportNext"><span>التالي</span><i class="fa-solid fa-chevron-left"></i></button></div><div class="assal-owner-report-action-row"><button type="button" class="assal-owner-report-btn secondary" id="assalOwnerReportToday"><i class="fa-solid fa-calendar-day"></i><span>اليوم</span></button><button type="button" class="assal-owner-report-btn secondary" id="assalOwnerReportDownload"><i class="fa-solid fa-download"></i><span>تحميل</span></button><button type="button" class="assal-owner-report-btn primary" id="assalOwnerReportShare"><i class="fa-solid fa-share-nodes"></i><span>مشاركة</span></button><button type="button" class="assal-owner-report-btn ghost" id="assalOwnerReportClose"><i class="fa-solid fa-xmark"></i><span>إغلاق</span></button></div></div><div class="assal-owner-report-note" id="assalOwnerReportStatus">المعاينة تعرض الصورة فقط، وتقدر تغيّر التاريخ أو تستخدم المشاركة أو التحميل.</div></section>';
     var body = byId('assalOwnerBody');
     shell.insertBefore(home, body || shell.children[1] || null);
     shell.insertBefore(daily, body || null);
