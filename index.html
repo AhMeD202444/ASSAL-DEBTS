@@ -70836,6 +70836,15 @@ body.assal-ledger-owner-context .assal-ledger-results-body .assal-ledger-stat{
     };
   }
 
+  function ownerDebtExcludedName(name) {
+    var key = nrm(name);
+    if (!key) return false;
+    return key === nrm('مكتب عسل فرع الحي') ||
+      key === nrm('مكتب عسل فرع بلدروز') ||
+      key === nrm('مكتب عسل فرع التحرير') ||
+      key === nrm('اجور رواتب موظفي عسل');
+  }
+
   function buildRows() {
     var rows = [];
     try {
@@ -70847,7 +70856,7 @@ body.assal-ledger-owner-context .assal-ledger-results-body .assal-ledger-stat{
 
     }
     return rows.filter(function(r) {
-      return r && Number(r.debt || 0) > 0;
+      return r && Number(r.debt || 0) > 0 && !ownerDebtExcludedName(r.name);
 
     }).map(function(r) {
       return r;
@@ -76652,6 +76661,22 @@ body.assal-owner-exclusive > #modal.active{
     return rows;
   }
 
+  function ownerReportExcludedDebtCustomer(name) {
+    var key = norm(name);
+    if (!key) return false;
+    var compact = key.replace(/[\s\-–—_\/\\|،,.;؛:()\[\]{}]+/g, '');
+    var isAssalBranch = compact.indexOf('عسل') >= 0 && (
+      compact.indexOf('الحي') >= 0 ||
+      compact.indexOf('بلدروز') >= 0 ||
+      compact.indexOf('التحرير') >= 0
+    );
+    var isAssalPayroll = compact.indexOf('عسل') >= 0 && (
+      compact.indexOf('اجوررواتبموظفي') >= 0 ||
+      compact.indexOf('رواتبموظفي') >= 0
+    );
+    return isAssalBranch || isAssalPayroll;
+  }
+
   function ownerReportBuildData(day) {
     day = ownerReportIsValidDay(day) ? day : localISO(new Date());
     var debtToday = ownerReportDebtRowsToday(day);
@@ -76666,7 +76691,9 @@ body.assal-owner-exclusive > #modal.active{
     attRows.forEach(function(row) {
       if (row.status === 'حاضر') counts.present += 1; else if (row.status === 'مجاز') counts.leave += 1; else if (row.status === 'واجب') counts.duty += 1; else counts.absent += 1;
     });
-    var debtFollow = ownerReportHistoricalDebtRows(day);
+    var debtFollow = ownerReportHistoricalDebtRows(day).filter(function(row) {
+      return row && !ownerReportExcludedDebtCustomer(row.name);
+    });
     var totalDebt = debtFollow.reduce(function(s, r) { return s + Number(r.debt || 0); }, 0);
     var updated = byId('assalOwnerUpdated');
     return {day: day, generatedAt: ownerReportNowText(), updatedAt: String(updated && updated.textContent || 'آخر تحديث: —').trim(), debtRowsToday: debtToday.rows, debtToday: debtToday.total, returnToday: debtToday.returnTotal, paymentRowsToday: paymentRows, paymentTotal: paymentTotal, delivery: ownerReportDeliveryAt(day), supplierRows: supplierRows, supplierTotal: supplierTotal, attendanceRows: attRows, attendanceCounts: counts, totalDebt: totalDebt, totalDebtCount: debtFollow.length, customerDetails: ownerReportCustomerDetailRows(day, debtFollow)};
