@@ -19988,6 +19988,7 @@ async function assalConvertWholesaleCardToCredit(viewCard){
   if(!realCard || assalIsWholesaleAllowedCustomer(realCard.customer || '')) return false;
 
   const ts = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
+  const __assalWholesaleAuditBeforeType = String(realCard.billType || '');
   const activeTypes = new Set();
   (realCard.lines || []).forEach(line => {
     if(!line || line.deletedAt) return;
@@ -20025,6 +20026,11 @@ async function assalConvertWholesaleCardToCredit(viewCard){
   }
 
   save();
+  if(window.assalCardAuditRecordMovement && __assalWholesaleAuditBeforeType !== String(realCard.billType || '')){
+    try{
+      window.assalCardAuditRecordMovement(realCard, null, {kind:'type-change', label:'تغيير نوع البطاقة', scope:'card', item:'نوع البطاقة', typeBefore:__assalWholesaleAuditBeforeType, typeAfter:String(realCard.billType || ''), before:{billType:__assalWholesaleAuditBeforeType}, after:{billType:String(realCard.billType || '')}, note:'تحويل فاتورة جملة إلى أجل'}, ts, viewCard && viewCard.__day ? viewCard.__day : selectedDay);
+    }catch(_){ }
+  }
   try{
  if(typeof assalInvalidateDebtBadgeCache === 'function') assalInvalidateDebtBadgeCache();
  
@@ -20516,9 +20522,17 @@ function assalReturnLineType(line, card){
 }
 
 function assalReturnIsReturnedLine(line, card){
+  // ASSAL ROOT FIX: إذا كان حقل returned موجوداً صراحةً فهو مصدر الحقيقة الأول.
+  // هذا يمنع حالة returned:false + type:'راجع' القديمة/المدموجة من أن تُحسب «راجع مكرر» وهمياً.
+  if(line && Object.prototype.hasOwnProperty.call(line, 'returned')){
+    const rv = line.returned;
+    if(rv === true || rv === 1 || String(rv).toLowerCase() === 'true') return true;
+    if(rv === false || rv === 0 || rv == null || rv === '' || String(rv).toLowerCase() === 'false') return false;
+  }
+  // توافق مع السجلات القديمة جداً التي لا تحتوي returned أصلاً.
   const t = assalReturnLineType(line, card);
   const u = t.toUpperCase();
-  return !!(line && line.returned) || t === 'راجع' || u === 'RETURN';
+  return t === 'راجع' || u === 'RETURN';
 }
 
 function assalReturnIsPaidLine(line, card){
@@ -25521,6 +25535,27 @@ function assalOpenPartialPaymentModal(viewCard){
 }catch{
 
 }
+    if(window.assalCardAuditRecordMovement){
+      try{
+        window.assalCardAuditRecordMovement(
+          real,
+          null,
+          {
+            kind:'partial-payment',
+            label:'تسديد جزئي',
+            scope:'card',
+            item:'تسديد جزئي داخل البطاقة',
+            amount:amount,
+            count:1,
+            note:noteText,
+            before:{remaining:currentRemaining},
+            after:{remaining:after}
+          },
+          t,
+          real && real.__day ? real.__day : selectedDay
+        );
+      }catch(_){ }
+    }
     close();
     // أداء آمن: save() بقي كما هو ويحدث الديون، وهنا نعيد رسم الواجهة مرة واحدة فقط.
     try{
@@ -27700,6 +27735,7 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
           // حماية خفيفة: إذا تغيرت حالة السطر أثناء بقاء نافذة التأكيد مفتوحة لا نكرر العملية.
           if(__assalReturnMakeReturned !== !ln.returned) return;
 
+          const __assalReturnAuditBefore = window.assalCardAuditLineSnapshot ? window.assalCardAuditLineSnapshot(ln) : null;
           const __assalReturnChangedAt = nowISO();
           ln.returned = __assalReturnMakeReturned;
           if (ln.returned) {
@@ -27728,6 +27764,25 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
           }catch(__assalReturnSaveError){
             __assalReturnAuditSaved = false;
             throw __assalReturnSaveError;
+          }
+          if(__assalReturnAuditSaved && ln.returned && window.assalCardAuditRecordMovement){
+            try{
+              window.assalCardAuditRecordMovement(
+                realCard,
+                ln,
+                {
+                  kind:'return-mark',
+                  label:'تعليم مادة راجع',
+                  before:__assalReturnAuditBefore,
+                  after:window.assalCardAuditLineSnapshot ? window.assalCardAuditLineSnapshot(ln) : null,
+                  amount:(typeof assalPaymentConfirmLineAmount === 'function') ? assalPaymentConfirmLineAmount(ln) : 0,
+                  count:1,
+                  note:'تم تعليم المادة كراجع'
+                },
+                __assalReturnChangedAt,
+                (card && card.__day) || selectedDay
+              );
+            }catch(_){ }
           }
           if(__assalReturnAuditSaved && !ln.returned && window.assalCardAuditRecordCancellation){
             try{
@@ -27786,6 +27841,7 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
           const __assalLinePayTs = nowISO();
           const realCard = getMutableCard(card) || card;
           const realLine = assalFindMutableLine(realCard, ln);
+          const __assalLinePayAuditBefore = window.assalCardAuditLineSnapshot ? window.assalCardAuditLineSnapshot(realLine) : null;
 
           if(cashLineUndo){
             realLine.type = 'اجل';
@@ -27827,6 +27883,25 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
             }catch(_){
  
 }
+          }
+          if(__assalLinePaySaved && makePaid && window.assalCardAuditRecordMovement){
+            try{
+              window.assalCardAuditRecordMovement(
+                realCard,
+                realLine,
+                {
+                  kind:'pay-line',
+                  label:'تسديد مادة',
+                  before:__assalLinePayAuditBefore,
+                  after:window.assalCardAuditLineSnapshot ? window.assalCardAuditLineSnapshot(realLine) : null,
+                  amount:(typeof assalPaymentConfirmLineAmount === 'function') ? assalPaymentConfirmLineAmount(realLine) : 0,
+                  count:1,
+                  note:'تم تسديد المادة'
+                },
+                __assalLinePayTs,
+                (card && card.__day) || selectedDay
+              );
+            }catch(_){ }
           }
           if(__assalLinePaySaved && !makePaid && window.assalCardAuditRecordCancellation){
             try{
@@ -28151,6 +28226,11 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
 
       const payAllTs = new Date().toISOString();
       let __assalPayAllRestoredSnapshot = false;
+      const __assalPayAllAuditBefore = {
+        billType:String(realCard && realCard.billType || ''),
+        paidAll:!!(realCard && realCard.paidAll),
+        paidCount:(active || []).filter(function(l){ return l && l.paid; }).length
+      };
 
       if(makePaid){
         // نحفظ حالة كل سطر قبل تسديد الكل حتى إذا انضغط بالخطأ نرجع للوضع السابق بالضبط.
@@ -28211,6 +28291,27 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
         }catch(_){
  
 }
+      }
+      if(__assalAuditPayAllSaved && makePaid && window.assalCardAuditRecordMovement){
+        try{
+          window.assalCardAuditRecordMovement(
+            realCard,
+            null,
+            {
+              kind:'pay-all',
+              label:'تسديد الكل',
+              scope:'all',
+              item:'جميع مواد البطاقة',
+              before:__assalPayAllAuditBefore,
+              after:{billType:String(realCard && realCard.billType || ''), paidAll:!!(realCard && realCard.paidAll), paidCount:(active || []).filter(function(l){ return l && l.paid; }).length},
+              amount:(typeof assalPaymentConfirmLinesAmount === 'function') ? assalPaymentConfirmLinesAmount(paymentConfirmLines) : 0,
+              count:paymentConfirmLines.length,
+              note:cancelledPartialCount ? 'تم تسديد كل المواد وإلغاء التسديد الجزئي' : 'تم تسديد كل المواد'
+            },
+            payAllTs,
+            (card && card.__day) || selectedDay
+          );
+        }catch(_){ }
       }
       if(__assalAuditPayAllSaved && !makePaid && window.assalCardAuditRecordCancellation){
         try{
@@ -28638,15 +28739,16 @@ function addNoteFromModal(){
   const real = (typeof getMutableCard === 'function' ? getMutableCard(__activeNotesCard) : null) || __activeNotesCard;
   if (!Array.isArray(real.notes)) real.notes = [];
 
+  const __assalNoteAuditAt = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
   real.notes.push({
     id: (typeof crypto !== 'undefined' && crypto.randomUUID)
           ? crypto.randomUUID()
           : (Date.now() + '-' + Math.random().toString(16).slice(2)),
     text,
-    at: (typeof nowISO === 'function') ? nowISO() : new Date().toISOString()
+    at: __assalNoteAuditAt
   });
 
-  real.updatedAt = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
+  real.updatedAt = __assalNoteAuditAt;
 
   // خزّن وأعد الرسم حتى يبان كلشي مباشرة
   try {
@@ -28655,6 +28757,11 @@ function addNoteFromModal(){
 } catch(_){
 
 }
+  if(window.assalCardAuditRecordMovement){
+    try{
+      window.assalCardAuditRecordMovement(real, null, {kind:'note-add', label:'إضافة ملاحظة', scope:'card', item:'ملاحظات البطاقة', note:text, count:1}, __assalNoteAuditAt, __activeNotesDay || selectedDay);
+    }catch(_){ }
+  }
   try {
  if (typeof renderNotesModalList === 'function') renderNotesModalList();
  
@@ -28867,6 +28974,9 @@ real.updatedAt = t;
   real.updatedAt = new Date().toISOString();
 
   save();
+  if(window.assalCardAuditRecordMovement){
+    try{ window.assalCardAuditRecordMovement(real, null, {kind:'note-add', label:'إضافة ملاحظة', scope:'card', item:'ملاحظات البطاقة', note:text, count:1}, t, noteDay || selectedDay); }catch(_){ }
+  }
   return true;
 }
 
@@ -28890,16 +29000,21 @@ function deleteCardNote(viewCard, noteId){
   if(i === -1) return false;
 
  const n = real.notes[i];
+const __assalNoteDeleteText = n ? String(n.text || '') : '';
+const __assalNoteDeleteAt = nowISO();
 if(n){
-  n.deletedAt = nowISO();
+  n.deletedAt = __assalNoteDeleteAt;
   n.updatedAt = n.deletedAt;
 }
-real.updatedAt = nowISO();
+real.updatedAt = __assalNoteDeleteAt;
 
 
   // وحّد المرجع مع الكارت المعروض
   viewCard.notes = real.notes;
   save();
+  if(window.assalCardAuditRecordMovement){
+    try{ window.assalCardAuditRecordMovement(real, null, {kind:'note-delete', label:'حذف ملاحظة', scope:'card', item:'ملاحظات البطاقة', note:__assalNoteDeleteText, count:1}, __assalNoteDeleteAt, noteDay || selectedDay); }catch(_){ }
+  }
   return true;
 }
 
@@ -36823,7 +36938,7 @@ function mergeLine(a, b, report, path){
   const base = {...x};
 
   // الحقول التي ندمجها حقل-بحقل
-  const fields = ['item','cat','price','qty','note','paid','returned'];
+  const fields = ['item','cat','price','qty','note','type','billType','paid','returned','returnedAt','paidAt','paidDate','paymentAt'];
   const merged = {...base};
 
   // timestamps لكل حقل (إذا ما عندك لكل حقل، نستعمل line.updatedAt كله)
@@ -59101,7 +59216,11 @@ html body .card .item.assal-smart-added-item-safe-final{
   function lineSnapshot(line) {
     return {
       cat: safe(line && line.cat), item: safe(line && line.item),
-      price: Number(line && line.price) || 0, qty: safe(line && line.qty), note: safe(line && line.note)
+      price: Number(line && line.price) || 0, qty: safe(line && line.qty), note: safe(line && line.note),
+      type: safe(line && line.type), billType: safe(line && line.billType),
+      paid: !!(line && line.paid), returned: !!(line && line.returned),
+      returnedAt: safe(line && line.returnedAt), paidAt: safe(line && line.paidAt),
+      paidDate: safe(line && line.paidDate), paymentAt: safe(line && line.paymentAt)
     };
   }
 
@@ -59114,7 +59233,11 @@ html body .card .item.assal-smart-added-item-safe-final{
     a = a || {};
     b = b || {};
     return safe(a.cat) === safe(b.cat) && safe(a.item) === safe(b.item) &&
-      Number(a.price || 0) === Number(b.price || 0) && safe(a.qty) === safe(b.qty) && safe(a.note) === safe(b.note);
+      Number(a.price || 0) === Number(b.price || 0) && safe(a.qty) === safe(b.qty) && safe(a.note) === safe(b.note) &&
+      safe(a.type) === safe(b.type) && safe(a.billType) === safe(b.billType) &&
+      !!a.paid === !!b.paid && !!a.returned === !!b.returned &&
+      safe(a.returnedAt) === safe(b.returnedAt) && safe(a.paidAt) === safe(b.paidAt) &&
+      safe(a.paidDate) === safe(b.paidDate) && safe(a.paymentAt) === safe(b.paymentAt);
   }
 
   function actionBase(kind, card, line, at, cardDay) {
@@ -59415,6 +59538,23 @@ html body .card .item.assal-smart-added-item-safe-final{
       a.item = safe(details.item || 'جميع مواد البطاقة');
 
     }
+    return storeAction(a) ? a : null;
+  }
+
+  function recordMovement(card, line, details, at, cardDay) {
+    details = details && typeof details === 'object' ? details : {};
+    var kind = safe(details.kind || 'state-change');
+    var a = actionBase(kind, card, line, at, cardDay);
+    a.label = safe(details.label);
+    a.scope = safe(details.scope || (line ? 'line' : 'card'));
+    a.before = clone(details.before) || {};
+    a.after = clone(details.after) || {};
+    a.amount = Math.max(0, Math.round(Number(details.amount) || 0));
+    a.count = Math.max(0, Math.round(Number(details.count) || 0));
+    a.note = safe(details.note);
+    a.typeBefore = safe(details.typeBefore);
+    a.typeAfter = safe(details.typeAfter);
+    if (details.item) a.item = safe(details.item);
     return storeAction(a) ? a : null;
   }
 
@@ -59806,11 +59946,13 @@ html body .card .item.assal-smart-added-item-safe-final{
   }
 
   function fieldLabel(k) {
-    return {cat: 'الصنف', item: 'المادة', price: 'السعر', qty: 'العدد', note: 'الملاحظة', الحالة: 'الحالة', النوع: 'النوع'}[k] || k;
+    return {cat: 'الصنف', item: 'المادة', price: 'السعر', qty: 'العدد', note: 'الملاحظة', type: 'نوع السطر', billType: 'نوع السطر', paid: 'التسديد', returned: 'الراجع', returnedAt: 'وقت الراجع', paidAt: 'وقت التسديد', paidDate: 'تاريخ التسديد', paymentAt: 'وقت التسديد', الحالة: 'الحالة', النوع: 'النوع'}[k] || k;
 
   }
 
   function val(k, v) {
+    if (k === 'paid') return v ? 'مسددة' : 'غير مسددة';
+    if (k === 'returned') return v ? 'راجع' : 'بيع';
     if (k === 'price') {
       try {
         return typeof formatIQD === 'function' ? formatIQD(Number(v) || 0) : safe(v);
@@ -59845,7 +59987,7 @@ html body .card .item.assal-smart-added-item-safe-final{
   function changeChips(a) {
     if (a.kind === 'edit') {
       var out = [];
-      ['cat', 'item', 'price', 'qty', 'note'].forEach(function(k) {
+      ['cat', 'item', 'price', 'qty', 'note', 'type', 'billType', 'paid', 'returned'].forEach(function(k) {
         if (safe(a.before && a.before[k]) !== safe(a.after && a.after[k])) out.push(auditEditChip(k, a.before && a.before[k], a.after && a.after[k]));
       });
       return out.join('') || auditInfoChip('الحالة', 'تعديل محفوظ', 'fa-circle-check');
@@ -59864,6 +60006,22 @@ html body .card .item.assal-smart-added-item-safe-final{
       if (a.note) cancelOut.push(auditInfoChip('التفصيل', a.note, 'fa-circle-info'));
       return cancelOut.join('') || auditInfoChip('الحالة', 'تم حفظ الإلغاء', 'fa-circle-check');
     }
+    if (a.kind !== 'undo') {
+      var moveOut = [], before = a.before || {}, after = a.after || {};
+      ['cat','item','price','qty','note','type','billType','paid','returned'].forEach(function(k) {
+        var bv = before[k], av = after[k];
+        if (k === 'price') {
+          if (Number(bv || 0) !== Number(av || 0)) moveOut.push(auditEditChip(k, bv, av));
+        } else if ((k === 'paid' || k === 'returned') ? (!!bv !== !!av) : (safe(bv) !== safe(av))) {
+          moveOut.push(auditEditChip(k, bv, av));
+        }
+      });
+      if (a.typeBefore && a.typeAfter && a.typeBefore !== a.typeAfter) moveOut.push(auditEditChip('النوع', a.typeBefore, a.typeAfter));
+      if (Number(a.count) > 0) moveOut.push(auditInfoChip('عدد المواد', String(a.count), 'fa-hashtag'));
+      if (Number(a.amount) > 0) moveOut.push(auditInfoChip('المبلغ', val('price', a.amount) + ' د.ع', 'fa-coins'));
+      if (a.note) moveOut.push(auditInfoChip('التفصيل', a.note, 'fa-circle-info'));
+      return moveOut.join('') || auditInfoChip('الحالة', a.label || 'تم حفظ الحركة', 'fa-circle-check');
+    }
     return auditInfoChip('الإجراء', 'تم إلغاء حركة ' + (a.targetKind === 'delete' ? 'حذف' : 'تعديل'), 'fa-rotate-left');
   }
 
@@ -59881,9 +60039,19 @@ html body .card .item.assal-smart-added-item-safe-final{
   function rowHtml(a) {
     var isCancel = (a.kind === 'pay-undo' || a.kind === 'payall-undo' || a.kind === 'return-undo');
     var kind = isCancel ? 'cancel' : (a.kind === 'delete' ? 'delete' : (a.kind === 'undo' ? 'undo' : 'edit'));
-    var label = a.kind === 'pay-undo' ? 'إلغاء تسديد مادة' : (a.kind === 'payall-undo' ? 'إلغاء تسديد الكل' : (a.kind === 'return-undo' ? 'إلغاء الراجع' : (kind === 'delete' ? 'حذف مادة' : (kind === 'undo' ? 'إعادة حركة' : 'تعديل مادة'))));
-    var icon = a.kind === 'pay-undo' ? 'fa-money-bill-wave' : (a.kind === 'payall-undo' ? 'fa-money-bill-transfer' : (a.kind === 'return-undo' ? 'fa-arrow-rotate-left' : (kind === 'delete' ? 'fa-trash-can' : (kind === 'undo' ? 'fa-rotate-left' : 'fa-pen-to-square'))));
-    var detailsTitle = isCancel ? 'تفاصيل الإلغاء' : (kind === 'delete' ? 'بيانات السطر المحذوف' : (kind === 'undo' ? 'تفاصيل الإعادة' : 'التغييرات المسجلة'));
+    var movementLabels = {
+      'return-mark':'تعليم مادة راجع', 'pay-line':'تسديد مادة', 'pay-all':'تسديد الكل',
+      'partial-payment':'تسديد جزئي', 'line-add':'إضافة مادة', 'note-add':'إضافة ملاحظة',
+      'note-delete':'حذف ملاحظة', 'type-change':'تغيير نوع البطاقة', 'state-change':'تغيير حالة'
+    };
+    var movementIcons = {
+      'return-mark':'fa-rotate-left', 'pay-line':'fa-money-bill-wave', 'pay-all':'fa-money-bill-transfer',
+      'partial-payment':'fa-coins', 'line-add':'fa-circle-plus', 'note-add':'fa-note-sticky',
+      'note-delete':'fa-note-sticky', 'type-change':'fa-arrow-right-arrow-left', 'state-change':'fa-sliders'
+    };
+    var label = a.kind === 'pay-undo' ? 'إلغاء تسديد مادة' : (a.kind === 'payall-undo' ? 'إلغاء تسديد الكل' : (a.kind === 'return-undo' ? 'إلغاء الراجع' : (kind === 'delete' ? 'حذف مادة' : (kind === 'undo' ? 'إعادة حركة' : (movementLabels[a.kind] || a.label || 'تعديل مادة')))));
+    var icon = a.kind === 'pay-undo' ? 'fa-money-bill-wave' : (a.kind === 'payall-undo' ? 'fa-money-bill-transfer' : (a.kind === 'return-undo' ? 'fa-arrow-rotate-left' : (kind === 'delete' ? 'fa-trash-can' : (kind === 'undo' ? 'fa-rotate-left' : (movementIcons[a.kind] || 'fa-pen-to-square')))));
+    var detailsTitle = isCancel ? 'تفاصيل الإلغاء' : (kind === 'delete' ? 'بيانات السطر المحذوف' : (kind === 'undo' ? 'تفاصيل الإعادة' : (a.kind === 'edit' ? 'التغييرات المسجلة' : 'تفاصيل الحركة')));
     var undone = a.status === 'undone';
     var canUndo = (a.kind === 'edit' || a.kind === 'delete') && !undone && !isAuditReadOnlyDevice();
     return '<div class="assal-card-audit-row' + (undone ? ' is-undone' : '') + '" data-action-id="' + esc(a.id) + '">' +
@@ -60039,7 +60207,8 @@ html body .card .item.assal-smart-added-item-safe-final{
       return a.kind === 'undo';
 
     }).length;
-    return '<div class="assal-card-audit-stat"><span><i class="fa-solid fa-layer-group"></i>كل الحركات</span><b>' + arr.length + '</b></div><div class="assal-card-audit-stat"><span><i class="fa-solid fa-pen"></i>تعديل</span><b>' + edit + '</b></div><div class="assal-card-audit-stat"><span><i class="fa-solid fa-trash-can"></i>حذف</span><b>' + del + '</b></div><div class="assal-card-audit-stat"><span><i class="fa-solid fa-ban"></i>إلغاء/إعادة</span><b>' + (cancel + undo) + '</b></div>';
+    var stateMoves = Math.max(0, arr.length - edit - del - cancel - undo);
+    return '<div class="assal-card-audit-stat"><span><i class="fa-solid fa-layer-group"></i>كل الحركات</span><b>' + arr.length + '</b></div><div class="assal-card-audit-stat"><span><i class="fa-solid fa-pen"></i>تعديل</span><b>' + edit + '</b></div><div class="assal-card-audit-stat"><span><i class="fa-solid fa-arrows-rotate"></i>حالة/إجراء</span><b>' + stateMoves + '</b></div><div class="assal-card-audit-stat"><span><i class="fa-solid fa-ban"></i>حذف/إلغاء</span><b>' + (del + cancel + undo) + '</b></div>';
   }
 
   function renderModal() {
@@ -60052,7 +60221,7 @@ html body .card .item.assal-smart-added-item-safe-final{
     root.classList.toggle('is-day-mode', modalState.mode !== 'card');
     if (modalState.mode === 'card') {
       title.textContent = 'أرشيف البطاقة';
-      sub.textContent = (modalState.customer || 'سجل البطاقة') + (isAuditReadOnlyDevice() ? ' • عرض فقط على حاسبة الأدمن' : ' • محلي ومتزامن من السيرفر');
+      sub.textContent = (modalState.customer || 'سجل البطاقة') + (isAuditReadOnlyDevice() ? ' • عرض فقط على حاسبة الأدمن' : ' • كل حركات البطاقة • محلي ومتزامن من السيرفر');
       toolbar.style.display = 'none';
       root.setAttribute('data-card-day', modalState.cardDay);
       root.setAttribute('data-card-id', modalState.cardId);
@@ -60276,6 +60445,7 @@ html body .card .item.assal-smart-added-item-safe-final{
   window.assalCardAuditRecordEdit = recordEdit;
   window.assalCardAuditRecordDelete = recordDelete;
   window.assalCardAuditRecordCancellation = recordCancellation;
+  window.assalCardAuditRecordMovement = recordMovement;
   window.assalCardAuditGetCardInfo = getCardInfo;
   window.assalCardAuditGetLineEditMeta = getLineEditMeta;
   window.assalCardAuditFormatDateTime = formatDateTime;
