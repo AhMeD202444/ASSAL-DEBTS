@@ -30041,6 +30041,172 @@ function escHtml(s){
    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
+// ===== ASSAL PRINT — CUSTOMER DEBT AT PRINT DAY (READ ONLY) =====
+function assalPrintCustomerDebtAtDay(customer, limitISO){
+  try{
+    const rawName = String(customer || '').trim();
+    if(!rawName || !/^\d{4}-\d{2}-\d{2}$/.test(String(limitISO || ''))) return null;
+
+    let displayName = rawName;
+    try{
+      if(typeof assalSheetCustomerDisplayName === 'function'){
+        displayName = assalSheetCustomerDisplayName(rawName) || rawName;
+      }
+    }catch(_){}
+
+    try{
+      if(typeof assalIsSheetCustomerName === 'function' && !assalIsSheetCustomerName(displayName)) return 0;
+    }catch(_){}
+
+    const nrm = (v)=>{
+      try{
+        if(typeof assalDebtBadgeNrm === 'function') return assalDebtBadgeNrm(v || '');
+      }catch(_){}
+      return String(v || '').trim().toLowerCase().replace(/\s+/g,' ');
+    };
+    const target = nrm(displayName);
+    if(!target) return 0;
+
+    let info = null;
+    try{
+      if(typeof assalDebtOpeningInfoForCustomer === 'function'){
+        info = assalDebtOpeningInfoForCustomer(displayName || '') || null;
+      }
+    }catch(_){}
+
+    let total = Math.round(Number(info && info.balance || 0));
+    if(info && info.updatedISO && String(limitISO) < String(info.updatedISO) && total !== 0){
+      total = 0;
+    }
+
+    let globalOpeningISO = '';
+    try{
+      if(typeof assalGetDebtOpeningInfoMap === 'function'){
+        const openingMap = assalGetDebtOpeningInfoMap();
+        if(openingMap && typeof openingMap.forEach === 'function'){
+          openingMap.forEach(function(openInfo){
+            const iso = String(openInfo && openInfo.updatedISO || '');
+            if(/^\d{4}-\d{2}-\d{2}$/.test(iso) && (!globalOpeningISO || iso > globalOpeningISO)){
+              globalOpeningISO = iso;
+            }
+          });
+        }
+      }
+    }catch(_){}
+
+    const movementISO = (dayKey, obj, preferDayKey)=>{
+      let iso = '';
+      if(preferDayKey === true && /^\d{4}-\d{2}-\d{2}$/.test(String(dayKey || ''))){
+        iso = String(dayKey);
+      }
+      if(!iso){
+        try{
+          if(typeof assalDebtMovementISO === 'function'){
+            iso = assalDebtMovementISO(dayKey, obj || {}) || '';
+          }
+        }catch(_){}
+      }
+      if(!iso && /^\d{4}-\d{2}-\d{2}$/.test(String(dayKey || ''))) iso = String(dayKey);
+      return iso;
+    };
+
+    const included = (dayKey, obj, preferDayKey)=>{
+      const iso = movementISO(dayKey, obj, preferDayKey);
+      if(!iso || iso > String(limitISO)) return false;
+
+      const openingBalance = info ? Math.round(Number(info.balance || 0)) : 0;
+      if(info && openingBalance !== 0){
+        if(info.updatedISO && iso === String(info.updatedISO) && iso === String(limitISO)) return true;
+        return !!info.startISO && iso >= String(info.startISO);
+      }
+
+      let start = info && info.updatedISO ? String(info.updatedISO || '') : '';
+      if(!start) start = globalOpeningISO;
+      if(!start) return true;
+      return iso >= start;
+    };
+
+    const getCards = (dayVal)=>{
+      try{
+        if(typeof __getCardsFromDayVal__ === 'function') return __getCardsFromDayVal__(dayVal) || [];
+      }catch(_){}
+      if(Array.isArray(dayVal)) return dayVal;
+      if(dayVal && Array.isArray(dayVal.cards)) return dayVal.cards;
+      if(dayVal && Array.isArray(dayVal.bills)) return dayVal.bills;
+      return [];
+    };
+
+    const daysObj = (typeof days !== 'undefined' && days) ? days : (window.days || {});
+    Object.keys(daysObj || {}).forEach(function(dayKey){
+      if(String(dayKey) > String(limitISO)) return;
+      getCards(daysObj[dayKey]).forEach(function(card){
+        if(!card || card.deletedAt) return;
+        let cardCustomer = card.customer || card.cust || card.name || '';
+        try{
+          if(typeof assalSheetCustomerDisplayName === 'function'){
+            cardCustomer = assalSheetCustomerDisplayName(cardCustomer) || cardCustomer;
+          }
+        }catch(_){}
+        if(nrm(cardCustomer) !== target) return;
+        if(!included(dayKey, card, true)) return;
+        try{
+          if(typeof assalDebtCardEffectForLedger === 'function'){
+            total += Math.round(Number(assalDebtCardEffectForLedger(card)) || 0);
+          }
+        }catch(_){}
+      });
+    });
+
+    let payStore = {};
+    try{
+      payStore = (typeof assalDebtMergePaymentStores === 'function')
+        ? (assalDebtMergePaymentStores() || {})
+        : ((typeof loadPaymentsStore === 'function') ? (loadPaymentsStore() || {}) : {});
+    }catch(_){
+      payStore = {};
+    }
+
+    Object.keys(payStore || {}).forEach(function(dayKey){
+      if(String(dayKey) > String(limitISO)) return;
+      const rows = Array.isArray(payStore[dayKey])
+        ? payStore[dayKey]
+        : ((payStore[dayKey] && Array.isArray(payStore[dayKey].rows)) ? payStore[dayKey].rows : []);
+
+      rows.forEach(function(row){
+        if(!row || row.deletedAt) return;
+        try{
+          if(typeof assalIsDeliveryFinancialRow === 'function' && assalIsDeliveryFinancialRow(row)) return;
+        }catch(_){}
+
+        let rowCustomer = row.cust || row.customer || row.name || '';
+        try{
+          if(typeof assalSheetCustomerDisplayName === 'function'){
+            rowCustomer = assalSheetCustomerDisplayName(rowCustomer) || rowCustomer;
+          }
+        }catch(_){}
+        if(nrm(rowCustomer) !== target) return;
+        if(!included(dayKey, row, false)) return;
+
+        const amount = Math.abs(Math.round(Number(row.amount || 0)));
+        if(!amount) return;
+
+        let kind = String(row.kind || row.type || '').trim();
+        try{
+          if(typeof assalDebtBadgePaymentKind === 'function') kind = assalDebtBadgePaymentKind(kind);
+        }catch(_){}
+
+        if(kind === 'سحب') total += amount;
+        else if(kind === 'تسديد') total -= amount;
+      });
+    });
+
+    total = Math.round(Number(total || 0));
+    return Number.isFinite(total) ? total : 0;
+  }catch(_){
+    return null;
+  }
+}
+
 // ===== تصدير كل بطاقات اليوم إلى PDF (محدّثة) =====
 function exportDayPDF_Vector(){
   // نضمن آخر رسم
@@ -30107,7 +30273,7 @@ function exportDayPDF_Vector(){
       </tr>`;
   }).join('');
 
-  // [طباعة اليوم] قراءة دين كل زبون من محرك الدين الحالي فقط؛ لا حفظ ولا تعديل للحسابات.
+  // [طباعة اليوم] دين الزبون كما كان لغاية نفس اليوم المطبوع — قراءة فقط.
   const currentDebtByCustomer = [];
   try{
     const seenCustomers = new Set();
@@ -30115,9 +30281,12 @@ function exportDayPDF_Vector(){
       const customer = String((card && card.customer) || '').trim();
       if(!customer || seenCustomers.has(customer)) return;
       seenCustomers.add(customer);
-      if(typeof assalGetCustomerDebtAmount !== 'function') return;
-      const amount = Math.round(Number(assalGetCustomerDebtAmount(customer)));
-      if(Number.isFinite(amount)) currentDebtByCustomer.push({ customer, amount });
+      const amount = (typeof assalPrintCustomerDebtAtDay === 'function')
+        ? assalPrintCustomerDebtAtDay(customer, selectedDay)
+        : null;
+      if(Number.isFinite(Number(amount))){
+        currentDebtByCustomer.push({ customer, amount: Math.round(Number(amount)) });
+      }
     });
   }catch(_){
 
@@ -30176,6 +30345,13 @@ function exportDayPDF_Vector(){
         td{ vertical-align:top; }
         .center{ text-align:center; }
         .right{ text-align:right; }
+        .line-seq{
+          width:34px;
+          min-width:34px;
+          white-space:nowrap;
+          text-align:center;
+          font-variant-numeric:tabular-nums;
+        }
 
         /* ===== خط على اسم المادة حسب الحالة ===== */
         .nm.return{ text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color:#b91c1c; }
@@ -30300,7 +30476,16 @@ function exportDayPDF_Vector(){
         }
 
         *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-        @media print{ .card{ break-inside: avoid; } }
+
+        /* توسيع محسوب للطباعة: نستفيد من عرض A4 مع بقاء هامش أمان أنيق. */
+        @page{
+          size:A4 portrait;
+          margin:9mm;
+        }
+        @media print{
+          .wrap{ padding:4px; }
+          .card{ break-inside:avoid; }
+        }
       </style>
       
       <style>
@@ -30464,6 +30649,7 @@ function exportDayPDF_Vector(){
             tbl.innerHTML = \`
               <thead>
                 <tr>
+                  <th class="line-seq">#</th>
                   <th>الصنف</th>
                   <th>اسم المادة</th>
                   <th>العدد</th>
@@ -30476,7 +30662,7 @@ function exportDayPDF_Vector(){
               <tbody></tbody>\`;
             const tbody = tbl.querySelector('tbody');
 
-            (card.lines||[]).filter(ln=>!ln.deletedAt).forEach(ln=>{
+            (card.lines||[]).filter(ln=>!ln.deletedAt).forEach((ln, lineIndex)=>{
               const tr = document.createElement('tr');
               const isReturned = !!ln.returned;
               const isPaid     = !!ln.paid;
@@ -30489,6 +30675,7 @@ function exportDayPDF_Vector(){
               const lineTime = arTime(ln.at || ln.createdAt || ln.updatedAt);
 
               tr.innerHTML = \`
+                <td class="center line-seq">\${lineIndex + 1}</td>
                 <td class="center">\${ln.cat || '—'}</td>
                 <td class="center">\${nameHTML}</td>
                 <td class="center">× \${ln.qty || '1'}</td>
@@ -30530,8 +30717,8 @@ function exportDayPDF_Vector(){
               const currentDebtPill = (currentDebt === null)
                 ? ''
                 : (currentDebt < 0
-                    ? '<span class="totals__pill totals__pill--credit">رصيد للزبون: ' + formatIQD(Math.abs(currentDebt)) + '</span>'
-                    : '<span class="totals__pill totals__pill--debt">دين الزبون الحالي: ' + formatIQD(currentDebt) + '</span>');
+                    ? '<span class="totals__pill totals__pill--credit">رصيد حتى اليوم: ' + formatIQD(Math.abs(currentDebt)) + '</span>'
+                    : '<span class="totals__pill totals__pill--debt">الدين حتى اليوم: ' + formatIQD(currentDebt) + '</span>');
 
               totalsDiv.innerHTML = \`
                 <span class="totals__pill">مواد: \${(card.lines||[]).filter(l=>!l.deletedAt).length}</span>
@@ -30699,8 +30886,11 @@ function exportCardPDF_Vector(card, dayKey){
 
   let finalCustomerDebt = null;
   try{
-    if(card && card.customer && typeof assalGetCustomerDebtAmount === 'function'){
-      finalCustomerDebt = Math.round(Number(assalGetCustomerDebtAmount(card.customer)) || 0);
+    if(card && card.customer && typeof assalPrintCustomerDebtAtDay === 'function'){
+      const historicalDebt = assalPrintCustomerDebtAtDay(card.customer, theDayISO);
+      finalCustomerDebt = Number.isFinite(Number(historicalDebt))
+        ? Math.round(Number(historicalDebt))
+        : null;
     }
   }catch(_){
  finalCustomerDebt = null;
@@ -31200,7 +31390,7 @@ function exportCardPDF_Vector(card, dayKey){
             : '';
           const finalCustomerDebtRowHtml = hasFinalCustomerDebt
             ? ('<div class="totals-row totals-main customer-final-debt-row">' +
-                '<div class="totals-label">الرصيد النهائي للزبون</div>' +
+                '<div class="totals-label">'+ (finalCustomerDebtNum < 0 ? 'رصيد حتى اليوم' : 'الدين حتى اليوم') +'</div>' +
                 '<div class="totals-value '+ (finalCustomerDebtNum < 0 ? 'totals-value-negative' : '') +'">'+ finalCustomerDebtText +'</div>' +
               '</div>')
             : '';
