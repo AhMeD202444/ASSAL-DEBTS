@@ -76899,15 +76899,6 @@ body.assal-owner-exclusive > #modal.active{
       if (!chosen && row && row.date && String(row.date) <= String(day || '')) chosen = {date: row.date, balance: row.balance};
       if (chosen) pushRow(key, name || (history[key] && history[key].name) || key || 'مورد', chosen);
     });
-    Object.keys(history || {}).forEach(function(key) {
-      if (seen.has(String(key))) return;
-      var entry = history[key], snaps = entry && Array.isArray(entry.snapshots) ? entry.snapshots.slice().sort(function(a, b) { return String(a.date).localeCompare(String(b.date)); }) : [];
-      var chosen = null;
-      for (var i = 0; i < snaps.length; i++) {
-        if (String(snaps[i].date || '') <= String(day || '')) chosen = snaps[i]; else break;
-      }
-      if (chosen) pushRow(key, entry && entry.name || key, chosen);
-    });
     out.sort(function(a, b) { return Number(b.balance || 0) - Number(a.balance || 0); });
     return out;
   }
