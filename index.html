@@ -71520,7 +71520,9 @@ body.assal-ledger-owner-context .assal-ledger-results-body .assal-ledger-stat{
     window.__ASSAL_OWNER_REPORT_SERVER_READY__ = !!ready;
     var report = byId('assalOwnerReportOpen');
     if (!report) return;
-    var blocked = state.syncing || !ready;
+    // نجاح نسخة السيرفر الأساسية هو بوابة التقرير.
+    // Firestore/بيانات المتابعة الثانوية لا تبقى سبباً لتعطيل التقرير بعد نجاح السحب الأساسي.
+    var blocked = !ready;
     report.disabled = !!blocked;
     report.classList.toggle('is-sync-waiting', !!blocked && !report.classList.contains('is-busy'));
     report.setAttribute('aria-disabled', blocked ? 'true' : 'false');
@@ -71580,13 +71582,29 @@ body.assal-ledger-owner-context .assal-ledger-results-body .assal-ledger-stat{
         return null;
 
       };
-      var result = await window.smartImportFromServer();
-      if (!result || result.ok !== true) {
+
+      var lastError = null;
+      for (var attempt = 1; attempt <= 3; attempt++) {
+        var result = await window.smartImportFromServer();
+        if (result && result.ok === true) return result;
+
         var importError = result && result.error;
         if (!(importError instanceof Error)) importError = new Error('OWNER_SERVER_PULL_FAILED');
-        throw importError;
+        lastError = importError;
+
+        // أخطاء غير قابلة للاستفادة من إعادة المحاولة الفورية.
+        var code = String(importError.code || '');
+        if (code === 'NOT_SIGNED_IN' || code === 'NO_SERVER_BACKUP') break;
+
+        if (attempt < 3) {
+          await new Promise(function(resolve) {
+            setTimeout(resolve, attempt === 1 ? 700 : 1400);
+
+          });
+        }
       }
-      return result;
+
+      throw lastError || new Error('OWNER_SERVER_PULL_FAILED');
     } finally {
       if (typeof previousToast === 'function') window.showToast = previousToast;
       else try {
@@ -71624,7 +71642,10 @@ body.assal-ledger-owner-context .assal-ledger-results-body .assal-ledger-stat{
       } catch (_) {
 
       }
+
+      // المرحلة الأساسية: هذه وحدها تحدد نجاح/فشل جلب نسخة السيرفر.
       await runOwnerSilentImport();
+
       try {
         if (typeof window.loadExcelFiles === 'function') await window.loadExcelFiles(); else if (typeof loadExcelFiles === 'function') await loadExcelFiles();
 
@@ -71637,32 +71658,79 @@ body.assal-ledger-owner-context .assal-ledger-results-body .assal-ledger-stat{
       } catch (_) {
 
       }
-      await loadOwnerStore();
+
+      // بمجرد نجاح النسخة الأساسية نعرض أحدث بيانات الديون ونفتح التقرير.
       state.rows = buildRows();
-      var supplierChanged = assalReconcileSupplierDebts();
-      var changed = reconcileFollowups();
-      if (changed) await saveOwnerStore();
-      if (supplierChanged) await saveSupplierDebtStore();
       state.lastUpdated = Date.now();
       renderSummary();
       setOwnerReportServerReady(true);
+
+      var live = document.querySelector('#assalOwnerPanel .assal-owner-live');
+      if (live) live.textContent = 'تم تحديث نسخة السيرفر • جاري تحديث بيانات المتابعة';
+
+      // المرحلة الثانوية: Firestore والمتابعات/أرشيف الموردين.
+      // فشلها لا يلغي نجاح جلب نسخة السيرفر ولا يعطّل التقرير.
+      var ownerStoreReady = false;
+      var auxiliaryProblem = false;
       try {
-        window.dispatchEvent(new CustomEvent('assal:owner-suppliers-updated'));
-
-      } catch (_) {
-
+        await loadOwnerStore();
+        ownerStoreReady = true;
+      } catch (ownerStoreErr) {
+        auxiliaryProblem = true;
+        console.warn('[ASSAL owner] owner store refresh skipped', ownerStoreErr);
       }
-      if (showBrief || state.notices.some(function(n) {
-        return !n.seen;
 
-      })) showBriefing();
+      if (ownerStoreReady) {
+        var supplierChanged = assalReconcileSupplierDebts();
+        var changed = reconcileFollowups();
+
+        if (changed) {
+          try {
+            await saveOwnerStore();
+          } catch (ownerSaveErr) {
+            auxiliaryProblem = true;
+            console.warn('[ASSAL owner] followup store save skipped', ownerSaveErr);
+          }
+        }
+
+        if (supplierChanged) {
+          try {
+            await saveSupplierDebtStore();
+          } catch (supplierSaveErr) {
+            auxiliaryProblem = true;
+            console.warn('[ASSAL owner] supplier store save skipped', supplierSaveErr);
+          }
+        }
+
+        try {
+          window.dispatchEvent(new CustomEvent('assal:owner-suppliers-updated'));
+
+        } catch (_) {
+
+        }
+
+        if (showBrief || state.notices.some(function(n) {
+          return !n.seen;
+
+        })) showBriefing();
+      }
+
+      if (auxiliaryProblem) {
+        try {
+          window.showToast && window.showToast('warn', 'تم جلب نسخة السيرفر بنجاح، وتعذر تحديث بيانات المتابعة مؤقتاً', 3600);
+
+        } catch (_) {
+
+        }
+      }
     } catch (err) {
-      console.error('[ASSAL owner] background sync', err);
+      // هذا المسار أصبح خاصاً بفشل النسخة الأساسية فعلاً بعد المحاولات التلقائية.
+      console.error('[ASSAL owner] server pull failed', err);
       setOwnerReportServerReady(false);
       var updated = byId('assalOwnerUpdated');
-      if (updated) updated.textContent = 'تعذر التحديث — المعروض آخر نسخة متوفرة';
+      if (updated) updated.textContent = 'تعذر جلب نسخة السيرفر — المعروض آخر نسخة متوفرة';
       try {
-        window.showToast && window.showToast('error', 'فشل سحب آخر نسخة من السيرفر — أعد المحاولة من زر التحديث', 3400);
+        window.showToast && window.showToast('error', 'تعذر جلب آخر نسخة من السيرفر بعد المحاولات التلقائية — أعد المحاولة من زر التحديث', 3800);
 
       } catch (_) {
 
