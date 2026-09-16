@@ -12343,7 +12343,19 @@ html.assal-single-window-locked,
           <h2 id="attTitle">حضور اليوم</h2>
           <p>كل موظف يسجل حضوره برمزه الشخصي، ويمكن تحديد الموظف مجاز أو في واجب عمل حتى لا يظهر ضمن نقص الحضور.</p>
         </div>
-        <div class="att-count" id="assalAttendanceSelectedCount">0</div>
+        <div class="att-head-tools">
+          <button id="assalAttendanceSoundMute" class="att-sound-mute" type="button" title="كتم صوت تنبيه الحضور" aria-label="كتم صوت تنبيه الحضور" aria-pressed="false" hidden>
+            <svg class="att-sound-icon att-sound-icon-mute" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path fill="currentColor" d="M4.4 9.2h3.05l4.15-3.35a1.1 1.1 0 0 1 1.8.86v10.58a1.1 1.1 0 0 1-1.8.86L7.45 14.8H4.4A1.4 1.4 0 0 1 3 13.4v-2.8a1.4 1.4 0 0 1 1.4-1.4Z"/>
+              <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="m16.2 9.35 4.2 4.2m0-4.2-4.2 4.2"/>
+            </svg>
+            <svg class="att-sound-icon att-sound-icon-on" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path fill="currentColor" d="M4.4 9.2h3.05l4.15-3.35a1.1 1.1 0 0 1 1.8.86v10.58a1.1 1.1 0 0 1-1.8.86L7.45 14.8H4.4A1.4 1.4 0 0 1 3 13.4v-2.8a1.4 1.4 0 0 1 1.4-1.4Z"/>
+              <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M16 9.15a4 4 0 0 1 0 5.7M18.4 6.85a7.1 7.1 0 0 1 0 10.3"/>
+            </svg>
+          </button>
+          <div class="att-count" id="assalAttendanceSelectedCount">0</div>
+        </div>
       </div>
 
       <div class="att-info-row">
@@ -12650,6 +12662,70 @@ html.assal-attendance-locked,
   font-weight:800;
   line-height:1.7;
   
+}
+
+.att-head-tools{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px;
+  min-width:64px;
+}
+
+.att-sound-mute{
+  width:46px;
+  height:46px;
+  border-radius:14px;
+  border:1px solid rgba(251,191,36,.42);
+  background:linear-gradient(145deg,rgba(120,53,15,.92),rgba(67,29,7,.96));
+  color:#fde68a;
+  display:grid;
+  place-items:center;
+  padding:0;
+  cursor:pointer;
+  box-shadow:0 10px 24px rgba(120,53,15,.25),inset 0 0 0 1px rgba(255,255,255,.035);
+  transition:transform .14s ease,filter .14s ease,background .14s ease,border-color .14s ease,color .14s ease;
+}
+
+.att-sound-mute[hidden]{
+  display:none!important;
+}
+
+.att-sound-mute:hover{
+  filter:brightness(1.12);
+  transform:translateY(-1px);
+}
+
+.att-sound-mute:active{
+  transform:translateY(0) scale(.96);
+}
+
+.att-sound-mute.is-muted{
+  border-color:rgba(52,211,153,.42);
+  background:linear-gradient(145deg,rgba(6,78,59,.94),rgba(6,50,45,.97));
+  color:#a7f3d0;
+}
+
+.att-sound-icon{
+  width:24px;
+  height:24px;
+  display:block;
+}
+
+.att-sound-mute .att-sound-icon-mute{
+  display:none;
+}
+
+.att-sound-mute .att-sound-icon-on{
+  display:block;
+}
+
+.att-sound-mute.is-muted .att-sound-icon-on{
+  display:none;
+}
+
+.att-sound-mute.is-muted .att-sound-icon-mute{
+  display:block;
 }
 
 .att-count{
@@ -13973,8 +14049,12 @@ html.assal-attendance-locked,
     text-align:center;
     
   }
-  .att-count{
+  .att-head-tools{
+    justify-content:center;
     margin:auto;
+  }
+  .att-count{
+    margin:0;
     
   }
   .att-code-row{
@@ -15331,6 +15411,12 @@ html.assal-attendance-locked,
   var PHOTO_STORE = 'photos';
   var cameraStream = null;
   var captureBusy = false;
+  var attendanceAlertCtx = null;
+  var attendanceAlertTimer = 0;
+  var attendanceAlertNodes = [];
+  var attendanceAlertActive = false;
+  var attendanceAlertMuted = false;
+  var attendanceAlertManual = false;
   var reportMonthValue = monthKey(new Date());
   var halfDaySelectedDay = todayKey();
 
@@ -16859,6 +16945,186 @@ html.assal-attendance-locked,
     }
   }
 
+  function attendanceGateVisible() {
+    var gate = $('assalAttendanceGate');
+    return !!(gate && gate.classList.contains('assal-attendance-active'));
+  }
+
+  function stopAttendanceAlertNodes() {
+    attendanceAlertNodes.forEach(function(node) {
+      try {
+        if (node && typeof node.stop === 'function') node.stop();
+      } catch (_) {
+
+      }
+      try {
+        if (node && typeof node.disconnect === 'function') node.disconnect();
+      } catch (_) {
+
+      }
+    });
+    attendanceAlertNodes = [];
+  }
+
+  function stopAttendanceAlert() {
+    attendanceAlertActive = false;
+    clearTimeout(attendanceAlertTimer);
+    attendanceAlertTimer = 0;
+    stopAttendanceAlertNodes();
+  }
+
+  function syncAttendanceMuteButton() {
+    var btn = $('assalAttendanceSoundMute');
+    if (!btn) return;
+    btn.hidden = !attendanceAlertManual;
+    btn.classList.toggle('is-muted', !!attendanceAlertMuted);
+    btn.setAttribute('aria-pressed', attendanceAlertMuted ? 'true' : 'false');
+    btn.title = attendanceAlertMuted ? 'تشغيل صوت تنبيه الحضور' : 'كتم صوت تنبيه الحضور';
+    btn.setAttribute('aria-label', btn.title);
+  }
+
+  function attendanceAlertContext() {
+    try {
+      var C = window.AudioContext || window.webkitAudioContext;
+      if (!C) return null;
+      if (!attendanceAlertCtx) attendanceAlertCtx = new C();
+      return attendanceAlertCtx;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function scheduleAttendanceAlert() {
+    clearTimeout(attendanceAlertTimer);
+    attendanceAlertTimer = 0;
+    if (!attendanceAlertActive || attendanceAlertMuted || !attendanceGateVisible()) return;
+    var ctx = attendanceAlertContext();
+    if (!ctx) return;
+
+    if (ctx.state !== 'running') {
+      try {
+        var resumed = ctx.resume();
+        if (resumed && typeof resumed.then === 'function') {
+          resumed.then(function() {
+            if (attendanceAlertActive && !attendanceAlertMuted && attendanceGateVisible()) scheduleAttendanceAlert();
+          }).catch(function() {});
+        }
+      } catch (_) {
+
+      }
+      return;
+    }
+
+    stopAttendanceAlertNodes();
+    try {
+      var now = ctx.currentTime;
+      var master = ctx.createGain();
+      var comp = ctx.createDynamicsCompressor();
+
+      // نداء حضور واضح وقوي لكن موسيقي وغير مخيف:
+      // دقات قصيرة متداخلة بحيث لا توجد فجوة صامتة طويلة، من دون صفير/طنين مستمر.
+      master.gain.setValueAtTime(.90, now);
+      comp.threshold.setValueAtTime(-15, now);
+      comp.knee.setValueAtTime(18, now);
+      comp.ratio.setValueAtTime(6, now);
+      comp.attack.setValueAtTime(.004, now);
+      comp.release.setValueAtTime(.20, now);
+      master.connect(comp);
+      comp.connect(ctx.destination);
+      attendanceAlertNodes.push(master, comp);
+
+      function bell(at, freq, strength) {
+        var o1 = ctx.createOscillator();
+        var o2 = ctx.createOscillator();
+        var g1 = ctx.createGain();
+        var g2 = ctx.createGain();
+        var low = ctx.createBiquadFilter();
+
+        o1.type = 'sine';
+        o1.frequency.setValueAtTime(freq, at);
+        o2.type = 'triangle';
+        o2.frequency.setValueAtTime(freq * 2, at);
+        low.type = 'lowpass';
+        low.frequency.setValueAtTime(2400, at);
+        low.Q.setValueAtTime(.5, at);
+
+        g1.gain.setValueAtTime(.0001, at);
+        g1.gain.exponentialRampToValueAtTime(.255 * strength, at + .018);
+        g1.gain.exponentialRampToValueAtTime(.115 * strength, at + .22);
+        g1.gain.exponentialRampToValueAtTime(.0001, at + .72);
+
+        g2.gain.setValueAtTime(.0001, at);
+        g2.gain.exponentialRampToValueAtTime(.062 * strength, at + .014);
+        g2.gain.exponentialRampToValueAtTime(.0001, at + .42);
+
+        o1.connect(g1); o2.connect(g2);
+        g1.connect(low); g2.connect(low); low.connect(master);
+        o1.start(at); o2.start(at);
+        o1.stop(at + .76); o2.stop(at + .46);
+        attendanceAlertNodes.push(o1, o2, g1, g2, low);
+      }
+
+      // لحن قصير متصل: C5 → E5 → G5 → E5 ثم يعاد قبل انتهاء ذيل الدقة الأخيرة.
+      bell(now + .02, 523.25, 1.00);
+      bell(now + .36, 659.25, .96);
+      bell(now + .70, 783.99, 1.04);
+      bell(now + 1.04, 659.25, .92);
+
+      // إعادة الدورة قبل أن يختفي ذيل آخر دقة، فيبقى التنبيه متصلاً بلا صمت طويل.
+      attendanceAlertTimer = setTimeout(function() {
+        if (attendanceAlertActive && !attendanceAlertMuted && attendanceGateVisible()) {
+          scheduleAttendanceAlert();
+        } else {
+          stopAttendanceAlert();
+        }
+      }, 1500);
+    } catch (_) {
+      stopAttendanceAlertNodes();
+      attendanceAlertTimer = 0;
+    }
+  }
+
+  function startAttendanceAlert(source) {
+    stopAttendanceAlert();
+    attendanceAlertManual = String(source || '') === 'manual';
+    attendanceAlertMuted = false;
+    attendanceAlertActive = true;
+    syncAttendanceMuteButton();
+    scheduleAttendanceAlert();
+  }
+
+  function toggleAttendanceAlertMute() {
+    if (!attendanceAlertManual) return;
+    attendanceAlertMuted = !attendanceAlertMuted;
+    syncAttendanceMuteButton();
+    if (attendanceAlertMuted) {
+      clearTimeout(attendanceAlertTimer);
+      attendanceAlertTimer = 0;
+      stopAttendanceAlertNodes();
+    } else {
+      attendanceAlertActive = true;
+      scheduleAttendanceAlert();
+    }
+  }
+
+  function nudgeAttendanceAudioFromGesture() {
+    if (!attendanceAlertActive || attendanceAlertMuted || !attendanceGateVisible()) return;
+    var ctx = attendanceAlertContext();
+    if (!ctx) return;
+    try {
+      var resumed = ctx.state === 'running' ? null : ctx.resume();
+      if (resumed && typeof resumed.then === 'function') {
+        resumed.then(function() {
+          if (attendanceAlertActive && !attendanceAlertMuted && attendanceGateVisible() && !attendanceAlertTimer) scheduleAttendanceAlert();
+        }).catch(function() {});
+      } else if (!attendanceAlertTimer) {
+        scheduleAttendanceAlert();
+      }
+    } catch (_) {
+
+    }
+  }
+
   function openGate(source) {
     hardenAttendanceCodeInputs();
     if (window.__ASSAL_SINGLE_WINDOW_LOCKED__) return;
@@ -16894,10 +17160,15 @@ html.assal-attendance-locked,
     } catch (_) {
 
     }
+    startAttendanceAlert(source);
   }
 
   function closeGate(record) {
     var gate = $('assalAttendanceGate');
+    stopAttendanceAlert();
+    attendanceAlertManual = false;
+    attendanceAlertMuted = false;
+    syncAttendanceMuteButton();
     clearInterval(clockTimer);
     resetCameraPanel();
     if (gate) {
@@ -17300,10 +17571,17 @@ html.assal-attendance-locked,
       document.addEventListener(ev, noteActivity, true);
 
     });
-    var confirmBtn = $('assalAttendanceConfirm'), reportBtn = $('assalAttendanceReport'), headerBtn = $('btnAttendanceOpen'), backBtn = $('attBackToMain'), timeoutSave = $('attTimeoutSave'), printBtn = $('attPrintReport'), adminExitBtn = $('assalAttendanceAdminExit');
+    var confirmBtn = $('assalAttendanceConfirm'), reportBtn = $('assalAttendanceReport'), headerBtn = $('btnAttendanceOpen'), backBtn = $('attBackToMain'), timeoutSave = $('attTimeoutSave'), printBtn = $('attPrintReport'), adminExitBtn = $('assalAttendanceAdminExit'), soundMuteBtn = $('assalAttendanceSoundMute');
     var reportPrev = $('attReportPrevMonth'), reportNext = $('attReportNextMonth'), reportPicker = $('attReportMonthPicker');
     var halfPrev = $('attHalfDayPrevDay'), halfNext = $('attHalfDayNextDay'), halfToday = $('attHalfDayToday'), halfDate = $('attHalfDayDateInput');
     if (confirmBtn) confirmBtn.addEventListener('click', openAfterAnyConfirmed, false);
+    if (soundMuteBtn) soundMuteBtn.addEventListener('click', function(ev) {
+      ev.preventDefault();
+      toggleAttendanceAlertMute();
+    }, false);
+    ['pointerdown','keydown','touchstart'].forEach(function(evName) {
+      document.addEventListener(evName, nudgeAttendanceAudioFromGesture, {capture:true, passive:evName !== 'keydown'});
+    });
     if (reportBtn) reportBtn.addEventListener('click', function() {
       switchView('report');
 
