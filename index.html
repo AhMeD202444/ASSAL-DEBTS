@@ -38127,10 +38127,167 @@ window.ASSAL_DEBT_REMINDER_PREFS_BRIDGE = Object.freeze({
   }
 });
 
-// جسر مستقل لطلب رفع نسخة السيرفر من الأدمن إلى الحاسبة الرئيسية.
-// يستخدم نفس مستند smartDebtReminders/shared حتى لا يضيف مسار Firestore جديداً.
-// الأدمن يكتب الطلب فقط، والحاسبة الرئيسية تقرأه فقط؛ حالة التنفيذ تحفظ محلياً على الرئيسية.
-// لا يلمس أي بطاقة أو دين أو تسديد أو راجع، ولا ينفذ الرفع من جهاز الأدمن.
+// جسر أوامر مستقل لطلب رفع النسخة والتنبيه العاجل عبر نفس قناة طلبات البطاقات المسموحة.
+// يستخدم حصراً: card-request-submit / card-request-list / card-request-action، مثل أمر تثبيت تاريخ نقل الدين.
+// لا يكتب uploadRequest أو urgentReminderRequest في Firestore، ولا يلمس أي بطاقة/دين/تسديد/راجع.
+const ASSAL_SYSTEM_REMOTE_UPLOAD_BILL = 'remote-server-upload';
+const ASSAL_SYSTEM_REMOTE_UPLOAD_FIELD = '__remote_server_upload__';
+const ASSAL_SYSTEM_URGENT_REMINDER_BILL = 'urgent-debt-reminder';
+const ASSAL_SYSTEM_URGENT_REMINDER_FIELD = '__urgent_debt_reminder__';
+
+function assalSystemCommandNow() {
+  return new Date().toISOString();
+}
+
+function assalSystemCommandDay() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function assalSystemCommandServerUrl(mode, params) {
+  if (typeof SYNC !== 'object' || !SYNC || !SYNC.BASE_URL || !SYNC.TOKEN) throw new Error('SYSTEM_COMMAND_SYNC_UNAVAILABLE');
+  const q = Object.assign({mode, token: SYNC.TOKEN, _: Date.now()}, params || {});
+  const sep = String(SYNC.BASE_URL).indexOf('?') >= 0 ? '&' : '?';
+  return String(SYNC.BASE_URL) + sep + Object.keys(q).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(q[k])).join('&');
+}
+
+async function assalSystemCommandFetch(mode, options, params, timeoutMs) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => { try { ctrl.abort(); } catch (_) {} }, Math.max(1800, Number(timeoutMs) || 6500));
+  try {
+    const resp = await fetch(assalSystemCommandServerUrl(mode, params), Object.assign({cache: 'no-store'}, options || {}, {signal: ctrl.signal}));
+    let json = null;
+    try { json = await resp.json(); } catch (_) {}
+    if (!resp.ok || !json || json.status === 'error') throw new Error(String(json && json.message || ('SYSTEM_COMMAND_HTTP_' + resp.status)));
+    return json;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function assalSystemCommandAuthEmail() {
+  const u = auth.currentUser;
+  return String((u && u.email) || window.ASSAL_LOGIN_EMAIL || '').trim().toLowerCase();
+}
+
+function assalSystemCommandMakeRequest(billType, field, customer, payload, prefix) {
+  const stamp = assalSystemCommandNow();
+  const rid = String(prefix || 'syscmd') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+  const day = assalSystemCommandDay();
+  const after = Object.assign({}, payload || {}, {requestId: rid});
+  return {
+    id: rid,
+    version: 2,
+    status: 'draft',
+    createdAt: stamp,
+    updatedAt: stamp,
+    adminEmail: ASSAL_DEBT_REMINDER_ADMIN_EMAIL,
+    cardId: billType + ':' + rid,
+    cardDay: day,
+    beforeDay: day,
+    afterDay: day,
+    beforeIndex: -1,
+    afterIndex: -1,
+    customer: String(customer || 'أمر نظام'),
+    billType: billType,
+    ops: [{scope: 'card', action: 'patch', fields: [{field: field, before: null, after: after}]}],
+    changes: [{scope: 'card', field: field, before: '—', after: String(customer || 'أمر نظام'), lineId: '', noteId: '', item: ''}]
+  };
+}
+
+function assalSystemCommandExtract(req, billType, field) {
+  if (!req || String(req.adminEmail || '').trim().toLowerCase() !== ASSAL_DEBT_REMINDER_ADMIN_EMAIL) return null;
+  if (String(req.billType || '').trim() !== billType) return null;
+  const ops = Array.isArray(req.ops) ? req.ops : [];
+  for (const op of ops) {
+    const fields = Array.isArray(op && op.fields) ? op.fields : [];
+    for (const f of fields) {
+      if (String(f && f.field || '').trim() === field) {
+        const data = f && f.after && typeof f.after === 'object' ? Object.assign({}, f.after) : {};
+        data.requestId = String(data.requestId || req.id || '');
+        data.__requestStatus = String(req.status || '');
+        data.__requestUpdatedAt = String(req.sentAt || req.updatedAt || req.createdAt || '');
+        return data;
+      }
+    }
+  }
+  return null;
+}
+
+async function assalSystemCommandSubmit(req) {
+  const email = assalSystemCommandAuthEmail();
+  if (email !== ASSAL_DEBT_REMINDER_ADMIN_EMAIL) throw new Error('SYSTEM_COMMAND_ADMIN_ONLY');
+  const json = await assalSystemCommandFetch('card-request-submit', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SYNC.TOKEN},
+    body: JSON.stringify({version: 2, actorEmail: email, request: req})
+  }, null, 7500);
+  return json && json.request ? json.request : req;
+}
+
+async function assalSystemCommandReadLatest(billType, field) {
+  const email = assalSystemCommandAuthEmail();
+  if (email !== ASSAL_DEBT_REMINDER_MAIN_EMAIL) throw new Error('SYSTEM_COMMAND_MAIN_ONLY');
+  const json = await assalSystemCommandFetch('card-request-list', {method: 'GET'}, {actor: 'main', email: email}, 3200);
+  const list = Array.isArray(json && json.requests) ? json.requests : [];
+  const pending = list.map(req => ({req, data: assalSystemCommandExtract(req, billType, field)})).filter(x => {
+    const st = String(x.req && x.req.status || '');
+    return x.data && (st === 'pending_review' || st === 'approved_pending_upload');
+  }).sort((a, b) => String(b.req.sentAt || b.req.updatedAt || b.req.createdAt || '').localeCompare(String(a.req.sentAt || a.req.updatedAt || a.req.createdAt || '')));
+  return pending.length ? pending[0].data : null;
+}
+
+// قراءة حالة أوامر النظام من حساب الأدمن فقط — للمنع الآمن من تكرار طلب رفع النسخة.
+// قراءة فقط من نفس قناة card-request ولا تغيّر أي طلب أو بيانات مالية.
+async function assalSystemCommandReadAdminStatus(billType, field, requestId) {
+  const email = assalSystemCommandAuthEmail();
+  if (email !== ASSAL_DEBT_REMINDER_ADMIN_EMAIL) throw new Error('SYSTEM_COMMAND_ADMIN_ONLY');
+  const json = await assalSystemCommandFetch('card-request-list', {method: 'GET'}, {actor: 'admin', email: email}, 4200);
+  const list = Array.isArray(json && json.requests) ? json.requests : [];
+  const matches = list.map(req => ({req, data: assalSystemCommandExtract(req, billType, field)})).filter(x => x.data);
+  let found = null;
+  const wanted = String(requestId || '').trim();
+  if (wanted) {
+    found = matches.find(x => String(x.req && x.req.id || '').trim() === wanted) || null;
+  } else {
+    // إذا بقي أي طلب رفع غير مطبق، نعطيه الأولوية مهما كان أقدم من آخر طلب مطبق.
+    // هذا يمنع إرسال طلب مكرر قبل أن تنهي الحاسبة الرئيسية الطلب السابق فعلياً.
+    const pending = matches.filter(x => {
+      const st = String(x.req && x.req.status || '');
+      return st === 'draft' || st === 'pending_review' || st === 'approved_pending_upload';
+    });
+    const source = pending.length ? pending : matches;
+    source.sort((a, b) => String(b.req && (b.req.appliedAt || b.req.updatedAt || b.req.sentAt || b.req.createdAt) || '').localeCompare(String(a.req && (a.req.appliedAt || a.req.updatedAt || a.req.sentAt || a.req.createdAt) || '')));
+    found = source.length ? source[0] : null;
+  }
+  if (!found) return null;
+  const req = found.req || {};
+  return {
+    requestId: String(req.id || found.data.requestId || ''),
+    status: String(req.status || ''),
+    createdAt: String(req.createdAt || ''),
+    sentAt: String(req.sentAt || ''),
+    updatedAt: String(req.updatedAt || ''),
+    appliedAt: String(req.appliedAt || ''),
+    data: found.data
+  };
+}
+
+async function assalSystemCommandApplied(requestId) {
+  const email = assalSystemCommandAuthEmail();
+  if (email !== ASSAL_DEBT_REMINDER_MAIN_EMAIL) throw new Error('SYSTEM_COMMAND_MAIN_ONLY');
+  requestId = String(requestId || '').trim();
+  if (!requestId) return false;
+  await assalSystemCommandFetch('card-request-action', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SYNC.TOKEN},
+    body: JSON.stringify({version: 2, action: 'applied', requestId: requestId, actorEmail: email, appliedAt: assalSystemCommandNow()})
+  }, null, 6500);
+  return true;
+}
+
+// طلب رفع نسخة السيرفر من الأدمن إلى الحاسبة الرئيسية.
+// الإرسال/القراءة فقط عبر قناة card-request، والتنفيذ الفعلي للرفع يبقى كما هو في الحاسبة الرئيسية.
 window.ASSAL_REMOTE_SERVER_UPLOAD_BRIDGE = Object.freeze({
   currentUser() {
     const u = auth.currentUser;
@@ -38138,49 +38295,47 @@ window.ASSAL_REMOTE_SERVER_UPLOAD_BRIDGE = Object.freeze({
     return {uid: String(u.uid || ''), email: String(u.email || '').trim().toLowerCase()};
   },
   async request() {
-    const u = auth.currentUser;
-    const email = String(u?.email || '').trim().toLowerCase();
-    if (!u || email !== ASSAL_DEBT_REMINDER_ADMIN_EMAIL) throw new Error('REMOTE_UPLOAD_ADMIN_ONLY');
-
+    const email = assalSystemCommandAuthEmail();
+    if (email !== ASSAL_DEBT_REMINDER_ADMIN_EMAIL) throw new Error('REMOTE_UPLOAD_ADMIN_ONLY');
     const now = new Date();
-    const req = {
+    const payload = {
       version: 1,
-      requestId: 'srvup_' + now.getTime() + '_' + Math.random().toString(36).slice(2, 9),
       status: 'pending',
       requestedAt: now.toISOString(),
       requestedAtMs: now.getTime(),
       requestedBy: ASSAL_DEBT_REMINDER_ADMIN_EMAIL
     };
-    await setDoc(ASSAL_DEBT_REMINDER_PREF_DOC, {uploadRequest: req}, {merge: true});
-    return {ok: true, request: req};
+    const req = assalSystemCommandMakeRequest(ASSAL_SYSTEM_REMOTE_UPLOAD_BILL, ASSAL_SYSTEM_REMOTE_UPLOAD_FIELD, 'طلب رفع نسخة السيرفر', payload, 'srvup');
+    const saved = await assalSystemCommandSubmit(req);
+    const data = assalSystemCommandExtract(saved, ASSAL_SYSTEM_REMOTE_UPLOAD_BILL, ASSAL_SYSTEM_REMOTE_UPLOAD_FIELD) || Object.assign({}, payload, {requestId: req.id});
+    return {ok: true, request: data};
   },
   async read() {
-    const u = auth.currentUser;
-    const email = String(u?.email || '').trim().toLowerCase();
-    if (!u || email !== ASSAL_DEBT_REMINDER_MAIN_EMAIL) throw new Error('REMOTE_UPLOAD_MAIN_ONLY');
-    const snap = await getDoc(ASSAL_DEBT_REMINDER_PREF_DOC);
-    const data = snap.exists() ? (snap.data() || {}) : {};
-    return data && data.uploadRequest && typeof data.uploadRequest === 'object'
-      ? data.uploadRequest : null;
+    return await assalSystemCommandReadLatest(ASSAL_SYSTEM_REMOTE_UPLOAD_BILL, ASSAL_SYSTEM_REMOTE_UPLOAD_FIELD);
+  },
+  async status(requestId) {
+    return await assalSystemCommandReadAdminStatus(ASSAL_SYSTEM_REMOTE_UPLOAD_BILL, ASSAL_SYSTEM_REMOTE_UPLOAD_FIELD, requestId);
+  },
+  async latestStatus() {
+    return await assalSystemCommandReadAdminStatus(ASSAL_SYSTEM_REMOTE_UPLOAD_BILL, ASSAL_SYSTEM_REMOTE_UPLOAD_FIELD, '');
+  },
+  async applied(requestId) {
+    return await assalSystemCommandApplied(requestId);
   }
 });
 
-
-// جسر مستقل للتنبيه العاجل اليدوي من مركز متابعة الديون.
-// الأدمن يرسل اسم الزبون وملخص متابعة فقط، والرئيسية تقرأ الطلب وتعرض نفس نافذة التنبيه بعد تحقق الخمول.
-// لا يغيّر ترتيب التنبيهات التلقائية ولا يكتب أي بطاقة/دين/تسديد/راجع.
+// التنبيه العاجل اليدوي من مركز متابعة الديون.
+// نفس بيانات التنبيه السابقة تماماً، لكن النقل بين الأدمن والرئيسية عبر card-request بدل Firestore.
 window.ASSAL_URGENT_DEBT_REMINDER_BRIDGE = Object.freeze({
   async request(payload) {
-    const u = auth.currentUser;
-    const email = String(u?.email || '').trim().toLowerCase();
-    if (!u || email !== ASSAL_DEBT_REMINDER_ADMIN_EMAIL) throw new Error('URGENT_REMINDER_ADMIN_ONLY');
+    const email = assalSystemCommandAuthEmail();
+    if (email !== ASSAL_DEBT_REMINDER_ADMIN_EMAIL) throw new Error('URGENT_REMINDER_ADMIN_ONLY');
     const source = payload && typeof payload === 'object' ? payload : {};
     const name = String(source.name || '').trim().slice(0, 220);
     if (!name) throw new Error('URGENT_REMINDER_NO_NAME');
     const now = new Date();
-    const req = {
+    const data = {
       version: 1,
-      requestId: 'debturgent_' + now.getTime() + '_' + Math.random().toString(36).slice(2, 9),
       name,
       debt: Math.round(Number(source.debt || 0)) || 0,
       ageDays: Number.isFinite(Number(source.ageDays)) ? Math.max(0, Math.round(Number(source.ageDays))) : null,
@@ -38191,19 +38346,19 @@ window.ASSAL_URGENT_DEBT_REMINDER_BRIDGE = Object.freeze({
       requestedAtMs: now.getTime(),
       requestedBy: ASSAL_DEBT_REMINDER_ADMIN_EMAIL
     };
-    await setDoc(ASSAL_DEBT_REMINDER_PREF_DOC, {urgentReminderRequest: req}, {merge: true});
-    return {ok: true, request: req};
+    const req = assalSystemCommandMakeRequest(ASSAL_SYSTEM_URGENT_REMINDER_BILL, ASSAL_SYSTEM_URGENT_REMINDER_FIELD, 'تنبيه دين عاجل - ' + name, data, 'debturgent');
+    const saved = await assalSystemCommandSubmit(req);
+    const result = assalSystemCommandExtract(saved, ASSAL_SYSTEM_URGENT_REMINDER_BILL, ASSAL_SYSTEM_URGENT_REMINDER_FIELD) || Object.assign({}, data, {requestId: req.id});
+    return {ok: true, request: result};
   },
   async read() {
-    const u = auth.currentUser;
-    const email = String(u?.email || '').trim().toLowerCase();
-    if (!u || email !== ASSAL_DEBT_REMINDER_MAIN_EMAIL) throw new Error('URGENT_REMINDER_MAIN_ONLY');
-    const snap = await getDoc(ASSAL_DEBT_REMINDER_PREF_DOC);
-    const data = snap.exists() ? (snap.data() || {}) : {};
-    return data && data.urgentReminderRequest && typeof data.urgentReminderRequest === 'object'
-      ? data.urgentReminderRequest : null;
+    return await assalSystemCommandReadLatest(ASSAL_SYSTEM_URGENT_REMINDER_BILL, ASSAL_SYSTEM_URGENT_REMINDER_FIELD);
+  },
+  async applied(requestId) {
+    return await assalSystemCommandApplied(requestId);
   }
 });
+
 // ===== حالة الجلسة كمتغيّر عالمي =====
 window.IS_SIGNED_IN = false;
 // خليها عالمية لأن كود خارج المودول يستعملها
@@ -60929,13 +61084,16 @@ html body .card .item.assal-smart-added-item-safe-final{
 
   function isDebtTransferLockRequest(req) {
     try {
-      if (safe(req && req.billType).trim() === 'debt-transfer-lock') return true;
+      var bill = safe(req && req.billType).trim();
+      if (bill === 'debt-transfer-lock' || bill === 'remote-server-upload' || bill === 'urgent-debt-reminder') return true;
       var ops = Array.isArray(req && req.ops) ? req.ops : [];
       return ops.some(function(op) {
         if (!op || op.scope !== 'card') return false;
-        if (safe(op.field).trim() === '__debt_transfer_lock__') return true;
+        var direct = safe(op.field).trim();
+        if (direct === '__debt_transfer_lock__' || direct === '__remote_server_upload__' || direct === '__urgent_debt_reminder__') return true;
         return (Array.isArray(op.fields) ? op.fields : []).some(function(f) {
-          return safe(f && f.field).trim() === '__debt_transfer_lock__';
+          var field = safe(f && f.field).trim();
+          return field === '__debt_transfer_lock__' || field === '__remote_server_upload__' || field === '__urgent_debt_reminder__';
 
         });
       });
@@ -84038,7 +84196,11 @@ body.assal-ledger-wa-auto-pdf-open{
       var br=window.ASSAL_URGENT_DEBT_REMINDER_BRIDGE;
       if(!br||typeof br.read!=='function')return;
       var req=await withTimeout(br.read(),3500),id=safe(req&&req.requestId);
-      if(!id||id===readUrgentSeen())return;
+      if(!id)return;
+      if(id===readUrgentSeen()){
+        try{if(typeof br.applied==='function')await withTimeout(br.applied(id),3500)}catch(_){}
+        return;
+      }
       pendingUrgent=req;
       tryShowUrgent();
     }catch(_){}finally{urgentPollBusy=false}
@@ -84049,6 +84211,7 @@ body.assal-ledger-wa-auto-pdf-open{
     if(!id||!row||!safe(row.name).trim()){pendingUrgent=null;if(id)writeUrgentSeen(id);return false}
     pendingUrgent=null;writeUrgentSeen(id);
     showPopup(row,firstPresentEmployee()||'زميلنا','urgent');
+    try{var br=window.ASSAL_URGENT_DEBT_REMINDER_BRIDGE;if(br&&typeof br.applied==='function')Promise.resolve(br.applied(id)).catch(function(){})}catch(_){}
     return true;
   }
 
@@ -84099,6 +84262,14 @@ body.assal-ledger-wa-auto-pdf-open{
 #assalHeaderActions #btnRequestMainServerUpload.assal-remote-upload-sending i{
   animation:assalRemoteUploadToolPulse .85s ease-in-out infinite alternate
 }
+#assalHeaderActions #btnRequestMainServerUpload.assal-remote-upload-locked{
+  opacity:.48!important;
+  filter:saturate(.55)!important;
+  cursor:not-allowed!important
+}
+#assalHeaderActions #btnRequestMainServerUpload.assal-remote-upload-locked i{
+  animation:none!important
+}
 @keyframes assalRemoteUploadToolPulse{
   from{opacity:.45;transform:translateY(1px)}
   to{opacity:1;transform:translateY(-1px)}
@@ -84117,7 +84288,10 @@ body.assal-ledger-wa-auto-pdf-open{
   var DONE_KEY='ASSAL_REMOTE_UPLOAD_LAST_DONE_V1';
   var INFLIGHT_KEY='ASSAL_REMOTE_UPLOAD_INFLIGHT_V1';
   var RETRY_KEY='ASSAL_REMOTE_UPLOAD_RETRY_V1';
+  var ADMIN_LOCK_KEY='ASSAL_REMOTE_UPLOAD_ADMIN_LOCK_V1';
+  var ADMIN_COOLDOWN_MS=2*60*1000, ADMIN_STATUS_POLL_MS=10000;
   var lastMainActivityAt=Date.now(), pollBusy=false, uploadBusy=false, pollTimer=0;
+  var adminLockReady=false, adminLockCheckBusy=false, adminLockTimer=0, adminUnlockTimer=0;
 
   function safe(v){return String(v==null?'':v)}
   function email(){return safe(window.ASSAL_LOGIN_EMAIL||'').trim().toLowerCase()}
@@ -84193,6 +84367,113 @@ body.assal-ledger-wa-auto-pdf-open{
   }
   function removeLocal(key){try{localStorage.removeItem(key)}catch(_){}}
 
+  function readAdminUploadLock(){
+    var x=readJson(ADMIN_LOCK_KEY,null);
+    return x&&typeof x==='object'?x:null;
+  }
+  function writeAdminUploadLock(x){
+    if(!x||typeof x!=='object'){removeLocal(ADMIN_LOCK_KEY);return false}
+    return writeJson(ADMIN_LOCK_KEY,x);
+  }
+  function clearAdminUploadLock(){
+    removeLocal(ADMIN_LOCK_KEY);
+    if(adminUnlockTimer){clearTimeout(adminUnlockTimer);adminUnlockTimer=0}
+  }
+  function parseTimeMs(v){
+    var n=Date.parse(safe(v));
+    return isFinite(n)?n:0;
+  }
+  function adminLockActive(){
+    if(!isAdmin())return false;
+    if(!adminLockReady)return true;
+    var st=readAdminUploadLock();
+    if(!st)return false;
+    if(st.mode==='pending')return true;
+    if(st.mode==='cooldown'&&Number(st.cooldownUntil||0)>Date.now())return true;
+    return false;
+  }
+  function scheduleAdminUnlock(until){
+    if(adminUnlockTimer){clearTimeout(adminUnlockTimer);adminUnlockTimer=0}
+    var wait=Math.max(0,Number(until||0)-Date.now()+120);
+    if(!wait)return;
+    adminUnlockTimer=setTimeout(function(){adminUnlockTimer=0;void refreshAdminUploadLock(true)},Math.min(wait,2147483000));
+  }
+  function renderAdminUploadButtonState(){
+    var btn=document.getElementById('btnRequestMainServerUpload');
+    if(!btn)return;
+    if(!btn.dataset.assalBaseTitle)btn.dataset.assalBaseTitle=btn.getAttribute('title')||'طلب رفع نسخة للسيرفر من الحاسبة الرئيسية';
+    var sending=btn.getAttribute('aria-busy')==='true';
+    var st=readAdminUploadLock();
+    var locked=isAdmin()&&adminLockActive();
+    btn.classList.toggle('assal-remote-upload-locked',locked&&!sending);
+    if(sending){btn.disabled=true;return}
+    btn.disabled=!!locked;
+    if(!isAdmin())return;
+    if(!adminLockReady){
+      btn.setAttribute('title','جاري التحقق من حالة طلب الرفع السابق');
+      return;
+    }
+    if(st&&st.mode==='pending'){
+      btn.setAttribute('title','بانتظار تنفيذ طلب الرفع في الحاسبة الرئيسية');
+      return;
+    }
+    if(st&&st.mode==='cooldown'&&Number(st.cooldownUntil||0)>Date.now()){
+      var sec=Math.max(1,Math.ceil((Number(st.cooldownUntil)-Date.now())/1000));
+      btn.setAttribute('title','تم تنفيذ الطلب — يمكن إرسال طلب جديد بعد '+sec+' ثانية');
+      scheduleAdminUnlock(Number(st.cooldownUntil));
+      return;
+    }
+    btn.setAttribute('title',btn.dataset.assalBaseTitle);
+  }
+  async function refreshAdminUploadLock(force){
+    if(!isAdmin())return false;
+    if(adminLockCheckBusy)return adminLockActive();
+    var bridge=window.ASSAL_REMOTE_SERVER_UPLOAD_BRIDGE;
+    if(!bridge||typeof bridge.latestStatus!=='function'){
+      adminLockReady=false;
+      renderAdminUploadButtonState();
+      return true;
+    }
+    adminLockCheckBusy=true;
+    try{
+      var local=readAdminUploadLock();
+      var info=await withTimeout(bridge.latestStatus(),5500);
+      if(!info||!info.requestId){
+        clearAdminUploadLock();
+        adminLockReady=true;
+        return false;
+      }
+      var requestId=safe(info.requestId), status=safe(info.status);
+      if(status==='pending_review'||status==='approved_pending_upload'||status==='draft'){
+        writeAdminUploadLock({mode:'pending',requestId:requestId,sentAt:parseTimeMs(info.sentAt||info.updatedAt||info.createdAt)||Date.now()});
+        adminLockReady=true;
+        return true;
+      }
+      if(status==='applied'){
+        var appliedMs=parseTimeMs(info.appliedAt||info.updatedAt);
+        if(!appliedMs&&local&&safe(local.requestId)===requestId)appliedMs=Number(local.appliedAtMs||0);
+        if(!appliedMs)appliedMs=Date.now();
+        var until=appliedMs+ADMIN_COOLDOWN_MS;
+        if(until>Date.now()){
+          writeAdminUploadLock({mode:'cooldown',requestId:requestId,appliedAtMs:appliedMs,cooldownUntil:until});
+          adminLockReady=true;
+          scheduleAdminUnlock(until);
+          return true;
+        }
+      }
+      clearAdminUploadLock();
+      adminLockReady=true;
+      return false;
+    }catch(err){
+      // Fail-closed: لا نسمح بطلب مكرر إذا تعذر التأكد من حالة الطلب السابق.
+      adminLockReady=!!readAdminUploadLock();
+      return true;
+    }finally{
+      adminLockCheckBusy=false;
+      renderAdminUploadButtonState();
+    }
+  }
+
   function syncAdminTools(){
     var visible=isAdmin();
     ['btnSmartDebtIgnoreManager','btnRequestMainServerUpload'].forEach(function(id){
@@ -84202,6 +84483,7 @@ body.assal-ledger-wa-auto-pdf-open{
       el.setAttribute('aria-hidden',visible?'false':'true');
       el.tabIndex=visible?0:-1;
     });
+    if(visible)renderAdminUploadButtonState();
   }
 
   function openIgnoreManager(){
@@ -84238,11 +84520,24 @@ body.assal-ledger-wa-auto-pdf-open{
       try{window.assalProgressTriggerBusy && window.assalProgressTriggerBusy(btn,true)}catch(_){}
     }
 
+    var sentOk=false;
     try{
-      uploadProgressSet('','إرسال طلب الرفع','تجهيز الطلب والتحقق من قناة الإرسال',16,'fa-solid fa-file-circle-check');
+      uploadProgressSet('','إرسال طلب الرفع','التحقق من عدم وجود طلب سابق قيد التنفيذ',10,'fa-solid fa-shield-halved');
+      var locked=await refreshAdminUploadLock(true);
+      if(locked){
+        uploadProgressHide();
+        toast('warn','يوجد طلب رفع سابق بانتظار التنفيذ أو ضمن مهلة الدقيقتين',3000);
+        return;
+      }
+      uploadProgressSet('','إرسال طلب الرفع','تجهيز الطلب والتحقق من قناة الإرسال',22,'fa-solid fa-file-circle-check');
       await sleep(70);
-      uploadProgressSet('','إرسال طلب الرفع','إرسال الطلب إلى الحاسبة الرئيسية',48,'fa-solid fa-paper-plane');
-      await withTimeout(bridge.request(),8000);
+      uploadProgressSet('','إرسال طلب الرفع','إرسال الطلب إلى الحاسبة الرئيسية',52,'fa-solid fa-paper-plane');
+      var result=await withTimeout(bridge.request(),8000);
+      var requestId=safe(result&&result.request&&result.request.requestId);
+      if(!requestId)throw new Error('REMOTE_UPLOAD_REQUEST_ID_MISSING');
+      writeAdminUploadLock({mode:'pending',requestId:requestId,sentAt:Date.now()});
+      adminLockReady=true;
+      sentOk=true;
       uploadProgressSet('','إرسال طلب الرفع','تم الوصول للسيرفر — تثبيت الطلب',92,'fa-solid fa-shield-halved');
       await sleep(90);
       uploadProgressSuccess();
@@ -84251,11 +84546,13 @@ body.assal-ledger-wa-auto-pdf-open{
       uploadProgressError('تعذر إرسال الطلب إلى الحاسبة الرئيسية');
     }finally{
       if(btn){
-        btn.disabled=false;
         btn.classList.remove('assal-remote-upload-sending');
         btn.removeAttribute('aria-busy');
         try{window.assalProgressTriggerBusy && window.assalProgressTriggerBusy(btn,false)}catch(_){}
       }
+      if(!sentOk && !readAdminUploadLock())adminLockReady=true;
+      renderAdminUploadButtonState();
+      if(sentOk)setTimeout(function(){void refreshAdminUploadLock(true)},1200);
     }
   }
 
@@ -84343,7 +84640,10 @@ body.assal-ledger-wa-auto-pdf-open{
 
       var requestId=safe(req.requestId);
       if(!requestId) return;
-      if(safe(localStorage.getItem(DONE_KEY)||'')===requestId) return;
+      if(safe(localStorage.getItem(DONE_KEY)||'')===requestId){
+        try{if(typeof bridge.applied==='function')await withTimeout(bridge.applied(requestId),5000)}catch(_){}
+        return;
+      }
       if(sameRetryBlocked(requestId)) return;
       if(localInflightFresh(requestId)) return;
       if(!mainIdleReady()) return;
@@ -84383,6 +84683,7 @@ body.assal-ledger-wa-auto-pdf-open{
         }catch(_){}
 
         try{localStorage.setItem(DONE_KEY,requestId)}catch(_){}
+        try{if(typeof bridge.applied==='function')await withTimeout(bridge.applied(requestId),5000)}catch(err){console.warn('[ASSAL remote upload] upload done; acknowledgement pending',err)}
         removeLocal(INFLIGHT_KEY);
         removeLocal(RETRY_KEY);
       }catch(err){
@@ -84402,6 +84703,11 @@ body.assal-ledger-wa-auto-pdf-open{
 
   function bind(){
     syncAdminTools();
+    if(isAdmin()){
+      adminLockReady=false;
+      renderAdminUploadButtonState();
+      setTimeout(function(){void refreshAdminUploadLock(true)},450);
+    }
 
     var ignoreBtn=document.getElementById('btnSmartDebtIgnoreManager');
     if(ignoreBtn && !ignoreBtn.__assalBound){
@@ -84426,12 +84732,19 @@ body.assal-ledger-wa-auto-pdf-open{
     if(pollTimer) clearInterval(pollTimer);
     pollTimer=setInterval(function(){void processRemoteUploadRequest()},POLL_MS);
     setTimeout(function(){void processRemoteUploadRequest()},1800);
+    if(adminLockTimer)clearInterval(adminLockTimer);
+    adminLockTimer=setInterval(function(){if(isAdmin())void refreshAdminUploadLock(false)},ADMIN_STATUS_POLL_MS);
   }
 
   window.addEventListener('assal:auth-ready',function(){
     setTimeout(function(){
       syncAdminTools();
       lastMainActivityAt=Date.now();
+      if(isAdmin()){
+        adminLockReady=false;
+        renderAdminUploadButtonState();
+        void refreshAdminUploadLock(true);
+      }
       void processRemoteUploadRequest();
     },350);
   },false);
@@ -84439,6 +84752,7 @@ body.assal-ledger-wa-auto-pdf-open{
   document.addEventListener('visibilitychange',function(){
     if(!document.hidden){
       lastMainActivityAt=Date.now();
+      if(isAdmin())setTimeout(function(){void refreshAdminUploadLock(true)},250);
       setTimeout(function(){void processRemoteUploadRequest()},MAIN_IDLE_MS+350);
     }
   },false);
@@ -84448,7 +84762,9 @@ body.assal-ledger-wa-auto-pdf-open{
 
   window.ASSAL_REMOTE_UPLOAD_REQUEST_CONTROL=Object.freeze({
     check:function(){return processRemoteUploadRequest()},
-    idleReady:function(){return mainIdleReady()}
+    idleReady:function(){return mainIdleReady()},
+    refreshAdminLock:function(){return refreshAdminUploadLock(true)},
+    adminLock:function(){return readAdminUploadLock()}
   });
 })();
 </script>
