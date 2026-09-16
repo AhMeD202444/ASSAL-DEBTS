@@ -38232,7 +38232,7 @@ async function assalSystemCommandReadLatest(billType, field) {
   const list = Array.isArray(json && json.requests) ? json.requests : [];
   const pending = list.map(req => ({req, data: assalSystemCommandExtract(req, billType, field)})).filter(x => {
     const st = String(x.req && x.req.status || '');
-    return x.data && (st === 'pending_review' || st === 'approved_pending_upload');
+    return x.data && (st === 'draft' || st === 'pending_review' || st === 'approved_pending_upload');
   }).sort((a, b) => String(b.req.sentAt || b.req.updatedAt || b.req.createdAt || '').localeCompare(String(a.req.sentAt || a.req.updatedAt || a.req.createdAt || '')));
   return pending.length ? pending[0].data : null;
 }
@@ -38353,6 +38353,9 @@ window.ASSAL_URGENT_DEBT_REMINDER_BRIDGE = Object.freeze({
   },
   async read() {
     return await assalSystemCommandReadLatest(ASSAL_SYSTEM_URGENT_REMINDER_BILL, ASSAL_SYSTEM_URGENT_REMINDER_FIELD);
+  },
+  async latestStatus() {
+    return await assalSystemCommandReadAdminStatus(ASSAL_SYSTEM_URGENT_REMINDER_BILL, ASSAL_SYSTEM_URGENT_REMINDER_FIELD, '');
   },
   async applied(requestId) {
     return await assalSystemCommandApplied(requestId);
@@ -61103,6 +61106,57 @@ html body .card .item.assal-smart-added-item-safe-final{
     }
   }
 
+  function isDebtTransferLockOnlyRequest(req) {
+    try {
+      var bill = safe(req && req.billType).trim();
+      if (bill === 'debt-transfer-lock') return true;
+      var ops = Array.isArray(req && req.ops) ? req.ops : [];
+      return ops.some(function(op) {
+        if (!op || op.scope !== 'card') return false;
+        if (safe(op.field).trim() === '__debt_transfer_lock__') return true;
+        return (Array.isArray(op.fields) ? op.fields : []).some(function(f) {
+          return safe(f && f.field).trim() === '__debt_transfer_lock__';
+        });
+      });
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function systemCommandKind(req) {
+    var bill = safe(req && req.billType).trim();
+    if (bill === 'remote-server-upload') return 'remote-upload';
+    if (bill === 'urgent-debt-reminder') return 'urgent-reminder';
+    return '';
+  }
+
+  function isSystemCommandRequest(req) {
+    return !!systemCommandKind(req);
+  }
+
+  function isSystemCommandPending(req) {
+    if (!isSystemCommandRequest(req)) return false;
+    var st = safe(req && req.status).trim();
+    return st === 'draft' || st === 'pending_review' || st === 'approved_pending_upload';
+  }
+
+  function systemCommandPayload(req) {
+    var kind = systemCommandKind(req);
+    var wanted = kind === 'remote-upload' ? '__remote_server_upload__' : (kind === 'urgent-reminder' ? '__urgent_debt_reminder__' : '');
+    if (!wanted) return {};
+    var ops = Array.isArray(req && req.ops) ? req.ops : [];
+    for (var i = 0; i < ops.length; i++) {
+      var fields = Array.isArray(ops[i] && ops[i].fields) ? ops[i].fields : [];
+      for (var j = 0; j < fields.length; j++) {
+        if (safe(fields[j] && fields[j].field).trim() === wanted) {
+          var after = fields[j] && fields[j].after;
+          return after && typeof after === 'object' ? after : {};
+        }
+      }
+    }
+    return {};
+  }
+
   function fieldLabel(scope, field) {
     var map = {customer: 'اسم الزبون', billType: 'نوع الفاتورة', paidAll: 'تسديد الكل', deletedAt: 'حذف', cat: 'الصنف', item: 'اسم المادة', price: 'السعر', qty: 'العدد', note: 'الملاحظات', paid: 'التسديد', returned: 'الراجع', partialPayments: 'التسديد الجزئي', notes: 'ملاحظات البطاقة', __global_customer_rename__: 'تغيير اسم الزبون بكل السجلات'};
     if (scope === 'line' && field === '__add__') return 'إضافة مادة';
@@ -63311,7 +63365,29 @@ html body .card .item.assal-smart-added-item-safe-final{
     return 'ready';
   }
 
+  function systemCommandCardHtml(rec, mode) {
+    var kind = systemCommandKind(rec), payload = systemCommandPayload(rec), status = safe(rec && rec.status || 'pending_review');
+    var pending = isSystemCommandPending(rec), applied = status === 'applied';
+    var cls = applied ? 'applied' : (status === 'rejected' ? 'rejected' : (status === 'conflict' ? 'conflict' : 'pending'));
+    var title = kind === 'remote-upload' ? 'طلب رفع نسخة للسيرفر' : ('تنبيه عاجل — ' + safe(payload.name || rec.customer || 'زبون'));
+    var badge = kind === 'remote-upload' ? 'رفع نسخة' : 'تنبيه عاجل';
+    var icon = kind === 'remote-upload' ? 'fa-cloud-arrow-up' : 'fa-bell';
+    var stateLabel = pending ? 'بانتظار التنفيذ التلقائي' : (applied ? 'تم التنفيذ تلقائياً' : statusText(status));
+    var sentTime = rec.sentAt || rec.createdAt || rec.updatedAt || '';
+    var doneTime = rec.appliedAt || rec.updatedAt || '';
+    var detailCells = '<div class="assal-cr-payment-cell"><span>نوع العملية</span><b>' + esc(badge) + '</b></div>' +
+      (kind === 'urgent-reminder' ? '<div class="assal-cr-payment-cell"><span>الزبون</span><b>' + esc(payload.name || '—') + '</b></div>' : '') +
+      '<div class="assal-cr-payment-cell"><span>وقت الإرسال</span><b>' + esc(fmtDateTime(sentTime)) + '</b></div>' +
+      (applied ? '<div class="assal-cr-payment-cell"><span>وقت التنفيذ</span><b>' + esc(fmtDateTime(doneTime)) + '</b></div>' : '') +
+      '<div class="assal-cr-payment-cell assal-cr-payment-note"><span>الحالة</span><b>' + esc(stateLabel) + '</b></div>';
+    var body = '<div class="assal-cr-payment"><div class="assal-cr-payment-top"><div class="assal-cr-payment-title"><i class="fa-solid ' + icon + '"></i><span>' + esc(title) + '</span></div><span class="assal-cr-payment-kind">أمر نظام</span></div><div class="assal-cr-payment-grid">' + detailCells + '</div></div>';
+    var actions = '';
+    if (mode === 'admin-archive') actions = '<button type="button" class="assal-cr-btn delete" data-cr-hide-archive="' + esc(rec.id) + '"><i class="fa-solid fa-trash-can"></i> حذف</button>';
+    return '<article class="assal-cr-card ' + cls + '"><div class="assal-cr-card-head"><div class="assal-cr-card-title"><b>' + esc(title) + '</b><span>' + esc(fmtDateTime(sentTime)) + ' • أمر نظام تلقائي</span></div><span class="assal-cr-status ' + esc(status) + '">' + esc(stateLabel) + '</span></div>' + body + (actions ? '<div class="assal-cr-actions">' + actions + '</div>' : '') + '</article>';
+  }
+
   function cardHtml(rec, mode) {
+    if (isSystemCommandRequest(rec)) return systemCommandCardHtml(rec, mode);
     var changes = Array.isArray(rec.changes) ? rec.changes : summarizeOps(rec.ops || []), isBundle = isNewCardBundle(rec), isPayment = isPaymentDraft(rec), isAttendance = isAttendanceHalfDayRequest(rec), isSingleCustomerChange = isSingleCardCustomerChangeRequest(rec), bundleOp = isBundle ? cardAddOperation(rec) : null, bundleCard = isBundle ? (clone(rec.afterCard) || (bundleOp && clone(bundleOp.after)) || {}) : null;
     var bundleLines = isBundle && Array.isArray(bundleCard.lines) ? bundleCard.lines : [], shown = changes.slice(0, 8), more = Math.max(0, changes.length - shown.length), status = safe(rec.status || 'draft');
     var localPending = isMain() && status === 'pending_review' && isAppliedLocal(rec.id);
@@ -63344,23 +63420,29 @@ html body .card .item.assal-smart-added-item-safe-final{
     if (isAdmin()) {
       root.querySelector('#assalCrTitle').textContent = 'طلبات التعديل — الأدمن';
       root.querySelector('#assalCrSub').textContent = 'تعديلات البطاقات والحسابات وطلبات الحضور بانتظار الإرسال';
-      tabs.innerHTML = '<button class="assal-cr-tab ' + (activeTab === 'drafts' ? 'active' : '') + '" data-cr-tab="drafts"><i class="fa-solid fa-pen-ruler"></i> التعديلات (' + state.drafts.length + ')</button><button class="assal-cr-tab ' + (activeTab === 'archive' ? 'active' : '') + '" data-cr-tab="archive"><i class="fa-solid fa-box-archive"></i> الأرشيف (' + state.archive.length + ')</button>';
-      var arr = activeTab === 'archive' ? state.archive.slice().reverse() : state.drafts.slice();
-      sum.textContent = activeTab === 'archive' ? 'الطلبات المرسلة وحالتها الحالية' : 'كل تعديل محفوظ جديد يظهر هنا تلقائياً';
-      sendAll.style.display = activeTab === 'drafts' ? 'inline-flex' : 'none';
+      var systemPending = state.archive.filter(function(x) { return isSystemCommandPending(x); });
+      var archiveDone = state.archive.filter(function(x) { return !isSystemCommandPending(x); });
+      var pendingCount = state.drafts.length + systemPending.length;
+      tabs.innerHTML = '<button class="assal-cr-tab ' + (activeTab === 'drafts' ? 'active' : '') + '" data-cr-tab="drafts"><i class="fa-solid fa-pen-ruler"></i> التعديلات (' + pendingCount + ')</button><button class="assal-cr-tab ' + (activeTab === 'archive' ? 'active' : '') + '" data-cr-tab="archive"><i class="fa-solid fa-box-archive"></i> الأرشيف (' + archiveDone.length + ')</button>';
+      var arr = activeTab === 'archive' ? archiveDone.slice().reverse() : state.drafts.slice().concat(systemPending);
+      sum.textContent = activeTab === 'archive' ? 'الطلبات المنفذة والمنتهية' : 'التعديلات وأوامر النظام التي ما زالت بانتظار التنفيذ';
+      sendAll.style.display = activeTab === 'drafts' && state.drafts.length ? 'inline-flex' : 'none';
       sendAll.disabled = !state.drafts.length || busyIds.size > 0 || uncertainSendIds.size > 0;
       list.innerHTML = arr.length ? arr.map(function(x) {
-        return cardHtml(x, activeTab === 'archive' ? 'admin-archive' : 'draft');
+        var mode = activeTab === 'archive' ? 'admin-archive' : (isSystemCommandRequest(x) ? 'system-pending' : 'draft');
+        return cardHtml(x, mode);
 
-      }).join('') : '<div class="assal-cr-empty"><div><i class="fa-regular fa-folder-open"></i>' + (activeTab === 'archive' ? 'لا توجد طلبات في الأرشيف حالياً' : 'لا توجد تعديلات جديدة بانتظار الإرسال') + '</div></div>';
+      }).join('') : '<div class="assal-cr-empty"><div><i class="fa-regular fa-folder-open"></i>' + (activeTab === 'archive' ? 'لا توجد طلبات في الأرشيف حالياً' : 'لا توجد طلبات بانتظار الإرسال أو التنفيذ') + '</div></div>';
     } else {
       root.querySelector('#assalCrTitle').textContent = 'طلبات التعديل الواردة — الحاسبة الرئيسية';
       root.querySelector('#assalCrSub').textContent = 'الموافقة تطبق التعديل محلياً ثم ترفع نسخة الرئيسية المحمية';
       var incoming = requestCache.filter(function(x) {
+        if (isSystemCommandRequest(x)) return false;
         return safe(x.status) === 'pending_review' || safe(x.status) === 'approved_pending_upload';
 
       });
       var history = requestCache.filter(function(x) {
+        if (isSystemCommandRequest(x)) return false;
         return safe(x.status) !== 'pending_review' && safe(x.status) !== 'approved_pending_upload';
 
       });
@@ -64263,6 +64345,7 @@ html body .card .item.assal-smart-added-item-safe-final{
   async function approveRequest(reqId) {
     var req = findRequest(reqId);
     if (!req || busyIds.has(reqId)) return;
+    if (isSystemCommandRequest(req)) return;
     if (isAppliedLocal(req.id)) {
       await retryUpload(reqId);
       return;
@@ -64349,6 +64432,7 @@ html body .card .item.assal-smart-added-item-safe-final{
   async function retryUpload(reqId) {
     var req = findRequest(reqId);
     if (!req || busyIds.has(reqId)) return;
+    if (isSystemCommandRequest(req)) return;
     if (!isAppliedLocal(req.id)) {
       await approveRequest(reqId);
       return;
@@ -64387,6 +64471,7 @@ html body .card .item.assal-smart-added-item-safe-final{
   async function rejectRequest(reqId) {
     var req = findRequest(reqId);
     if (!req || busyIds.has(reqId)) return;
+    if (isSystemCommandRequest(req)) return;
     var ok = await requestConfirm('reject', req, {title: 'رفض طلب التعديل', okText: 'نعم، رفض الطلب', cancelText: 'تراجع'});
     if (!ok) return;
     busyIds.add(reqId);
@@ -64493,6 +64578,7 @@ html body .card .item.assal-smart-added-item-safe-final{
         if (refreshVisualRequested) progressSet('', 'جاري الاتصال بالسيرفر', 'طلب أحدث قائمة لطلبات التعديل', 26, 'fa-solid fa-cloud-arrow-down');
         var allServerRequests = await serverGetList();
         var list = allServerRequests.filter(function(x) {
+          if (isAdmin()) return !isDebtTransferLockOnlyRequest(x);
           return !isDebtTransferLockRequest(x);
 
         });
@@ -84133,7 +84219,7 @@ body.assal-ledger-wa-auto-pdf-open{
       var now=audioCtx.currentTime;
       for(var p=0;p<5;p++){
         var base=now+p*.92,g=audioCtx.createGain();g.connect(audioCtx.destination);chimeNodes.push(g);
-        g.gain.setValueAtTime(.0001,base);g.gain.exponentialRampToValueAtTime(.030,base+.025);g.gain.exponentialRampToValueAtTime(.0001,base+.46);
+        g.gain.setValueAtTime(.0001,base);g.gain.exponentialRampToValueAtTime(.085,base+.025);g.gain.exponentialRampToValueAtTime(.0001,base+.46);
         [740,988].forEach(function(f,i){var o=audioCtx.createOscillator();o.type='sine';o.frequency.setValueAtTime(f,base+i*.105);o.connect(g);o.start(base+i*.105);o.stop(base+.38+i*.105);chimeNodes.push(o)})
       }
       chimeStopTimer=setTimeout(function(){if(current)playChime();else stopChime()},5000)
@@ -84773,6 +84859,56 @@ body.assal-ledger-wa-auto-pdf-open{
 
 
 
+
+<!-- ASSAL SYSTEM COMMAND COMPLETION TOAST FINAL - START -->
+<script id="assal-system-command-completion-toast-final-script">
+/* JS — أوامر النظام — تأكيد التنفيذ الحقيقي على الرئيسية للأدمن فقط */
+(function(){
+  'use strict';
+  if(window.__ASSAL_SYSTEM_COMMAND_COMPLETION_TOAST_FINAL__)return;
+  window.__ASSAL_SYSTEM_COMMAND_COMPLETION_TOAST_FINAL__=true;
+  var ADMIN_EMAIL='admin-debts@assal.com',STATE_KEY='ASSAL_SYSTEM_COMMAND_COMPLETION_WATCH_V1';
+  var busy=false,initialized=false;
+  function safe(v){return String(v==null?'':v)}
+  function isAdmin(){return safe(window.ASSAL_LOGIN_EMAIL||'').trim().toLowerCase()===ADMIN_EMAIL||window.ASSAL_IS_ADMIN_DEBTS===true}
+  function readState(){try{var x=JSON.parse(localStorage.getItem(STATE_KEY)||'{}');return x&&typeof x==='object'?x:{}}catch(_){return {}}}
+  function writeState(x){try{localStorage.setItem(STATE_KEY,JSON.stringify(x||{}))}catch(_){}}
+  function pendingStatus(st){st=safe(st);return st==='draft'||st==='pending_review'||st==='approved_pending_upload'}
+  function showDone(message){try{if(typeof window.showToast==='function')window.showToast('success',message,4200)}catch(_){}}
+  function commandName(info){var d=info&&info.data&&typeof info.data==='object'?info.data:{};return safe(d.name||'').trim()}
+  function consume(kind,info,state,allowNotify){
+    var id=safe(info&&info.requestId),status=safe(info&&info.status);if(!id)return;
+    var slot=state[kind]&&typeof state[kind]==='object'?state[kind]:{};
+    if(pendingStatus(status)){slot.pendingId=id;state[kind]=slot;return}
+    if(status==='applied'){
+      var shouldNotify=allowNotify&&safe(slot.pendingId)===id&&safe(slot.notifiedId)!==id;
+      if(shouldNotify){
+        if(kind==='urgent'){var name=commandName(info);showDone('تم إظهار تنبيه'+(name?' ('+name+')':'')+' في الحاسبة الرئيسية')}
+        else showDone('تم رفع النسخة إلى السيرفر من الحاسبة الرئيسية بنجاح');
+      }
+      slot.notifiedId=id;if(safe(slot.pendingId)===id)slot.pendingId='';state[kind]=slot;return;
+    }
+    if(safe(slot.pendingId)===id)slot.pendingId='';state[kind]=slot;
+  }
+  async function poll(){
+    if(!isAdmin()||busy||document.hidden)return;
+    var remote=window.ASSAL_REMOTE_SERVER_UPLOAD_BRIDGE,urgent=window.ASSAL_URGENT_DEBT_REMINDER_BRIDGE;
+    if(!remote||typeof remote.latestStatus!=='function'||!urgent||typeof urgent.latestStatus!=='function')return;
+    busy=true;
+    try{
+      var state=readState(),pair=await Promise.allSettled([remote.latestStatus(),urgent.latestStatus()]),allowNotify=initialized;
+      if(pair[0].status==='fulfilled'&&pair[0].value)consume('remote',pair[0].value,state,allowNotify);
+      if(pair[1].status==='fulfilled'&&pair[1].value)consume('urgent',pair[1].value,state,allowNotify);
+      writeState(state);initialized=true;
+    }catch(_){}finally{busy=false}
+  }
+  window.addEventListener('assal:auth-ready',function(){setTimeout(function(){void poll()},900)},false);
+  window.addEventListener('focus',function(){setTimeout(function(){void poll()},250)},false);
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)setTimeout(function(){void poll()},250)},false);
+  setTimeout(function(){void poll()},1800);setInterval(function(){void poll()},5000);
+})();
+</script>
+<!-- ASSAL SYSTEM COMMAND COMPLETION TOAST FINAL - END -->
 
 </body>
 </html>
