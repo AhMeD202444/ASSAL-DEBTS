@@ -84653,7 +84653,9 @@ body.assal-ledger-wa-auto-pdf-open{
       uploadProgressSet('','إرسال طلب الرفع','تجهيز الطلب والتحقق من قناة الإرسال',22,'fa-solid fa-file-circle-check');
       await sleep(70);
       uploadProgressSet('','إرسال طلب الرفع','إرسال الطلب إلى الحاسبة الرئيسية',52,'fa-solid fa-paper-plane');
-      var result=await withTimeout(bridge.request(),8000);
+      // ASSAL SAFE: bridge.request() يمتلك مهلة 15 ثانية + تحقق requestId داخلياً.
+      // لا نضع Timeout خارجياً هنا حتى لا يظهر فشل كاذب بعد أن يكون السيرفر قد استلم الطلب.
+      var result=await bridge.request();
       var requestId=safe(result&&result.request&&result.request.requestId);
       if(!requestId)throw new Error('REMOTE_UPLOAD_REQUEST_ID_MISSING');
       writeAdminUploadLock({mode:'pending',requestId:requestId,sentAt:Date.now()});
