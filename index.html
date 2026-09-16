@@ -84252,17 +84252,43 @@ body.assal-ledger-wa-auto-pdf-open{
       var C=window.AudioContext||window.webkitAudioContext;if(!C)return;
       audioCtx=audioCtx||new C();if(audioCtx.state==='suspended')audioCtx.resume();
       var now=audioCtx.currentTime;
-      for(var p=0;p<5;p++){
-        var base=now+p*.92,g=audioCtx.createGain();g.connect(audioCtx.destination);chimeNodes.push(g);
-        g.gain.setValueAtTime(.0001,base);g.gain.exponentialRampToValueAtTime(.12,base+.025);g.gain.exponentialRampToValueAtTime(.0001,base+.46);
-        [740,988].forEach(function(f,i){var o=audioCtx.createOscillator();o.type='sine';o.frequency.setValueAtTime(f,base+i*.105);o.connect(g);o.start(base+i*.105);o.stop(base+.38+i*.105);chimeNodes.push(o)})
+      var master=audioCtx.createGain(),comp=audioCtx.createDynamicsCompressor();
+      master.gain.setValueAtTime(.92,now);
+      comp.threshold.setValueAtTime(-12,now);
+      comp.knee.setValueAtTime(18,now);
+      comp.ratio.setValueAtTime(5,now);
+      comp.attack.setValueAtTime(.003,now);
+      comp.release.setValueAtTime(.18,now);
+      master.connect(comp);comp.connect(audioCtx.destination);chimeNodes.push(master,comp);
+
+      function pulse(at,freq){
+        var g1=audioCtx.createGain(),g2=audioCtx.createGain(),g3=audioCtx.createGain();
+        var o1=audioCtx.createOscillator(),o2=audioCtx.createOscillator(),o3=audioCtx.createOscillator();
+        o1.type='triangle';o1.frequency.setValueAtTime(freq,at);
+        o2.type='sine';o2.frequency.setValueAtTime(freq*1.5,at);
+        o3.type='sine';o3.frequency.setValueAtTime(freq*.5,at);
+        g1.gain.setValueAtTime(.0001,at);g1.gain.exponentialRampToValueAtTime(.22,at+.018);g1.gain.exponentialRampToValueAtTime(.0001,at+.28);
+        g2.gain.setValueAtTime(.0001,at);g2.gain.exponentialRampToValueAtTime(.075,at+.015);g2.gain.exponentialRampToValueAtTime(.0001,at+.22);
+        g3.gain.setValueAtTime(.0001,at);g3.gain.exponentialRampToValueAtTime(.055,at+.02);g3.gain.exponentialRampToValueAtTime(.0001,at+.30);
+        o1.connect(g1);o2.connect(g2);o3.connect(g3);g1.connect(master);g2.connect(master);g3.connect(master);
+        o1.start(at);o2.start(at);o3.start(at);o1.stop(at+.31);o2.stop(at+.25);o3.stop(at+.33);
+        chimeNodes.push(g1,g2,g3,o1,o2,o3)
       }
-      chimeStopTimer=setTimeout(function(){if(current)playChime();else stopChime()},5000)
+
+      function motif(base){
+        pulse(base,880);
+        pulse(base+.27,1174.66);
+        pulse(base+.61,987.77)
+      }
+
+      motif(now+.03);
+      motif(now+2.42);
+      chimeStopTimer=setTimeout(function(){if(current)playChime();else stopChime()},5200)
     }catch(_){stopChime()}
   }
 
   function waSvg(){return '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.75a9.16 9.16 0 0 0-7.83 13.9L3 21.25l4.72-1.19A9.2 9.2 0 1 0 12 2.75Zm0 16.55a7.33 7.33 0 0 1-3.74-1.03l-.27-.16-2.8.71.75-2.72-.18-.28A7.34 7.34 0 1 1 12 19.3Zm4.03-5.49c-.22-.11-1.31-.65-1.52-.72-.2-.08-.35-.11-.5.11-.15.22-.57.72-.7.87-.13.15-.26.17-.48.06-.22-.11-.93-.34-1.77-1.1a6.55 6.55 0 0 1-1.23-1.53c-.13-.22-.01-.34.1-.45.1-.1.22-.26.33-.39.11-.13.15-.22.22-.37.08-.15.04-.28-.02-.39-.05-.11-.5-1.2-.68-1.65-.18-.43-.36-.37-.5-.38h-.43c-.15 0-.39.06-.59.28-.2.22-.77.75-.77 1.83 0 1.08.79 2.12.9 2.27.11.15 1.55 2.37 3.76 3.32.52.23.93.36 1.25.46.53.17 1.01.14 1.39.09.42-.06 1.31-.54 1.5-1.05.18-.52.18-.96.13-1.05-.06-.1-.2-.15-.42-.26Z"/></svg>'}
-  function chatSvg(){return '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.75a9.16 9.16 0 0 0-7.83 13.9L3 21.25l4.72-1.19A9.2 9.2 0 1 0 12 2.75Zm0 16.55a7.33 7.33 0 0 1-3.74-1.03l-.27-.16-2.8.71.75-2.72-.18-.28A7.34 7.34 0 1 1 12 19.3Z"/><circle cx="17.1" cy="17.15" r="5.05" fill="#075e54" stroke="#fff" stroke-width="1.15"/><path fill="#fff" d="M14.88 14.45c.18-.04.37.05.45.22l.42.83c.08.16.05.35-.08.48l-.4.4a.19.19 0 0 0-.03.22 3.9 3.9 0 0 0 1.58 1.58c.08.04.17.03.23-.03l.4-.4c.13-.13.32-.16.48-.08l.83.42c.17.08.26.27.22.45l-.13.59a.8.8 0 0 1-.77.62 4.86 4.86 0 0 1-4.83-4.83.8.8 0 0 1 .62-.77l.59-.13Z"/></svg>'}
+  function chatSvg(){return '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.75a9.16 9.16 0 0 0-7.83 13.9L3 21.25l4.72-1.19A9.2 9.2 0 1 0 12 2.75Zm0 16.55a7.33 7.33 0 0 1-3.74-1.03l-.27-.16-2.8.71.75-2.72-.18-.28A7.34 7.34 0 1 1 12 19.3Zm4.03-5.49c-.22-.11-1.31-.65-1.52-.72-.2-.08-.35-.11-.5.11-.15.22-.57.72-.7.87-.13.15-.26.17-.48.06-.22-.11-.93-.34-1.77-1.1a6.55 6.55 0 0 1-1.23-1.53c-.13-.22-.01-.34.1-.45.1-.1.22-.26.33-.39.11-.13.15-.22.22-.37.08-.15.04-.28-.02-.39-.05-.11-.5-1.2-.68-1.65-.18-.43-.36-.37-.5-.38h-.43c-.15 0-.39.06-.59.28-.2.22-.77.75-.77 1.83 0 1.08.79 2.12.9 2.27.11.15 1.55 2.37 3.76 3.32.52.23.93.36 1.25.46.53.17 1.01.14 1.39.09.42-.06 1.31-.54 1.5-1.05.18-.52.18-.96.13-1.05-.06-.1-.2-.15-.42-.26Z"/><circle cx="17.2" cy="17.15" r="4.9" fill="#0f766e" stroke="#ffffff" stroke-width="1.15"/><path fill="#ffffff" d="M15.12 17.52c.2-.04.4.06.49.24l.35.68c.07.15.05.33-.07.44l-.33.33c-.07.07-.08.17-.03.26.33.61.83 1.11 1.44 1.44.09.05.2.04.26-.03l.33-.33c.12-.12.29-.14.44-.07l.68.35c.18.09.28.29.24.49l-.1.48a.77.77 0 0 1-.76.61 4.62 4.62 0 0 1-4.6-4.6.77.77 0 0 1 .61-.76l.48-.1Z" transform="translate(.55 -2.75) scale(.78)"/><path fill="none" stroke="#ffffff" stroke-width="1.05" stroke-linecap="round" d="M18.25 14.8a2.35 2.35 0 0 1 1.15 1.15M18.78 13.95a3.75 3.75 0 0 1 1.84 1.84"/></svg>'}
   function clockSvg(){return '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10.01 10.01 0 0 0 12 2Zm1 11h4a1 1 0 0 1 0 2h-5a1 1 0 0 1-1-1V7a1 1 0 0 1 2 0Z"/></svg>'}
   function ignoreSvg(){return '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.6 3.6a1 1 0 0 1 1.4 0l16.4 16.4a1 1 0 0 1-1.4 1.4l-2.55-2.55A11.7 11.7 0 0 1 12 20C5.7 20 2.25 14.65 2.1 14.42a1 1 0 0 1 0-1.1 15.1 15.1 0 0 1 4.07-4.37L2.6 5a1 1 0 0 1 0-1.4Zm5.03 6.8a8.8 8.8 0 0 0-3.46 3.47C5.21 15.2 7.87 18 12 18c1.05 0 2-.18 2.84-.48l-1.68-1.68A4 4 0 0 1 8.16 10.8l-.53-.4ZM12 6c6.3 0 9.75 5.35 9.9 5.58a1 1 0 0 1 0 1.1 14 14 0 0 1-2.2 2.78l-1.42-1.42a11.8 11.8 0 0 0 1.55-1.91C18.79 10.8 16.13 8 12 8c-.53 0-1.03.05-1.5.14L8.86 6.5A10.6 10.6 0 0 1 12 6Z"/></svg>'}
   function manageSvg(){return '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 5a2 2 0 1 1 4 0v1h12a1 1 0 1 1 0 2H8v1a2 2 0 1 1-4 0V8H3a1 1 0 1 1 0-2h1V5Zm12 10a2 2 0 1 1 4 0v1h1a1 1 0 1 1 0 2h-1v1a2 2 0 1 1-4 0v-1H3a1 1 0 1 1 0-2h13v-1Z"/></svg>'}
@@ -84271,7 +84297,7 @@ body.assal-ledger-wa-auto-pdf-open{
   function ensurePopup(){
     var root=document.getElementById('assalSmartDebtReminder');if(root)return root;
     root=document.createElement('div');root.id='assalSmartDebtReminder';root.setAttribute('aria-hidden','true');
-    root.innerHTML='<section class="assal-sdr-card" role="dialog" aria-modal="true" aria-labelledby="assalSdrTitle"><header class="assal-sdr-head"><div class="assal-sdr-mark">'+bellSvg()+'</div><div class="assal-sdr-title"><b id="assalSdrTitle">تنبيه متابعة دين</b><span>اختيار ذكي من الديون المتأخرة — متابعة فقط بدون تعديل الحساب</span></div><div class="assal-sdr-head-tools"><button type="button" class="assal-sdr-head-btn manage" id="assalSdrManage" title="إدارة التجاهل" aria-label="إدارة التجاهل">'+manageSvg()+'</button><button type="button" class="assal-sdr-head-btn" id="assalSdrClose" title="إغلاق" aria-label="إغلاق">×</button></div></header><div class="assal-sdr-body"><div class="assal-sdr-message" id="assalSdrMessage"></div><div class="assal-sdr-customer"><div class="assal-sdr-customer-name"><span>الزبون</span><b id="assalSdrName">—</b></div><div class="assal-sdr-amount"><span>الدين الحالي</span><b id="assalSdrAmount">—</b></div></div><div class="assal-sdr-meta"><div class="assal-sdr-meta-box"><span>عمر الدين</span><b id="assalSdrAge">—</b></div><div class="assal-sdr-meta-box"><span>آخر تسديد</span><b id="assalSdrPayment">—</b></div><div class="assal-sdr-meta-box"><span>حركة 30 يوم</span><b id="assalSdrGrowth">—</b></div></div><div class="assal-sdr-actions"><button type="button" class="assal-sdr-btn wa" id="assalSdrWhatsApp">'+waSvg()+'<span>واتساب</span></button><button type="button" class="assal-sdr-btn chat" id="assalSdrChat">'+chatSvg()+'<span>فتح المحادثة</span></button><button type="button" class="assal-sdr-btn later" id="assalSdrLater">'+clockSvg()+'<span>لاحقاً</span></button><button type="button" class="assal-sdr-btn ignore" id="assalSdrIgnore">'+ignoreSvg()+'<span>تجاهل</span></button></div><div class="assal-sdr-status" id="assalSdrStatus"></div></div></section>';
+    root.innerHTML='<section class="assal-sdr-card" role="dialog" aria-modal="true" aria-labelledby="assalSdrTitle"><header class="assal-sdr-head"><div class="assal-sdr-mark">'+bellSvg()+'</div><div class="assal-sdr-title"><b id="assalSdrTitle">تنبيه متابعة دين</b><span>اختيار ذكي من الديون المتأخرة — متابعة فقط بدون تعديل الحساب</span></div><div class="assal-sdr-head-tools"><button type="button" class="assal-sdr-head-btn manage" id="assalSdrManage" title="إدارة التجاهل" aria-label="إدارة التجاهل">'+manageSvg()+'</button><button type="button" class="assal-sdr-head-btn" id="assalSdrClose" title="إغلاق" aria-label="إغلاق">×</button></div></header><div class="assal-sdr-body"><div class="assal-sdr-message" id="assalSdrMessage"></div><div class="assal-sdr-customer"><div class="assal-sdr-customer-name"><span>الزبون</span><b id="assalSdrName">—</b></div><div class="assal-sdr-amount"><span>الدين الحالي</span><b id="assalSdrAmount">—</b></div></div><div class="assal-sdr-meta"><div class="assal-sdr-meta-box"><span>عمر الدين</span><b id="assalSdrAge">—</b></div><div class="assal-sdr-meta-box"><span>آخر تسديد</span><b id="assalSdrPayment">—</b></div><div class="assal-sdr-meta-box"><span>حركة 30 يوم</span><b id="assalSdrGrowth">—</b></div></div><div class="assal-sdr-actions"><button type="button" class="assal-sdr-btn wa" id="assalSdrWhatsApp">'+waSvg()+'<span>واتساب</span></button><button type="button" class="assal-sdr-btn chat" id="assalSdrChat">'+chatSvg()+'<span>اتصال واتساب</span></button><button type="button" class="assal-sdr-btn later" id="assalSdrLater">'+clockSvg()+'<span>لاحقاً</span></button><button type="button" class="assal-sdr-btn ignore" id="assalSdrIgnore">'+ignoreSvg()+'<span>تجاهل</span></button></div><div class="assal-sdr-status" id="assalSdrStatus"></div></div></section>';
     document.body.appendChild(root);
     document.getElementById('assalSdrClose').addEventListener('click',dismissHandled);
     document.getElementById('assalSdrLater').addEventListener('click',function(){if(!current)return;if(currentMode==='auto')postpone(current.name);hidePopup()});
@@ -84946,6 +84972,209 @@ body.assal-ledger-wa-auto-pdf-open{
 })();
 </script>
 <!-- ASSAL SYSTEM COMMAND COMPLETION TOAST FINAL - END -->
+
+\n<!-- ASSAL REQUEST CARDS COMPACT ELEGANT FINAL - START -->
+<style id="assal-request-cards-compact-elegant-final">
+/*
+  واجهة فقط — ضغط ارتفاع بطاقات طلبات التعديل/الأرشيف في الأدمن والرئيسية.
+  لا JavaScript، لا تغيير بيانات، لا تغيير أزرار أو حالات أو سلوك الطلبات.
+  نحافظ على إصلاح السكرول ومنع انكماش البطاقات كما هو.
+*/
+.assal-cr-list{
+  padding:8px 12px 12px !important;
+  gap:6px !important;
+}
+
+.assal-cr-card{
+  border-radius:14px;
+}
+
+.assal-cr-card-head{
+  gap:8px;
+  padding:7px 10px;
+}
+
+.assal-cr-card-title b{
+  font-size:13.5px;
+  line-height:1.3;
+}
+
+.assal-cr-card-title span{
+  margin-top:1px;
+  font-size:10.5px;
+  line-height:1.3;
+}
+
+.assal-cr-status{
+  padding:3px 8px;
+  font-size:10px;
+}
+
+.assal-cr-changes{
+  padding:7px 10px;
+  gap:4px;
+}
+
+.assal-cr-change{
+  gap:6px;
+  padding:5px 8px;
+  border-radius:9px;
+  font-size:11px;
+}
+
+.assal-cr-change .before,
+.assal-cr-change .after{
+  padding:2px 6px;
+  border-radius:7px;
+}
+
+.assal-cr-more{
+  padding:0 10px 7px;
+  font-size:10px;
+}
+
+/* فصل الأزرار يبقى واضحاً لكن بدون الفراغ العمودي الكبير السابق */
+.assal-cr-card .assal-cr-actions{
+  margin-top:7px;
+  padding:7px 10px 8px;
+  gap:6px;
+}
+
+.assal-cr-card .assal-cr-newcard + .assal-cr-actions,
+.assal-cr-card .assal-cr-payment + .assal-cr-actions{
+  margin-top:7px;
+}
+
+.assal-cr-card .assal-cr-conflict + .assal-cr-actions{
+  margin-top:6px;
+}
+
+.assal-cr-btn{
+  height:33px;
+  padding-inline:11px;
+}
+
+/* طلب إضافة بطاقة/فاتورة كاملة */
+.assal-cr-newcard{
+  margin:7px 10px 0;
+  border-radius:12px;
+}
+
+.assal-cr-newcard-top{
+  gap:8px;
+  padding:7px 9px;
+}
+
+.assal-cr-newcard-line{
+  gap:6px;
+  padding:6px 9px;
+}
+
+.assal-cr-newcard-qty,
+.assal-cr-newcard-price{
+  padding:2px 5px;
+  border-radius:7px;
+}
+
+.assal-cr-newcard-empty{
+  padding:10px;
+}
+
+.assal-cr-newcard-more{
+  padding:5px 9px;
+}
+
+.assal-cr-newcard-fold{
+  width:calc(100% - 16px);
+  min-height:32px;
+  margin:6px 8px 7px;
+  padding:5px 10px;
+  border-radius:10px;
+}
+
+/* الحركات المالية وأوامر النظام تستخدم نفس البنية، لذلك يضغط ارتفاعها بصرياً فقط */
+.assal-cr-payment{
+  margin:7px 10px 0;
+  border-radius:12px;
+}
+
+.assal-cr-payment-top{
+  gap:8px;
+  padding:7px 9px;
+}
+
+.assal-cr-payment-title{
+  gap:7px;
+  font-size:11.5px;
+}
+
+.assal-cr-payment-kind{
+  padding:2px 8px;
+  font-size:10px;
+}
+
+.assal-cr-payment-grid{
+  gap:6px;
+  padding:7px;
+}
+
+.assal-cr-payment-cell{
+  padding:6px 7px;
+  border-radius:9px;
+}
+
+.assal-cr-payment-cell span{
+  font-size:9px;
+  line-height:1.25;
+}
+
+.assal-cr-payment-cell b{
+  margin-top:1px;
+  font-size:11px;
+  line-height:1.3;
+}
+
+.assal-cr-conflict{
+  margin:0 10px 7px;
+  padding:6px 9px;
+  border-radius:9px;
+  font-size:11px;
+  line-height:1.5;
+}
+
+@media(max-width:700px){
+  .assal-cr-list{
+    padding:7px 8px 10px !important;
+    gap:6px !important;
+  }
+  .assal-cr-card-head{
+    padding:7px 8px;
+  }
+  .assal-cr-changes{
+    padding:6px 8px;
+  }
+  .assal-cr-change{
+    gap:4px;
+    padding:5px 7px;
+  }
+  .assal-cr-card .assal-cr-actions{
+    margin-top:6px;
+    padding:6px 8px 7px;
+  }
+  .assal-cr-payment,
+  .assal-cr-newcard{
+    margin:6px 8px 0;
+  }
+  .assal-cr-payment-grid{
+    gap:5px;
+    padding:6px;
+  }
+  .assal-cr-payment-cell{
+    padding:5px 6px;
+  }
+}
+</style>
+<!-- ASSAL REQUEST CARDS COMPACT ELEGANT FINAL - END -->
 
 </body>
 </html>
