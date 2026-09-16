@@ -38214,15 +38214,50 @@ function assalSystemCommandExtract(req, billType, field) {
   return null;
 }
 
+function assalSystemCommandDelay(ms) {
+  return new Promise(resolve => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+}
+
+async function assalSystemCommandConfirmSubmitted(requestId) {
+  const email = assalSystemCommandAuthEmail();
+  if (email !== ASSAL_DEBT_REMINDER_ADMIN_EMAIL) throw new Error('SYSTEM_COMMAND_ADMIN_ONLY');
+  const wanted = String(requestId || '').trim();
+  if (!wanted) return null;
+  const json = await assalSystemCommandFetch('card-request-list', {method: 'GET'}, {actor: 'admin', email: email}, 6500);
+  const list = Array.isArray(json && json.requests) ? json.requests : [];
+  return list.find(item => String(item && item.id || '').trim() === wanted) || null;
+}
+
 async function assalSystemCommandSubmit(req) {
   const email = assalSystemCommandAuthEmail();
   if (email !== ASSAL_DEBT_REMINDER_ADMIN_EMAIL) throw new Error('SYSTEM_COMMAND_ADMIN_ONLY');
-  const json = await assalSystemCommandFetch('card-request-submit', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SYNC.TOKEN},
-    body: JSON.stringify({version: 2, actorEmail: email, request: req})
-  }, null, 7500);
-  return json && json.request ? json.request : req;
+  try {
+    const json = await assalSystemCommandFetch('card-request-submit', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SYNC.TOKEN},
+      body: JSON.stringify({version: 2, actorEmail: email, request: req})
+    }, null, 15000);
+    return json && json.request ? json.request : req;
+  } catch (err) {
+    const name = String(err && err.name || '');
+    const msg = String(err && err.message || err || '');
+    const timedOut = name === 'AbortError' || /aborted|abort|timeout/i.test(msg);
+    if (!timedOut) throw err;
+
+    // قد يكون السيرفر ثبّت الطلب فعلياً قبل انتهاء مهلة انتظار الرد.
+    // لا نعيد POST حتى لا ننشئ طلباً مكرراً؛ نتحقق من نفس requestId فقط.
+    const waits = [550, 1100, 1900];
+    for (const waitMs of waits) {
+      await assalSystemCommandDelay(waitMs);
+      try {
+        const confirmed = await assalSystemCommandConfirmSubmitted(req && req.id);
+        if (confirmed) return confirmed;
+      } catch (_) {
+        // فشل التحقق المؤقت لا يعني فشل الطلب؛ نكمل محاولات التحقق المحدودة.
+      }
+    }
+    throw err;
+  }
 }
 
 async function assalSystemCommandReadLatest(billType, field) {
@@ -84219,7 +84254,7 @@ body.assal-ledger-wa-auto-pdf-open{
       var now=audioCtx.currentTime;
       for(var p=0;p<5;p++){
         var base=now+p*.92,g=audioCtx.createGain();g.connect(audioCtx.destination);chimeNodes.push(g);
-        g.gain.setValueAtTime(.0001,base);g.gain.exponentialRampToValueAtTime(.085,base+.025);g.gain.exponentialRampToValueAtTime(.0001,base+.46);
+        g.gain.setValueAtTime(.0001,base);g.gain.exponentialRampToValueAtTime(.12,base+.025);g.gain.exponentialRampToValueAtTime(.0001,base+.46);
         [740,988].forEach(function(f,i){var o=audioCtx.createOscillator();o.type='sine';o.frequency.setValueAtTime(f,base+i*.105);o.connect(g);o.start(base+i*.105);o.stop(base+.38+i*.105);chimeNodes.push(o)})
       }
       chimeStopTimer=setTimeout(function(){if(current)playChime();else stopChime()},5000)
