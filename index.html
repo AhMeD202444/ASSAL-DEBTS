@@ -25854,6 +25854,86 @@ function assalStableMasonryPatchChildren(host, frag){
    - لا يغيّر التسديد/الراجع/الديون/الرفع/السحب
 ========================================================= */
 window.__assalInlineLineEdit = window.__assalInlineLineEdit || null;
+window.__assalWholesaleSequentialEdit = window.__assalWholesaleSequentialEdit || null;
+
+function assalWholesaleSequentialIsFor(card){
+  const seq = window.__assalWholesaleSequentialEdit;
+  return !!(seq && seq.active && seq.day === assalInlineEditDayOf(card) && seq.cardId === assalInlineEditCardId(card));
+}
+
+function assalWholesaleSequentialActiveLines(card){
+  return (card && Array.isArray(card.lines) ? card.lines : []).filter(function(line){
+    return line && !line.deletedAt;
+  });
+}
+
+function assalWholesaleSequentialDoneMessage(count){
+  count = Number(count) || 0;
+  if(count === 0) return 'تم إنهاء التعديل المتتابع بدون تغييرات';
+  if(count === 1) return 'تم حفظ تعديل مادة واحدة بنجاح';
+  return 'تم حفظ تعديلات ' + count + ' مواد بنجاح';
+}
+
+function assalWholesaleSequentialComplete(){
+  const seq = window.__assalWholesaleSequentialEdit;
+  if(!seq) return;
+  const count = Number(seq.modifiedCount) || 0;
+  window.__assalWholesaleSequentialEdit = null;
+  try{ renderBoard(); }catch(_){}
+  setTimeout(function(){
+    try{ showToast(count ? 'success' : 'info', assalWholesaleSequentialDoneMessage(count)); }catch(_){}
+  }, 60);
+}
+
+function assalWholesaleSequentialFinish(){
+  const seq = window.__assalWholesaleSequentialEdit;
+  if(!seq || !seq.active) return false;
+  seq.finishing = true;
+  const inline = window.__assalInlineLineEdit;
+  if(inline && inline.key && inline.day === seq.day && inline.cardId === seq.cardId){
+    try{
+      const cards = Array.isArray(days && days[seq.day]) ? days[seq.day] : [];
+      const card = cards.find(function(c){ return String(c && c.id) === String(seq.cardId); });
+      const line = card && Array.isArray(card.lines) ? card.lines.find(function(l){ return assalInlineEditLineId(l) === inline.lineId; }) : null;
+      if(card && line){
+        assalInlineEditSave(card, line);
+        return true;
+      }
+    }catch(_){}
+  }
+  assalWholesaleSequentialComplete();
+  return true;
+}
+
+function assalWholesaleSequentialStart(card){
+  try{
+    if(!card || !(typeof isWholesaleCard === 'function' && isWholesaleCard(card))) return;
+    if(assalInlineEditIsOpen()){
+      showToast('warn','أكمل تعديل السطر الحالي أولاً');
+      return;
+    }
+    const lines = assalWholesaleSequentialActiveLines(card);
+    if(!lines.length){
+      showToast('warn','لا توجد مواد قابلة للتعديل في هذه الفاتورة');
+      return;
+    }
+    try{
+      const foldKey = (typeof assalWholesaleCardRenderKey === 'function') ? assalWholesaleCardRenderKey(card) : '';
+      if(foldKey && typeof assalWholesaleExpandedCards !== 'undefined') assalWholesaleExpandedCards.add(foldKey);
+    }catch(_){}
+    window.__assalWholesaleSequentialEdit = {
+      active:true,
+      day:assalInlineEditDayOf(card),
+      cardId:assalInlineEditCardId(card),
+      modifiedCount:0,
+      finishing:false
+    };
+    assalInlineEditStart(card, lines[0]);
+  }catch(err){
+    window.__assalWholesaleSequentialEdit = null;
+    try{ console.error(err); showToast('error','تعذر بدء التعديل المتتابع'); }catch(_){}
+  }
+}
 
 function assalInlineEditSafeId(v){
  return String(v == null ? '' : v);
@@ -26079,8 +26159,40 @@ function assalInlineEditWindowScrollBy(delta){
 }catch(__){
 
 }
- 
+
 }
+}
+
+function assalInlineEditCenterSequentialRow(row, state){
+  try{
+    if(!row || !state || !state.centerOnOpen) return;
+    state.centerOnOpen = false;
+    const token = (Number(window.__assalInlineCenterScrollToken) || 0) + 1;
+    window.__assalInlineCenterScrollToken = token;
+    const box = assalInlineEditViewportSafeBox();
+    const r = row.getBoundingClientRect();
+    const rowCenter = r.top + (r.height / 2);
+    const safeCenter = box.top + (box.height / 2);
+    const delta = rowCenter - safeCenter;
+    if(!isFinite(delta) || Math.abs(delta) < 8) return;
+    try{
+      window.scrollBy({ top: Math.round(delta), left:0, behavior:'smooth' });
+    }catch(_){
+      try{ window.scrollBy(0, Math.round(delta)); }catch(__){ }
+    }
+    setTimeout(function(){
+      try{
+        if(window.__assalInlineCenterScrollToken !== token) return;
+        const current = window.__assalInlineLineEdit;
+        if(!current || current.key !== state.key) return;
+        const activeRow = document.querySelector('.item.assal-line-editing');
+        const activeInput = activeRow && activeRow.querySelector('.assal-inline-input:focus');
+        if(!activeInput) return;
+        if(typeof activeInput.__assalInlineShow === 'function' && current.activeField === 'cat') activeInput.__assalInlineShow();
+        if(typeof activeInput.__assalInlineRender === 'function' && current.activeField === 'item' && current.activeDropdownOpen) activeInput.__assalInlineRender();
+      }catch(_){ }
+    }, 260);
+  }catch(_){ }
 }
 
 function assalInlineEditSmartNudgeRow(row){
@@ -26127,21 +26239,67 @@ function assalInlineEditPlaceDropdown(wrap, popup){
 }
 }
 
+function assalInlineEditTrackField(state, field, input, popupRef){
+  try{
+    if(!state || !input || !field) return;
+    const remember = function(){
+      try{
+        state.activeField = field;
+        state.focusStart = (typeof input.selectionStart === 'number') ? input.selectionStart : null;
+        state.focusEnd = (typeof input.selectionEnd === 'number') ? input.selectionEnd : state.focusStart;
+        state.focusDirection = input.selectionDirection || 'none';
+        const popup = (typeof popupRef === 'function') ? popupRef() : popupRef;
+        state.activeDropdownOpen = !!(popup && popup.style && popup.style.display === 'block');
+      }catch(_){ }
+    };
+    ['focus','select','input','keyup','click'].forEach(function(type){
+      input.addEventListener(type, remember);
+    });
+    input.__assalInlineRememberFocus = remember;
+  }catch(_){ }
+}
+
 function assalInlineEditPostRenderFocus(){
   try{
     const st = window.__assalInlineLineEdit;
-    if(!st || !st.key || !st.pendingFocus) return;
+    if(!st || !st.key || (!st.pendingFocus && !st.keepCategoryFocus && !st.activeField)) return;
     const row = document.querySelector('.item.assal-line-editing');
-    const catInput = row && row.querySelector('.assal-inline-cat');
-    if(!row || !catInput) return;
+    if(!row) return;
+    const field = st.pendingFocus ? 'cat' : (st.keepCategoryFocus ? 'cat' : (st.activeField || 'cat'));
+    const selectors = {
+      cat:'.assal-inline-cat',
+      item:'.assal-inline-item',
+      price:'.assal-inline-price',
+      qty:'.assal-inline-qty',
+      note:'.assal-inline-note'
+    };
+    const target = row.querySelector(selectors[field] || selectors.cat);
+    if(!target) return;
+    const start = st.focusStart;
+    const end = st.focusEnd;
+    const direction = st.focusDirection || 'none';
+    const reopenDropdown = !!st.activeDropdownOpen;
+    const openingCategory = !!(st.pendingFocus || st.keepCategoryFocus) && field === 'cat';
     st.pendingFocus = false;
     requestAnimationFrame(function(){
       try{
-        catInput.focus({preventScroll:true});
-        if(catInput.select) catInput.select();
+        target.focus({preventScroll:true});
+        if(openingCategory && target.select){
+          target.select();
+        }else if(typeof target.setSelectionRange === 'function' && typeof start === 'number'){
+          const len = String(target.value || '').length;
+          target.setSelectionRange(Math.max(0, Math.min(start, len)), Math.max(0, Math.min(typeof end === 'number' ? end : start, len)), direction);
+        }
+        if(typeof target.__assalInlineRememberFocus === 'function') target.__assalInlineRememberFocus();
+        assalInlineEditCenterSequentialRow(row, st);
         requestAnimationFrame(function(){
           try{
- if(document.activeElement === catInput && typeof catInput.__assalInlineShow === 'function') catInput.__assalInlineShow();
+            if(document.activeElement !== target) return;
+            if(field === 'cat' && (openingCategory || reopenDropdown) && typeof target.__assalInlineShow === 'function') target.__assalInlineShow();
+            if(field === 'item' && reopenDropdown && typeof target.__assalInlineRender === 'function'){
+              target.__assalInlineRender();
+              st.activeDropdownOpen = true;
+            }
  
 }catch(__){
 
@@ -26236,7 +26394,14 @@ function assalInlineEditStart(card, line){
         note: String(line && line.note || ''),
         type: assalInlineEditLineType(card, line)
       },
-      pendingFocus: true
+      pendingFocus: true,
+      keepCategoryFocus: true,
+      activeField: 'cat',
+      focusStart: 0,
+      focusEnd: String(line && line.cat || '').length,
+      focusDirection: 'none',
+      activeDropdownOpen: true,
+      centerOnOpen: assalWholesaleSequentialIsFor(card)
     };
     try{
  renderBoard();
@@ -26321,6 +26486,10 @@ if(!window.__assalInlineEditEscapeConfirmBound){
       ev.preventDefault();
       ev.stopPropagation();
       ev.stopImmediatePropagation();
+      if(window.__assalWholesaleSequentialEdit && window.__assalWholesaleSequentialEdit.active){
+        assalWholesaleSequentialFinish();
+        return;
+      }
       assalInlineEditCancelConfirm();
     }catch(_){
  
@@ -26336,6 +26505,13 @@ function assalInlineEditSave(card, line){
     const qty  = assalInlineEditParseQtyInput(st.draft.qty);
     st.draft.qty = qty;
     const note = String(st.draft.note || '').trim();
+    const __assalSequential = assalWholesaleSequentialIsFor(card) ? window.__assalWholesaleSequentialEdit : null;
+    const __assalSequentialChanged =
+      String(st.original.cat || '') !== cat ||
+      String(st.original.item || '') !== item ||
+      Number(st.original.price || 0) !== Number(st.draft.price || 0) ||
+      Number(st.original.qty || 1) !== Number(qty || 1) ||
+      String(st.original.note || '').trim() !== note;
     if(!cat){
  try{
  showToast('warn','اختر الصنف أولاً');
@@ -26370,6 +26546,30 @@ function assalInlineEditSave(card, line){
  return;
  
 }
+
+    if(__assalSequential && !__assalSequentialChanged){
+      window.__assalInlineLineEdit = null;
+      const __unchangedLines = assalWholesaleSequentialActiveLines(realCard);
+      const __unchangedIndex = __unchangedLines.findIndex(function(candidate){
+        return candidate === realLine || assalInlineEditLineId(candidate) === assalInlineEditLineId(realLine);
+      });
+      const __unchangedNext = (__unchangedIndex >= 0 && __unchangedIndex + 1 < __unchangedLines.length)
+        ? __unchangedLines[__unchangedIndex + 1]
+        : null;
+      try{ renderBoard(); }catch(_){}
+      if(__assalSequential.finishing || !__unchangedNext){
+        assalWholesaleSequentialComplete();
+      }else{
+        setTimeout(function(){
+          try{
+            if(window.__assalWholesaleSequentialEdit && window.__assalWholesaleSequentialEdit.active){
+              assalInlineEditStart(realCard, __unchangedNext);
+            }
+          }catch(_){}
+        }, 0);
+      }
+      return;
+    }
 
     const __assalAuditBeforeEdit = (window.assalCardAuditLineSnapshot)
       ? window.assalCardAuditLineSnapshot(realLine)
@@ -26416,6 +26616,17 @@ function assalInlineEditSave(card, line){
  
 }
     }
+    if(__assalSequential && __assalAuditEditSaved && __assalSequentialChanged){
+      __assalSequential.modifiedCount = (Number(__assalSequential.modifiedCount) || 0) + 1;
+    }
+    let __assalSequentialNext = null;
+    if(__assalSequential && __assalAuditEditSaved && !__assalSequential.finishing){
+      const __seqLines = assalWholesaleSequentialActiveLines(realCard);
+      const __seqIndex = __seqLines.findIndex(function(candidate){
+        return candidate === realLine || assalInlineEditLineId(candidate) === assalInlineEditLineId(realLine);
+      });
+      if(__seqIndex >= 0 && __seqIndex + 1 < __seqLines.length) __assalSequentialNext = __seqLines[__seqIndex + 1];
+    }
     try{
  renderBoard();
  
@@ -26434,12 +26645,25 @@ function assalInlineEditSave(card, line){
 }catch(_){
  
 }
-    try{
- showToast('success','تم حفظ تعديل المادة');
- 
-}catch(_){
- 
-}
+    if(__assalSequential){
+      if(__assalAuditEditSaved){
+        if(__assalSequential.finishing || !__assalSequentialNext){
+          assalWholesaleSequentialComplete();
+        }else{
+          setTimeout(function(){
+            try{
+              if(window.__assalWholesaleSequentialEdit && window.__assalWholesaleSequentialEdit.active){
+                assalInlineEditStart(realCard, __assalSequentialNext);
+              }
+            }catch(_){}
+          }, 0);
+        }
+      }else{
+        __assalSequential.finishing = false;
+      }
+    }else{
+      try{ showToast('success','تم حفظ تعديل المادة'); }catch(_){}
+    }
   }catch(err){
  try{
  console.error(err);
@@ -26530,25 +26754,14 @@ function assalInlineEditMakeCatField(card, line, state, itemInputRef){
  
 }
     panel.style.display = 'block';
-    // عند فتح التعديل يبدأ المؤشر دائماً من أول صنف أعلى القائمة (الشاشات) حتى يكون السلوك ثابت وواضح.
+    // عند فتح التعديل يبدأ المؤشر على صنف السطر الحالي حتى لا تغيّره ضغطة Enter الأولى.
+    const currentCat = String(state && state.draft && state.draft.cat || '').trim();
     idx = opts.findIndex(function(x){
- return x.val === 'LCD';
+ return x.val === currentCat;
  
 });
     if(idx < 0) idx = 0;
-    try{
- panel.scrollTop = 0;
- 
-}catch(_){
- 
-}
     paint();
-    try{
- panel.scrollTop = 0;
- 
-}catch(_){
- 
-}
   }
 
   function hide(){
@@ -26568,6 +26781,12 @@ function assalInlineEditMakeCatField(card, line, state, itemInputRef){
     if(i < 0 || i >= opts.length) return;
     suppressUntil = Date.now() + 700;
     const val = opts[i].val;
+    state.keepCategoryFocus = false;
+    state.activeField = 'item';
+    state.focusStart = 0;
+    state.focusEnd = String(state.draft.item || '').length;
+    state.focusDirection = 'none';
+    state.activeDropdownOpen = false;
     state.draft.cat = val;
     input.value = val;
     hide();
@@ -26646,6 +26865,7 @@ function assalInlineEditMakeCatField(card, line, state, itemInputRef){
 }catch(_){
  
 }
+  assalInlineEditTrackField(state, 'cat', input, panel);
   wrap.append(input, panel);
   return { wrap, input, panel, show, hide };
 }
@@ -26738,6 +26958,11 @@ function assalInlineEditMakeItemField(card, line, state, priceInputRef, noteInpu
       try{
         const p = priceInputRef && priceInputRef();
         if(p){
+ state.activeField = 'price';
+ state.focusStart = 0;
+ state.focusEnd = String(p.value || '').length;
+ state.focusDirection = 'none';
+ state.activeDropdownOpen = false;
  p.focus({preventScroll:true});
  p.select && p.select();
  return;
@@ -26745,6 +26970,11 @@ function assalInlineEditMakeItemField(card, line, state, priceInputRef, noteInpu
 }
         const n = noteInputRef && noteInputRef();
         if(n){
+ state.activeField = 'note';
+ state.focusStart = 0;
+ state.focusEnd = String(n.value || '').length;
+ state.focusDirection = 'none';
+ state.activeDropdownOpen = false;
  n.focus({preventScroll:true});
  n.select && n.select();
  
@@ -26822,6 +27052,8 @@ function assalInlineEditMakeItemField(card, line, state, priceInputRef, noteInpu
 }
     if(!wrap.contains(ev.target)) hide();
   }, true);
+  try{ input.__assalInlineRender = render; }catch(_){ }
+  assalInlineEditTrackField(state, 'item', input, list);
   wrap.append(input, list);
   return { wrap, input, render, hide };
 }
@@ -26872,6 +27104,11 @@ function assalInlineEditMakePriceField(state, noteInputRef){
       try{
         const n = noteInputRef && noteInputRef();
         if(n){
+ state.activeField = 'qty';
+ state.focusStart = 0;
+ state.focusEnd = String(n.value || '').length;
+ state.focusDirection = 'none';
+ state.activeDropdownOpen = false;
  n.focus({preventScroll:true});
  n.select && n.select();
  
@@ -26892,6 +27129,7 @@ function assalInlineEditMakePriceField(state, noteInputRef){
  
 }
   });
+  assalInlineEditTrackField(state, 'price', input, null);
   wrap.appendChild(input);
   return { wrap, input, commit };
 }
@@ -26942,6 +27180,11 @@ function assalInlineEditMakeQtyField(state, noteInputRef){
       try{
         const n = noteInputRef && noteInputRef();
         if(n){
+ state.activeField = 'note';
+ state.focusStart = 0;
+ state.focusEnd = String(n.value || '').length;
+ state.focusDirection = 'none';
+ state.activeDropdownOpen = false;
  n.focus({preventScroll:true});
  n.select && n.select();
  
@@ -26962,6 +27205,7 @@ function assalInlineEditMakeQtyField(state, noteInputRef){
  
 }
   });
+  assalInlineEditTrackField(state, 'qty', input, null);
   wrap.appendChild(input);
   return { wrap, input, commit };
 }
@@ -27439,7 +27683,29 @@ function renderBoard() {
         assalOpenMainCardStatement(ev);
       }
     });
-    custWrap.append(custEditBtn, custSwitchBtn, custName);
+    custWrap.append(custEditBtn, custSwitchBtn);
+    if(typeof isWholesaleCard === 'function' && isWholesaleCard(card)){
+      const sequentialEditBtn = CE('button', 'assal-card-customer-switch-btn assal-wholesale-sequential-edit-btn');
+      sequentialEditBtn.type = 'button';
+      sequentialEditBtn.title = 'تعديل متتابع لمواد فاتورة الجملة';
+      sequentialEditBtn.setAttribute('aria-label', 'تعديل متتابع لمواد فاتورة الجملة');
+      sequentialEditBtn.innerHTML = '<i class="fa-solid fa-pen"></i>';
+      if(typeof assalWholesaleSequentialIsFor === 'function' && assalWholesaleSequentialIsFor(card)){
+        sequentialEditBtn.classList.add('is-active');
+        sequentialEditBtn.title = 'إنهاء التعديل المتتابع وحفظ السطر الحالي';
+      }
+      sequentialEditBtn.onclick = function(ev){
+        ev.preventDefault();
+        ev.stopPropagation();
+        if(typeof assalWholesaleSequentialIsFor === 'function' && assalWholesaleSequentialIsFor(card)){
+          assalWholesaleSequentialFinish();
+        }else{
+          assalWholesaleSequentialStart(card);
+        }
+      };
+      custWrap.appendChild(sequentialEditBtn);
+    }
+    custWrap.appendChild(custName);
 
     // بادج "زبون جديد" إذا مو ضمن القائمة المعروفة CUSTOMERS
     const isKnownCustomer = (typeof assalIsSheetCustomerName === 'function')
@@ -27735,6 +28001,7 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
               assalInlineEditSave(card, ln);
             }
           });
+          assalInlineEditTrackField(__editState, 'note', editNote, null);
           editNoteWrap.appendChild(editNote);
 
           btnReturn.disabled = true;
@@ -85615,6 +85882,351 @@ body.assal-ledger-wa-auto-pdf-open{
 }
 </style>
 <!-- ASSAL REQUEST CARDS COMPACT ELEGANT FINAL - END -->
+
+<style id="assal-wholesale-sequential-edit-final-style">
+.assal-wholesale-sequential-edit-btn{
+  color:#dbeafe !important;
+  border-color:rgba(59,130,246,.42) !important;
+  background:linear-gradient(180deg,#12305f,#0b1f3c) !important;
+}
+.assal-wholesale-sequential-edit-btn:hover{
+  box-shadow:0 0 0 3px rgba(59,130,246,.16) !important;
+}
+.assal-wholesale-sequential-edit-btn.is-active{
+  color:#fff7ed !important;
+  border-color:rgba(245,158,11,.62) !important;
+  background:linear-gradient(135deg,#b45309,#7c2d12) !important;
+  box-shadow:0 0 0 3px rgba(245,158,11,.14) !important;
+}
+</style>
+<!-- ASSAL BRANCH WHOLESALE TODAY IMPORT FINAL - START -->
+<style id="assal-branch-import-final-style">
+#btnBranchWholesaleImport.assal-tool-action i{color:#fbbf24!important}
+#assalBranchImportModal{position:fixed;inset:0;z-index:100050;display:none;align-items:center;justify-content:center;padding:18px;background:radial-gradient(circle at 50% 8%,rgba(245,158,11,.11),transparent 34%),rgba(2,6,23,.84);backdrop-filter:blur(12px)}
+#assalBranchImportModal.show{display:flex}
+.assal-bi-shell{width:min(980px,97vw);max-height:min(880px,94vh);overflow:hidden;display:flex;flex-direction:column;border:1px solid rgba(251,191,36,.24);border-radius:28px;background:linear-gradient(165deg,#111b31 0%,#08111f 58%,#0b1424 100%);box-shadow:0 34px 100px rgba(0,0,0,.68),0 0 0 1px rgba(255,255,255,.025) inset;color:#e5e7eb}
+.assal-bi-head{position:relative;display:flex;align-items:center;gap:14px;padding:18px 20px;border-bottom:1px solid rgba(148,163,184,.14);background:linear-gradient(90deg,rgba(30,41,59,.92),rgba(15,23,42,.76))}
+.assal-bi-head:after{content:'';position:absolute;right:20px;left:20px;bottom:-1px;height:1px;background:linear-gradient(90deg,transparent,#f59e0b,transparent);opacity:.55}
+.assal-bi-mark{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(135deg,#fbbf24,#f97316);color:#fff;font-size:20px;box-shadow:0 12px 30px rgba(245,158,11,.28);flex:0 0 auto}
+.assal-bi-title{flex:1;min-width:0;text-align:center;padding-right:46px}.assal-bi-title b{display:block;font-size:17px;font-weight:900;letter-spacing:.1px}.assal-bi-title span{display:block;margin-top:4px;color:#a8b4c7;font-size:11px}
+.assal-bi-close{width:40px;height:40px;border:1px solid rgba(148,163,184,.22);border-radius:13px;background:rgba(15,23,42,.72);color:#e5e7eb;cursor:pointer;transition:.18s}.assal-bi-close:hover{color:#fff;border-color:#f59e0b;background:rgba(245,158,11,.13);transform:rotate(4deg)}
+.assal-bi-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:15px 18px 6px}
+.assal-bi-stat{position:relative;overflow:hidden;padding:11px 12px;border:1px solid rgba(148,163,184,.15);border-radius:15px;background:linear-gradient(145deg,rgba(30,41,59,.76),rgba(15,23,42,.56));text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.13)}.assal-bi-stat:before{content:'';position:absolute;inset:0 auto 0 0;width:3px;background:linear-gradient(#fbbf24,#f97316)}.assal-bi-stat span{display:block;color:#9eabc0;font-size:10px}.assal-bi-stat b{display:block;margin-top:3px;font-size:17px;color:#fff}
+.assal-bi-body{overflow:auto;padding:11px 18px 18px;scrollbar-width:thin;scrollbar-color:#475569 transparent}
+.assal-bi-message{padding:24px;border:1px dashed rgba(148,163,184,.28);border-radius:18px;text-align:center;color:#b5c0d1;line-height:1.9;background:rgba(15,23,42,.38)}
+.assal-bi-card{margin-bottom:14px;border:1px solid rgba(100,116,139,.28);border-radius:19px;overflow:hidden;background:linear-gradient(145deg,rgba(16,28,50,.96),rgba(9,18,34,.96));box-shadow:0 14px 35px rgba(0,0,0,.19);transition:.2s}.assal-bi-card:hover{border-color:rgba(245,158,11,.3);transform:translateY(-1px)}
+.assal-bi-card.is-old{opacity:.7}
+.assal-bi-card-head{display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 15px;background:linear-gradient(90deg,rgba(30,41,59,.78),rgba(17,28,51,.72));border-bottom:1px solid rgba(148,163,184,.13);text-align:center}
+.assal-bi-card-head .branch{flex:1;min-width:0;text-align:center;padding-right:92px}.assal-bi-card-head .branch b{display:block;font-size:14px;color:#f8fafc}.assal-bi-card-head .branch span{display:block;color:#93a4ba;font-size:10px;margin-top:3px}
+.assal-bi-badge{min-width:92px;padding:5px 10px;border-radius:999px;font-size:10px;font-weight:900;text-align:center;background:rgba(18,209,180,.11);color:#5eead4;border:1px solid rgba(18,209,180,.25)}
+.assal-bi-badge.done{background:rgba(148,163,184,.09);color:#cbd5e1;border-color:#334155}.assal-bi-badge.warn{background:rgba(245,158,11,.11);color:#fbbf24;border-color:rgba(245,158,11,.28)}
+.assal-bi-lines{padding:10px 12px 12px}.assal-bi-line{display:grid;grid-template-columns:minmax(0,1fr) 110px 132px;gap:10px;align-items:center;min-height:58px;padding:8px 10px;margin-bottom:7px;border:1px solid rgba(71,85,105,.22);border-radius:13px;background:rgba(8,17,34,.62)}.assal-bi-line:last-child{margin-bottom:0}
+.assal-bi-item{min-width:0;text-align:center}.assal-bi-item b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#eef4ff}.assal-bi-item span{display:inline-block;margin-top:4px;padding:2px 9px;border-radius:999px;font-size:9px;color:#93c5fd;background:rgba(59,130,246,.10);border:1px solid rgba(96,165,250,.13)}
+.assal-bi-qty{text-align:center;color:#d5deeb;font-size:11px;font-weight:800;padding:7px;border-radius:10px;background:rgba(148,163,184,.07)}
+.assal-bi-price{width:100%;height:38px;border:1px solid rgba(100,116,139,.45);border-radius:11px;background:#081122;color:#f8fafc;padding:5px 8px;text-align:center;outline:none;font-family:inherit;font-weight:900;transition:.18s}.assal-bi-price:focus{border-color:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.12)}.assal-bi-price.zero{border-color:rgba(245,158,11,.38);color:#fbbf24;background:rgba(120,53,15,.13)}
+.assal-bi-foot{display:flex;align-items:center;gap:12px;padding:14px 18px;border-top:1px solid rgba(148,163,184,.14);background:rgba(8,17,31,.92)}.assal-bi-status{flex:1;color:#aeb8c8;font-size:11px;line-height:1.7;text-align:center}.assal-bi-status.error{color:#fca5a5}.assal-bi-status.ok{color:#6ee7b7}
+.assal-bi-import{min-width:190px;height:44px;border:0;border-radius:13px;background:linear-gradient(135deg,#f59e0b,#ea580c);color:#fff;font-family:inherit;font-weight:900;cursor:pointer;box-shadow:0 12px 28px rgba(234,88,12,.24);transition:.18s}.assal-bi-import:not(:disabled):hover{transform:translateY(-1px);box-shadow:0 15px 32px rgba(234,88,12,.32)}.assal-bi-import:disabled{opacity:.42;cursor:not-allowed;box-shadow:none}
+@media(max-width:620px){#assalBranchImportModal{padding:8px}.assal-bi-shell{width:100%;max-height:96vh;border-radius:21px}.assal-bi-head{padding:13px}.assal-bi-mark{width:42px;height:42px}.assal-bi-title{padding-right:0}.assal-bi-title span{display:none}.assal-bi-summary{gap:6px;padding:10px 10px 4px}.assal-bi-stat{padding:8px 5px}.assal-bi-body{padding:8px 10px 12px}.assal-bi-card-head .branch{padding-right:0}.assal-bi-card-head{flex-wrap:wrap}.assal-bi-line{grid-template-columns:minmax(0,1fr) 74px 92px;gap:6px;padding:7px 6px}.assal-bi-item b{font-size:10px}.assal-bi-foot{flex-direction:column;padding:10px}.assal-bi-status{width:100%}.assal-bi-import{width:100%;min-width:0}}
+</style>
+
+<div id="assalBranchImportModal" aria-hidden="true">
+  <section class="assal-bi-shell" role="dialog" aria-modal="true" aria-labelledby="assalBranchImportTitle">
+    <header class="assal-bi-head">
+      <div class="assal-bi-mark"><i class="fa-solid fa-file-import"></i></div>
+      <div class="assal-bi-title"><b id="assalBranchImportTitle">استيراد فواتير فروع اليوم</b><span>كل فاتورة تُضاف كبطاقة جملة مستقلة، والسعر غير الموجود يُعتمد صفراً ويمكن تعديله.</span></div>
+      <button type="button" class="assal-bi-close" id="assalBranchImportClose" aria-label="إغلاق"><i class="fa-solid fa-xmark"></i></button>
+    </header>
+    <div class="assal-bi-summary">
+      <div class="assal-bi-stat"><span>فواتير اليوم</span><b id="assalBiTotal">—</b></div>
+      <div class="assal-bi-stat"><span>الجديدة</span><b id="assalBiNew">—</b></div>
+      <div class="assal-bi-stat"><span>المستوردة سابقاً</span><b id="assalBiDone">—</b></div>
+    </div>
+    <div class="assal-bi-body" id="assalBranchImportBody"><div class="assal-bi-message">جاري قراءة فواتير الفروع…</div></div>
+    <footer class="assal-bi-foot">
+      <div class="assal-bi-status" id="assalBranchImportStatus">لم تُجرَ أي إضافة بعد.</div>
+      <button type="button" class="assal-bi-import" id="assalBranchImportConfirm" disabled><i class="fa-solid fa-check"></i> اعتماد الاستيراد</button>
+    </footer>
+  </section>
+</div>
+
+<script id="assal-branch-import-final-script">
+(function(){
+  'use strict';
+
+  var SOURCE_URL = 'https://assal-invoice-server-default-rtdb.asia-southeast1.firebasedatabase.app/assal_server_invoices.json';
+  var BRANCHES = {
+    'yo1234':  'مكتب عسل فرع التحرير',
+    'isl1234': 'مكتب عسل فرع الحي',
+    'bld1234': 'مكتب عسل فرع بلدروز'
+  };
+  var state = { invoices:[], busy:false, today:'' };
+
+  function el(id){ return document.getElementById(id); }
+  function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function clean(v){ return String(v == null ? '' : v).trim(); }
+  function num(v){ var n=Number(String(v==null?'':v).replace(/[^0-9.]/g,'')); return Number.isFinite(n)?Math.round(n):0; }
+  function isoNow(){ return new Date().toISOString(); }
+  function uid(){ try{return typeof genId==='function'?String(genId()):String(Date.now())+'-'+Math.random().toString(36).slice(2,9);}catch(_){return String(Date.now())+'-'+Math.random().toString(36).slice(2,9);} }
+  function baghdadDay(ts){
+    var d = ts == null ? new Date() : new Date(Number(ts));
+    if(!Number.isFinite(d.getTime())) return '';
+    try{
+      var parts = new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Baghdad',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(d);
+      var out={}; parts.forEach(function(p){if(p.type!=='literal')out[p.type]=p.value;});
+      return out.year+'-'+out.month+'-'+out.day;
+    }catch(_){
+      var shifted=new Date(d.getTime()+3*60*60*1000);
+      return shifted.getUTCFullYear()+'-'+String(shifted.getUTCMonth()+1).padStart(2,'0')+'-'+String(shifted.getUTCDate()).padStart(2,'0');
+    }
+  }
+  function norm(v){
+    return clean(v).toLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[إأآٱ]/g,'ا').replace(/[ىي]/g,'ي').replace(/ة/g,'ه').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/[\s\-–—_\/\\|،,.;؛:()\[\]{}]+/g,'');
+  }
+  function loginEmail(){return clean(window.ASSAL_LOGIN_EMAIL||'').toLowerCase();}
+  function isAdminAccount(){return window.ASSAL_IS_ADMIN_DEBTS===true||loginEmail()==='admin-debts@assal.com';}
+  function isMainAccount(){return window.ASSAL_IS_MAIN_DEBTS===true||loginEmail()==='assal-debts@assal.com';}
+  function canImportHere(){return isAdminAccount()||isMainAccount();}
+  function adminRequestsReady(){return !isAdminAccount()||window.__ASSAL_CARD_REQUEST_SAVE_WRAPPED__===true;}
+  function toast(type,msg){ try{ if(typeof showToast==='function') showToast(type,msg); }catch(_){ try{showToast(msg,type==='error');}catch(__){} } }
+  function setStatus(msg,kind){ var n=el('assalBranchImportStatus'); if(n){n.textContent=msg||'';n.className='assal-bi-status'+(kind?' '+kind:'');} }
+  function setBusy(v){ state.busy=!!v; var b=el('assalBranchImportConfirm'); if(b)b.disabled=!!v||!canCommit(); }
+  function allCards(){
+    var out=[];
+    try{ Object.keys(days||{}).forEach(function(day){(Array.isArray(days[day])?days[day]:[]).forEach(function(card){out.push(card);});}); }catch(_){}
+    return out;
+  }
+  function sourceSignature(items){
+    return (Array.isArray(items)?items:[]).map(function(it){return [norm(it&&it.category),norm(it&&(it.name||it.item)),clean(it&&it.qty),clean(it&&it.note)].join('|');}).join('||');
+  }
+  function importedMeta(){
+    var map=new Map();
+    allCards().forEach(function(card){
+      if(!card||card.deletedAt)return;
+      var activeLines=Array.isArray(card.lines)?card.lines.filter(function(line){return line&&!line.deletedAt;}):[];
+      if(!activeLines.length)return;
+      var meta=card&&card.assalBranchInvoiceImport;
+      var key=clean(meta&&meta.sourceServerKey || card&&card.sourceBranchInvoiceKey);
+      if(key)map.set(key,meta||{});
+    });
+    return map;
+  }
+  var LCD_NAME_REPLACEMENTS = [
+    ['(PIX SMALL (1) + FRM)','(W/F) BLACK OLED SMALL PIXEL'],['(PIX BIG (1) + FRM)','(W/F) BLACK OLED BIG PIXEL'],['(KBS BIG (1) + FRM)','(W/F) BLACK OLED BIG KBS'],['(SMALL (1) + FRM)','(W/F) BLACK OLED SMALL'],['(BIG (1) + FRM)','(W/F) BLACK OLED BIG'],['(PIX (1) + FRM)','(W/F) BLACK OLED PIXEL'],['(FULL ORG - GLUE)','(N/F) BLACK ORIGINAL NEW FULL WITH GLUE'],['(PIX ORG - B)','(N/F) BLACK ORIGINAL NEW (B) PIXEL'],['(FLY ORG - B)','(N/F) BLACK ORIGINAL NEW (B) FLYCDI'],['(ORG - B + FRM)','(W/F) BLACK ORIGINAL NEW (B)'],['(FULL ORG + FRM)','(W/F) BLACK ORIGINAL NEW'],['(PIX ORG + FRM)','(W/F) BLACK ORIGINAL NEW PIXEL'],['(FLY ORG + FRM)','(W/F) BLACK ORIGINAL NEW FLYCDI'],['(KBS OLED + FRM)','(W/F) BLACK KBS OLED'],['(FLY OLED + FRM)','(W/F) BLACK FLYCDI OLED'],['(PIX OLED + FRM)','(W/F) BLACK PIXEL OLED'],['(KBS INCL + FRM)','(W/F) BLACK INCELL KBS'],['(PIX INCL + FRM)','(W/F) BLACK INCELL PIXEL'],['(FLY INCL + FRM)','(W/F) BLACK INCELL FLYCDI'],['(SUPPER INCL + FRM)','(W/F) BLACK INCELL SUPER'],['(ORG + FRM)','(W/F) BLACK ORIGINAL NEW'],['(1 + FRM)','(W/F) BLACK OLED'],['(INCL + FRM)','(W/F) BLACK INCELL'],['(KBS OLED ORG)','(N/F) BLACK ORIGINAL NEW KBS'],['(KBS INCL FHD)','(N/F) BLACK INCELL FHD KBS'],['(KBS INCL HD)','(N/F) BLACK INCELL HD KBS'],['(ORG NEW - A)','(N/F) BLACK FULL ORIGINAL NEW'],['(NEXUS FHD INCL)','BLACK INCELL FHD NEXUS'],['(NEXUS HD INCL)','BLACK INCELL HD NEXUS'],['(SMM OLED IC)','BLACK OLED WITH IC SMM'],['(PIX : SECOND)','BLACK ORIGINAL SECOND HAND PIXEL'],['(ORG - SUN)','(N/F) BLACK ORIGINAL NEW SUN'],['(PIX ORG)','(N/F) BLACK ORIGINAL NEW PIXEL'],['(FLY ORG)','(N/F) BLACK ORIGINAL NEW FLYCDI'],['(KBS ORG)','(N/F) BLACK ORIGINAL NEW KBS'],['(ORG - A)','(N/F) BLACK ORIGINAL NEW'],['(ORG - B)','(N/F) BLACK ORIGINAL NEW (B)'],['(PIXEL (1))','(N/F) BLACK SAME PIXEL'],['(FLY (1))','(N/F) BLACK SAME FLYCDI'],['(KBS (1))','(N/F) BLACK SAME KBS'],['(FUL (1))','(N/F) BLACK SAME FULL'],['(BIG (1))','(N/F) BLACK SAME BIG'],['(SMALL (1))','(N/F) BLACK SAME SMALL'],['(ORG APPLE)','BLACK ORIGINAL FROM APPLE'],['(BYH INCL)','BLACK INCELL (BYH)'],['(SECOND)','BLACK ORIGINAL SECOND HAND'],['(KBS FHD)','BLACK INCELL FHD KBS'],['(KBS HD)','BLACK INCELL HD KBS'],['(PIX FHD)','BLACK INCELL FHD PIXEL'],['(PIX HD)','BLACK INCELL HD PIXEL'],['(FLY FHD)','BLACK INCELL FHD FLYCDI'],['(FLY HD)','BLACK INCELL HD FLYCDI'],['(PIX INCL)','(N/F) BLACK INCELL PIXEL'],['(FLY INCL)','(N/F) BLACK INCELL FLYCDI'],['(INCEL)','(N/F) BLACK INCELL'],['(INCL)','(N/F) BLACK INCELL'],['(FLY SVC)','BLACK OLED SERVICE PACK FLYCDI'],['(GX OLED)','BLACK OLED GX'],['(FLY OLED)','BLACK OLED FLYCDI'],['(KBS OLED)','BLACK OLED KBS'],['(PIXEL OLED)','BLACK OLED PIXEL'],['(NEXUS OLED)','BLACK OLED NEXUS'],['(CG L)','BLACK CHANGE GLASS'],['(2 : PIX)','BLACK INCELL PIXEL'],['(GX HARD)','BLACK OLED GX HARD'],['(NEW GX)','BLACK OLED NEW GX'],['(SL INCL)','BLACK INCELL (SL)'],['(KBS)','BLACK OLED KBS'],['(PIX)','BLACK OLED PIXEL'],['(FLY)','BLACK OLED FLYCDI'],['(2)','BLACK INCELL'],['(1)','(N/F) BLACK SAME'],['(ORG)','(N/F) BLACK ORIGINAL NEW'],['(🔵)','BLACK SAME']
+  ].sort(function(a,b){return b[0].length-a[0].length;});
+  function lcdInvoiceName(value){
+    var original=clean(value), upper=original.toUpperCase();
+    for(var i=0;i<LCD_NAME_REPLACEMENTS.length;i++){
+      var oldState=LCD_NAME_REPLACEMENTS[i][0], replacement=LCD_NAME_REPLACEMENTS[i][1];
+      if(upper.endsWith(oldState.toUpperCase()))return clean(original.slice(0,original.length-oldState.length))+' '+replacement;
+    }
+    return original;
+  }
+  function batteryItemName(row){return clean(row&&((row['Item Name']||row['Item'])||''));}
+  function batteryModelParts(value){
+    var seen=new Set();
+    return String(value==null?'':value).split(/[\/|+,;\n\r]+/).map(function(part){return part.trim().replace(/^\(+|\)+$/g,'').trim();}).filter(function(part){
+      var key=part.toUpperCase().replace(/[^A-Z0-9]+/g,'');if(!key||seen.has(key))return false;seen.add(key);return true;
+    });
+  }
+  function batteryModelKey(value){return String(value==null?'':value).toUpperCase().replace(/[^A-Z0-9]+/g,'');}
+  function batteryCleanName(value){return clean(value).replace(/^BATTERY\s+/i,'').trim();}
+  function batteryFormatNames(names){
+    var companies=[], byCompany=new Map();
+    names.forEach(function(rawName){
+      var name=batteryCleanName(rawName);if(!name)return;
+      var parts=name.split(/\s+/),company=parts.shift()||'',companyKey=company.toUpperCase(),device=parts.join(' ').trim();
+      if(!byCompany.has(companyKey)){byCompany.set(companyKey,{company:company,devices:[],seen:new Set()});companies.push(companyKey);}
+      var bucket=byCompany.get(companyKey),deviceKey=String(device||company).replace(/\s+/g,'').toLowerCase();
+      if(!bucket.seen.has(deviceKey)){bucket.seen.add(deviceKey);bucket.devices.push(device);}
+    });
+    return companies.map(function(key){var bucket=byCompany.get(key),devices=bucket.devices.filter(Boolean);return devices.length?bucket.company+' '+devices.join(' / '):bucket.company;}).join(' / ');
+  }
+  function buildBatteryGroups(rows){
+    var source=(Array.isArray(rows)?rows:[]).map(function(row,index){return {row:row,index:index,name:batteryItemName(row),models:batteryModelParts(row&&row['Model'])};}).filter(function(entry){return !!entry.name;});
+    var parent=source.map(function(_,index){return index;});
+    function find(index){while(parent[index]!==index){parent[index]=parent[parent[index]];index=parent[index];}return index;}
+    function unite(a,b){var rootA=find(a),rootB=find(b);if(rootA!==rootB)parent[rootB]=rootA;}
+    var firstByModel=new Map();source.forEach(function(entry,index){entry.models.forEach(function(model){var key=batteryModelKey(model);if(firstByModel.has(key))unite(index,firstByModel.get(key));else firstByModel.set(key,index);});});
+    var components=new Map();source.forEach(function(entry,index){var root=find(index);if(!components.has(root))components.set(root,[]);components.get(root).push(entry);});
+    return Array.from(components.values()).sort(function(a,b){return a[0].index-b[0].index;}).map(function(entries){
+      var names=[],nameKeys=new Set(),models=[],modelKeys=new Set();
+      entries.forEach(function(entry){var nameKey=String(batteryCleanName(entry.name)).replace(/\s+/g,'').toLowerCase();if(nameKey&&!nameKeys.has(nameKey)){nameKeys.add(nameKey);names.push(entry.name);}entry.models.forEach(function(model){var modelKey=batteryModelKey(model);if(modelKey&&!modelKeys.has(modelKey)){modelKeys.add(modelKey);models.push(model);}});});
+      var groupedNames=batteryFormatNames(names),displayName=('BATTERY '+groupedNames+(models.length?' ('+models.join(' | ')+')':'')).trim();
+      return {displayName:displayName,entries:entries};
+    });
+  }
+  function rowPrice(row){
+    try{if(typeof getRowPriceValue==='function')return num(getRowPriceValue(row));}catch(_){}
+    var keys=['Discount Price','DISCOUNT PRICE','discount price','DiscountPrice','سعر الخصم','سعر_الخصم','Price','PRICE','price','السعر'];
+    for(var i=0;i<keys.length;i++){if(row&&row[keys[i]]!=null&&clean(row[keys[i]])!=='')return num(row[keys[i]]);}
+    return 0;
+  }
+  function priceFor(category,item){
+    var rows=[];
+    var cat=clean(category).toUpperCase();
+    try{rows=(database&&Array.isArray(database[cat]))?database[cat]:[];}catch(_){rows=[];}
+    var q=norm(item),hit=rows.find(function(row){return norm(row&&((row['Item Name']||row['Item'])||''))===q;});
+    if(hit)return rowPrice(hit);
+    if(cat==='LCD'){
+      hit=rows.find(function(row){return norm(lcdInvoiceName(row&&((row['Item Name']||row['Item'])||'')))===q;});
+      return hit?rowPrice(hit):0;
+    }
+    if(cat==='BATTERY'){
+      var group=buildBatteryGroups(rows).find(function(g){return norm(g.displayName)===q;});
+      return group&&group.entries.length?rowPrice(group.entries[0].row):0;
+    }
+    return 0;
+  }
+  function normalizeSource(key,raw,done){
+    var code=clean(raw&&raw.senderCode || raw&&raw.ownerCode).toLowerCase();
+    var uploaded=Number(raw&&raw.uploadedAt||0);
+    var sourceItems=Array.isArray(raw&&raw.items)?raw.items:[];
+    var signature=sourceSignature(sourceItems), previous=done.get(key)||null;
+    return {
+      key:key, code:code, branch:BRANCHES[code]||'', sourceName:clean(raw&&raw.id)||'فاتورة فرع',
+      uploadedAt:uploaded, done:!!previous, changed:!!(previous&&clean(previous.sourceSignature)&&clean(previous.sourceSignature)!==signature), sourceSignature:signature,
+      items:sourceItems.map(function(it,index){
+        var category=clean(it&&it.category), name=clean(it&&(it.name||it.item)), qty=clean(it&&it.qty)||'1';
+        return {index:index,category:category,name:name,qty:qty,note:clean(it&&it.note),price:priceFor(category,name)};
+      }).filter(function(it){return !!it.name;}).sort(function(a,b){
+        var catA=String(a&&a.category||''),catB=String(b&&b.category||'');
+        var nameA=String(a&&a.name||''),nameB=String(b&&b.name||'');
+        if(catA===catB)return nameA.localeCompare(nameB,'ar');
+        return catA.localeCompare(catB,'ar');
+      })
+    };
+  }
+  function validSource(raw){
+    var code=clean(raw&&raw.senderCode || raw&&raw.ownerCode).toLowerCase();
+    var role=clean(raw&&raw.senderRole || raw&&raw.ownerRole).toLowerCase();
+    return !!BRANCHES[code] && role==='user' && baghdadDay(raw&&raw.uploadedAt)===state.today;
+  }
+  async function fetchToday(){
+    state.today=baghdadDay();
+    var resp=await fetch(SOURCE_URL+(SOURCE_URL.indexOf('?')>=0?'&':'?')+'_='+Date.now(),{method:'GET',cache:'no-store'});
+    if(!resp.ok)throw new Error('SOURCE_HTTP_'+resp.status);
+    var data=await resp.json(); data=(data&&typeof data==='object')?data:{};
+    var done=importedMeta();
+    state.invoices=Object.keys(data).map(function(k){return {key:k,raw:data[k]||{}};}).filter(function(x){return validSource(x.raw);}).map(function(x){return normalizeSource(x.key,x.raw,done);}).filter(function(x){return x.items.length>0;}).sort(function(a,b){return a.uploadedAt-b.uploadedAt;});
+  }
+  function fmtTime(ts){try{return new Intl.DateTimeFormat('ar-IQ',{timeZone:'Asia/Baghdad',hour:'2-digit',minute:'2-digit'}).format(new Date(ts));}catch(_){return '—';}}
+  function render(){
+    var body=el('assalBranchImportBody'), list=state.invoices, fresh=list.filter(function(x){return !x.done;});
+    el('assalBiTotal').textContent=String(list.length);el('assalBiNew').textContent=String(fresh.length);el('assalBiDone').textContent=String(list.length-fresh.length);
+    if(!list.length){body.innerHTML='<div class="assal-bi-message"><i class="fa-solid fa-circle-check"></i><br>لا توجد فواتير جديدة أو مستوردة للفروع الثلاثة خلال اليوم الحالي.</div>';setStatus('لم يتم العثور على فواتير فروع لهذا اليوم.','');setBusy(false);return;}
+    body.innerHTML=list.map(function(inv){
+      var missing=inv.items.filter(function(it){return !(num(it.price)>0);}).length;
+      var badge=inv.done?(inv.changed?'<span class="assal-bi-badge warn">تغيّرت بعد الاستيراد</span>':'<span class="assal-bi-badge done">مستوردة سابقاً</span>'):(missing?'<span class="assal-bi-badge warn">'+missing+' بسعر صفر</span>':'<span class="assal-bi-badge">جاهزة</span>');
+      var rows=inv.items.map(function(it){return '<div class="assal-bi-line"><div class="assal-bi-item"><b title="'+esc(it.name)+'">'+esc(it.name)+'</b><span>'+esc(it.category||'بدون صنف')+'</span></div><div class="assal-bi-qty">العدد: '+esc(it.qty)+'</div><input class="assal-bi-price '+(it.price>0?'':'zero')+'" type="text" inputmode="numeric" data-bi-key="'+esc(inv.key)+'" data-bi-index="'+it.index+'" value="'+esc(num(it.price))+'" placeholder="0" '+(inv.done?'disabled':'')+'></div>';}).join('');
+      return '<article class="assal-bi-card '+(inv.done?'is-old ':'')+'" data-bi-card="'+esc(inv.key)+'"><div class="assal-bi-card-head"><div class="branch"><b>'+esc(inv.branch)+'</b><span>'+esc(inv.sourceName)+' • '+fmtTime(inv.uploadedAt)+' • '+inv.items.length+' مادة</span></div>'+badge+'</div><div class="assal-bi-lines">'+rows+'</div></article>';
+    }).join('');
+    body.querySelectorAll('.assal-bi-price').forEach(function(input){input.addEventListener('input',onPriceInput);});
+    refreshCommitState();
+  }
+  function onPriceInput(ev){
+    var input=ev.currentTarget,key=clean(input.getAttribute('data-bi-key')),idx=Number(input.getAttribute('data-bi-index'));
+    var inv=state.invoices.find(function(x){return x.key===key;}), item=inv&&inv.items.find(function(x){return x.index===idx;});
+    if(item)item.price=num(input.value);
+    input.classList.toggle('zero',!(item&&item.price>0));
+    refreshCommitState();
+  }
+  function canCommit(){
+    var fresh=state.invoices.filter(function(x){return !x.done;});
+    return fresh.length>0 && fresh.every(function(inv){return inv.items.length>0;});
+  }
+  function refreshCommitState(){
+    var fresh=state.invoices.filter(function(x){return !x.done;}), missing=0;
+    fresh.forEach(function(inv){inv.items.forEach(function(it){if(!(num(it.price)>0))missing++;});});
+    var btn=el('assalBranchImportConfirm');if(btn)btn.disabled=state.busy||!canCommit();
+    var changed=state.invoices.filter(function(x){return x.done&&x.changed;}).length;
+    if(!fresh.length&&changed)setStatus('توجد '+changed+' فاتورة تغيّرت في المصدر بعد استيرادها. لم تُستبدل البطاقة المالية تلقائياً ولم تُكرر.','error');
+    else if(!fresh.length)setStatus('كل فواتير اليوم الظاهرة مستوردة سابقاً؛ لن يُنشأ أي تكرار.','ok');
+    else if(missing)setStatus('جاهز للاستيراد: '+missing+' مادة بلا سعر ستُحفظ بسعر صفر، ويمكنك تعديلها الآن أو لاحقاً.','ok');
+    else setStatus('جاهز لإضافة '+fresh.length+' فاتورة كبطاقات جملة مستقلة.','ok');
+  }
+  function makeCard(inv){
+    var now=isoNow(), sourceIso=new Date(inv.uploadedAt||Date.now()).toISOString();
+    return {
+      id:uid(), customer:inv.branch, organizer:'استيراد فواتير الفروع', invoiceOrganizer:'استيراد فواتير الفروع',
+      lines:inv.items.map(function(it){return {lineId:uid(),item:it.name,cat:it.category,price:num(it.price),qty:it.qty,note:it.note,type:'جملة',organizer:'استيراد فواتير الفروع',invoiceOrganizer:'استيراد فواتير الفروع',addedBy:'استيراد فواتير الفروع',paid:false,returned:false,createdAt:sourceIso,updatedAt:now,at:sourceIso,deletedAt:null,sourceBranchInvoiceKey:inv.key,sourceBranchInvoiceName:inv.sourceName};}),
+      createdAt:sourceIso,updatedAt:now,paidAll:false,billType:'جملة',wholesalePrepared:false,
+      sourceBranchInvoiceKey:inv.key,
+      assalBranchInvoiceImport:{version:1,sourceServerKey:inv.key,sourceInvoiceName:inv.sourceName,sourceSenderCode:inv.code,sourceBranchName:inv.branch,sourceUploadedAt:inv.uploadedAt,sourceSignature:inv.sourceSignature,importedAt:now,sourceSystem:'ASSAL_INVOICE'}
+    };
+  }
+  async function commit(){
+    if(state.busy||!canCommit())return;
+    if(!canImportHere()){setStatus('الاستيراد مسموح لحاسبة الأدمن والحاسبة الرئيسية فقط.','error');return;}
+    if(!adminRequestsReady()){setStatus('نظام طلبات التعديل في حاسبة الأدمن لم يكتمل تحميله بعد. انتظر لحظات ثم حاول مجدداً.','error');return;}
+    var fresh=state.invoices.filter(function(x){return !x.done;}), day=state.today;
+    var before;
+    try{before=JSON.stringify(Array.isArray(days[day])?days[day]:[]);}catch(_){setStatus('تعذر أخذ نسخة أمان قبل الاستيراد. لم تتغير البيانات.','error');return;}
+    setBusy(true);setStatus('جاري إنشاء البطاقات وحفظها محلياً…','');
+    try{
+      if(!days[day])days[day]=[];
+      var seen=importedMeta();
+      var actually=fresh.filter(function(inv){return !seen.has(inv.key);});
+      if(!actually.length){state.invoices.forEach(function(x){x.done=true;});render();return;}
+      var cards=actually.map(makeCard);
+      for(var i=cards.length-1;i>=0;i--)days[day].unshift(cards[i]);
+      var result=(typeof save==='function')?save():null;
+      if(!result||result.ok===false)throw new Error('LOCAL_SAVE_FAILED');
+      actually.forEach(function(inv){inv.done=true;});
+      try{if(typeof selectedDay==='undefined')window.selectedDay=day;else selectedDay=day;}catch(_){window.selectedDay=day;}
+      try{if(typeof renderRail==='function')renderRail();}catch(_){}
+      try{if(String(selectedDay||'')===day&&typeof renderBoard==='function')renderBoard();else if(String(selectedDay||'')===day&&typeof render==='function')render();}catch(_){}
+      try{window.assalInvalidateDebtBadgeCache&&window.assalInvalidateDebtBadgeCache();}catch(_){}
+      render();
+      var importedCount=actually.length;
+      var successText=importedCount===1?'تم استيراد فاتورة واحدة بنجاح':'تم استيراد '+importedCount+' فواتير بنجاح';
+      if(isAdminAccount()){
+        successText+=' وإضافتها إلى طلبات التعديل';
+      }else{
+        successText+=' وإضافتها إلى فواتير الجملة';
+      }
+      var modal=el('assalBranchImportModal');
+      if(modal){modal.classList.remove('show');modal.setAttribute('aria-hidden','true');}
+      setTimeout(function(){toast('success',successText);},80);
+    }catch(err){
+      try{days[day]=JSON.parse(before);}catch(_){}
+      try{if(typeof save==='function')save();}catch(_){}
+      console.error('ASSAL branch invoice import error:',err);
+      setStatus('تعذر الاستيراد؛ تمت إعادة بيانات اليوم كما كانت ولم تُعتمد أي فاتورة.','error');toast('error','تعذر استيراد فواتير الفروع');
+    }finally{state.busy=false;refreshCommitState();}
+  }
+  async function open(){
+    if(!canImportHere()){toast('warn','استيراد فواتير الفروع متاح لحاسبة الأدمن والحاسبة الرئيسية فقط');return;}
+    if(!adminRequestsReady()){toast('warn','انتظر اكتمال تحميل نظام طلبات التعديل ثم حاول مجدداً');return;}
+    var modal=el('assalBranchImportModal');modal.classList.add('show');modal.setAttribute('aria-hidden','false');
+    el('assalBranchImportBody').innerHTML='<div class="assal-bi-message"><i class="fa-solid fa-spinner fa-spin"></i><br>جاري قراءة فواتير فروع اليوم…</div>';
+    el('assalBiTotal').textContent=el('assalBiNew').textContent=el('assalBiDone').textContent='—';setStatus('اتصال آمن بسيرفر الفواتير…','');setBusy(true);
+    try{
+      if(typeof database==='undefined'||!database||!Object.keys(database).length)throw new Error('PRICE_DATABASE_NOT_READY');
+      await fetchToday();state.busy=false;render();
+    }catch(err){
+      state.busy=false;state.invoices=[];
+      var priceErr=String(err&&err.message)==='PRICE_DATABASE_NOT_READY';
+      el('assalBranchImportBody').innerHTML='<div class="assal-bi-message">'+(priceErr?'قاعدة الأسعار لم تكتمل بعد. انتظر تحميل الأصناف ثم حاول مجدداً.':'تعذر قراءة فواتير الفروع حالياً. تأكد من الإنترنت وحاول مرة أخرى.')+'</div>';
+      setStatus('لم تُضف أو تتغير أي بطاقة.','error');refreshCommitState();
+    }
+  }
+  function close(){if(state.busy)return;var m=el('assalBranchImportModal');m.classList.remove('show');m.setAttribute('aria-hidden','true');}
+  function bind(){
+    var host=el('assalHeaderActions'),closeTools=el('btnHeaderToolsClose');
+    if(host&&!el('btnBranchWholesaleImport')){
+      var btn=document.createElement('button');btn.type='button';btn.id='btnBranchWholesaleImport';btn.className='icon assal-tool-action';btn.title='استيراد فواتير فروع اليوم';btn.setAttribute('aria-label',btn.title);btn.innerHTML='<i class="fa-solid fa-file-circle-plus"></i>';
+      host.insertBefore(btn,closeTools||el('btnLogout')||el('btnHeaderToolsToggle'));
+      btn.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();host.classList.remove('assal-tools-open');var t=el('btnHeaderToolsToggle');if(t)t.setAttribute('aria-expanded','false');open();});
+    }
+    el('assalBranchImportClose').addEventListener('click',close);
+    el('assalBranchImportConfirm').addEventListener('click',commit);
+    el('assalBranchImportModal').addEventListener('click',function(ev){if(ev.target===ev.currentTarget)close();});
+    document.addEventListener('keydown',function(ev){if(ev.key==='Escape'&&el('assalBranchImportModal').classList.contains('show'))close();});
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
+})();
+</script>
+<!-- ASSAL BRANCH WHOLESALE TODAY IMPORT FINAL - END -->
 
 </body>
 </html>
