@@ -19652,6 +19652,26 @@ function isWholesaleCard(card){
   return (card.lines || []).some(l => !l.deletedAt && String(l.type || '') === 'جملة');
 }
 
+const ASSAL_WHOLESALE_DELETE_CONFIRM_MS = 5 * 60 * 1000;
+const assalWholesaleDeleteConfirmUntil = (window.__ASSAL_WHOLESALE_DELETE_CONFIRM_UNTIL__ instanceof Map)
+  ? window.__ASSAL_WHOLESALE_DELETE_CONFIRM_UNTIL__
+  : new Map();
+window.__ASSAL_WHOLESALE_DELETE_CONFIRM_UNTIL__ = assalWholesaleDeleteConfirmUntil;
+
+function assalWholesaleDeleteConfirmKey(card){
+  return String(card && (card.__day || ((typeof selectedDay === 'string') ? selectedDay : '')) || '') + '::' + String(card && (card.id || card.createdAt || card.at) || '');
+}
+
+function assalWholesaleDeleteNeedsConfirm(card){
+  if(!(typeof isWholesaleCard === 'function' && isWholesaleCard(card))) return true;
+  return Date.now() >= (Number(assalWholesaleDeleteConfirmUntil.get(assalWholesaleDeleteConfirmKey(card))) || 0);
+}
+
+function assalWholesaleArmDeleteConfirmPause(card){
+  if(!(typeof isWholesaleCard === 'function' && isWholesaleCard(card))) return;
+  assalWholesaleDeleteConfirmUntil.set(assalWholesaleDeleteConfirmKey(card), Date.now() + ASSAL_WHOLESALE_DELETE_CONFIRM_MS);
+}
+
 
 /* عرض بطاقة الجملة بشكل مضغوط — واجهة فقط ولا يغيّر بيانات الفاتورة */
 const ASSAL_WHOLESALE_CARD_PREVIEW_LIMIT = 5;
@@ -24048,6 +24068,74 @@ async function assalConfirmCashToCredit(customer, itemName, scope){
   }
 }
 
+/* فواتير الجملة: منع تكرار المادة عند الإضافة ودمجها بأكبر كمية فقط. */
+function assalWholesaleDuplicateText(value){
+  return String(value == null ? '' : value).trim();
+}
+
+function assalWholesaleDuplicateName(value){
+  const text = assalWholesaleDuplicateText(value);
+  try{
+    return (typeof norm === 'function') ? norm(text) : text.toLowerCase();
+  }catch(_){
+    return text.toLowerCase();
+  }
+}
+
+function assalWholesaleDuplicateQty(value){
+  const clean = String(value == null ? '' : value).replace(/[^0-9]/g,'');
+  const number = Number(clean || 0);
+  return Number.isFinite(number) && number >= 0 ? number : 0;
+}
+
+function assalFindWholesaleDuplicateLine(card, cat, item, note){
+  if(!card || !(typeof isWholesaleCard === 'function' && isWholesaleCard(card))) return null;
+  const wantedCat = assalWholesaleDuplicateName(cat);
+  const wantedItem = assalWholesaleDuplicateName(item);
+  const wantedNote = assalWholesaleDuplicateText(note);
+  return (Array.isArray(card.lines) ? card.lines : []).find(function(line){
+    return line && !line.deletedAt &&
+      String(line.type || '') === 'جملة' &&
+      assalWholesaleDuplicateName(line.cat) === wantedCat &&
+      assalWholesaleDuplicateName(line.item) === wantedItem &&
+      assalWholesaleDuplicateText(line.note) === wantedNote;
+  }) || null;
+}
+
+function assalWholesaleDuplicateConfirmHtml(item, currentQty, enteredQty, resultQty){
+  const esc = (typeof assalCashCreditEscapeHTML === 'function')
+    ? assalCashCreditEscapeHTML
+    : function(value){return String(value == null ? '' : value).replace(/[&<>"']/g,function(ch){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'})[ch];});};
+  return '' +
+    '<div class="assal-return-pop assal-return-pop--wholesale-duplicate">' +
+      '<div class="assal-return-pop__hero">' +
+        '<span class="assal-return-pop__icon"><i class="fa-solid fa-layer-group"></i></span>' +
+        '<div><div class="assal-return-pop__title">المادة موجودة في الفاتورة</div>' +
+        '<div class="assal-return-pop__sub">' + esc(item || 'المادة') + '</div></div>' +
+      '</div>' +
+      '<div class="assal-return-pop__box" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;text-align:center">' +
+        '<div><small>العدد الحالي</small><br><b>' + esc(currentQty) + '</b></div>' +
+        '<div><small>العدد المُدخل</small><br><b>' + esc(enteredQty) + '</b></div>' +
+        '<div><small>بعد الدمج</small><br><b>' + esc(resultQty) + '</b></div>' +
+      '</div>' +
+      '<div class="assal-return-pop__hint"><span>سيبقى السعر والملاحظة وموقع السطر كما هي، ويُعتمد العدد الأكبر فقط.</span><span class="assal-return-pop__kbd">Enter</span></div>' +
+    '</div>';
+}
+
+async function assalConfirmWholesaleDuplicateMerge(item, currentQty, enteredQty, resultQty){
+  if(typeof showConfirm !== 'function'){
+    return window.confirm('المادة موجودة مسبقاً. العدد بعد الدمج سيكون ' + resultQty + '. هل تريد اعتماد العدد الأكبر؟');
+  }
+  return await showConfirm({
+    title:'دمج مادة موجودة',
+    message:assalWholesaleDuplicateConfirmHtml(item, currentQty, enteredQty, resultQty),
+    okText:'دمج بأكبر عدد',
+    cancelText:'إلغاء',
+    danger:false,
+    modalClass:'assal-wholesale-duplicate-confirm'
+  });
+}
+
 /* ====== إضافة سطر (ذكي لليوم السابق) ====== */
 // ==== إضافة سطر مع تحذير عند الإضافة ليوم سابق (نسخة مُحدَّثة جاهزة للاستبدال) ====
 document.getElementById('btnAdd').onclick = async () => {
@@ -24193,6 +24281,26 @@ document.getElementById('btnAdd').onclick = async () => {
     );
   }
   let card = __assalDayCards[cardIndex];
+  let __assalWholesaleDuplicateLine = null;
+  let __assalWholesaleDuplicateResultQty = 0;
+
+  // داخل بطاقة الجملة فقط: المادة نفسها تعني (الصنف + الاسم + الملاحظة).
+  // نطلب التأكيد قبل إجراء أي تغيير، ثم نحدّث السطر الموجود بدلاً من إنشاء نسخة ثانية.
+  if(card && String(type || '') === 'جملة' && isWholesaleCard(card)){
+    __assalWholesaleDuplicateLine = assalFindWholesaleDuplicateLine(card, cat, item, note);
+    if(__assalWholesaleDuplicateLine){
+      const __assalCurrentDuplicateQty = assalWholesaleDuplicateQty(__assalWholesaleDuplicateLine.qty);
+      const __assalEnteredDuplicateQty = assalWholesaleDuplicateQty(qty);
+      __assalWholesaleDuplicateResultQty = Math.max(__assalCurrentDuplicateQty, __assalEnteredDuplicateQty);
+      const __assalMergeDuplicate = await assalConfirmWholesaleDuplicateMerge(
+        item,
+        __assalCurrentDuplicateQty,
+        __assalEnteredDuplicateQty,
+        __assalWholesaleDuplicateResultQty
+      );
+      if(!__assalMergeDuplicate) return;
+    }
+  }
 
   // ——— تحذير قبل إنشاء بطاقة جديدة في يوم سابق ———
   if (!card && isPastDay) {
@@ -24241,16 +24349,25 @@ document.getElementById('btnAdd').onclick = async () => {
 
   // أضف السطر
   card.lines ||= [];
-  const __assalNewLineId = makeId();
-  card.lines.push({
-    lineId   : __assalNewLineId,
-    item, cat, price: priceVal, qty, note, type, organizer, invoiceOrganizer: organizer, addedBy: organizer,
-    paid: (type==='نقدي'), returned: (type==='راجع'),
-    createdAt: nowISOVal2,
-    updatedAt: nowISOVal2,
-    at: nowISOVal2,
-    deletedAt: null
-  });
+  let __assalNewLineId = '';
+  const __assalMergedWholesaleDuplicate = !!__assalWholesaleDuplicateLine;
+  if(__assalMergedWholesaleDuplicate){
+    __assalWholesaleDuplicateLine.qty = String(__assalWholesaleDuplicateResultQty);
+    __assalWholesaleDuplicateLine.updatedAt = nowISOVal2;
+    __assalWholesaleDuplicateLine.at = nowISOVal2;
+    __assalNewLineId = String(__assalWholesaleDuplicateLine.lineId || '');
+  }else{
+    __assalNewLineId = makeId();
+    card.lines.push({
+      lineId   : __assalNewLineId,
+      item, cat, price: priceVal, qty, note, type, organizer, invoiceOrganizer: organizer, addedBy: organizer,
+      paid: (type==='نقدي'), returned: (type==='راجع'),
+      createdAt: nowISOVal2,
+      updatedAt: nowISOVal2,
+      at: nowISOVal2,
+      deletedAt: null
+    });
+  }
   try{
     window.__assalLastAddedCardId = String(card.id || '');
     window.__assalLastAddedLineId = String(__assalNewLineId || '');
@@ -24351,7 +24468,7 @@ document.getElementById('btnAdd').onclick = async () => {
 }catch(_){
  
 }
-  showToast?.('success','تمت الإضافة');
+  showToast?.('success', __assalMergedWholesaleDuplicate ? ('تم الدمج واعتماد العدد الأكبر: ' + __assalWholesaleDuplicateResultQty) : 'تمت الإضافة');
   } finally {
     window.__assalAddBusy = false;
     try{
@@ -26176,7 +26293,8 @@ function assalInlineEditCenterSequentialRow(row, state){
     const delta = rowCenter - safeCenter;
     if(!isFinite(delta) || Math.abs(delta) < 8) return;
     try{
-      window.scrollBy({ top: Math.round(delta), left:0, behavior:'smooth' });
+      // وصول فوري للسطر التالي؛ السكرول الناعم كان يضيف تأخيراً بصرياً مع كل Enter.
+      window.scrollBy({ top: Math.round(delta), left:0, behavior:'auto' });
     }catch(_){
       try{ window.scrollBy(0, Math.round(delta)); }catch(__){ }
     }
@@ -26360,7 +26478,7 @@ async function assalInlineEditStartConfirm(card, line){
   }
 }
 
-function assalInlineEditStart(card, line){
+function assalInlineEditStart(card, line, options){
   try{
     const key = assalInlineEditKey(card, line);
     const current = window.__assalInlineLineEdit;
@@ -26403,18 +26521,24 @@ function assalInlineEditStart(card, line){
       activeDropdownOpen: true,
       centerOnOpen: assalWholesaleSequentialIsFor(card)
     };
-    try{
+    // في الانتقال المتسلسل نجهّز السطر التالي أولاً ثم نرسم اللوح مرة واحدة.
+    // كل الاستدعاءات القديمة تبقى ترسم وتضبط الفوكس بالطريقة نفسها.
+    const __assalDeferInlineRender = !!(options && options.deferRender === true);
+    if(!__assalDeferInlineRender){
+      try{
  renderBoard();
  
 }catch(_){
  
 }
-    try{
+      try{
  assalInlineEditQueuePostRenderFocus();
  
 }catch(_){
  
 }
+    }
+    return true;
   }catch(err){
  try{
  console.error(err);
@@ -26556,17 +26680,12 @@ function assalInlineEditSave(card, line){
       const __unchangedNext = (__unchangedIndex >= 0 && __unchangedIndex + 1 < __unchangedLines.length)
         ? __unchangedLines[__unchangedIndex + 1]
         : null;
-      try{ renderBoard(); }catch(_){}
       if(__assalSequential.finishing || !__unchangedNext){
         assalWholesaleSequentialComplete();
       }else{
-        setTimeout(function(){
-          try{
-            if(window.__assalWholesaleSequentialEdit && window.__assalWholesaleSequentialEdit.active){
-              assalInlineEditStart(realCard, __unchangedNext);
-            }
-          }catch(_){}
-        }, 0);
+        try{ assalInlineEditStart(realCard, __unchangedNext, {deferRender:true}); }catch(_){ }
+        try{ renderBoard(); }catch(_){ }
+        try{ assalInlineEditQueuePostRenderFocus(); }catch(_){ }
       }
       return;
     }
@@ -26627,41 +26746,29 @@ function assalInlineEditSave(card, line){
       });
       if(__seqIndex >= 0 && __seqIndex + 1 < __seqLines.length) __assalSequentialNext = __seqLines[__seqIndex + 1];
     }
-    try{
- renderBoard();
- 
-}catch(_){
- 
-}
-    try{
- renderRail();
- 
-}catch(_){
- 
-}
-    try{
- refreshStats();
- 
-}catch(_){
- 
-}
     if(__assalSequential){
       if(__assalAuditEditSaved){
         if(__assalSequential.finishing || !__assalSequentialNext){
+          try{ renderRail(); }catch(_){ }
+          try{ refreshStats(); }catch(_){ }
           assalWholesaleSequentialComplete();
         }else{
-          setTimeout(function(){
-            try{
-              if(window.__assalWholesaleSequentialEdit && window.__assalWholesaleSequentialEdit.active){
-                assalInlineEditStart(realCard, __assalSequentialNext);
-              }
-            }catch(_){}
-          }, 0);
+          try{ assalInlineEditStart(realCard, __assalSequentialNext, {deferRender:true}); }catch(_){ }
+          try{ renderBoard(); }catch(_){ }
+          try{ renderRail(); }catch(_){ }
+          try{ refreshStats(); }catch(_){ }
+          try{ assalInlineEditQueuePostRenderFocus(); }catch(_){ }
         }
       }else{
         __assalSequential.finishing = false;
+        try{ renderBoard(); }catch(_){ }
+        try{ renderRail(); }catch(_){ }
+        try{ refreshStats(); }catch(_){ }
       }
     }else{
+      try{ renderBoard(); }catch(_){ }
+      try{ renderRail(); }catch(_){ }
+      try{ refreshStats(); }catch(_){ }
       try{ showToast('success','تم حفظ تعديل المادة'); }catch(_){}
     }
   }catch(err){
@@ -27174,6 +27281,26 @@ function assalInlineEditMakeQtyField(state, noteInputRef){
 });
   input.addEventListener('keydown', function(e){
     e.stopPropagation();
+    const __assalQtySequential = window.__assalWholesaleSequentialEdit;
+    const __assalQtyArrowsEnabled = !!(
+      __assalQtySequential &&
+      __assalQtySequential.active &&
+      state &&
+      String(__assalQtySequential.day || '') === String(state.day || '') &&
+      String(__assalQtySequential.cardId || '') === String(state.cardId || '')
+    );
+    if(__assalQtyArrowsEnabled && (e.key === 'ArrowUp' || e.key === 'ArrowDown')){
+      e.preventDefault();
+      const current = assalInlineEditParseQtyInput(input.value);
+      const next = e.key === 'ArrowUp' ? current + 1 : Math.max(1, current - 1);
+      state.draft.qty = next;
+      input.value = String(next);
+      try{
+        input.select();
+        if(typeof input.__assalInlineRememberFocus === 'function') input.__assalInlineRememberFocus();
+      }catch(_){ }
+      return;
+    }
     if(e.key === 'Enter'){
       e.preventDefault();
       commit();
@@ -27704,6 +27831,23 @@ function renderBoard() {
         }
       };
       custWrap.appendChild(sequentialEditBtn);
+      const wholesaleUndoBtn = CE('button', 'assal-card-customer-switch-btn assal-wholesale-card-undo-btn');
+      wholesaleUndoBtn.type = 'button';
+      const wholesaleUndoCount = (typeof window.ASSAL_WHOLESALE_CARD_UNDO_COUNT === 'function')
+        ? window.ASSAL_WHOLESALE_CARD_UNDO_COUNT(card)
+        : 0;
+      wholesaleUndoBtn.disabled = wholesaleUndoCount < 1;
+      wholesaleUndoBtn.title = wholesaleUndoCount > 0
+        ? ('التراجع عن آخر حركة على البطاقة • متاح ' + wholesaleUndoCount + ' من 5')
+        : 'لا توجد حركة متاحة للتراجع';
+      wholesaleUndoBtn.setAttribute('aria-label', wholesaleUndoBtn.title);
+      wholesaleUndoBtn.innerHTML = '<i class="fa-solid fa-rotate-left"></i>';
+      wholesaleUndoBtn.onclick = function(ev){
+        ev.preventDefault();
+        ev.stopPropagation();
+        if(typeof window.ASSAL_WHOLESALE_CARD_UNDO === 'function') window.ASSAL_WHOLESALE_CARD_UNDO(card);
+      };
+      custWrap.appendChild(wholesaleUndoBtn);
     }
     custWrap.appendChild(custName);
 
@@ -28283,8 +28427,13 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
 
         // ===== حذف السطر (الإصلاح الحقيقي تبع مشكلتك الأولى) =====
         del.onclick = async () => {
-          const ok = await assalActionConfirm('delete-line', { customer:card.customer, item:ln.item });
+          const __assalWholesaleDelete = (typeof isWholesaleCard === 'function') && isWholesaleCard(card);
+          const __assalNeedsDeleteConfirm = !__assalWholesaleDelete || assalWholesaleDeleteNeedsConfirm(card);
+          const ok = __assalNeedsDeleteConfirm
+            ? await assalActionConfirm('delete-line', { customer:card.customer, item:ln.item })
+            : true;
           if (!ok) return;
+          if(__assalWholesaleDelete && __assalNeedsDeleteConfirm) assalWholesaleArmDeleteConfirmPause(card);
 
           // نجيب النسخة الحقيقية من البطاقة (حتى لو انت فاتح بحث شامل لكل الأيام)
           const realCard = getMutableCard(card) || card;
@@ -38244,8 +38393,11 @@ function dedupeCardLines(card){
   }
 
   card.lines = Array.from(byId.values());
-  // ترتيب حديث نزولياً
-  card.lines.sort((a,b)=> new Date(b.updatedAt||b.createdAt||0) - new Date(a.updatedAt||a.createdAt||0));
+  // فواتير الجملة تعتمد ترتيبها اليدوي/المستورد؛ تعديل السطر لا يجوز أن يرفعه للأعلى.
+  // بقية البطاقات تحتفظ بسلوك الترتيب السابق حرفياً.
+  if(!(typeof isWholesaleCard === 'function' && isWholesaleCard(card))){
+    card.lines.sort((a,b)=> new Date(b.updatedAt||b.createdAt||0) - new Date(a.updatedAt||a.createdAt||0));
+  }
 }
 
 
@@ -85920,13 +86072,14 @@ body.assal-ledger-wa-auto-pdf-open{
 .assal-bi-card-head .branch{flex:1;min-width:0;text-align:center;padding-right:92px}.assal-bi-card-head .branch b{display:block;font-size:14px;color:#f8fafc}.assal-bi-card-head .branch span{display:block;color:#93a4ba;font-size:10px;margin-top:3px}
 .assal-bi-badge{min-width:92px;padding:5px 10px;border-radius:999px;font-size:10px;font-weight:900;text-align:center;background:rgba(18,209,180,.11);color:#5eead4;border:1px solid rgba(18,209,180,.25)}
 .assal-bi-badge.done{background:rgba(148,163,184,.09);color:#cbd5e1;border-color:#334155}.assal-bi-badge.warn{background:rgba(245,158,11,.11);color:#fbbf24;border-color:rgba(245,158,11,.28)}
-.assal-bi-lines{padding:10px 12px 12px}.assal-bi-line{display:grid;grid-template-columns:minmax(0,1fr) 110px 132px;gap:10px;align-items:center;min-height:58px;padding:8px 10px;margin-bottom:7px;border:1px solid rgba(71,85,105,.22);border-radius:13px;background:rgba(8,17,34,.62)}.assal-bi-line:last-child{margin-bottom:0}
-.assal-bi-item{min-width:0;text-align:center}.assal-bi-item b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#eef4ff}.assal-bi-item span{display:inline-block;margin-top:4px;padding:2px 9px;border-radius:999px;font-size:9px;color:#93c5fd;background:rgba(59,130,246,.10);border:1px solid rgba(96,165,250,.13)}
-.assal-bi-qty{text-align:center;color:#d5deeb;font-size:11px;font-weight:800;padding:7px;border-radius:10px;background:rgba(148,163,184,.07)}
-.assal-bi-price{width:100%;height:38px;border:1px solid rgba(100,116,139,.45);border-radius:11px;background:#081122;color:#f8fafc;padding:5px 8px;text-align:center;outline:none;font-family:inherit;font-weight:900;transition:.18s}.assal-bi-price:focus{border-color:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.12)}.assal-bi-price.zero{border-color:rgba(245,158,11,.38);color:#fbbf24;background:rgba(120,53,15,.13)}
+.assal-bi-lines{padding:10px 12px 12px;overflow-x:auto}.assal-bi-table{width:100%;min-width:650px;border:1px solid rgba(71,85,105,.24);border-radius:14px;overflow:hidden;background:rgba(8,17,34,.48)}
+.assal-bi-table-head,.assal-bi-line{display:grid;grid-template-columns:120px minmax(260px,1fr) 90px 132px;gap:0;align-items:center;direction:rtl;text-align:center}.assal-bi-table-head{min-height:38px;color:#aebbd0;font-size:10px;font-weight:900;background:linear-gradient(90deg,rgba(30,41,59,.74),rgba(15,27,49,.82));border-bottom:1px solid rgba(100,116,139,.28)}.assal-bi-table-head>span{padding:7px 9px;border-inline-start:1px solid rgba(100,116,139,.18)}.assal-bi-table-head>span:first-child{border-inline-start:0}
+.assal-bi-line{min-height:47px;border-bottom:1px solid rgba(71,85,105,.22);background:rgba(8,17,34,.42);transition:background .16s}.assal-bi-line:nth-child(odd){background:rgba(15,27,48,.48)}.assal-bi-line:hover{background:rgba(30,58,92,.34)}.assal-bi-line:last-child{border-bottom:0}.assal-bi-line>*{min-width:0;margin:0 8px}.assal-bi-cat{text-align:center}.assal-bi-cat span{display:inline-flex;align-items:center;justify-content:center;max-width:100%;padding:3px 10px;border-radius:999px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;font-weight:850;color:#93c5fd;background:rgba(59,130,246,.10);border:1px solid rgba(96,165,250,.16)}
+.assal-bi-item{min-width:0;text-align:center}.assal-bi-item b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#eef4ff}.assal-bi-qty{text-align:center;color:#d5deeb;font-size:11px;font-weight:850}
+.assal-bi-price{width:calc(100% - 16px);height:38px;border:1px solid rgba(100,116,139,.45);border-radius:11px;background:#081122;color:#f8fafc;padding:5px 8px;text-align:center;outline:none;font-family:inherit;font-weight:900;transition:.18s}.assal-bi-price:focus{border-color:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.12)}.assal-bi-price.zero{border-color:rgba(245,158,11,.38);color:#fbbf24;background:rgba(120,53,15,.13)}
 .assal-bi-foot{display:flex;align-items:center;gap:12px;padding:14px 18px;border-top:1px solid rgba(148,163,184,.14);background:rgba(8,17,31,.92)}.assal-bi-status{flex:1;color:#aeb8c8;font-size:11px;line-height:1.7;text-align:center}.assal-bi-status.error{color:#fca5a5}.assal-bi-status.ok{color:#6ee7b7}
 .assal-bi-import{min-width:190px;height:44px;border:0;border-radius:13px;background:linear-gradient(135deg,#f59e0b,#ea580c);color:#fff;font-family:inherit;font-weight:900;cursor:pointer;box-shadow:0 12px 28px rgba(234,88,12,.24);transition:.18s}.assal-bi-import:not(:disabled):hover{transform:translateY(-1px);box-shadow:0 15px 32px rgba(234,88,12,.32)}.assal-bi-import:disabled{opacity:.42;cursor:not-allowed;box-shadow:none}
-@media(max-width:620px){#assalBranchImportModal{padding:8px}.assal-bi-shell{width:100%;max-height:96vh;border-radius:21px}.assal-bi-head{padding:13px}.assal-bi-mark{width:42px;height:42px}.assal-bi-title{padding-right:0}.assal-bi-title span{display:none}.assal-bi-summary{gap:6px;padding:10px 10px 4px}.assal-bi-stat{padding:8px 5px}.assal-bi-body{padding:8px 10px 12px}.assal-bi-card-head .branch{padding-right:0}.assal-bi-card-head{flex-wrap:wrap}.assal-bi-line{grid-template-columns:minmax(0,1fr) 74px 92px;gap:6px;padding:7px 6px}.assal-bi-item b{font-size:10px}.assal-bi-foot{flex-direction:column;padding:10px}.assal-bi-status{width:100%}.assal-bi-import{width:100%;min-width:0}}
+@media(max-width:620px){#assalBranchImportModal{padding:8px}.assal-bi-shell{width:100%;max-height:96vh;border-radius:21px}.assal-bi-head{padding:13px}.assal-bi-mark{width:42px;height:42px}.assal-bi-title{padding-right:0}.assal-bi-title span{display:none}.assal-bi-summary{gap:6px;padding:10px 10px 4px}.assal-bi-stat{padding:8px 5px}.assal-bi-body{padding:8px 10px 12px}.assal-bi-card-head .branch{padding-right:0}.assal-bi-card-head{flex-wrap:wrap}.assal-bi-lines{padding:8px}.assal-bi-table{min-width:520px}.assal-bi-table-head,.assal-bi-line{grid-template-columns:92px minmax(210px,1fr) 64px 96px}.assal-bi-item b{font-size:10px}.assal-bi-price{height:34px}.assal-bi-foot{flex-direction:column;padding:10px}.assal-bi-status{width:100%}.assal-bi-import{width:100%;min-width:0}}
 </style>
 
 <div id="assalBranchImportModal" aria-hidden="true">
@@ -86117,8 +86270,9 @@ body.assal-ledger-wa-auto-pdf-open{
     body.innerHTML=list.map(function(inv){
       var missing=inv.items.filter(function(it){return !(num(it.price)>0);}).length;
       var badge=inv.done?(inv.changed?'<span class="assal-bi-badge warn">تغيّرت بعد الاستيراد</span>':'<span class="assal-bi-badge done">مستوردة سابقاً</span>'):(missing?'<span class="assal-bi-badge warn">'+missing+' بسعر صفر</span>':'<span class="assal-bi-badge">جاهزة</span>');
-      var rows=inv.items.map(function(it){return '<div class="assal-bi-line"><div class="assal-bi-item"><b title="'+esc(it.name)+'">'+esc(it.name)+'</b><span>'+esc(it.category||'بدون صنف')+'</span></div><div class="assal-bi-qty">العدد: '+esc(it.qty)+'</div><input class="assal-bi-price '+(it.price>0?'':'zero')+'" type="text" inputmode="numeric" data-bi-key="'+esc(inv.key)+'" data-bi-index="'+it.index+'" value="'+esc(num(it.price))+'" placeholder="0" '+(inv.done?'disabled':'')+'></div>';}).join('');
-      return '<article class="assal-bi-card '+(inv.done?'is-old ':'')+'" data-bi-card="'+esc(inv.key)+'"><div class="assal-bi-card-head"><div class="branch"><b>'+esc(inv.branch)+'</b><span>'+esc(inv.sourceName)+' • '+fmtTime(inv.uploadedAt)+' • '+inv.items.length+' مادة</span></div>'+badge+'</div><div class="assal-bi-lines">'+rows+'</div></article>';
+      var rows=inv.items.map(function(it){return '<div class="assal-bi-line"><div class="assal-bi-cat"><span title="'+esc(it.category||'بدون صنف')+'">'+esc(it.category||'بدون صنف')+'</span></div><div class="assal-bi-item"><b title="'+esc(it.name)+'">'+esc(it.name)+'</b></div><div class="assal-bi-qty">'+esc(it.qty)+'</div><input class="assal-bi-price '+(it.price>0?'':'zero')+'" type="text" inputmode="numeric" data-bi-key="'+esc(inv.key)+'" data-bi-index="'+it.index+'" value="'+esc(num(it.price))+'" placeholder="0" '+(inv.done?'disabled':'')+'></div>';}).join('');
+      var table='<div class="assal-bi-table"><div class="assal-bi-table-head"><span>الصنف</span><span>اسم المادة</span><span>العدد</span><span>السعر</span></div>'+rows+'</div>';
+      return '<article class="assal-bi-card '+(inv.done?'is-old ':'')+'" data-bi-card="'+esc(inv.key)+'"><div class="assal-bi-card-head"><div class="branch"><b>'+esc(inv.branch)+'</b><span>'+esc(inv.sourceName)+' • '+fmtTime(inv.uploadedAt)+' • '+inv.items.length+' مادة</span></div>'+badge+'</div><div class="assal-bi-lines">'+table+'</div></article>';
     }).join('');
     body.querySelectorAll('.assal-bi-price').forEach(function(input){input.addEventListener('input',onPriceInput);});
     refreshCommitState();
@@ -86227,6 +86381,192 @@ body.assal-ledger-wa-auto-pdf-open{
 })();
 </script>
 <!-- ASSAL BRANCH WHOLESALE TODAY IMPORT FINAL - END -->
+
+<script id="assal-wholesale-card-state-undo-five-final">
+/* تراجع عام خاص ببطاقة الجملة: آخر خمس حالات محفوظة، بدون أي تأثير على بقية البطاقات. */
+(function(){
+  'use strict';
+  if(window.__ASSAL_WHOLESALE_CARD_UNDO5_INSTALLED__) return;
+  window.__ASSAL_WHOLESALE_CARD_UNDO5_INSTALLED__ = true;
+
+  var LIMIT = 5;
+  var histories = new Map();
+  var baselines = new Map();
+  var suspended = false;
+
+  function clone(value){
+    try{return JSON.parse(JSON.stringify(value));}catch(_){return null;}
+  }
+
+  function cardDay(card, fallback){
+    return String(card && card.__day || fallback || ((typeof selectedDay === 'string') ? selectedDay : '') || '');
+  }
+
+  function cardId(card){
+    return String(card && (card.id || card.createdAt || card.at) || '');
+  }
+
+  function keyOf(card, day){
+    return cardDay(card, day) + '::' + cardId(card);
+  }
+
+  function semantic(value){
+    if(Array.isArray(value)) return value.map(semantic);
+    if(value && typeof value === 'object'){
+      var out = {};
+      Object.keys(value).sort().forEach(function(k){
+        if(k === '__day' || k === 'updatedAt') return;
+        out[k] = semantic(value[k]);
+      });
+      return out;
+    }
+    return value;
+  }
+
+  function signature(card){
+    try{return JSON.stringify(semantic(card));}catch(_){return '';}
+  }
+
+  function collectWholesale(){
+    var out = new Map();
+    try{
+      Object.keys(days || {}).forEach(function(day){
+        var cards = Array.isArray(days[day]) ? days[day] : [];
+        cards.forEach(function(card){
+          if(!card || !(typeof isWholesaleCard === 'function' && isWholesaleCard(card))) return;
+          var id = cardId(card);
+          if(!id) return;
+          var snap = clone(card);
+          if(!snap) return;
+          out.set(String(day) + '::' + id, {day:String(day), id:id, card:snap, sig:signature(snap)});
+        });
+      });
+    }catch(_){ }
+    return out;
+  }
+
+  function seedBaselines(){
+    var current = collectWholesale();
+    current.forEach(function(entry, key){baselines.set(key, entry);});
+  }
+
+  function replaceObject(target, source){
+    Object.keys(target || {}).forEach(function(k){
+      try{delete target[k];}catch(_){ }
+    });
+    Object.assign(target, clone(source) || {});
+  }
+
+  function findRealCard(day, id){
+    try{
+      var list = Array.isArray(days && days[day]) ? days[day] : [];
+      return list.find(function(card){return card && cardId(card) === String(id);}) || null;
+    }catch(_){return null;}
+  }
+
+  function pushHistory(key, snapshot){
+    var snap = clone(snapshot);
+    if(!snap) return;
+    var list = histories.get(key) || [];
+    var sig = signature(snap);
+    if(list.length && signature(list[list.length - 1]) === sig) return;
+    list.push(snap);
+    if(list.length > LIMIT) list.splice(0, list.length - LIMIT);
+    histories.set(key, list);
+  }
+
+  function installSaveWrapper(){
+    var original = null;
+    try{original = window.save || save;}catch(_){original = null;}
+    if(typeof original !== 'function' || original.__assalWholesaleUndo5Wrapped) return;
+    var wrapped = function(){
+      var current = collectWholesale();
+      var pending = [];
+      if(!suspended){
+        current.forEach(function(entry, key){
+          var before = baselines.get(key);
+          if(before && before.sig !== entry.sig) pending.push({key:key, before:before.card});
+        });
+      }
+      var result = original.apply(this, arguments);
+      if(!result || result.ok !== false){
+        if(!suspended) pending.forEach(function(change){pushHistory(change.key, change.before);});
+        baselines = current;
+      }
+      return result;
+    };
+    wrapped.__assalWholesaleUndo5Wrapped = true;
+    wrapped.__assalWholesaleUndo5Original = original;
+    try{window.save = wrapped; save = wrapped;}catch(_){window.save = wrapped;}
+  }
+
+  function undoCount(card){
+    if(!card || !(typeof isWholesaleCard === 'function' && isWholesaleCard(card))) return 0;
+    return Math.min(LIMIT, (histories.get(keyOf(card)) || []).length);
+  }
+
+  function refreshAfterUndo(){
+    try{if(typeof renderBoard === 'function') renderBoard();}catch(_){ }
+    try{if(typeof renderRail === 'function') renderRail();}catch(_){ }
+    try{if(typeof refreshStats === 'function') refreshStats();}catch(_){ }
+    try{window.assalInvalidateDebtBadgeCache && window.assalInvalidateDebtBadgeCache();}catch(_){ }
+    try{window.refreshDebtsUI && window.refreshDebtsUI();}catch(_){ }
+  }
+
+  function undoCard(card){
+    try{
+      if(!card || !(typeof isWholesaleCard === 'function' && isWholesaleCard(card))) return false;
+      var day = cardDay(card), id = cardId(card), key = day + '::' + id;
+      var list = histories.get(key) || [];
+      if(!list.length){
+        try{showToast('info','لا توجد حركة متاحة للتراجع');}catch(_){ }
+        return false;
+      }
+      var realCard = findRealCard(day, id);
+      if(!realCard){
+        try{showToast('error','تعذر العثور على بطاقة الجملة');}catch(_){ }
+        return false;
+      }
+      var previous = list.pop();
+      var current = clone(realCard);
+      var oldUpdatedAt = realCard.updatedAt;
+      replaceObject(realCard, previous);
+      realCard.updatedAt = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
+      suspended = true;
+      var result;
+      try{result = (typeof save === 'function') ? save() : {ok:true};}
+      catch(_){result = {ok:false};}
+      finally{suspended = false;}
+      if(result && result.ok === false){
+        replaceObject(realCard, current);
+        realCard.updatedAt = oldUpdatedAt;
+        list.push(previous);
+        histories.set(key, list);
+        try{showToast('error','تعذر حفظ التراجع؛ لم تتغير البطاقة');}catch(_){ }
+        return false;
+      }
+      histories.set(key, list);
+      var restored = clone(realCard);
+      baselines.set(key, {day:day,id:id,card:restored,sig:signature(restored)});
+      refreshAfterUndo();
+      try{showToast('success','تم التراجع عن آخر حركة على بطاقة الجملة');}catch(_){ }
+      return true;
+    }catch(err){
+      suspended = false;
+      try{console.error(err);showToast('error','تعذر تنفيذ التراجع');}catch(_){ }
+      return false;
+    }
+  }
+
+  window.ASSAL_WHOLESALE_CARD_UNDO_COUNT = undoCount;
+  window.ASSAL_WHOLESALE_CARD_UNDO = undoCard;
+  seedBaselines();
+  installSaveWrapper();
+  setTimeout(function(){
+    try{if(typeof renderBoard === 'function') renderBoard();}catch(_){ }
+  },0);
+})();
+</script>
 
 </body>
 </html>
