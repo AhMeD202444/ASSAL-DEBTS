@@ -11825,6 +11825,64 @@ html body .payment-row.is-editing .assal-payment-edit-notes{
   };
 })();
 </script>
+<style id="assal-new-customer-phone-style">
+/* رقم هاتف الزبون الجديد: واجهة مستقلة لا تغيّر نوافذ التأكيد أو البطاقات الأخرى. */
+#assalNewCustomerPhoneLayer{
+  position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;
+  justify-content:center;padding:16px;background:rgba(3,8,22,.82);
+  backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
+  direction:rtl;font-family:Cairo,system-ui,sans-serif;
+}
+#assalNewCustomerPhoneLayer[hidden]{display:none!important}
+.assal-phone-dialog{
+  width:min(465px,100%);max-height:calc(100vh - 32px);overflow:auto;
+  border:1px solid rgba(56,189,248,.32);border-radius:26px;padding:24px;
+  background:radial-gradient(circle at 8% 0%,rgba(14,165,233,.16),transparent 50%),
+    linear-gradient(160deg,#192439,#0c1528 75%);
+  box-shadow:0 32px 95px rgba(0,0,0,.68),inset 0 1px 0 rgba(255,255,255,.09);
+  color:#f8fafc;text-align:right;
+}
+.assal-phone-dialog__head{display:flex;align-items:center;gap:13px;margin-bottom:17px}
+.assal-phone-dialog__icon{
+  width:52px;height:52px;flex:0 0 52px;border-radius:18px;display:grid;place-items:center;
+  background:linear-gradient(135deg,#06b6d4,#3b82f6);font-size:22px;
+  box-shadow:0 12px 30px rgba(14,165,233,.27);color:white;
+}
+.assal-phone-dialog__head h2{margin:0;font-size:19px;font-weight:900;color:#fff}
+.assal-phone-dialog__head p{margin:3px 0 0;color:#aabbd1;font-size:12px}
+.assal-phone-dialog__customer{
+  border:1px solid rgba(148,163,184,.18);border-radius:17px;
+  padding:12px 15px;background:rgba(15,23,42,.68);margin-bottom:16px;
+}
+.assal-phone-dialog__customer span{display:block;color:#96a9c1;font-size:11px;margin-bottom:4px}
+.assal-phone-dialog__customer strong{display:block;color:#f8fafc;font-size:16px;overflow-wrap:anywhere}
+.assal-phone-dialog__label{display:block;color:#e2e8f0;font-size:13px;font-weight:800;margin-bottom:8px}
+.assal-phone-dialog__input-wrap{position:relative}
+.assal-phone-dialog__input-wrap i{position:absolute;right:15px;top:50%;transform:translateY(-50%);color:#67e8f9;pointer-events:none}
+#assalNewCustomerPhoneInput{
+  box-sizing:border-box;width:100%;height:52px;border-radius:15px;
+  border:1px solid rgba(103,232,249,.34);background:#091528;color:#fff;
+  padding:8px 48px 8px 16px;font:800 20px Cairo,system-ui,sans-serif;
+  outline:none;letter-spacing:1.4px;text-align:left;direction:ltr;
+}
+#assalNewCustomerPhoneInput:focus{border-color:#22d3ee;box-shadow:0 0 0 4px rgba(34,211,238,.13)}
+#assalNewCustomerPhoneInput::placeholder{color:#60738a;letter-spacing:0}
+.assal-phone-dialog__hint{min-height:22px;margin-top:8px;color:#9eb0c6;font-size:11px}
+.assal-phone-dialog__hint[data-valid="true"]{color:#86efac}
+.assal-phone-dialog__actions{display:flex;gap:10px;margin-top:15px}
+.assal-phone-dialog__actions button{
+  flex:1;min-width:0;height:46px;border-radius:13px;font:800 13px Cairo,system-ui,sans-serif;
+  cursor:pointer;transition:background .15s,border-color .15s,box-shadow .15s;
+}
+#assalNewCustomerPhoneCancel{color:#dae6f4;background:#1a2940;border:1px solid #354960}
+#assalNewCustomerPhoneConfirm{
+  color:white;background:linear-gradient(135deg,#0891b2,#2563eb);border:1px solid #38bdf8;
+  box-shadow:0 10px 25px rgba(14,165,233,.2);
+}
+#assalNewCustomerPhoneConfirm:disabled{opacity:.43;cursor:not-allowed;box-shadow:none;filter:grayscale(.4)}
+#assalNewCustomerPhoneLayer button:focus-visible{outline:3px solid #67e8f9;outline-offset:2px}
+@media(max-width:480px){.assal-phone-dialog{padding:19px;border-radius:22px}}
+</style>
 </head>
 
 <body>
@@ -18234,6 +18292,26 @@ html.assal-attendance-locked,
   </div>
   
   
+<div id="assalNewCustomerPhoneLayer" hidden>
+  <div class="assal-phone-dialog" role="dialog" aria-modal="true" aria-labelledby="assalNewCustomerPhoneTitle" aria-describedby="assalNewCustomerPhoneDescription">
+    <div class="assal-phone-dialog__head">
+      <div class="assal-phone-dialog__icon" aria-hidden="true"><i class="fa-solid fa-phone-volume"></i></div>
+      <div><h2 id="assalNewCustomerPhoneTitle">زبون جديد</h2><p id="assalNewCustomerPhoneDescription">أضف رقم الهاتف قبل إنشاء الفاتورة</p></div>
+    </div>
+    <div class="assal-phone-dialog__customer"><span>اسم الزبون</span><strong id="assalNewCustomerPhoneName"></strong></div>
+    <label class="assal-phone-dialog__label" for="assalNewCustomerPhoneInput">رقم الهاتف</label>
+    <div class="assal-phone-dialog__input-wrap">
+      <i class="fa-solid fa-mobile-screen-button" aria-hidden="true"></i>
+      <input id="assalNewCustomerPhoneInput" type="text" inputmode="numeric" autocomplete="tel-national" maxlength="11" placeholder="07XXXXXXXXX" aria-describedby="assalNewCustomerPhoneHint" />
+    </div>
+    <div class="assal-phone-dialog__hint" id="assalNewCustomerPhoneHint" aria-live="polite">١١ رقماً يبدأ بـ 077 أو 079 أو 078 أو 075</div>
+    <div class="assal-phone-dialog__actions">
+      <button type="button" id="assalNewCustomerPhoneCancel">إلغاء</button>
+      <button type="button" id="assalNewCustomerPhoneConfirm" disabled>حسناً</button>
+    </div>
+  </div>
+</div>
+
   <!-- Toasts -->
 <div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
 
@@ -24136,6 +24214,79 @@ async function assalConfirmWholesaleDuplicateMerge(item, currentQty, enteredQty,
   });
 }
 
+/* رقم هاتف الزبون الجديد: لا تُنشأ البطاقة إلا بعد تأكيد رقم محلي صالح. */
+function assalAskNewCustomerPhone(customer){
+  return new Promise(function(resolve){
+    const layer = document.getElementById('assalNewCustomerPhoneLayer');
+    const name = document.getElementById('assalNewCustomerPhoneName');
+    const input = document.getElementById('assalNewCustomerPhoneInput');
+    const hint = document.getElementById('assalNewCustomerPhoneHint');
+    const ok = document.getElementById('assalNewCustomerPhoneConfirm');
+    const cancel = document.getElementById('assalNewCustomerPhoneCancel');
+    if(!layer || !name || !input || !hint || !ok || !cancel){ resolve(null); return; }
+    const previouslyFocused = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    let settled = false;
+    name.textContent = customer; // اسم الزبون نص فقط، لا يدخل HTML.
+    input.value = '';
+    ok.disabled = true;
+    hint.dataset.valid = 'false';
+    hint.textContent = '١١ رقماً يبدأ بـ 077 أو 079 أو 078 أو 075';
+    function normalizeDigits(value){
+      return String(value || '').replace(/[٠-٩]/g, function(d){ return String(d.charCodeAt(0)-1632); })
+        .replace(/[۰-۹]/g, function(d){ return String(d.charCodeAt(0)-1776); })
+        .replace(/[^0-9]/g,'').slice(0,11);
+    }
+    function validPhone(value){ return /^(?:077|079|078|075)[0-9]{8}$/.test(value); }
+    function onInput(){
+      const digits = normalizeDigits(input.value);
+      if(input.value !== digits) input.value = digits;
+      const valid = validPhone(digits);
+      ok.disabled = !valid;
+      hint.dataset.valid = String(valid);
+      hint.textContent = valid ? 'الرقم صحيح وسيُحفظ في ملاحظات البطاقة' : '١١ رقماً يبدأ بـ 077 أو 079 أو 078 أو 075';
+    }
+    function close(value){
+      if(settled) return;
+      settled = true;
+      layer.hidden = true;
+      document.body.style.overflow = previousOverflow;
+      input.removeEventListener('input', onInput);
+      ok.removeEventListener('click', onConfirm);
+      cancel.removeEventListener('click', onCancel);
+      window.removeEventListener('keydown', onKey, true);
+      try{ previouslyFocused?.focus?.({preventScroll:true}); }catch(_){}
+      resolve(value);
+    }
+    function onConfirm(){ if(validPhone(input.value)) close(input.value); }
+    function onCancel(){ close(null); }
+    function onKey(event){
+      if(layer.hidden) return;
+      if(event.key === 'Escape'){
+        event.preventDefault();event.stopImmediatePropagation(); // الإلغاء من الزر داخل النافذة فقط.
+      }else if(event.key === 'Enter'){
+        event.preventDefault();event.stopImmediatePropagation();
+        if(document.activeElement === cancel) onCancel();
+        else if(!ok.disabled) onConfirm();
+      }else if(event.key === 'Tab'){
+        const cycle = [input, cancel, ok].filter(function(el){ return !el.disabled; });
+        const index = cycle.indexOf(document.activeElement);
+        if(index < 0){ event.preventDefault(); cycle[0].focus(); }
+        else if(event.shiftKey && index === 0){ event.preventDefault(); cycle[cycle.length-1].focus(); }
+        else if(!event.shiftKey && index === cycle.length-1){ event.preventDefault(); cycle[0].focus(); }
+      }
+    }
+    input.addEventListener('input', onInput);
+    ok.addEventListener('click', onConfirm);
+    cancel.addEventListener('click', onCancel);
+    layer.hidden = false;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey, true);
+    // إمهال الضغطة التي فتحت النافذة كي لا يختار Enter الرقم قبل كتابته.
+    setTimeout(function(){ if(!settled) input.focus({preventScroll:true}); }, 0);
+  });
+}
+
 /* ====== إضافة سطر (ذكي لليوم السابق) ====== */
 // ==== إضافة سطر مع تحذير عند الإضافة ليوم سابق (نسخة مُحدَّثة جاهزة للاستبدال) ====
 document.getElementById('btnAdd').onclick = async () => {
@@ -24313,12 +24464,23 @@ document.getElementById('btnAdd').onclick = async () => {
     }
   }
 
+  // اطلب الهاتف فقط عند إنشاء بطاقة لاسم لم يظهر في شيتات الزبائن.
+  // الإلغاء يمنع إنشاء البطاقة والسطر معاً، دون المساس ببطاقات موجودة.
+  let __assalNewCustomerPhone = null;
+  if(!card && typeof assalIsSheetCustomerName === 'function' && !assalIsSheetCustomerName(customer)){
+    __assalNewCustomerPhone = await assalAskNewCustomerPhone(customer);
+    if(!__assalNewCustomerPhone) return;
+  }
+
   const nowISOVal2 = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
   const makeId     = (typeof genId  === 'function') ? genId  : (() => String(Date.now()));
 
   if (!card){
     // إنشاء بطاقة جديدة (سلوكك الآمن الحالي)
     card = { id: Date.now(), customer, organizer, invoiceOrganizer: organizer, lines: [], createdAt: nowISOVal2, updatedAt: nowISOVal2, paidAll:false, billType: type };
+    if(__assalNewCustomerPhone){
+      card.notes = [{ id: makeId(), text: 'رقم هاتف الزبون: ' + __assalNewCustomerPhone, at: nowISOVal2 }];
+    }
     days[selectedDay].unshift(card);
     cardIndex = 0;
   }else{
@@ -85082,7 +85244,7 @@ body.assal-ledger-wa-auto-pdf-open{
 
   function cleanIgnored(input){var map=new Map();(Array.isArray(input)?input:[]).forEach(function(x){var name=safe(x&&x.name).trim(),key=nrm((x&&x.key)||name);if(name&&key)map.set(key,{key:key,name:name,at:safe(x&&x.at),by:safe(x&&x.by)})});return Array.from(map.values()).slice(0,600)}
   function loadIgnoredCache(){try{return cleanIgnored(JSON.parse(localStorage.getItem(IGNORE_CACHE_KEY)||'[]'))}catch(_){return []}}
-  function saveIgnoredCache(list){cachedIgnored=cleanIgnored(list);try{localStorage.setItem(IGNORE_CACHE_KEY,JSON.stringify(cachedIgnored))}catch(_){}return cachedIgnored}
+  function saveIgnoredCache(list){cachedIgnored=cleanIgnored(list);try{localStorage.setItem(IGNORE_CACHE_KEY,JSON.stringify(cachedIgnored))}catch(_){}if(current&&isIgnored(current.name))hidePopup();return cachedIgnored}
   function loadIgnoredPending(){try{var x=JSON.parse(localStorage.getItem(IGNORE_PENDING_KEY)||'null');return x&&Array.isArray(x.ignored)?cleanIgnored(x.ignored):null}catch(_){return null}}
   function saveIgnoredPending(list){try{localStorage.setItem(IGNORE_PENDING_KEY,JSON.stringify({ignored:cleanIgnored(list),at:new Date().toISOString()}))}catch(_){}}
   function clearIgnoredPending(){try{localStorage.removeItem(IGNORE_PENDING_KEY)}catch(_){}}
@@ -85103,7 +85265,7 @@ body.assal-ledger-wa-auto-pdf-open{
   async function pullIgnored(force,timeoutMs){
     if(!allowed())return cachedIgnored;
     if(isAdmin()&&loadIgnoredPending()!==null){await syncIgnoredPending();if(loadIgnoredPending()!==null)return cachedIgnored}
-    if(!force&&Date.now()-lastRemotePullAt<90000)return cachedIgnored;
+    if(!force&&Date.now()-lastRemotePullAt<(role()==='main'?20000:90000))return cachedIgnored;
     lastRemotePullAt=Date.now();
     try{var br=window.ASSAL_DEBT_REMINDER_PREFS_BRIDGE;if(!br||typeof br.read!=='function')return cachedIgnored;var data=await withTimeout(br.read(),timeoutMs||3500);if(data&&Array.isArray(data.ignored))saveIgnoredCache(data.ignored)}catch(_){}
     return cachedIgnored
@@ -85210,9 +85372,88 @@ body.assal-ledger-wa-auto-pdf-open{
 
   function ensureIgnoreManager(){var m=document.getElementById('assalSmartDebtIgnoreModal');if(m)return m;m=document.createElement('div');m.id='assalSmartDebtIgnoreModal';m.setAttribute('aria-hidden','true');m.innerHTML='<section class="assal-sdr-ignore-shell" role="dialog" aria-modal="true" aria-labelledby="assalSdrIgnoreTitle"><header class="assal-sdr-ignore-head"><div class="assal-sdr-ignore-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M6.2 6.2 17.8 17.8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></div><div class="assal-sdr-ignore-copy"><b id="assalSdrIgnoreTitle">قائمة تجاهل تنبيهات الديون</b><span>الأسماء هنا مستبعدة من التنبيه الذكي فقط، من دون أي تغيير على الدين أو كشف الحساب.</span></div><div class="assal-sdr-ignore-count"><strong id="assalSdrIgnoreCount">0</strong><span>اسم متجاهل</span></div><button type="button" class="assal-sdr-ignore-close" id="assalSdrIgnoreClose" aria-label="إغلاق"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></header><div class="assal-sdr-ignore-toolbar"><label class="assal-sdr-ignore-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="m15.5 15.5 4.3 4.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><input id="assalSdrIgnoreSearch" type="search" autocomplete="off" placeholder="بحث باسم الزبون..."></label><div class="assal-sdr-ignore-note"><i></i><span>الاستبعاد خاص بالتنبيهات فقط</span></div></div><div class="assal-sdr-ignore-list" id="assalSdrIgnoreList"></div></section>';document.body.appendChild(m);document.getElementById('assalSdrIgnoreClose').addEventListener('click',closeIgnoreManager);var q=document.getElementById('assalSdrIgnoreSearch');if(q)q.addEventListener('input',renderIgnoreManager);m.addEventListener('pointerdown',function(e){if(e.target===m){e.preventDefault();e.stopPropagation()}},true);m.addEventListener('click',function(e){if(e.target===m){e.preventDefault();e.stopPropagation()}},true);return m}
   function closeIgnoreManager(){var m=document.getElementById('assalSmartDebtIgnoreModal');if(m){m.classList.remove('active');m.setAttribute('aria-hidden','true')}}
-  function renderIgnoreManager(){var list=document.getElementById('assalSdrIgnoreList'),count=document.getElementById('assalSdrIgnoreCount'),search=document.getElementById('assalSdrIgnoreSearch');if(!list)return;var all=cachedIgnored.slice().sort(function(a,b){return a.name.localeCompare(b.name,'ar')});if(count)count.textContent=String(all.length);var query=nrm(search&&search.value||''),arr=query?all.filter(function(x){return nrm(x.name).indexOf(query)!==-1}):all;if(!all.length){list.innerHTML='<div class="assal-sdr-ignore-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6.3 6.3 17.7 17.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>قائمة التجاهل فارغة حالياً.<br><small>أي اسم تتجاهله من تنبيه الأدمن سيظهر هنا.</small></div>';return}if(!arr.length){list.innerHTML='<div class="assal-sdr-ignore-empty">لا توجد نتيجة مطابقة للبحث.</div>';return}list.innerHTML=arr.map(function(x){return '<div class="assal-sdr-ignore-row"><div class="assal-sdr-ignore-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6.4 6.4 17.6 17.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><div class="assal-sdr-ignore-info"><div class="assal-sdr-ignore-name-line"><b>'+esc(x.name)+'</b><span class="assal-sdr-ignore-badge">مستبعد</span></div><small>'+(x.at?('تاريخ التجاهل: '+esc(fmtDate(safe(x.at).slice(0,10)))):'مستبعد من التنبيهات الذكية')+'</small></div><button type="button" class="assal-sdr-restore" data-key="'+esc(x.key)+'"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8H4V4M4.6 8.2A8 8 0 1 1 5 16.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>إلغاء التجاهل</span></button></div>'}).join('');list.querySelectorAll('.assal-sdr-restore').forEach(function(btn){btn.addEventListener('click',function(){void restoreIgnored(btn.getAttribute('data-key'),btn)})})}
-  async function openIgnoreManager(){if(!isAdmin())return;var m=ensureIgnoreManager(),search=document.getElementById('assalSdrIgnoreSearch');if(search)search.value='';m.classList.add('active');m.setAttribute('aria-hidden','false');var list=document.getElementById('assalSdrIgnoreList'),count=document.getElementById('assalSdrIgnoreCount');if(count)count.textContent=String(cachedIgnored.length);if(list)list.innerHTML='<div class="assal-sdr-ignore-empty">جاري تحديث قائمة التجاهل…</div>';await pullIgnored(true,4500);renderIgnoreManager()}
   async function restoreIgnored(key,btn){if(!isAdmin())return;key=nrm(key);var next=cachedIgnored.filter(function(x){return x.key!==key});if(btn){btn.disabled=true;var sp=btn.querySelector('span');if(sp)sp.textContent='جاري الإلغاء…'}try{var result=await writeIgnoredShared(next);renderIgnoreManager();try{window.showToast&&window.showToast('success',result&&result.synced?'تم إلغاء التجاهل':'تم إلغاء التجاهل وسيتم مزامنته تلقائياً')}catch(_){}}catch(_){if(btn){btn.disabled=false;var sp2=btn.querySelector('span');if(sp2)sp2.textContent='إلغاء التجاهل'}try{window.showToast&&window.showToast('error','تعذر إلغاء التجاهل')}catch(__){}}}
+
+  /* واجهة الأدمن: تُحسب بيانات التقرير مرة عند الفتح، ولا تُعاد حساباتها أثناء البحث أو التمرير. */
+  var ignoreManagerRows=[],ignoreManagerTab='all',ignoreManagerLimit=90,ignoreManagerBusy=false;
+  function buildIgnoreManagerRows(){
+    var byKey=new Map(),report=[];
+    function add(name){name=safe(name).trim();var key=nrm(name);if(!key)return; if(!byKey.has(key))byKey.set(key,{key:key,name:name,debt:0,ageDays:null,lastPaymentISO:''})}
+    try{if(typeof CUSTOMERS!=='undefined'&&Array.isArray(CUSTOMERS))CUSTOMERS.forEach(add)}catch(_){}
+    try{if(typeof days!=='undefined'&&days)Object.keys(days).forEach(function(day){var cards=days[day];if(Array.isArray(cards))cards.forEach(function(card){if(card&&!card.deletedAt)add(card.customer||card.cust||card.name)})})}catch(_){}
+    try{if(typeof window.ASSAL_BUILD_DEBT_FOLLOWUP_ROWS==='function')report=window.ASSAL_BUILD_DEBT_FOLLOWUP_ROWS()||[]}catch(_){report=[]}
+    report.forEach(function(row){if(!row)return;add(row.name);var entry=byKey.get(nrm(row.name));if(!entry)return;entry.debt=Math.max(0,Number(row.debt)||0);var age=Number(row.ageDays);entry.ageDays=isFinite(age)&&age>=0?age:null;entry.lastPaymentISO=safe(row.lastPaymentISO)});
+    cachedIgnored.forEach(function(item){add(item.name)});
+    ignoreManagerRows=Array.from(byKey.values());
+    ignoreManagerRows.sort(function(a,b){return a.name.localeCompare(b.name,'ar')});
+  }
+  function upgradeIgnoreManager(){
+    var modal=ensureIgnoreManager(),shell=modal.querySelector('.assal-sdr-ignore-shell'),toolbar=modal.querySelector('.assal-sdr-ignore-toolbar');
+    if(!shell||!toolbar||document.getElementById('assalSdrIgnoreTabs'))return;
+    var heading=modal.querySelector('.assal-sdr-ignore-copy span');
+    if(heading)heading.textContent='إدارة تنبيهات الزبائن من مكان واحد؛ التجاهل لا يغيّر الحسابات أو الذمم.';
+    var input=document.getElementById('assalSdrIgnoreSearch');if(input)input.placeholder='ابحث عن أي زبون بالاسم...';
+    var tabs=document.createElement('nav');tabs.id='assalSdrIgnoreTabs';tabs.className='assal-sdr-pro-tabs';tabs.setAttribute('aria-label','تصنيفات الزبائن');
+    toolbar.insertAdjacentElement('afterend',tabs);
+    var summary=document.createElement('div');summary.id='assalSdrIgnoreSummary';summary.className='assal-sdr-pro-summary';
+    tabs.insertAdjacentElement('afterend',summary);
+    var list=document.getElementById('assalSdrIgnoreList');
+    list.addEventListener('click',function(ev){
+      var more=ev.target.closest('[data-assal-ignore-more]');
+      if(more){ignoreManagerLimit+=90;renderIgnoreManager();return}
+      var button=ev.target.closest('[data-assal-ignore-toggle]');
+      if(button&&list.contains(button))void toggleIgnoredCustomer(button.getAttribute('data-assal-ignore-toggle'),button);
+    });
+    tabs.addEventListener('click',function(ev){var button=ev.target.closest('[data-assal-ignore-tab]');if(!button)return;ignoreManagerTab=button.getAttribute('data-assal-ignore-tab');ignoreManagerLimit=90;renderIgnoreManager()});
+  }
+  function renderIgnoreManager(){
+    var list=document.getElementById('assalSdrIgnoreList'),tabs=document.getElementById('assalSdrIgnoreTabs'),summary=document.getElementById('assalSdrIgnoreSummary');
+    if(!list||!tabs)return;
+    var ignored=new Map(cachedIgnored.map(function(x){return [x.key,x]}));
+    var eligible=function(row){return row.debt>0&&row.ageDays!=null&&row.ageDays>=30&&!excludedName(row.name)&&!ignored.has(row.key)};
+    var counts={all:ignoreManagerRows.length,debt:ignoreManagerRows.filter(function(x){return x.debt>0}).length,age:ignoreManagerRows.filter(function(x){return x.debt>0&&x.ageDays!=null}).length,eligible:ignoreManagerRows.filter(eligible).length,ignored:cachedIgnored.length};
+    var specs=[['all','كل الزبائن','fa-users'],['debt','الأعلى ديناً','fa-arrow-trend-up'],['age','الأكثر عمراً','fa-hourglass-half'],['eligible','المؤهلون للتنبيه','fa-bell'],['ignored','المتجاهَلون','fa-user-slash']];
+    tabs.innerHTML=specs.map(function(spec){return '<button type="button" class="assal-sdr-pro-tab'+(ignoreManagerTab===spec[0]?' is-active':'')+'" data-assal-ignore-tab="'+spec[0]+'" aria-pressed="'+(ignoreManagerTab===spec[0]?'true':'false')+'"><i class="fa-solid '+spec[2]+'"></i><span>'+spec[1]+'</span><b>'+counts[spec[0]]+'</b></button>'}).join('');
+    var rows=ignoreManagerRows.slice();
+    if(ignoreManagerTab==='debt')rows=rows.filter(function(x){return x.debt>0}).sort(function(a,b){return b.debt-a.debt||a.name.localeCompare(b.name,'ar')});
+    else if(ignoreManagerTab==='age')rows=rows.filter(function(x){return x.debt>0&&x.ageDays!=null}).sort(function(a,b){return b.ageDays-a.ageDays||b.debt-a.debt});
+    else if(ignoreManagerTab==='eligible')rows=rows.filter(eligible).sort(function(a,b){return b.ageDays-a.ageDays||b.debt-a.debt});
+    else if(ignoreManagerTab==='ignored')rows=rows.filter(function(x){return ignored.has(x.key)});
+    var search=document.getElementById('assalSdrIgnoreSearch'),query=nrm(search&&search.value||'');
+    if(query)rows=rows.filter(function(row){return nrm(row.name).indexOf(query)!==-1});
+    var count=document.getElementById('assalSdrIgnoreCount');if(count)count.textContent=String(counts.ignored);
+    if(summary)summary.innerHTML='<span><i class="fa-solid fa-list"></i> المعروض <b>'+Math.min(ignoreManagerLimit,rows.length)+'</b> من <b>'+rows.length+'</b></span><span><i class="fa-solid fa-shield-halved"></i> التجاهل يوقف التنبيه في الأدمن والرئيسية فقط</span>';
+    if(!rows.length){list.innerHTML='<div class="assal-sdr-ignore-empty">'+(query?'ماكو زبون مطابق للبحث.':'لا توجد أسماء ضمن هذا التصنيف حالياً.')+'</div>';return}
+    list.innerHTML=rows.slice(0,ignoreManagerLimit).map(function(row){
+      var skip=ignored.get(row.key),status=skip?'متجاهَل':(excludedName(row.name)?'استثناء نظام':row.debt<=0?'لا يوجد دين':row.ageDays==null||row.ageDays<30?'دين حديث':'مؤهل للتنبيه');
+      return '<article class="assal-sdr-pro-row'+(skip?' is-ignored':'')+'"><div class="assal-sdr-pro-avatar"><i class="fa-solid '+(skip?'fa-user-slash':'fa-user')+'"></i></div><div class="assal-sdr-pro-name"><b title="'+esc(row.name)+'">'+esc(row.name)+'</b><span class="assal-sdr-pro-state'+(skip?' is-ignored':'')+'">'+status+'</span></div><div class="assal-sdr-pro-metric"><small>الدين الحالي</small><strong>'+money(row.debt)+'</strong></div><div class="assal-sdr-pro-metric"><small>عمر الدين</small><strong>'+esc(row.ageDays==null||row.debt<=0?'—':ageLabel(row.ageDays))+'</strong></div><button type="button" class="assal-sdr-pro-toggle'+(skip?' is-restore':'')+'" data-assal-ignore-toggle="'+esc(row.key)+'" '+(ignoreManagerBusy?'disabled':'')+'><i class="fa-solid '+(skip?'fa-rotate-left':'fa-user-slash')+'"></i><span>'+(skip?'إلغاء التجاهل':'تجاهل')+'</span></button></article>';
+    }).join('')+(rows.length>ignoreManagerLimit?'<button class="assal-sdr-pro-more" type="button" data-assal-ignore-more>عرض المزيد ('+(rows.length-ignoreManagerLimit)+')</button>':'');
+  }
+  async function toggleIgnoredCustomer(key,button){
+    if(!isAdmin()||ignoreManagerBusy)return;
+    key=nrm(key);var row=ignoreManagerRows.find(function(x){return x.key===key});if(!row)return;
+    var exists=cachedIgnored.some(function(x){return x.key===key});
+    if(!exists&&cachedIgnored.length>=600){try{window.showToast&&window.showToast('warn','بلغت قائمة التجاهل الحد الأقصى (600 اسم)')}catch(_){}return}
+    var next=cachedIgnored.filter(function(x){return x.key!==key});
+    if(!exists)next.push({key:key,name:row.name,at:new Date().toISOString(),by:ADMIN_EMAIL});
+    ignoreManagerBusy=true;if(button)button.disabled=true;
+    try{
+      var result=await writeIgnoredShared(next);
+      renderIgnoreManager();
+      if(current&&isIgnored(current.name))hidePopup();
+      try{window.showToast&&window.showToast('success',(exists?'تم إلغاء تجاهل ':'تم تجاهل ')+row.name+(result.synced?'':'؛ ستكتمل المزامنة تلقائياً'))}catch(_){}
+    }catch(_){try{window.showToast&&window.showToast('error','تعذر تحديث قائمة التجاهل')}catch(_){} }
+    finally{ignoreManagerBusy=false;renderIgnoreManager()}
+  }
+  async function openIgnoreManager(){
+    if(!isAdmin())return;
+    var modal=ensureIgnoreManager(),search=document.getElementById('assalSdrIgnoreSearch');
+    upgradeIgnoreManager();ignoreManagerTab='all';ignoreManagerLimit=90;if(search)search.value='';
+    modal.classList.add('active');modal.setAttribute('aria-hidden','false');
+    buildIgnoreManagerRows();renderIgnoreManager();
+    await pullIgnored(true,4500);
+    if(modal.classList.contains('active')){buildIgnoreManagerRows();renderIgnoreManager()}
+  }
 
   function readUrgentSeen(){try{return safe(localStorage.getItem(URGENT_SEEN_KEY)||'')}catch(_){return ''}}
   function writeUrgentSeen(id){try{localStorage.setItem(URGENT_SEEN_KEY,safe(id))}catch(_){}}
@@ -85237,6 +85478,7 @@ body.assal-ledger-wa-auto-pdf-open{
         return;
       }
       pendingUrgent=req;
+      await pullIgnored(true,3000);
       tryShowUrgent();
     }catch(_){}finally{urgentPollBusy=false}
   }
@@ -85244,6 +85486,7 @@ body.assal-ledger-wa-auto-pdf-open{
     if(role()!=='main'||!pendingUrgent||current||!idleReady())return false;
     var req=pendingUrgent,id=safe(req&&req.requestId),row=urgentRow(req);
     if(!id||!row||!safe(row.name).trim()){pendingUrgent=null;if(id)writeUrgentSeen(id);return false}
+    if(isIgnored(row.name)){pendingUrgent=null;writeUrgentSeen(id);try{var ignoredBridge=window.ASSAL_URGENT_DEBT_REMINDER_BRIDGE;if(ignoredBridge&&typeof ignoredBridge.applied==='function')Promise.resolve(ignoredBridge.applied(id)).catch(function(){})}catch(_){}return false}
     pendingUrgent=null;writeUrgentSeen(id);
     showPopup(row,firstPresentEmployee()||'زميلنا','urgent');
     try{var br=window.ASSAL_URGENT_DEBT_REMINDER_BRIDGE;if(br&&typeof br.applied==='function')Promise.resolve(br.applied(id)).catch(function(){})}catch(_){}
@@ -85279,6 +85522,63 @@ body.assal-ledger-wa-auto-pdf-open{
 </script>
 <!-- ASSAL SMART OVERDUE DEBT REMINDER FINAL - END -->
 
+<style id="assal-admin-ignore-pro-wide-final-style">
+#assalSmartDebtIgnoreModal{padding:16px;background:rgba(2,6,18,.82);backdrop-filter:blur(7px)}
+#assalSmartDebtIgnoreModal .assal-sdr-ignore-shell{
+  width:min(1120px,calc(100vw - 28px));max-height:min(91vh,900px);
+  border-radius:25px;border:1px solid rgba(93,151,220,.28);
+  background:radial-gradient(600px 280px at 98% 0%,rgba(14,165,233,.12),transparent 72%),
+    radial-gradient(520px 250px at 0% 100%,rgba(124,58,237,.10),transparent 72%),#0b1425;
+  box-shadow:0 32px 95px rgba(0,0,0,.68),inset 0 1px 0 rgba(255,255,255,.07)
+}
+#assalSmartDebtIgnoreModal .assal-sdr-ignore-head{padding:17px 21px;background:rgba(20,35,60,.6)}
+#assalSmartDebtIgnoreModal .assal-sdr-ignore-mark{background:linear-gradient(145deg,#0e7490,#7c3aed);box-shadow:0 10px 26px rgba(14,165,233,.23)}
+#assalSmartDebtIgnoreModal .assal-sdr-ignore-copy b{font-size:19px}
+#assalSmartDebtIgnoreModal .assal-sdr-ignore-toolbar{padding:13px 19px;background:transparent}
+#assalSmartDebtIgnoreModal .assal-sdr-ignore-search{height:46px;border-color:rgba(96,165,250,.28);background:#09182c}
+#assalSmartDebtIgnoreModal .assal-sdr-ignore-list{padding:9px 19px 19px;gap:7px;scrollbar-gutter:stable}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-tabs{display:flex;flex-wrap:wrap;gap:7px;padding:2px 19px 12px;border-bottom:1px solid rgba(148,163,184,.11)}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-tab{display:inline-flex;align-items:center;gap:7px;min-height:37px;padding:6px 12px;border-radius:11px;border:1px solid rgba(148,163,184,.17);background:#111f35;color:#b7c6df;font-family:inherit;font-size:11px;font-weight:900;cursor:pointer}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-tab:hover{border-color:rgba(56,189,248,.48);color:#fff}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-tab.is-active{color:#fff;border-color:rgba(56,189,248,.62);background:linear-gradient(135deg,#075985,#3730a3);box-shadow:0 6px 18px rgba(14,165,233,.16)}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-tab b{border-radius:999px;padding:2px 6px;color:#f8fafc;background:rgba(255,255,255,.13);font-size:10px}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 20px;color:#9bb2cd;font-size:10.5px;font-weight:850}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-summary i{color:#38bdf8;margin-inline-end:4px}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-summary b{color:#e2f2ff}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-row{display:grid;grid-template-columns:38px minmax(180px,1fr) minmax(125px,.55fr) minmax(125px,.55fr) 125px;align-items:center;gap:13px;min-height:68px;padding:9px 13px;border:1px solid rgba(148,163,184,.13);border-radius:15px;background:linear-gradient(135deg,#12213a,#0c192d);box-shadow:inset 0 1px 0 rgba(255,255,255,.025)}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-row.is-ignored{border-color:rgba(251,113,133,.21);background:linear-gradient(135deg,#201c32,#12182b)}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-avatar{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:#67e8f9;background:rgba(14,165,233,.12)}
+#assalSmartDebtIgnoreModal .is-ignored .assal-sdr-pro-avatar{color:#fda4af;background:rgba(190,24,93,.14)}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-name{min-width:0;display:flex;align-items:center;gap:9px}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-name b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#f1f6ff;font-size:12.5px;font-weight:950}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-state{flex:0 0 auto;color:#93c5fd;border:1px solid rgba(96,165,250,.2);background:rgba(30,64,175,.13);border-radius:999px;padding:3px 7px;font-size:9px;font-weight:900}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-state.is-ignored{color:#fda4af;border-color:rgba(251,113,133,.24);background:rgba(190,24,93,.16)}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-metric{text-align:center;min-width:0}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-metric small{display:block;color:#8194b1;font-size:9px;font-weight:850}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-metric strong{display:block;white-space:nowrap;color:#e2e8f0;font-size:11.5px;font-weight:950}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-toggle{min-height:37px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;border:1px solid rgba(251,113,133,.27);background:linear-gradient(135deg,#762440,#9f1239);color:#fff;font-family:inherit;font-size:11px;font-weight:900;cursor:pointer}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-toggle.is-restore{border-color:rgba(56,189,248,.28);background:linear-gradient(135deg,#075985,#1d4ed8)}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-toggle:hover{filter:brightness(1.12)}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-toggle:disabled{opacity:.55;cursor:wait}
+#assalSmartDebtIgnoreModal .assal-sdr-pro-more{padding:12px;border:1px dashed rgba(96,165,250,.35);border-radius:12px;background:#10223d;color:#bfdbfe;font-family:inherit;font-size:11px;font-weight:900;cursor:pointer}
+@media(max-width:760px){
+  #assalSmartDebtIgnoreModal{padding:8px}
+  #assalSmartDebtIgnoreModal .assal-sdr-ignore-shell{width:100%;max-height:94vh;border-radius:21px}
+  #assalSmartDebtIgnoreModal .assal-sdr-ignore-head{padding:12px}
+  #assalSmartDebtIgnoreModal .assal-sdr-pro-tabs{padding:2px 10px 10px;gap:5px}
+  #assalSmartDebtIgnoreModal .assal-sdr-pro-tab{font-size:9.5px;padding:5px 8px}
+  #assalSmartDebtIgnoreModal .assal-sdr-pro-summary{padding:9px 12px}
+  #assalSmartDebtIgnoreModal .assal-sdr-pro-summary span:last-child{display:none}
+  #assalSmartDebtIgnoreModal .assal-sdr-ignore-list{padding:8px 10px 12px}
+  #assalSmartDebtIgnoreModal .assal-sdr-pro-row{grid-template-columns:34px minmax(0,1fr) 95px;gap:7px;min-height:75px;padding:8px}
+  #assalSmartDebtIgnoreModal .assal-sdr-pro-avatar{width:33px;height:33px}
+  #assalSmartDebtIgnoreModal .assal-sdr-pro-name{display:block}
+  #assalSmartDebtIgnoreModal .assal-sdr-pro-name b{display:block}
+  #assalSmartDebtIgnoreModal .assal-sdr-pro-state{display:inline-block;margin-top:3px}
+  #assalSmartDebtIgnoreModal .assal-sdr-pro-metric{display:none}
+  #assalSmartDebtIgnoreModal .assal-sdr-pro-toggle{min-height:33px;font-size:9.5px}
+}
+</style>
 <!-- ASSAL ADMIN IGNORE + REMOTE MAIN UPLOAD REQUEST FINAL - START -->
 <style id="assal-admin-ignore-remote-upload-final-style">
 #assalHeaderActions .assal-admin-only-tool,
