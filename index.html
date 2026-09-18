@@ -26621,6 +26621,7 @@ if(!window.__assalInlineEditEscapeConfirmBound){
   }, true);
 }
 function assalInlineEditSave(card, line){
+  let __assalWholesaleUndoToken = null;
   try{
     const st = window.__assalInlineLineEdit;
     if(!st || st.key !== assalInlineEditKey(card, line)) return;
@@ -26690,6 +26691,15 @@ function assalInlineEditSave(card, line){
       return;
     }
 
+    try{
+      if(typeof window.ASSAL_WHOLESALE_CARD_UNDO_BEGIN_LINE === 'function'){
+        __assalWholesaleUndoToken = window.ASSAL_WHOLESALE_CARD_UNDO_BEGIN_LINE(
+          realCard,
+          st.day || assalInlineEditDayOf(card)
+        );
+      }
+    }catch(_){ __assalWholesaleUndoToken = null; }
+
     const __assalAuditBeforeEdit = (window.assalCardAuditLineSnapshot)
       ? window.assalCardAuditLineSnapshot(realLine)
       : { cat:String(realLine.cat||''), item:String(realLine.item||''), price:Number(realLine.price)||0, qty:String(realLine.qty||''), note:String(realLine.note||'') };
@@ -26721,6 +26731,11 @@ function assalInlineEditSave(card, line){
  __assalAuditEditSaved = false;
  
 }
+    try{
+      if(typeof window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE === 'function'){
+        window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE(__assalWholesaleUndoToken, __assalAuditEditSaved);
+      }
+    }catch(_){ }
     if(__assalAuditEditSaved && window.assalCardAuditRecordEdit){
       try{
         window.assalCardAuditRecordEdit(
@@ -26772,6 +26787,11 @@ function assalInlineEditSave(card, line){
       try{ showToast('success','تم حفظ تعديل المادة'); }catch(_){}
     }
   }catch(err){
+ try{
+   if(typeof window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE === 'function'){
+     window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE(__assalWholesaleUndoToken, false);
+   }
+ }catch(_){ }
  try{
  console.error(err);
  showToast('error','تعذر حفظ التعديل');
@@ -27727,6 +27747,9 @@ function renderBoard() {
 
     const box = CE('div', 'card');
     box.id = 'card-' + card.id;
+    if(typeof isWholesaleCard === 'function' && isWholesaleCard(card)){
+      box.classList.add('assal-wholesale-sticky-card');
+    }
     // ASSAL CARD-DAY LOCK: احتفظ بيوم البطاقة الحقيقي داخل الـ DOM حتى يبقى القفل صحيحاً حتى في البحث الشامل.
     box.dataset.assalCardDay = card.__day || selectedDay;
 
@@ -27847,7 +27870,13 @@ function renderBoard() {
         ev.stopPropagation();
         if(typeof window.ASSAL_WHOLESALE_CARD_UNDO === 'function') window.ASSAL_WHOLESALE_CARD_UNDO(card);
       };
-      custWrap.appendChild(wholesaleUndoBtn);
+      const wholesaleUndoWrap = CE('span', 'assal-wholesale-card-undo-wrap');
+      wholesaleUndoWrap.dataset.assalWholesaleUndoKey = String(card.__day || selectedDay || '') + '::' + String(card.id || card.createdAt || card.at || '');
+      const wholesaleUndoCounter = CE('span', 'assal-wholesale-card-undo-counter' + (wholesaleUndoCount < 1 ? ' is-empty' : ''));
+      wholesaleUndoCounter.textContent = String(wholesaleUndoCount);
+      wholesaleUndoCounter.setAttribute('aria-hidden', 'true');
+      wholesaleUndoWrap.append(wholesaleUndoBtn, wholesaleUndoCounter);
+      custWrap.appendChild(wholesaleUndoWrap);
     }
     custWrap.appendChild(custName);
 
@@ -86382,6 +86411,160 @@ body.assal-ledger-wa-auto-pdf-open{
 </script>
 <!-- ASSAL BRANCH WHOLESALE TODAY IMPORT FINAL - END -->
 
+<style id="assal-wholesale-sticky-card-header-final-style">
+:root{
+  --assal-wholesale-board-head-h:58px;
+  --assal-wholesale-sticky-gap:7px;
+}
+.masonry > .card.assal-wholesale-sticky-card > .card-head{
+  position:sticky;
+  top:calc(var(--hdr-h,54px) + 10px + var(--assal-wholesale-board-head-h,58px) + var(--assal-wholesale-sticky-gap,7px));
+  z-index:54;
+  align-self:stretch;
+  margin-inline:-3px;
+  padding:7px 9px;
+  border:1px solid rgba(59,130,246,.2);
+  border-radius:12px;
+  background:linear-gradient(135deg,rgba(12,24,48,.985),rgba(10,20,40,.985));
+  box-shadow:0 10px 22px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.035);
+  isolation:isolate;
+}
+.masonry > .card.assal-wholesale-sticky-card > .card-head::after{
+  content:"";
+  position:absolute;
+  inset-inline:10px;
+  bottom:-1px;
+  height:1px;
+  background:linear-gradient(90deg,transparent,rgba(56,189,248,.48),transparent);
+  pointer-events:none;
+}
+@supports(backdrop-filter:blur(4px)){
+  .masonry > .card.assal-wholesale-sticky-card > .card-head{
+    background:linear-gradient(135deg,rgba(12,24,48,.94),rgba(10,20,40,.95));
+    backdrop-filter:blur(8px);
+    -webkit-backdrop-filter:blur(8px);
+  }
+}
+@supports(-moz-appearance:none){
+  .masonry > .card.assal-wholesale-sticky-card > .card-head{
+    backdrop-filter:none;
+    -webkit-backdrop-filter:none;
+    background:linear-gradient(135deg,#0c1830,#0a1428);
+  }
+}
+@media(max-width:700px){
+  :root{--assal-wholesale-sticky-gap:5px}
+  .masonry > .card.assal-wholesale-sticky-card > .card-head{
+    padding:6px 7px;
+    border-radius:10px;
+  }
+}
+</style>
+<script id="assal-wholesale-sticky-card-header-final-script">
+(function(){
+  'use strict';
+  if(window.__ASSAL_WHOLESALE_STICKY_CARD_HEADER_INSTALLED__) return;
+  window.__ASSAL_WHOLESALE_STICKY_CARD_HEADER_INSTALLED__ = true;
+  var observed = null;
+  var observer = null;
+  var frame = 0;
+
+  function measure(){
+    frame = 0;
+    try{
+      var head = document.querySelector('.board-head');
+      if(!head) return;
+      var height = Math.max(1,Math.ceil(head.getBoundingClientRect().height || head.offsetHeight || 0));
+      document.documentElement.style.setProperty('--assal-wholesale-board-head-h',height + 'px');
+      if(head !== observed && typeof ResizeObserver === 'function'){
+        if(observer) observer.disconnect();
+        observed = head;
+        observer = new ResizeObserver(schedule);
+        observer.observe(head);
+      }
+    }catch(_){ }
+  }
+  function schedule(){
+    if(frame) return;
+    frame = (window.requestAnimationFrame || function(fn){return setTimeout(fn,16);})(measure);
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded',schedule,{once:true});
+  else schedule();
+  window.addEventListener('resize',schedule,{passive:true});
+})();
+</script>
+
+<style id="assal-wholesale-card-undo-counter-final-style">
+.assal-wholesale-card-undo-wrap{
+  position:relative;
+  display:inline-grid;
+  place-items:center;
+  flex:0 0 auto;
+  width:26px;
+  height:26px;
+  overflow:visible!important;
+  isolation:isolate;
+}
+.assal-wholesale-card-undo-wrap .assal-wholesale-card-undo-btn{
+  width:26px;
+  height:26px;
+  margin:0;
+}
+.assal-wholesale-card-undo-counter{
+  position:absolute;
+  inset-block-start:-7px;
+  inset-inline-end:-7px;
+  z-index:3;
+  width:17px;
+  height:17px;
+  display:grid;
+  place-items:center;
+  box-sizing:border-box;
+  overflow:visible;
+  border:2px solid #0f1a33;
+  border-radius:50%;
+  color:#fff;
+  background:linear-gradient(145deg,#fb7185,#e11d48);
+  box-shadow:0 4px 12px rgba(225,29,72,.4),0 0 0 1px rgba(255,255,255,.08);
+  font:950 8.5px/1 "Cairo",system-ui,sans-serif;
+  text-align:center;
+  pointer-events:none;
+}
+.assal-wholesale-card-undo-counter.is-empty{
+  color:#94a3b8;
+  background:linear-gradient(145deg,#334155,#1e293b);
+  box-shadow:0 3px 9px rgba(0,0,0,.25);
+}
+.card .card-head .cust,
+.card .card-head{
+  overflow:visible!important;
+}
+.item.assal-wholesale-undo-row-flash,
+.card.assal-wholesale-undo-row-flash{
+  animation:assalWholesaleUndoRowFlash 1.15s ease-out 1;
+}
+.item .assal-wholesale-undo-field-flash{
+  position:relative;
+  z-index:2;
+  animation:assalWholesaleUndoFieldFlash 1.25s ease-out 1;
+}
+@keyframes assalWholesaleUndoRowFlash{
+  0%{background:rgba(56,189,248,.04);box-shadow:inset 0 0 0 1px rgba(56,189,248,.08)}
+  28%{background:rgba(56,189,248,.18);box-shadow:inset 0 0 0 2px rgba(56,189,248,.72),0 0 22px rgba(56,189,248,.2)}
+  100%{background:transparent;box-shadow:inset 0 0 0 1px transparent}
+}
+@keyframes assalWholesaleUndoFieldFlash{
+  0%{filter:brightness(1);box-shadow:0 0 0 0 rgba(250,204,21,0)}
+  25%{filter:brightness(1.28);box-shadow:0 0 0 3px rgba(250,204,21,.72),0 0 18px rgba(250,204,21,.34);background-color:rgba(250,204,21,.18)}
+  55%{filter:brightness(1.12);box-shadow:0 0 0 2px rgba(56,189,248,.5),0 0 14px rgba(56,189,248,.24)}
+  100%{filter:brightness(1);box-shadow:0 0 0 0 rgba(56,189,248,0)}
+}
+@media(prefers-reduced-motion:reduce){
+  .item.assal-wholesale-undo-row-flash,
+  .card.assal-wholesale-undo-row-flash,
+  .item .assal-wholesale-undo-field-flash{animation-duration:.12s}
+}
+</style>
 <script id="assal-wholesale-card-state-undo-five-final">
 /* تراجع عام خاص ببطاقة الجملة: آخر خمس حالات محفوظة، بدون أي تأثير على بقية البطاقات. */
 (function(){
@@ -86393,6 +86576,7 @@ body.assal-ledger-wa-auto-pdf-open{
   var histories = new Map();
   var baselines = new Map();
   var suspended = false;
+  var explicitLineDepth = 0;
 
   function clone(value){
     try{return JSON.parse(JSON.stringify(value));}catch(_){return null;}
@@ -86475,23 +86659,72 @@ body.assal-ledger-wa-auto-pdf-open{
     histories.set(key, list);
   }
 
+  function updateVisibleCounter(key){
+    try{
+      var count = Math.min(LIMIT, (histories.get(key) || []).length);
+      document.querySelectorAll('.assal-wholesale-card-undo-wrap').forEach(function(wrap){
+        if(String(wrap.dataset.assalWholesaleUndoKey || '') !== String(key)) return;
+        var btn = wrap.querySelector('.assal-wholesale-card-undo-btn');
+        var badge = wrap.querySelector('.assal-wholesale-card-undo-counter');
+        if(btn){
+          btn.disabled = count < 1;
+          btn.title = count > 0 ? ('التراجع عن آخر حركة على البطاقة • متاح ' + count + ' من 5') : 'لا توجد حركة متاحة للتراجع';
+          btn.setAttribute('aria-label', btn.title);
+        }
+        if(badge){
+          badge.textContent = String(count);
+          badge.classList.toggle('is-empty', count < 1);
+        }
+      });
+    }catch(_){ }
+  }
+
+  function beginLineUndo(card, day){
+    try{
+      if(!card || !(typeof isWholesaleCard === 'function' && isWholesaleCard(card))) return null;
+      var key = keyOf(card, day);
+      var snap = clone(card);
+      if(!key || !snap) return null;
+      explicitLineDepth += 1;
+      return {key:key, before:snap, done:false};
+    }catch(_){ return null; }
+  }
+
+  function endLineUndo(token, saved){
+    if(!token || token.done) return false;
+    token.done = true;
+    explicitLineDepth = Math.max(0, explicitLineDepth - 1);
+    if(!saved) return false;
+    pushHistory(token.key, token.before);
+    /* ثبّت الحالة النهائية بعد حفظ السطر حتى يبدأ السطر التالي من أساس صحيح. */
+    baselines = collectWholesale();
+    updateVisibleCounter(token.key);
+    return true;
+  }
+
   function installSaveWrapper(){
     var original = null;
     try{original = window.save || save;}catch(_){original = null;}
     if(typeof original !== 'function' || original.__assalWholesaleUndo5Wrapped) return;
     var wrapped = function(){
-      var current = collectWholesale();
+      var beforeSave = collectWholesale();
       var pending = [];
-      if(!suspended){
-        current.forEach(function(entry, key){
+      if(!suspended && explicitLineDepth === 0){
+        beforeSave.forEach(function(entry, key){
           var before = baselines.get(key);
           if(before && before.sig !== entry.sig) pending.push({key:key, before:before.card});
         });
       }
       var result = original.apply(this, arguments);
       if(!result || result.ok !== false){
-        if(!suspended) pending.forEach(function(change){pushHistory(change.key, change.before);});
-        baselines = current;
+        if(!suspended && explicitLineDepth === 0){
+          pending.forEach(function(change){
+            pushHistory(change.key, change.before);
+            updateVisibleCounter(change.key);
+          });
+        }
+        /* مهم: نعتمد الحالة الفعلية بعد save، لأن save نفسه قد يحدّث حقولاً مشتقة. */
+        baselines = collectWholesale();
       }
       return result;
     };
@@ -86503,6 +86736,88 @@ body.assal-ledger-wa-auto-pdf-open{
   function undoCount(card){
     if(!card || !(typeof isWholesaleCard === 'function' && isWholesaleCard(card))) return 0;
     return Math.min(LIMIT, (histories.get(keyOf(card)) || []).length);
+  }
+
+  function lineIdentity(line){
+    return String(line && (line.lineId || line.id || line.createdAt || line.at) || '');
+  }
+
+  function undoVisualTarget(currentCard, restoredCard){
+    try{
+      var beforeLines = Array.isArray(currentCard && currentCard.lines) ? currentCard.lines : [];
+      var afterLines = Array.isArray(restoredCard && restoredCard.lines) ? restoredCard.lines : [];
+      var beforeMap = new Map(), afterMap = new Map();
+      beforeLines.forEach(function(line){var id=lineIdentity(line);if(id)beforeMap.set(id,line);});
+      afterLines.forEach(function(line){var id=lineIdentity(line);if(id)afterMap.set(id,line);});
+      var ids = Array.from(new Set(Array.from(beforeMap.keys()).concat(Array.from(afterMap.keys()))));
+      var fieldNames = ['cat','item','price','qty','note'];
+      for(var i=0;i<ids.length;i++){
+        var id = ids[i], before = beforeMap.get(id), after = afterMap.get(id);
+        if(!before && after) return {lineId:id,fields:[],wholeRow:true};
+        if(before && !after) return {lineId:'',fields:[],wholeRow:true};
+        if(!before || !after) continue;
+        var fields = fieldNames.filter(function(name){
+          if(name === 'price') return Number(before[name] || 0) !== Number(after[name] || 0);
+          return String(before[name] == null ? '' : before[name]) !== String(after[name] == null ? '' : after[name]);
+        });
+        var stateChanged = String(before.deletedAt || '') !== String(after.deletedAt || '') ||
+          !!before.paid !== !!after.paid || !!before.returned !== !!after.returned;
+        if(fields.length || stateChanged) return {lineId:id,fields:fields,wholeRow:stateChanged || !fields.length};
+      }
+    }catch(_){ }
+    return {lineId:'',fields:[],wholeRow:true};
+  }
+
+  function findLineElement(cardEl, lineId){
+    if(!cardEl || !lineId) return null;
+    try{
+      var rows = cardEl.querySelectorAll('.item[data-line-id]');
+      for(var i=0;i<rows.length;i++){
+        if(String(rows[i].getAttribute('data-line-id') || '') === String(lineId)) return rows[i];
+      }
+    }catch(_){ }
+    return null;
+  }
+
+  function revealUndoResult(cardId, visual){
+    try{
+      (window.requestAnimationFrame || function(fn){return setTimeout(fn,0);})(function(){
+        try{
+          var cardEl = document.getElementById('card-' + cardId);
+          if(!cardEl) return;
+          var row = findLineElement(cardEl, visual && visual.lineId);
+          var target = row || cardEl;
+          var rect = target.getBoundingClientRect();
+          var viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+          var topSafe = 72;
+          var bottomSafe = Math.max(topSafe + 80, (viewportHeight || 720) - 82);
+          var outside = rect.top < topSafe || rect.bottom > bottomSafe;
+          if(outside && typeof target.scrollIntoView === 'function'){
+            target.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});
+          }
+          var flash = function(){
+            try{
+              if(!row){
+                cardEl.classList.add('assal-wholesale-undo-row-flash');
+                cardEl.addEventListener('animationend',function(){cardEl.classList.remove('assal-wholesale-undo-row-flash');},{once:true});
+                return;
+              }
+              row.classList.add('assal-wholesale-undo-row-flash');
+              row.addEventListener('animationend',function(){row.classList.remove('assal-wholesale-undo-row-flash');},{once:true});
+              var selectors={cat:'.ichip',item:'.iname',price:'.iprice',qty:'.iqty',note:'.inote'};
+              var fields=(visual && Array.isArray(visual.fields))?visual.fields:[];
+              fields.forEach(function(name){
+                var field=row.querySelector(selectors[name] || '');
+                if(!field)return;
+                field.classList.add('assal-wholesale-undo-field-flash');
+                field.addEventListener('animationend',function(){field.classList.remove('assal-wholesale-undo-field-flash');},{once:true});
+              });
+            }catch(_){ }
+          };
+          if(outside) setTimeout(flash,180); else flash();
+        }catch(_){ }
+      });
+    }catch(_){ }
   }
 
   function refreshAfterUndo(){
@@ -86529,6 +86844,7 @@ body.assal-ledger-wa-auto-pdf-open{
       }
       var previous = list.pop();
       var current = clone(realCard);
+      var visual = undoVisualTarget(current, previous);
       var oldUpdatedAt = realCard.updatedAt;
       replaceObject(realCard, previous);
       realCard.updatedAt = (typeof nowISO === 'function') ? nowISO() : new Date().toISOString();
@@ -86548,7 +86864,14 @@ body.assal-ledger-wa-auto-pdf-open{
       histories.set(key, list);
       var restored = clone(realCard);
       baselines.set(key, {day:day,id:id,card:restored,sig:signature(restored)});
+      try{
+        if(visual && visual.lineId && typeof assalWholesaleExpandedCards !== 'undefined' && typeof assalWholesaleCardRenderKey === 'function'){
+          assalWholesaleExpandedCards.add(assalWholesaleCardRenderKey(realCard));
+        }
+      }catch(_){ }
       refreshAfterUndo();
+      updateVisibleCounter(key);
+      revealUndoResult(id, visual);
       try{showToast('success','تم التراجع عن آخر حركة على بطاقة الجملة');}catch(_){ }
       return true;
     }catch(err){
@@ -86560,6 +86883,8 @@ body.assal-ledger-wa-auto-pdf-open{
 
   window.ASSAL_WHOLESALE_CARD_UNDO_COUNT = undoCount;
   window.ASSAL_WHOLESALE_CARD_UNDO = undoCard;
+  window.ASSAL_WHOLESALE_CARD_UNDO_BEGIN_LINE = beginLineUndo;
+  window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE = endLineUndo;
   seedBaselines();
   installSaveWrapper();
   setTimeout(function(){
