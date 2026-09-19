@@ -78658,7 +78658,7 @@ body.assal-debt-transfer-day-locked .assal-customer-rename-btn,
   'use strict';
   if (window.ASSAL_DEBT_TRANSFER_LOCK && window.ASSAL_DEBT_TRANSFER_LOCK.version) return;
 
-  var VERSION = '1.6.0-reliable-single-command-outbox-final';
+  var VERSION = '1.6.1-confirmed-snapshot-before-command-final';
   var ADMIN_EMAIL = 'admin-debts@assal.com';
   var MAIN_EMAIL = 'assal-debts@assal.com';
   var LOCK_CODE = '12345';
@@ -79499,6 +79499,28 @@ body.assal-debt-transfer-day-locked .assal-customer-rename-btn,
   async function handleRailButton(day, btn) {
     if (!isAdmin() || !validDay(day)) return;
     try {
+      /* لا نقرر قفل/إلغاء اعتماداً على كاش العرض. الكاش قد يعرض آخر قفل صحيح
+         قبل اكتمال أول GET، بينما confirmedLockDay يبقى فارغاً مؤقتاً؛ وعندها
+         كان الضغط على يوم مقفول يُنشئ أمر lock جديداً بدلاً من unlock.
+         ننتظر أي قراءة جارية، ثم نفرض Snapshot ناجحاً قبل إنشاء أي Request. */
+      if (!serverSnapshotReady) {
+        setBadgeSending(btn, true);
+        if (pollBusy) {
+          for (var waitStep = 0; waitStep < 60 && pollBusy && !serverSnapshotReady; waitStep++) {
+            await waitLockMs(250)
+
+          }
+        }
+        if (!serverSnapshotReady) {
+          await pollServer(true, {attempts: 2, timeoutMs: 12000, quiet: true})
+
+        }
+        if (!serverSnapshotReady) {
+          toast('error', 'تعذر تأكيد حالة قفل الدين من السيرفر؛ لم يتم إرسال أي طلب');
+          return
+
+        }
+      }
       if (pendingCommand) {
         if (adminOutbox && adminOutbox.request && safe(adminOutbox.request.id) === safe(pendingCommand.id)) {
           toast('info', 'أمر القفل السابق بانتظار تأكيد السيرفر؛ لن يتم إرسال طلب مكرر');
