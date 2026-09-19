@@ -78658,11 +78658,12 @@ body.assal-debt-transfer-day-locked .assal-customer-rename-btn,
   'use strict';
   if (window.ASSAL_DEBT_TRANSFER_LOCK && window.ASSAL_DEBT_TRANSFER_LOCK.version) return;
 
-  var VERSION = '1.5.0-search-card-single-unlock-notes-lock-final';
+  var VERSION = '1.6.0-reliable-single-command-outbox-final';
   var ADMIN_EMAIL = 'admin-debts@assal.com';
   var MAIN_EMAIL = 'assal-debts@assal.com';
   var LOCK_CODE = '12345';
   var LOCAL_STATE_KEY = 'ASSAL_DEBT_TRANSFER_LOCK_STATE_V1';
+  var ADMIN_OUTBOX_KEY = 'ASSAL_DEBT_TRANSFER_LOCK_OUTBOX_V1';
   /* كاش عرض فقط للأدمن: لا يدخل نهائياً في تطبيق القفل أو السماح بالتعديل. */
   var ADMIN_VIEW_CACHE_KEY = 'ASSAL_DEBT_TRANSFER_LOCK_ADMIN_VIEW_CACHE_V1';
   var COMMAND_BILL_TYPE = 'debt-transfer-lock';
@@ -78680,6 +78681,8 @@ body.assal-debt-transfer-day-locked .assal-customer-rename-btn,
   var serverSnapshotReady = false;
   var startupRetryToken = 0;
   var pendingCommand = null;
+  var outboxRetryBusy = false;
+  var lastOutboxRetryAt = 0;
   var pollBusy = false;
   var applyBusy = false;
   var lastPollAt = 0;
@@ -78687,6 +78690,7 @@ body.assal-debt-transfer-day-locked .assal-customer-rename-btn,
   var pollTimer = 0;
   var stateRevision = 0;
   var localState = readLocalState();
+  var adminOutbox = readAdminOutbox();
   var viewState = {selectedDay: '', unlockedDay: '', unlockedCardKey: '', promptDay: '', promptCardKey: '', contextDay: '', contextCardId: '', actionDay: '', actionCardId: '', locked: false, lockDay: '', modeTimer: 0, renderQueued: false};
 
   function safe(v) {
@@ -78921,6 +78925,29 @@ body.assal-debt-transfer-day-locked .assal-customer-rename-btn,
 
   }
 
+  function readAdminOutbox() {
+    try {
+      var raw = JSON.parse(localStorage.getItem(ADMIN_OUTBOX_KEY) || 'null');
+      if (!raw || !raw.request || !safe(raw.request.id) || !validDay(raw.request.cardDay)) return null;
+      return {version: 1, request: raw.request, savedAt: safe(raw.savedAt)}
+
+    } catch (_) {
+      return null
+
+    }
+  }
+
+  function writeAdminOutbox(req) {
+    adminOutbox = req ? {version: 1, request: clone(req), savedAt: now()} : null;
+    try {
+      if (adminOutbox) localStorage.setItem(ADMIN_OUTBOX_KEY, JSON.stringify(adminOutbox));
+      else localStorage.removeItem(ADMIN_OUTBOX_KEY)
+
+    } catch (_) {
+
+    }
+  }
+
   function readLocalState() {
     try {
       var raw = JSON.parse(localStorage.getItem(LOCAL_STATE_KEY) || '{}');
@@ -79017,7 +79044,7 @@ body.assal-debt-transfer-day-locked .assal-customer-rename-btn,
     if (!online()) throw new Error('لا يوجد اتصال');
     var role = isAdmin() ? 'admin' : (isMain() ? 'main' : '');
     if (!role) throw new Error('الحساب غير مخول');
-    var resp = await fetchTimed(serverUrl('card-request-list', {actor: role, email: email()}), {method: 'GET', cache: 'no-store'}, Number(timeoutMs) || 30000);
+    var resp = await fetchTimed(serverUrl('card-request-list', {actor: role, email: email(), billType: COMMAND_BILL_TYPE}), {method: 'GET', cache: 'no-store'}, Number(timeoutMs) || 30000);
     if (!resp.ok) throw new Error('فشل قراءة أوامر القفل');
     var j = await resp.json();
     if (!j || j.status === 'error') throw new Error(safe(j && j.message || 'فشل قراءة أوامر القفل'));
@@ -79050,7 +79077,11 @@ body.assal-debt-transfer-day-locked .assal-customer-rename-btn,
   async function serverPost(mode, body) {
     if (!online()) throw new Error('لا يوجد اتصال');
     var resp = await fetchTimed(serverUrl(mode, {}), {method: 'POST', cache: 'no-store', headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SYNC.TOKEN}, body: JSON.stringify(body || {})}, 40000);
-    if (!resp.ok) throw new Error('فشل إرسال أمر القفل');
+    if (!resp.ok) {
+      if (resp.status >= 500) throw new Error('انتهت مهلة الاتصال أو تعذر تأكيد السيرفر');
+      throw new Error('فشل إرسال أمر القفل')
+
+    }
     var j = await resp.json();
     if (!j || j.status === 'error') throw new Error(safe(j && j.message || 'فشل إرسال أمر القفل'));
     return j;
@@ -79141,6 +79172,43 @@ body.assal-debt-transfer-day-locked .assal-customer-rename-btn,
 
     });
     pendingCommand = pend.length ? commandData(pend[0]) : null;
+    if (isAdmin() && adminOutbox && adminOutbox.request) {
+      var outboxId = safe(adminOutbox.request.id), outboxServer = serverCommands.find(function(r) {
+        return safe(r && r.id) === outboxId
+
+      });
+      if (outboxServer && ['applied', 'rejected', 'conflict', 'cancelled'].indexOf(safe(outboxServer.status)) >= 0) {
+        writeAdminOutbox(null)
+
+      }
+      else if (!pendingCommand || safe(pendingCommand.id) !== outboxId) {
+        pendingCommand = commandData(outboxServer || adminOutbox.request)
+
+      }
+    }
+  }
+
+  function recoverAdminOutbox() {
+    if (!isAdmin() || !adminOutbox || !adminOutbox.request || outboxRetryBusy || !online()) return;
+    var req = adminOutbox.request, rid = safe(req.id);
+    if (serverCommands.some(function(r) { return safe(r && r.id) === rid; })) return;
+    if (Date.now() - lastOutboxRetryAt < 15000) return;
+    outboxRetryBusy = true;
+    lastOutboxRetryAt = Date.now();
+    Promise.resolve(serverPost('card-request-submit', {version: 2, actorEmail: email(), request: req})).then(function(res) {
+      var saved = res && res.request ? res.request : req;
+      serverCommands.unshift(saved);
+      deriveServerState(serverCommands);
+      adminFastUntil = Date.now() + ADMIN_FAST_WINDOW_MS;
+      refreshRail()
+
+    }).catch(function() {
+      /* نبقي نفس المعرّف في الصندوق المحلي؛ المحاولة التالية آمنة ولا تنشئ أمراً جديداً. */
+
+    }).finally(function() {
+      outboxRetryBusy = false
+
+    })
   }
 
   function refreshRail() {
@@ -79394,14 +79462,20 @@ body.assal-debt-transfer-day-locked .assal-customer-rename-btn,
 
   async function submitCommand(action, targetDay) {
     if (!isAdmin()) throw new Error('هذه العملية متاحة لحاسبة الأدمن فقط');
+    if (adminOutbox && adminOutbox.request) throw new Error('يوجد أمر قفل سابق بانتظار تأكيد السيرفر');
     var req = makeRequest(action, targetDay), saved = null;
+    writeAdminOutbox(req);
     try {
       var res = await serverPost('card-request-submit', {version: 2, actorEmail: email(), request: req});
       saved = res && res.request ? res.request : req
 
     } catch (err) {
       /* Timeout لا يعني أن السيرفر لم يحفظ الطلب. نتحقق من نفس ID فقط ولا نعيد الإرسال. */
-      if (safe(err && err.message).indexOf('انتهت مهلة الاتصال') < 0) throw err;
+      if (safe(err && err.message).indexOf('انتهت مهلة الاتصال') < 0) {
+        writeAdminOutbox(null);
+        throw err
+
+      }
       saved = await verifySubmittedLockCommand(req);
       if (!saved) throw err
 
@@ -79426,6 +79500,11 @@ body.assal-debt-transfer-day-locked .assal-customer-rename-btn,
     if (!isAdmin() || !validDay(day)) return;
     try {
       if (pendingCommand) {
+        if (adminOutbox && adminOutbox.request && safe(adminOutbox.request.id) === safe(pendingCommand.id)) {
+          toast('info', 'أمر القفل السابق بانتظار تأكيد السيرفر؛ لن يتم إرسال طلب مكرر');
+          return
+
+        }
         if (pendingCommand.targetDay !== day) {
           toast('warn', 'يوجد أمر قفل آخر بانتظار الحاسبة الرئيسية');
           return
@@ -79536,6 +79615,7 @@ body.assal-debt-transfer-day-locked .assal-customer-rename-btn,
       var list = await serverGetListRetry(attempts, timeoutMs);
       deriveServerState(list);
       serverSnapshotReady = true;
+      recoverAdminOutbox();
       if (isAdmin()) writeAdminViewCache(confirmedLockDay, confirmedSourceRequestId);
       if (isMain()) {
         reconcileMainFromServer();
