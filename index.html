@@ -19740,6 +19740,34 @@ function assalWholesaleDeleteConfirmKey(card){
   return String(card && (card.__day || ((typeof selectedDay === 'string') ? selectedDay : '')) || '') + '::' + String(card && (card.id || card.createdAt || card.at) || '');
 }
 
+/* حماية غير محسوسة من انتقال النقرة الثانية إلى زر حذف السطر الذي يصعد مكان المحذوف. */
+const ASSAL_WHOLESALE_DELETE_CLICK_GUARD_MS = 300;
+const assalWholesaleDeleteClickUntil = (window.__ASSAL_WHOLESALE_DELETE_CLICK_UNTIL__ instanceof Map)
+  ? window.__ASSAL_WHOLESALE_DELETE_CLICK_UNTIL__
+  : new Map();
+const assalWholesaleDeleteBusy = (window.__ASSAL_WHOLESALE_DELETE_BUSY__ instanceof Set)
+  ? window.__ASSAL_WHOLESALE_DELETE_BUSY__
+  : new Set();
+window.__ASSAL_WHOLESALE_DELETE_CLICK_UNTIL__ = assalWholesaleDeleteClickUntil;
+window.__ASSAL_WHOLESALE_DELETE_BUSY__ = assalWholesaleDeleteBusy;
+
+function assalWholesaleDeleteAcquire(card, button){
+  const key = assalWholesaleDeleteConfirmKey(card);
+  if(!key || assalWholesaleDeleteBusy.has(key) || Date.now() < (Number(assalWholesaleDeleteClickUntil.get(key)) || 0)) return '';
+  assalWholesaleDeleteBusy.add(key);
+  if(button) button.disabled = true;
+  return key;
+}
+
+function assalWholesaleDeleteArmGuard(key){
+  if(key) assalWholesaleDeleteClickUntil.set(key, Date.now() + ASSAL_WHOLESALE_DELETE_CLICK_GUARD_MS);
+}
+
+function assalWholesaleDeleteRelease(key, button){
+  if(key) assalWholesaleDeleteBusy.delete(key);
+  if(button && button.isConnected) button.disabled = false;
+}
+
 function assalWholesaleDeleteNeedsConfirm(card){
   if(!(typeof isWholesaleCard === 'function' && isWholesaleCard(card))) return true;
   return Date.now() >= (Number(assalWholesaleDeleteConfirmUntil.get(assalWholesaleDeleteConfirmKey(card))) || 0);
@@ -26135,6 +26163,21 @@ function assalStableMasonryPatchChildren(host, frag){
 window.__assalInlineLineEdit = window.__assalInlineLineEdit || null;
 window.__assalWholesaleSequentialEdit = window.__assalWholesaleSequentialEdit || null;
 
+/* أثناء تحرير سطر جملة، إعادة الرسم الخلفية تؤجل ولا تهدم حقول المقترحات.
+   انتقال Enter المقصود يستخدم تصريحاً قصيراً لنفس renderBoard الحالي. */
+window.__ASSAL_WHOLESALE_SEQUENTIAL_RENDER_PERMIT__ = Number(window.__ASSAL_WHOLESALE_SEQUENTIAL_RENDER_PERMIT__) || 0;
+window.__ASSAL_WHOLESALE_SEQUENTIAL_RENDER_PENDING__ = !!window.__ASSAL_WHOLESALE_SEQUENTIAL_RENDER_PENDING__;
+
+function assalWholesaleSequentialRenderBoard(){
+  window.__ASSAL_WHOLESALE_SEQUENTIAL_RENDER_PERMIT__++;
+  try{
+    if(typeof renderBoard === 'function') return renderBoard();
+  }finally{
+    window.__ASSAL_WHOLESALE_SEQUENTIAL_RENDER_PERMIT__ = Math.max(0, Number(window.__ASSAL_WHOLESALE_SEQUENTIAL_RENDER_PERMIT__) - 1);
+    window.__ASSAL_WHOLESALE_SEQUENTIAL_RENDER_PENDING__ = false;
+  }
+}
+
 function assalWholesaleSequentialIsFor(card){
   const seq = window.__assalWholesaleSequentialEdit;
   return !!(seq && seq.active && seq.day === assalInlineEditDayOf(card) && seq.cardId === assalInlineEditCardId(card));
@@ -26698,7 +26741,8 @@ function assalInlineEditStart(card, line, options){
     const __assalDeferInlineRender = !!(options && options.deferRender === true);
     if(!__assalDeferInlineRender){
       try{
- renderBoard();
+ if(assalWholesaleSequentialIsFor(card)) assalWholesaleSequentialRenderBoard();
+ else renderBoard();
  
 }catch(_){
  
@@ -26857,7 +26901,7 @@ function assalInlineEditSave(card, line){
         assalWholesaleSequentialComplete();
       }else{
         try{ assalInlineEditStart(realCard, __unchangedNext, {deferRender:true}); }catch(_){ }
-        try{ renderBoard(); }catch(_){ }
+        try{ assalWholesaleSequentialRenderBoard(); }catch(_){ }
         try{ assalInlineEditQueuePostRenderFocus(); }catch(_){ }
       }
       return;
@@ -26941,7 +26985,7 @@ function assalInlineEditSave(card, line){
           assalWholesaleSequentialComplete();
         }else{
           try{ assalInlineEditStart(realCard, __assalSequentialNext, {deferRender:true}); }catch(_){ }
-          try{ renderBoard(); }catch(_){ }
+          try{ assalWholesaleSequentialRenderBoard(); }catch(_){ }
           try{ renderRail(); }catch(_){ }
           try{ refreshStats(); }catch(_){ }
           try{ assalInlineEditQueuePostRenderFocus(); }catch(_){ }
@@ -27834,6 +27878,18 @@ function assalReturnAgeTitle(card, line){
 }
 
 function renderBoard() {
+  /* لا نهدم DOM للسطر أثناء التعديل المتسلسل بسبب تحديث خلفي.
+     الحفظ/الانتقال المقصود يمر عبر assalWholesaleSequentialRenderBoard. */
+  try{
+    const __assalSeqRenderLock = window.__assalWholesaleSequentialEdit &&
+      window.__assalWholesaleSequentialEdit.active &&
+      window.__assalInlineLineEdit && window.__assalInlineLineEdit.key &&
+      !(Number(window.__ASSAL_WHOLESALE_SEQUENTIAL_RENDER_PERMIT__) > 0);
+    if(__assalSeqRenderLock){
+      window.__ASSAL_WHOLESALE_SEQUENTIAL_RENDER_PENDING__ = true;
+      return;
+    }
+  }catch(_){ }
   const host = document.getElementById('masonry');
   if (!host) return;
   // SMOOTH UI: لا نبطل كاش دين الزبون مع كل إعادة رسم؛ save/load هي التي تبطل الكاش عند تغيّر البيانات.
@@ -28644,64 +28700,73 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
         // ===== حذف السطر (الإصلاح الحقيقي تبع مشكلتك الأولى) =====
         del.onclick = async () => {
           const __assalWholesaleDelete = (typeof isWholesaleCard === 'function') && isWholesaleCard(card);
-          const __assalNeedsDeleteConfirm = !__assalWholesaleDelete || assalWholesaleDeleteNeedsConfirm(card);
-          const ok = __assalNeedsDeleteConfirm
-            ? await assalActionConfirm('delete-line', { customer:card.customer, item:ln.item })
-            : true;
-          if (!ok) return;
-          if(__assalWholesaleDelete && __assalNeedsDeleteConfirm) assalWholesaleArmDeleteConfirmPause(card);
-
-          // نجيب النسخة الحقيقية من البطاقة (حتى لو انت فاتح بحث شامل لكل الأيام)
-          const realCard = getMutableCard(card) || card;
-
-          // نحدد نفس السطر جوّا البطاقة الحقيقية
-          let realLine = (realCard.lines || []).find(
-            l => l === ln || l.lineId === ln.lineId
-          );
-          if (!realLine) {
-            // احتياط إذا لأي سبب ما لقيناه
-            realLine = ln;
-          }
-
-          const __assalAuditDeleteBefore = window.assalCardAuditFullLineSnapshot
-            ? window.assalCardAuditFullLineSnapshot(realLine)
-            : JSON.parse(JSON.stringify(realLine));
-          const __assalAuditDeleteIndex = Math.max(0, (realCard.lines || []).indexOf(realLine));
-          const delTs = nowISO();
-          realLine.deletedAt = delTs;
-          realLine.updatedAt = delTs;
-
-          // حدّث وقت البطاقة الحقيقية حتى الدمج/الفرز يحترم آخر تعديل
-          realCard.updatedAt = delTs;
-
-          let __assalAuditDeleteSaved = true;
+          const __assalWholesaleDeleteGuardKey = __assalWholesaleDelete ? assalWholesaleDeleteAcquire(card, del) : '';
+          if(__assalWholesaleDelete && !__assalWholesaleDeleteGuardKey) return;
           try{
-            const __assalSaveResult = save();
-            if(__assalSaveResult && __assalSaveResult.ok === false) __assalAuditDeleteSaved = false;
-          }catch(_){
+            const __assalNeedsDeleteConfirm = !__assalWholesaleDelete || assalWholesaleDeleteNeedsConfirm(card);
+            const ok = __assalNeedsDeleteConfirm
+              ? await assalActionConfirm('delete-line', { customer:card.customer, item:ln.item })
+              : true;
+            if (!ok) return;
+            if(__assalWholesaleDelete && __assalNeedsDeleteConfirm) assalWholesaleArmDeleteConfirmPause(card);
+
+            // نجيب النسخة الحقيقية من البطاقة (حتى لو انت فاتح بحث شامل لكل الأيام)
+            const realCard = getMutableCard(card) || card;
+
+            // نثبت هوية السطر قبل أي رسم؛ لا نطابق undefined مع undefined.
+            const __assalDeleteTargetLineId = assalInlineEditLineId(ln);
+            let realLine = (realCard.lines || []).find(function(l){
+              return l === ln || (__assalDeleteTargetLineId && assalInlineEditLineId(l) === __assalDeleteTargetLineId);
+            });
+            if (!realLine) return;
+
+            const __assalAuditDeleteBefore = window.assalCardAuditFullLineSnapshot
+              ? window.assalCardAuditFullLineSnapshot(realLine)
+              : JSON.parse(JSON.stringify(realLine));
+            const __assalAuditDeleteIndex = Math.max(0, (realCard.lines || []).indexOf(realLine));
+            const delTs = nowISO();
+            realLine.deletedAt = delTs;
+            realLine.updatedAt = delTs;
+
+            // حدّث وقت البطاقة الحقيقية حتى الدمج/الفرز يحترم آخر تعديل
+            realCard.updatedAt = delTs;
+
+            let __assalAuditDeleteSaved = true;
+            try{
+              const __assalSaveResult = save();
+              if(__assalSaveResult && __assalSaveResult.ok === false) __assalAuditDeleteSaved = false;
+            }catch(_){
  __assalAuditDeleteSaved = false;
  
 }
-          if(__assalAuditDeleteSaved && window.assalCardAuditRecordDelete){
-            try{
-              window.assalCardAuditRecordDelete(
-                realCard,
-                realLine,
-                __assalAuditDeleteBefore,
-                window.assalCardAuditFullLineSnapshot(realLine),
-                __assalAuditDeleteIndex,
-                delTs,
-                (card && card.__day) || selectedDay
-              );
-            }catch(_){
+            if(__assalAuditDeleteSaved && window.assalCardAuditRecordDelete){
+              try{
+                window.assalCardAuditRecordDelete(
+                  realCard,
+                  realLine,
+                  __assalAuditDeleteBefore,
+                  window.assalCardAuditFullLineSnapshot(realLine),
+                  __assalAuditDeleteIndex,
+                  delTs,
+                  (card && card.__day) || selectedDay
+                );
+              }catch(_){
  
 }
-          }
-          renderBoard();
-          renderRail();
-          refreshStats();
+            }
+            if(__assalWholesaleDelete) assalWholesaleDeleteArmGuard(__assalWholesaleDeleteGuardKey);
+            if(__assalWholesaleDelete && window.__assalWholesaleSequentialEdit && window.__assalWholesaleSequentialEdit.active){
+              assalWholesaleSequentialRenderBoard();
+            }else{
+              renderBoard();
+            }
+            renderRail();
+            refreshStats();
 
-          showToast('error', 'تم تعليم السطر كمحذوف');
+            showToast('error', 'تم تعليم السطر كمحذوف');
+          }finally{
+            if(__assalWholesaleDelete) assalWholesaleDeleteRelease(__assalWholesaleDeleteGuardKey, del);
+          }
         };
 
         itemsWrap.appendChild(it);
