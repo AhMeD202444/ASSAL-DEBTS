@@ -26184,7 +26184,7 @@ function assalWholesaleSequentialFinish(){
   return true;
 }
 
-function assalWholesaleSequentialStart(card){
+function assalWholesaleSequentialStart(card, startLine){
   try{
     if(!card || !(typeof isWholesaleCard === 'function' && isWholesaleCard(card))) return;
     if(assalInlineEditIsOpen()){
@@ -26200,6 +26200,16 @@ function assalWholesaleSequentialStart(card){
       const foldKey = (typeof assalWholesaleCardRenderKey === 'function') ? assalWholesaleCardRenderKey(card) : '';
       if(foldKey && typeof assalWholesaleExpandedCards !== 'undefined') assalWholesaleExpandedCards.add(foldKey);
     }catch(_){}
+    /* زر رأس البطاقة يبدأ من أول سطر كما كان. زر قلم السطر يمرر startLine
+       فيبدأ المحرك المتسلسل نفسه من ذلك السطر من دون أي مسار حفظ جديد. */
+    let firstLine = lines[0];
+    if(startLine){
+      const startLineId = assalInlineEditLineId(startLine);
+      const matchedLine = lines.find(function(candidate){
+        return candidate === startLine || (startLineId && assalInlineEditLineId(candidate) === startLineId);
+      });
+      if(matchedLine) firstLine = matchedLine;
+    }
     window.__assalWholesaleSequentialEdit = {
       active:true,
       day:assalInlineEditDayOf(card),
@@ -26207,7 +26217,7 @@ function assalWholesaleSequentialStart(card){
       modifiedCount:0,
       finishing:false
     };
-    assalInlineEditStart(card, lines[0]);
+    assalInlineEditStart(card, firstLine);
   }catch(err){
     window.__assalWholesaleSequentialEdit = null;
     try{ console.error(err); showToast('error','تعذر بدء التعديل المتتابع'); }catch(_){}
@@ -28384,6 +28394,21 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
 }catch(_){
 
 }
+            return;
+          }
+          /* في فاتورة الجملة قلم السطر يستخدم محرك التعديل المتسلسل نفسه:
+             يبدأ من السطر المختار، وإذا كان السطر الحالي مفتوحاً ينهي ويحفظ مثل زر الرأس. */
+          const __assalWholesaleRowSequential = (typeof isWholesaleCard === 'function') && isWholesaleCard(card);
+          if(__assalWholesaleRowSequential){
+            if((typeof assalInlineEditIsCurrent === 'function') && assalInlineEditIsCurrent(card, ln)){
+              if(typeof assalWholesaleSequentialIsFor === 'function' && assalWholesaleSequentialIsFor(card)){
+                assalWholesaleSequentialFinish();
+              }else{
+                await assalInlineEditCancelConfirm();
+              }
+              return;
+            }
+            assalWholesaleSequentialStart(card, ln);
             return;
           }
           if((typeof assalInlineEditIsCurrent === 'function') && assalInlineEditIsCurrent(card, ln)){
