@@ -19728,6 +19728,61 @@ function isWholesaleCard(card){
   return (card.lines || []).some(l => !l.deletedAt && String(l.type || '') === 'جملة');
 }
 
+/* تسلسل ورقي ثابت لفواتير الجملة فقط.
+   حذف سطر يترك فراغ رقمه، والتراجع يعيده بالرقم نفسه، والجديد يأخذ الرقم التالي. */
+const ASSAL_WHOLESALE_SEQUENCE_FIELD = 'assalWholesaleSequence';
+
+function assalWholesaleStoredSequence(line){
+  const value = Number(line && line[ASSAL_WHOLESALE_SEQUENCE_FIELD]);
+  return Number.isInteger(value) && value > 0 ? value : 0;
+}
+
+function assalWholesaleLineSequence(card, line, fallback){
+  const ordinary = Math.max(1, Number(fallback) || 1);
+  if(!isWholesaleCard(card)) return ordinary;
+  const stored = assalWholesaleStoredSequence(line);
+  if(stored) return stored;
+  const all = Array.isArray(card && card.lines) ? card.lines : [];
+  const originalIndex = all.indexOf(line);
+  return originalIndex >= 0 ? originalIndex + 1 : ordinary;
+}
+
+function assalWholesaleSeedSequences(card){
+  if(!isWholesaleCard(card) || !Array.isArray(card.lines)) return false;
+  const used = new Set();
+  const validLines = new Set();
+  let changed = false;
+  let max = 0;
+  card.lines.forEach(function(line){
+    const seq = assalWholesaleStoredSequence(line);
+    if(seq && !used.has(seq)){
+      used.add(seq);
+      validLines.add(line);
+      if(seq > max) max = seq;
+    }
+  });
+  card.lines.forEach(function(line,index){
+    if(!line || validLines.has(line)) return;
+    let seq = index + 1;
+    if(used.has(seq)) seq = max + 1;
+    while(used.has(seq)) seq += 1;
+    line[ASSAL_WHOLESALE_SEQUENCE_FIELD] = seq;
+    used.add(seq);
+    if(seq > max) max = seq;
+    changed = true;
+  });
+  return changed;
+}
+
+function assalWholesaleNextSequence(card){
+  assalWholesaleSeedSequences(card);
+  let max = 0;
+  (Array.isArray(card && card.lines) ? card.lines : []).forEach(function(line){
+    max = Math.max(max, assalWholesaleStoredSequence(line));
+  });
+  return max + 1;
+}
+
 const ASSAL_WHOLESALE_DELETE_CONFIRM_MS = 5 * 60 * 1000;
 const assalWholesaleDeleteConfirmUntil = (window.__ASSAL_WHOLESALE_DELETE_CONFIRM_UNTIL__ instanceof Map)
   ? window.__ASSAL_WHOLESALE_DELETE_CONFIRM_UNTIL__
@@ -24546,7 +24601,7 @@ document.getElementById('btnAdd').onclick = async () => {
     __assalNewLineId = String(__assalWholesaleDuplicateLine.lineId || '');
   }else{
     __assalNewLineId = makeId();
-    card.lines.push({
+    const __assalNewLine = {
       lineId   : __assalNewLineId,
       item, cat, price: priceVal, qty, note, type, organizer, invoiceOrganizer: organizer, addedBy: organizer,
       paid: (type==='نقدي'), returned: (type==='راجع'),
@@ -24554,7 +24609,11 @@ document.getElementById('btnAdd').onclick = async () => {
       updatedAt: nowISOVal2,
       at: nowISOVal2,
       deletedAt: null
-    });
+    };
+    if(String(type || '').trim() === 'جملة'){
+      __assalNewLine[ASSAL_WHOLESALE_SEQUENCE_FIELD] = assalWholesaleNextSequence(card);
+    }
+    card.lines.push(__assalNewLine);
   }
   try{
     window.__assalLastAddedCardId = String(card.id || '');
@@ -28266,7 +28325,12 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
             ? assalInlineEditLineId(__assalSequenceLine)
             : (__assalSequenceLine && __assalSequenceLine.lineId) || ''
         );
-        if(__assalSequenceLineId) __assalWholesaleSequenceByLineId.set(__assalSequenceLineId, __assalSequenceIndex + 1);
+        if(__assalSequenceLineId){
+          const __assalStableSequence = (typeof assalWholesaleLineSequence === 'function')
+            ? assalWholesaleLineSequence(card, __assalSequenceLine, __assalSequenceIndex + 1)
+            : (__assalSequenceIndex + 1);
+          __assalWholesaleSequenceByLineId.set(__assalSequenceLineId, __assalStableSequence);
+        }
       }catch(_){ }
     });
     const __assalWholesaleFoldable = isWholesaleCard(card) && (__assalWholesaleActiveLines.length > ASSAL_WHOLESALE_CARD_PREVIEW_LIMIT);
@@ -28756,6 +28820,11 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
               return l === ln || (__assalDeleteTargetLineId && assalInlineEditLineId(l) === __assalDeleteTargetLineId);
             });
             if (!realLine) return;
+
+            // نثبت تسلسل الورقة لكل سطور الجملة قبل الحذف، ثم يبقى الرقم محفوظاً مع السطر.
+            if(__assalWholesaleDelete && typeof assalWholesaleSeedSequences === 'function'){
+              assalWholesaleSeedSequences(realCard);
+            }
 
             const __assalAuditDeleteBefore = window.assalCardAuditFullLineSnapshot
               ? window.assalCardAuditFullLineSnapshot(realLine)
@@ -37978,6 +38047,15 @@ function mergeLine(a, b, report, path){
     const {val} = pickNewerField(aVal, aTs, bVal, bTs);
     merged[f] = val;
   });
+
+  // رقم التسلسل الورقي ثابت؛ إذا كان محفوظاً في إحدى النسختين لا يضيع أثناء الدمج.
+  const stableSeqA = Number(x.assalWholesaleSequence);
+  const stableSeqB = Number(y.assalWholesaleSequence);
+  if(Number.isInteger(stableSeqA) && stableSeqA > 0){
+    merged.assalWholesaleSequence = stableSeqA;
+  }else if(Number.isInteger(stableSeqB) && stableSeqB > 0){
+    merged.assalWholesaleSequence = stableSeqB;
+  }
 
   // قرارات الحذف:
   // إن كان delA أو delB موجودين، نحسم بحسب من الأحدث مقارنةً مع آخر updatedAt
@@ -86678,6 +86756,7 @@ body.assal-ledger-wa-auto-pdf-open{
 .assal-bi-card.is-old{opacity:.7}
 .assal-bi-card-head{display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 15px;background:linear-gradient(90deg,rgba(30,41,59,.78),rgba(17,28,51,.72));border-bottom:1px solid rgba(148,163,184,.13);text-align:center}
 .assal-bi-card-head .branch{flex:1;min-width:0;text-align:center;padding-right:92px}.assal-bi-card-head .branch b{display:block;font-size:14px;color:#f8fafc}.assal-bi-card-head .branch span{display:block;color:#93a4ba;font-size:10px;margin-top:3px}
+.assal-bi-day-pill{display:inline-flex!important;align-items:center;justify-content:center;margin-inline:4px 0!important;padding:2px 8px;border:1px solid rgba(96,165,250,.22);border-radius:999px;color:#bfdbfe!important;background:rgba(30,64,175,.16);font-size:9px!important;font-weight:900;white-space:nowrap}
 .assal-bi-badge{min-width:92px;padding:5px 10px;border-radius:999px;font-size:10px;font-weight:900;text-align:center;background:rgba(18,209,180,.11);color:#5eead4;border:1px solid rgba(18,209,180,.25)}
 .assal-bi-badge.done{background:rgba(148,163,184,.09);color:#cbd5e1;border-color:#334155}.assal-bi-badge.warn{background:rgba(245,158,11,.11);color:#fbbf24;border-color:rgba(245,158,11,.28)}
 .assal-bi-lines{padding:10px 12px 12px;overflow-x:auto}.assal-bi-table{width:100%;min-width:650px;border:1px solid rgba(71,85,105,.24);border-radius:14px;overflow:hidden;background:rgba(8,17,34,.48)}
@@ -86694,11 +86773,11 @@ body.assal-ledger-wa-auto-pdf-open{
   <section class="assal-bi-shell" role="dialog" aria-modal="true" aria-labelledby="assalBranchImportTitle">
     <header class="assal-bi-head">
       <div class="assal-bi-mark"><i class="fa-solid fa-file-import"></i></div>
-      <div class="assal-bi-title"><b id="assalBranchImportTitle">استيراد فواتير فروع اليوم</b><span>كل فاتورة تُضاف كبطاقة جملة مستقلة، والسعر غير الموجود يُعتمد صفراً ويمكن تعديله.</span></div>
+      <div class="assal-bi-title"><b id="assalBranchImportTitle">استيراد فواتير الفروع</b><span>يعرض فواتير اليوم ويومين سابقين، ويحفظ كل فاتورة في تاريخ إرسالها الأصلي.</span></div>
       <button type="button" class="assal-bi-close" id="assalBranchImportClose" aria-label="إغلاق"><i class="fa-solid fa-xmark"></i></button>
     </header>
     <div class="assal-bi-summary">
-      <div class="assal-bi-stat"><span>فواتير اليوم</span><b id="assalBiTotal">—</b></div>
+      <div class="assal-bi-stat"><span>فواتير 3 أيام</span><b id="assalBiTotal">—</b></div>
       <div class="assal-bi-stat"><span>الجديدة</span><b id="assalBiNew">—</b></div>
       <div class="assal-bi-stat"><span>المستوردة سابقاً</span><b id="assalBiDone">—</b></div>
     </div>
@@ -86720,7 +86799,7 @@ body.assal-ledger-wa-auto-pdf-open{
     'isl1234': 'مكتب عسل فرع الحي',
     'bld1234': 'مكتب عسل فرع بلدروز'
   };
-  var state = { invoices:[], busy:false, today:'' };
+  var state = { invoices:[], busy:false, today:'', allowedDays:[], doneCount:0, changedCount:0 };
 
   function el(id){ return document.getElementById(id); }
   function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -86729,7 +86808,9 @@ body.assal-ledger-wa-auto-pdf-open{
   function isoNow(){ return new Date().toISOString(); }
   function uid(){ try{return typeof genId==='function'?String(genId()):String(Date.now())+'-'+Math.random().toString(36).slice(2,9);}catch(_){return String(Date.now())+'-'+Math.random().toString(36).slice(2,9);} }
   function baghdadDay(ts){
-    var d = ts == null ? new Date() : new Date(Number(ts));
+    var raw = ts == null ? Date.now() : ts;
+    var numeric = (typeof raw==='number') || /^\d+$/.test(String(raw).trim());
+    var d = numeric ? new Date(Number(raw)) : new Date(raw);
     if(!Number.isFinite(d.getTime())) return '';
     try{
       var parts = new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Baghdad',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(d);
@@ -86740,6 +86821,21 @@ body.assal-ledger-wa-auto-pdf-open{
       return shifted.getUTCFullYear()+'-'+String(shifted.getUTCMonth()+1).padStart(2,'0')+'-'+String(shifted.getUTCDate()).padStart(2,'0');
     }
   }
+  function shiftDayKey(day,amount){
+    var m=String(day||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(!m)return '';
+    var d=new Date(Date.UTC(Number(m[1]),Number(m[2])-1,Number(m[3])));
+    d.setUTCDate(d.getUTCDate()+Number(amount||0));
+    return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
+  }
+  function importWindow(today){return [today,shiftDayKey(today,-1),shiftDayKey(today,-2)].filter(Boolean);}
+  function dayLabel(day){
+    if(day===state.today)return 'اليوم';
+    if(day===state.allowedDays[1])return 'أمس';
+    if(day===state.allowedDays[2])return 'قبل يومين';
+    return day||'—';
+  }
+  function fmtDay(day){var m=String(day||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?(m[3]+'-'+m[2]+'-'+m[1]):String(day||'—');}
   function norm(v){
     return clean(v).toLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[إأآٱ]/g,'ا').replace(/[ىي]/g,'ي').replace(/ة/g,'ه').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/[\s\-–—_\/\\|،,.;؛:()\[\]{}]+/g,'');
   }
@@ -86840,12 +86936,15 @@ body.assal-ledger-wa-auto-pdf-open{
   }
   function normalizeSource(key,raw,done){
     var code=clean(raw&&raw.senderCode || raw&&raw.ownerCode).toLowerCase();
-    var uploaded=Number(raw&&raw.uploadedAt||0);
+    var uploadedRaw=raw&&raw.uploadedAt;
+    var uploaded=/^\d+$/.test(String(uploadedRaw==null?'':uploadedRaw).trim())?Number(uploadedRaw):new Date(uploadedRaw||0).getTime();
+    if(!Number.isFinite(uploaded))uploaded=0;
+    var sourceDay=baghdadDay(raw&&raw.uploadedAt);
     var sourceItems=Array.isArray(raw&&raw.items)?raw.items:[];
     var signature=sourceSignature(sourceItems), previous=done.get(key)||null;
     return {
       key:key, code:code, branch:BRANCHES[code]||'', sourceName:clean(raw&&raw.id)||'فاتورة فرع',
-      uploadedAt:uploaded, done:!!previous, changed:!!(previous&&clean(previous.sourceSignature)&&clean(previous.sourceSignature)!==signature), sourceSignature:signature,
+      uploadedAt:uploaded, sourceDay:sourceDay, done:!!previous, changed:!!(previous&&clean(previous.sourceSignature)&&clean(previous.sourceSignature)!==signature), sourceSignature:signature,
       items:sourceItems.map(function(it,index){
         var category=clean(it&&it.category), name=clean(it&&(it.name||it.item)), qty=clean(it&&it.qty)||'1';
         return {index:index,category:category,name:name,qty:qty,note:clean(it&&it.note),price:priceFor(category,name)};
@@ -86860,27 +86959,32 @@ body.assal-ledger-wa-auto-pdf-open{
   function validSource(raw){
     var code=clean(raw&&raw.senderCode || raw&&raw.ownerCode).toLowerCase();
     var role=clean(raw&&raw.senderRole || raw&&raw.ownerRole).toLowerCase();
-    return !!BRANCHES[code] && role==='user' && baghdadDay(raw&&raw.uploadedAt)===state.today;
+    var sourceDay=baghdadDay(raw&&raw.uploadedAt);
+    return !!BRANCHES[code] && role==='user' && state.allowedDays.indexOf(sourceDay)>=0;
   }
   async function fetchToday(){
     state.today=baghdadDay();
+    state.allowedDays=importWindow(state.today);
     var resp=await fetch(SOURCE_URL+(SOURCE_URL.indexOf('?')>=0?'&':'?')+'_='+Date.now(),{method:'GET',cache:'no-store'});
     if(!resp.ok)throw new Error('SOURCE_HTTP_'+resp.status);
     var data=await resp.json(); data=(data&&typeof data==='object')?data:{};
     var done=importedMeta();
-    state.invoices=Object.keys(data).map(function(k){return {key:k,raw:data[k]||{}};}).filter(function(x){return validSource(x.raw);}).map(function(x){return normalizeSource(x.key,x.raw,done);}).filter(function(x){return x.items.length>0;}).sort(function(a,b){return a.uploadedAt-b.uploadedAt;});
+    var withinWindow=Object.keys(data).map(function(k){return {key:k,raw:data[k]||{}};}).filter(function(x){return validSource(x.raw);}).map(function(x){return normalizeSource(x.key,x.raw,done);}).filter(function(x){return x.items.length>0;}).sort(function(a,b){return a.uploadedAt-b.uploadedAt;});
+    state.doneCount=withinWindow.filter(function(x){return x.done;}).length;
+    state.changedCount=withinWindow.filter(function(x){return x.done&&x.changed;}).length;
+    state.invoices=withinWindow.filter(function(x){return !x.done;});
   }
   function fmtTime(ts){try{return new Intl.DateTimeFormat('ar-IQ',{timeZone:'Asia/Baghdad',hour:'2-digit',minute:'2-digit'}).format(new Date(ts));}catch(_){return '—';}}
   function render(){
     var body=el('assalBranchImportBody'), list=state.invoices, fresh=list.filter(function(x){return !x.done;});
-    el('assalBiTotal').textContent=String(list.length);el('assalBiNew').textContent=String(fresh.length);el('assalBiDone').textContent=String(list.length-fresh.length);
-    if(!list.length){body.innerHTML='<div class="assal-bi-message"><i class="fa-solid fa-circle-check"></i><br>لا توجد فواتير جديدة أو مستوردة للفروع الثلاثة خلال اليوم الحالي.</div>';setStatus('لم يتم العثور على فواتير فروع لهذا اليوم.','');setBusy(false);return;}
+    el('assalBiTotal').textContent=String(list.length+state.doneCount);el('assalBiNew').textContent=String(fresh.length);el('assalBiDone').textContent=String(state.doneCount);
+    if(!list.length){body.innerHTML='<div class="assal-bi-message"><i class="fa-solid fa-circle-check"></i><br>لا توجد فواتير جديدة غير مستوردة خلال اليوم ويومين سابقين.</div>';setStatus(state.changedCount?('توجد '+state.changedCount+' فاتورة مستوردة تغيّرت في المصدر؛ لم تُستبدل الذمم تلقائياً.'):'كل فواتير الأيام الثلاثة مستوردة سابقاً أو لا توجد فواتير جديدة.',state.changedCount?'error':'ok');setBusy(false);return;}
     body.innerHTML=list.map(function(inv){
       var missing=inv.items.filter(function(it){return !(num(it.price)>0);}).length;
       var badge=inv.done?(inv.changed?'<span class="assal-bi-badge warn">تغيّرت بعد الاستيراد</span>':'<span class="assal-bi-badge done">مستوردة سابقاً</span>'):(missing?'<span class="assal-bi-badge warn">'+missing+' بسعر صفر</span>':'<span class="assal-bi-badge">جاهزة</span>');
       var rows=inv.items.map(function(it){return '<div class="assal-bi-line"><div class="assal-bi-cat"><span title="'+esc(it.category||'بدون صنف')+'">'+esc(it.category||'بدون صنف')+'</span></div><div class="assal-bi-item"><b title="'+esc(it.name)+'">'+esc(it.name)+'</b></div><div class="assal-bi-qty">'+esc(it.qty)+'</div><input class="assal-bi-price '+(it.price>0?'':'zero')+'" type="text" inputmode="numeric" data-bi-key="'+esc(inv.key)+'" data-bi-index="'+it.index+'" value="'+esc(num(it.price))+'" placeholder="0" '+(inv.done?'disabled':'')+'></div>';}).join('');
       var table='<div class="assal-bi-table"><div class="assal-bi-table-head"><span>الصنف</span><span>اسم المادة</span><span>العدد</span><span>السعر</span></div>'+rows+'</div>';
-      return '<article class="assal-bi-card '+(inv.done?'is-old ':'')+'" data-bi-card="'+esc(inv.key)+'"><div class="assal-bi-card-head"><div class="branch"><b>'+esc(inv.branch)+'</b><span>'+esc(inv.sourceName)+' • '+fmtTime(inv.uploadedAt)+' • '+inv.items.length+' مادة</span></div>'+badge+'</div><div class="assal-bi-lines">'+table+'</div></article>';
+      return '<article class="assal-bi-card '+(inv.done?'is-old ':'')+'" data-bi-card="'+esc(inv.key)+'"><div class="assal-bi-card-head"><div class="branch"><b>'+esc(inv.branch)+'</b><span>'+esc(inv.sourceName)+' • '+fmtTime(inv.uploadedAt)+' • '+inv.items.length+' مادة</span><span class="assal-bi-day-pill">'+esc(dayLabel(inv.sourceDay))+' • '+esc(fmtDay(inv.sourceDay))+'</span></div>'+badge+'</div><div class="assal-bi-lines">'+table+'</div></article>';
     }).join('');
     body.querySelectorAll('.assal-bi-price').forEach(function(input){input.addEventListener('input',onPriceInput);});
     refreshCommitState();
@@ -86900,9 +87004,9 @@ body.assal-ledger-wa-auto-pdf-open{
     var fresh=state.invoices.filter(function(x){return !x.done;}), missing=0;
     fresh.forEach(function(inv){inv.items.forEach(function(it){if(!(num(it.price)>0))missing++;});});
     var btn=el('assalBranchImportConfirm');if(btn)btn.disabled=state.busy||!canCommit();
-    var changed=state.invoices.filter(function(x){return x.done&&x.changed;}).length;
+    var changed=state.changedCount;
     if(!fresh.length&&changed)setStatus('توجد '+changed+' فاتورة تغيّرت في المصدر بعد استيرادها. لم تُستبدل البطاقة المالية تلقائياً ولم تُكرر.','error');
-    else if(!fresh.length)setStatus('كل فواتير اليوم الظاهرة مستوردة سابقاً؛ لن يُنشأ أي تكرار.','ok');
+    else if(!fresh.length)setStatus('كل فواتير الأيام الثلاثة مستوردة سابقاً؛ لن يُنشأ أي تكرار.','ok');
     else if(missing)setStatus('جاهز للاستيراد: '+missing+' مادة بلا سعر ستُحفظ بسعر صفر، ويمكنك تعديلها الآن أو لاحقاً.','ok');
     else setStatus('جاهز لإضافة '+fresh.length+' فاتورة كبطاقات جملة مستقلة.','ok');
   }
@@ -86910,33 +87014,43 @@ body.assal-ledger-wa-auto-pdf-open{
     var now=isoNow(), sourceIso=new Date(inv.uploadedAt||Date.now()).toISOString();
     return {
       id:uid(), customer:inv.branch, organizer:'استيراد فواتير الفروع', invoiceOrganizer:'استيراد فواتير الفروع',
-      lines:inv.items.map(function(it){return {lineId:uid(),item:it.name,cat:it.category,price:num(it.price),qty:it.qty,note:it.note,type:'جملة',organizer:'استيراد فواتير الفروع',invoiceOrganizer:'استيراد فواتير الفروع',addedBy:'استيراد فواتير الفروع',paid:false,returned:false,createdAt:sourceIso,updatedAt:now,at:sourceIso,deletedAt:null,sourceBranchInvoiceKey:inv.key,sourceBranchInvoiceName:inv.sourceName};}),
+      lines:inv.items.map(function(it,index){return {lineId:uid(),item:it.name,cat:it.category,price:num(it.price),qty:it.qty,note:it.note,type:'جملة',organizer:'استيراد فواتير الفروع',invoiceOrganizer:'استيراد فواتير الفروع',addedBy:'استيراد فواتير الفروع',paid:false,returned:false,createdAt:sourceIso,updatedAt:now,at:sourceIso,deletedAt:null,assalWholesaleSequence:index+1,sourceBranchInvoiceKey:inv.key,sourceBranchInvoiceName:inv.sourceName};}),
       createdAt:sourceIso,updatedAt:now,paidAll:false,billType:'جملة',wholesalePrepared:false,
       sourceBranchInvoiceKey:inv.key,
-      assalBranchInvoiceImport:{version:1,sourceServerKey:inv.key,sourceInvoiceName:inv.sourceName,sourceSenderCode:inv.code,sourceBranchName:inv.branch,sourceUploadedAt:inv.uploadedAt,sourceSignature:inv.sourceSignature,importedAt:now,sourceSystem:'ASSAL_INVOICE'}
+      assalBranchInvoiceImport:{version:1,sourceServerKey:inv.key,sourceInvoiceName:inv.sourceName,sourceSenderCode:inv.code,sourceBranchName:inv.branch,sourceUploadedAt:inv.uploadedAt,sourceInvoiceDay:inv.sourceDay,sourceSignature:inv.sourceSignature,importedAt:now,sourceSystem:'ASSAL_INVOICE'}
     };
   }
   async function commit(){
     if(state.busy||!canCommit())return;
     if(!canImportHere()){setStatus('الاستيراد مسموح لحاسبة الأدمن والحاسبة الرئيسية فقط.','error');return;}
     if(!adminRequestsReady()){setStatus('نظام طلبات التعديل في حاسبة الأدمن لم يكتمل تحميله بعد. انتظر لحظات ثم حاول مجدداً.','error');return;}
-    var fresh=state.invoices.filter(function(x){return !x.done;}), day=state.today;
-    var before;
-    try{before=JSON.stringify(Array.isArray(days[day])?days[day]:[]);}catch(_){setStatus('تعذر أخذ نسخة أمان قبل الاستيراد. لم تتغير البيانات.','error');return;}
+    var fresh=state.invoices.filter(function(x){return !x.done;});
+    var targetDays=[];
+    fresh.forEach(function(inv){var day=clean(inv&&inv.sourceDay);if(day&&targetDays.indexOf(day)<0)targetDays.push(day);});
+    var beforeDays={};
+    try{
+      targetDays.forEach(function(day){beforeDays[day]={exists:Object.prototype.hasOwnProperty.call(days,day),json:JSON.stringify(Array.isArray(days[day])?days[day]:[])};});
+    }catch(_){setStatus('تعذر أخذ نسخة أمان للأيام قبل الاستيراد. لم تتغير البيانات.','error');return;}
     setBusy(true);setStatus('جاري إنشاء البطاقات وحفظها محلياً…','');
     try{
-      if(!days[day])days[day]=[];
       var seen=importedMeta();
       var actually=fresh.filter(function(inv){return !seen.has(inv.key);});
-      if(!actually.length){state.invoices.forEach(function(x){x.done=true;});render();return;}
-      var cards=actually.map(makeCard);
-      for(var i=cards.length-1;i>=0;i--)days[day].unshift(cards[i]);
+      if(!actually.length){state.invoices.forEach(function(x){x.done=true;});state.doneCount+=state.invoices.length;state.invoices=[];render();return;}
+      for(var i=actually.length-1;i>=0;i--){
+        var invoice=actually[i],invoiceDay=clean(invoice&&invoice.sourceDay);
+        if(state.allowedDays.indexOf(invoiceDay)<0)throw new Error('SOURCE_DAY_OUTSIDE_WINDOW');
+        if(!Array.isArray(days[invoiceDay]))days[invoiceDay]=[];
+        days[invoiceDay].unshift(makeCard(invoice));
+      }
       var result=(typeof save==='function')?save():null;
       if(!result||result.ok===false)throw new Error('LOCAL_SAVE_FAILED');
       actually.forEach(function(inv){inv.done=true;});
-      try{if(typeof selectedDay==='undefined')window.selectedDay=day;else selectedDay=day;}catch(_){window.selectedDay=day;}
+      state.doneCount+=actually.length;
+      state.invoices=state.invoices.filter(function(inv){return !inv.done;});
+      var displayDay=actually.map(function(inv){return clean(inv&&inv.sourceDay);}).filter(Boolean).sort().pop()||state.today;
+      try{if(typeof selectedDay==='undefined')window.selectedDay=displayDay;else selectedDay=displayDay;}catch(_){window.selectedDay=displayDay;}
       try{if(typeof renderRail==='function')renderRail();}catch(_){}
-      try{if(String(selectedDay||'')===day&&typeof renderBoard==='function')renderBoard();else if(String(selectedDay||'')===day&&typeof render==='function')render();}catch(_){}
+      try{if(String(selectedDay||'')===displayDay&&typeof renderBoard==='function')renderBoard();else if(String(selectedDay||'')===displayDay&&typeof render==='function')render();}catch(_){}
       try{window.assalInvalidateDebtBadgeCache&&window.assalInvalidateDebtBadgeCache();}catch(_){}
       render();
       var importedCount=actually.length;
@@ -86950,23 +87064,23 @@ body.assal-ledger-wa-auto-pdf-open{
       if(modal){modal.classList.remove('show');modal.setAttribute('aria-hidden','true');}
       setTimeout(function(){toast('success',successText);},80);
     }catch(err){
-      try{days[day]=JSON.parse(before);}catch(_){}
+      try{Object.keys(beforeDays).forEach(function(day){var snap=beforeDays[day];if(snap&&snap.exists)days[day]=JSON.parse(snap.json);else delete days[day];});}catch(_){}
       try{if(typeof save==='function')save();}catch(_){}
       console.error('ASSAL branch invoice import error:',err);
-      setStatus('تعذر الاستيراد؛ تمت إعادة بيانات اليوم كما كانت ولم تُعتمد أي فاتورة.','error');toast('error','تعذر استيراد فواتير الفروع');
+      setStatus('تعذر الاستيراد؛ تمت إعادة بيانات الأيام كما كانت ولم تُعتمد أي فاتورة.','error');toast('error','تعذر استيراد فواتير الفروع');
     }finally{state.busy=false;refreshCommitState();}
   }
   async function open(){
     if(!canImportHere()){toast('warn','استيراد فواتير الفروع متاح لحاسبة الأدمن والحاسبة الرئيسية فقط');return;}
     if(!adminRequestsReady()){toast('warn','انتظر اكتمال تحميل نظام طلبات التعديل ثم حاول مجدداً');return;}
     var modal=el('assalBranchImportModal');modal.classList.add('show');modal.setAttribute('aria-hidden','false');
-    el('assalBranchImportBody').innerHTML='<div class="assal-bi-message"><i class="fa-solid fa-spinner fa-spin"></i><br>جاري قراءة فواتير فروع اليوم…</div>';
+    el('assalBranchImportBody').innerHTML='<div class="assal-bi-message"><i class="fa-solid fa-spinner fa-spin"></i><br>جاري قراءة فواتير اليوم ويومين سابقين…</div>';
     el('assalBiTotal').textContent=el('assalBiNew').textContent=el('assalBiDone').textContent='—';setStatus('اتصال آمن بسيرفر الفواتير…','');setBusy(true);
     try{
       if(typeof database==='undefined'||!database||!Object.keys(database).length)throw new Error('PRICE_DATABASE_NOT_READY');
       await fetchToday();state.busy=false;render();
     }catch(err){
-      state.busy=false;state.invoices=[];
+      state.busy=false;state.invoices=[];state.doneCount=0;state.changedCount=0;
       var priceErr=String(err&&err.message)==='PRICE_DATABASE_NOT_READY';
       el('assalBranchImportBody').innerHTML='<div class="assal-bi-message">'+(priceErr?'قاعدة الأسعار لم تكتمل بعد. انتظر تحميل الأصناف ثم حاول مجدداً.':'تعذر قراءة فواتير الفروع حالياً. تأكد من الإنترنت وحاول مرة أخرى.')+'</div>';
       setStatus('لم تُضف أو تتغير أي بطاقة.','error');refreshCommitState();
@@ -86976,7 +87090,7 @@ body.assal-ledger-wa-auto-pdf-open{
   function bind(){
     var host=el('assalHeaderActions'),closeTools=el('btnHeaderToolsClose');
     if(host&&!el('btnBranchWholesaleImport')){
-      var btn=document.createElement('button');btn.type='button';btn.id='btnBranchWholesaleImport';btn.className='icon assal-tool-action';btn.title='استيراد فواتير فروع اليوم';btn.setAttribute('aria-label',btn.title);btn.innerHTML='<i class="fa-solid fa-file-circle-plus"></i>';
+      var btn=document.createElement('button');btn.type='button';btn.id='btnBranchWholesaleImport';btn.className='icon assal-tool-action';btn.title='استيراد فواتير الفروع لآخر ثلاثة أيام';btn.setAttribute('aria-label',btn.title);btn.innerHTML='<i class="fa-solid fa-file-circle-plus"></i>';
       host.insertBefore(btn,closeTools||el('btnLogout')||el('btnHeaderToolsToggle'));
       btn.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();host.classList.remove('assal-tools-open');var t=el('btnHeaderToolsToggle');if(t)t.setAttribute('aria-expanded','false');open();});
     }
@@ -87200,9 +87314,9 @@ body.assal-wholesale-bulk-delete-open{overflow:hidden!important}
   }
   function addCurrent(){
     if(state.busy)return;var input=el('assalWholesaleBulkDeleteInput'),raw=safe(input&&input.value).trim();if(!raw){setError('اكتب رقم التسلسل أولاً');return;}
-    var num=Number(raw);if(!Number.isInteger(num)||num<1||num>state.rows.length){setError('هذا التسلسل غير موجود في الفاتورة');if(input){input.select();}return;}
+    var num=Number(raw);if(!Number.isInteger(num)||num<1){setError('هذا التسلسل غير موجود في الفاتورة');if(input){input.select();}return;}
     if(state.selected.has(num)){setError('هذا التسلسل مضاف مسبقاً');if(input){input.value='';}focusInput();return;}
-    var row=state.rows[num-1];if(!row||!row.lineId){setError('تعذر تثبيت هوية هذه المادة');return;}
+    var row=state.rows.find(function(entry){return entry&&Number(entry.seq)===num;});if(!row||!row.lineId){setError('هذا التسلسل محذوف أو غير موجود في الفاتورة');if(input){input.select();}return;}
     state.selected.set(num,row);persistSelected();if(input)input.value='';setError('');renderSelected();focusInput();
   }
   function realCard(){
@@ -87215,13 +87329,14 @@ body.assal-wholesale-bulk-delete-open{overflow:hidden!important}
   function open(card,trigger){
     if(!card||!(typeof isWholesaleCard==='function'&&isWholesaleCard(card)))return;
     if(typeof assalInlineEditIsOpen==='function'&&assalInlineEditIsOpen()){try{showToast('warn','أنهِ تعديل السطر الحالي أولاً');}catch(_){ }return;}
-    var rows=activeLines(card).map(function(line,index){return {seq:index+1,lineId:lineId(line),item:safe(line&&line.item)};});
+    var rows=activeLines(card).map(function(line,index){var seq=(typeof assalWholesaleLineSequence==='function')?assalWholesaleLineSequence(card,line,index+1):(index+1);return {seq:seq,lineId:lineId(line),item:safe(line&&line.item)};});
     if(!rows.length){try{showToast('warn','لا توجد مواد قابلة للحذف في هذه الفاتورة');}catch(_){ }return;}
     var overlay=ensure();state.open=true;state.busy=false;state.day=cardDay(card);state.cardId=cardId(card);state.card=card;state.trigger=trigger||null;state.rows=rows;restoreSelected();
     el('assalWholesaleBulkDeleteSub').textContent=safe(card.customer||'فاتورة جملة')+' • '+rows.length+' مادة';el('assalWholesaleBulkDeleteInput').value='';setError('');renderSelected();overlay.classList.add('show');overlay.setAttribute('aria-hidden','false');document.body.classList.add('assal-wholesale-bulk-delete-open');focusInput();
   }
   function commit(){
     if(state.busy||!state.selected.size)return;var card=realCard();if(!card){setError('تعذر العثور على بطاقة الجملة');return;}
+    if(typeof assalWholesaleSeedSequences==='function')assalWholesaleSeedSequences(card);
     var chosen=Array.from(state.selected.values()),all=Array.isArray(card.lines)?card.lines:[],targets=[];
     chosen.forEach(function(entry){var hit=all.find(function(line){return line&&!line.deletedAt&&lineId(line)===entry.lineId;});if(hit&&!targets.some(function(x){return x.line===hit;}))targets.push({line:hit,index:all.indexOf(hit),before:JSON.parse(JSON.stringify(hit))});});
     if(!targets.length){setError('لم تعد المواد المحددة متاحة للحذف');return;}
