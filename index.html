@@ -76702,6 +76702,73 @@ body.assal-owner-exclusive > #modal.active{
     }
   }
 
+  /* لوحة ديون اليوم: عند كثرة البطاقات نكرر الجدول عمودياً داخل المساحة نفسها.
+     لا نغير البيانات أو ترتيبها؛ النصف الأيمن أولاً ثم يكمل النصف الأيسر. */
+  function ownerReportDebtColumnsPanel(ctx, x, y, w, h, title, sub, rows) {
+    rows = Array.isArray(rows) ? rows : [];
+    var cols = [
+      {title: 'الزبون', key: 'customer', ratio: .39, align: 'right'},
+      {title: 'الوقت', key: 'time', ratio: .18, align: 'center'},
+      {title: 'مواد', key: 'items', ratio: .12, align: 'center'},
+      {title: 'المبلغ', ratio: .31, align: 'left', color: '#92400e', value: function(row) { return money(row.amount); }}
+    ];
+    if (rows.length <= 10) {
+      ownerReportPanel(ctx, x, y, w, h, title, sub, rows, cols, 'لا توجد ديون جديدة لهذا اليوم.');
+      return;
+    }
+
+    ownerReportFillRound(ctx, x, y, w, h, 24, '#ffffff', '#d8e2ec');
+    ownerReportText(ctx, title, x + w - 18, y + 22, 700, 18, '#0f172a', 'right', w - 120, 14);
+    ownerReportText(ctx, sub || '', x + 18, y + 22, 600, 10, '#64748b', 'left', w - 140, 9);
+
+    var innerX = x + 12, innerW = w - 24, top = y + 44, bottom = y + h - 12;
+    var splitGap = 10, groupW = Math.floor((innerW - splitGap) / 2);
+    var firstCount = Math.ceil(rows.length / 2);
+    var groups = [
+      {x: innerX + groupW + splitGap, rows: rows.slice(0, firstCount), label: '١'},
+      {x: innerX, rows: rows.slice(firstCount), label: '٢'}
+    ];
+
+    groups.forEach(function(group) {
+      var gx = group.x, headH = 28;
+      ownerReportFillRound(ctx, gx, top, groupW, bottom - top, 15, '#fbfdff', '#e2eaf2');
+      ownerReportFillRound(ctx, gx + groupW - 25, top + 5, 19, 18, 9, '#fef3c7', '#fde68a');
+      ownerReportText(ctx, group.label, gx + groupW - 15.5, top + 14, 700, 9, '#92400e', 'center', 13, 8);
+
+      var tableX = gx + 6, tableW = groupW - 12, headY = top + 29;
+      ownerReportFillRound(ctx, tableX, headY, tableW, headH, 10, '#edf3f9', null);
+      var ratios = [.39, .18, .12, .31], widths = [], used = 0;
+      ratios.forEach(function(ratio, idx) {
+        var cw = idx === ratios.length - 1 ? tableW - used : Math.round(tableW * ratio);
+        widths.push(cw); used += cw;
+      });
+      var start = tableX + tableW;
+      cols.forEach(function(col, idx) {
+        start -= widths[idx];
+        ownerReportText(ctx, col.title, start + widths[idx] / 2, headY + headH / 2 + 1, 700, 8.5, '#475569', 'center', widths[idx] - 4, 7);
+        if (idx > 0) ownerReportLine(ctx, start + widths[idx], headY + 6, start + widths[idx], headY + headH - 6, '#dde7f0');
+      });
+
+      var rowsTop = headY + headH + 6, rowsHeight = bottom - rowsTop - 6;
+      var count = Math.max(1, group.rows.length), rowGap = count > 16 ? 1 : 3;
+      var rowH = Math.max(1, Math.floor((rowsHeight - Math.max(0, count - 1) * rowGap) / count));
+      rowH = Math.min(30, rowH);
+      var fontSize = rowH >= 25 ? 9.4 : (rowH >= 19 ? 8.7 : (rowH >= 13 ? 7.9 : Math.max(5.5, rowH * .58)));
+      group.rows.forEach(function(row, rowIndex) {
+        var ry = rowsTop + rowIndex * (rowH + rowGap);
+        ownerReportFillRound(ctx, tableX, ry, tableW, rowH, 9, rowIndex % 2 ? '#ffffff' : '#f6f9fc', '#edf2f7');
+        var cx = tableX + tableW;
+        cols.forEach(function(col, idx) {
+          var cw = widths[idx]; cx -= cw;
+          var val = typeof col.value === 'function' ? col.value(row, rowIndex) : row[col.key];
+          var align = col.align || 'right';
+          var tx = align === 'left' ? cx + 5 : (align === 'center' ? cx + cw / 2 : cx + cw - 5);
+          ownerReportText(ctx, val == null ? '' : String(val), tx, ry + rowH / 2 + 1, 700, fontSize, col.color || '#0f172a', align, cw - 8, 7);
+        });
+      });
+    });
+  }
+
   async function ownerReportMakeImage(data) {
     await ownerReportEnsureFonts();
     /* وضوح 2X: نحافظ على جميع المقاسات المنطقية والتصميم نفسه، لكن نرسم فعلياً بدقة 3508×2480. */
@@ -76753,12 +76820,7 @@ body.assal-owner-exclusive > #modal.active{
     });
 
     var topY = cardY + cardH * 2 + gap + 12, halfGap = 14, halfW = Math.round((inner - halfGap) / 2), topH = 360, bottomH = 360;
-    ownerReportPanel(ctx, M + halfW + halfGap, topY, halfW, topH, 'ديون اليوم بالأسماء', money(data.debtToday), data.debtRowsToday, [
-      {title: 'الزبون', key: 'customer', ratio: .39, align: 'right'},
-      {title: 'الوقت', key: 'time', ratio: .18, align: 'center'},
-      {title: 'مواد', key: 'items', ratio: .12, align: 'center'},
-      {title: 'المبلغ', ratio: .31, align: 'left', color: '#92400e', value: function(row) { return money(row.amount); }}
-    ], 'لا توجد ديون جديدة لهذا اليوم.');
+    ownerReportDebtColumnsPanel(ctx, M + halfW + halfGap, topY, halfW, topH, 'ديون اليوم بالأسماء', money(data.debtToday), data.debtRowsToday);
     ownerReportPanel(ctx, M, topY, halfW, topH, 'تسديدات اليوم بالأسماء', money(data.paymentTotal), data.paymentRowsToday, [
       {title: 'الزبون', key: 'customer', ratio: .29, align: 'right'},
       {title: 'الوقت / الملاحظة', ratio: .49, align: 'center', size: 9.6, value: function(row) { return String(row.meta || '—'); }},
