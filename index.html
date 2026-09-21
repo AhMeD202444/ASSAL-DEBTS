@@ -17079,19 +17079,18 @@ html.assal-attendance-locked,
       var master = ctx.createGain();
       var comp = ctx.createDynamicsCompressor();
 
-      // نداء حضور واضح وقوي لكن موسيقي وغير مخيف:
-      // دقات قصيرة متداخلة بحيث لا توجد فجوة صامتة طويلة، من دون صفير/طنين مستمر.
-      master.gain.setValueAtTime(.90, now);
-      comp.threshold.setValueAtTime(-15, now);
-      comp.knee.setValueAtTime(18, now);
-      comp.ratio.setValueAtTime(6, now);
-      comp.attack.setValueAtTime(.004, now);
-      comp.release.setValueAtTime(.20, now);
+      // نغمة عسل المكتبية الراقية: ثلاث رنات دافئة ومتدرجة بلا حدة أو طرق قوي.
+      master.gain.setValueAtTime(.68, now);
+      comp.threshold.setValueAtTime(-18, now);
+      comp.knee.setValueAtTime(20, now);
+      comp.ratio.setValueAtTime(3.2, now);
+      comp.attack.setValueAtTime(.008, now);
+      comp.release.setValueAtTime(.28, now);
       master.connect(comp);
       comp.connect(ctx.destination);
       attendanceAlertNodes.push(master, comp);
 
-      function bell(at, freq, strength) {
+      function officeBell(at, freq, strength) {
         var o1 = ctx.createOscillator();
         var o2 = ctx.createOscillator();
         var g1 = ctx.createGain();
@@ -17101,41 +17100,40 @@ html.assal-attendance-locked,
         o1.type = 'sine';
         o1.frequency.setValueAtTime(freq, at);
         o2.type = 'triangle';
-        o2.frequency.setValueAtTime(freq * 2, at);
+        o2.frequency.setValueAtTime(freq * 1.5, at);
         low.type = 'lowpass';
-        low.frequency.setValueAtTime(2400, at);
-        low.Q.setValueAtTime(.5, at);
+        low.frequency.setValueAtTime(2100, at);
+        low.Q.setValueAtTime(.65, at);
 
         g1.gain.setValueAtTime(.0001, at);
-        g1.gain.exponentialRampToValueAtTime(.255 * strength, at + .018);
-        g1.gain.exponentialRampToValueAtTime(.115 * strength, at + .22);
-        g1.gain.exponentialRampToValueAtTime(.0001, at + .72);
+        g1.gain.exponentialRampToValueAtTime(.22 * strength, at + .024);
+        g1.gain.exponentialRampToValueAtTime(.09 * strength, at + .24);
+        g1.gain.exponentialRampToValueAtTime(.0001, at + .92);
 
         g2.gain.setValueAtTime(.0001, at);
-        g2.gain.exponentialRampToValueAtTime(.062 * strength, at + .014);
-        g2.gain.exponentialRampToValueAtTime(.0001, at + .42);
+        g2.gain.exponentialRampToValueAtTime(.042 * strength, at + .020);
+        g2.gain.exponentialRampToValueAtTime(.0001, at + .58);
 
         o1.connect(g1); o2.connect(g2);
         g1.connect(low); g2.connect(low); low.connect(master);
         o1.start(at); o2.start(at);
-        o1.stop(at + .76); o2.stop(at + .46);
+        o1.stop(at + .96); o2.stop(at + .62);
         attendanceAlertNodes.push(o1, o2, g1, g2, low);
       }
 
-      // لحن قصير متصل: C5 → E5 → G5 → E5 ثم يعاد قبل انتهاء ذيل الدقة الأخيرة.
-      bell(now + .02, 523.25, 1.00);
-      bell(now + .36, 659.25, .96);
-      bell(now + .70, 783.99, 1.04);
-      bell(now + 1.04, 659.25, .92);
+      // توقيع موسيقي مكتبي فاخر: B4 → D#5 → F#5.
+      officeBell(now + .02, 493.88, .94);
+      officeBell(now + .36, 622.25, .90);
+      officeBell(now + .72, 739.99, 1.00);
 
-      // إعادة الدورة قبل أن يختفي ذيل آخر دقة، فيبقى التنبيه متصلاً بلا صمت طويل.
+      // تكرار هادئ يلفت الانتباه من دون إزعاج.
       attendanceAlertTimer = setTimeout(function() {
         if (attendanceAlertActive && !attendanceAlertMuted && attendanceGateVisible()) {
           scheduleAttendanceAlert();
         } else {
           stopAttendanceAlert();
         }
-      }, 1500);
+      }, 4000);
     } catch (_) {
       stopAttendanceAlertNodes();
       attendanceAlertTimer = 0;
@@ -28082,6 +28080,21 @@ function renderBoard() {
         }
       };
       custWrap.appendChild(sequentialEditBtn);
+      const wholesaleBulkDeleteBtn = CE('button', 'assal-card-customer-switch-btn assal-wholesale-bulk-delete-btn');
+      wholesaleBulkDeleteBtn.type = 'button';
+      wholesaleBulkDeleteBtn.title = 'حذف مواد متعددة حسب التسلسل';
+      wholesaleBulkDeleteBtn.setAttribute('aria-label', wholesaleBulkDeleteBtn.title);
+      wholesaleBulkDeleteBtn.innerHTML = '<i class="fa-solid fa-list-check"></i>';
+      wholesaleBulkDeleteBtn.onclick = function(ev){
+        ev.preventDefault();
+        ev.stopPropagation();
+        if(typeof window.ASSAL_WHOLESALE_BULK_DELETE_OPEN === 'function'){
+          window.ASSAL_WHOLESALE_BULK_DELETE_OPEN(card, wholesaleBulkDeleteBtn);
+        }else{
+          try{showToast('warn','نافذة الحذف الجماعي لم تكتمل تهيئتها بعد');}catch(_){ }
+        }
+      };
+      custWrap.appendChild(wholesaleBulkDeleteBtn);
       const wholesaleUndoBtn = CE('button', 'assal-card-customer-switch-btn assal-wholesale-card-undo-btn');
       wholesaleUndoBtn.type = 'button';
       const wholesaleUndoCount = (typeof window.ASSAL_WHOLESALE_CARD_UNDO_COUNT === 'function')
@@ -28245,6 +28258,17 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
     const itemsWrap = CE('div', 'items');
 
     const __assalWholesaleActiveLines = (card.lines || []).filter(ln => !ln.deletedAt);
+    const __assalWholesaleSequenceByLineId = new Map();
+    __assalWholesaleActiveLines.forEach((__assalSequenceLine, __assalSequenceIndex) => {
+      try{
+        const __assalSequenceLineId = String(
+          (typeof assalInlineEditLineId === 'function')
+            ? assalInlineEditLineId(__assalSequenceLine)
+            : (__assalSequenceLine && __assalSequenceLine.lineId) || ''
+        );
+        if(__assalSequenceLineId) __assalWholesaleSequenceByLineId.set(__assalSequenceLineId, __assalSequenceIndex + 1);
+      }catch(_){ }
+    });
     const __assalWholesaleFoldable = isWholesaleCard(card) && (__assalWholesaleActiveLines.length > ASSAL_WHOLESALE_CARD_PREVIEW_LIMIT);
     const __assalWholesaleFoldKey = __assalWholesaleFoldable ? assalWholesaleCardRenderKey(card) : '';
     // بحث المادة يبقى يعرض كل السطور حتى لا تكون نتيجة البحث مخفية بعد السطر الخامس.
@@ -28256,6 +28280,19 @@ if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer |
     __assalWholesaleRenderedLines
       .forEach((ln) => {
         const it = CE('div', 'item');
+        const __assalWholesaleLineSequence = CE('span', 'assal-wholesale-line-sequence');
+        let __assalWholesaleLineSequenceNumber = 0;
+        try{
+          const __assalWholesaleLineSequenceId = String(
+            (typeof assalInlineEditLineId === 'function')
+              ? assalInlineEditLineId(ln)
+              : (ln && ln.lineId) || ''
+          );
+          __assalWholesaleLineSequenceNumber = __assalWholesaleSequenceByLineId.get(__assalWholesaleLineSequenceId) || 0;
+        }catch(_){ }
+        __assalWholesaleLineSequence.textContent = String(__assalWholesaleLineSequenceNumber || (__assalWholesaleActiveLines.indexOf(ln) + 1));
+        __assalWholesaleLineSequence.title = 'تسلسل المادة';
+        it.appendChild(__assalWholesaleLineSequence);
         try{
  if(ln && ln.lineId) it.setAttribute('data-line-id', String(ln.lineId));
  
@@ -85488,44 +85525,32 @@ body.assal-ledger-wa-auto-pdf-open{
       audioCtx=audioCtx||new C();if(audioCtx.state==='suspended')audioCtx.resume();
       var now=audioCtx.currentTime;
       var master=audioCtx.createGain(),comp=audioCtx.createDynamicsCompressor();
-      /* تنبيه أقوى ومترابط: نبضات متداخلة بدل نغمات منفصلة. */
-      master.gain.setValueAtTime(1.08,now);
-      comp.threshold.setValueAtTime(-10,now);
-      comp.knee.setValueAtTime(14,now);
-      comp.ratio.setValueAtTime(4.5,now);
-      comp.attack.setValueAtTime(.002,now);
-      comp.release.setValueAtTime(.22,now);
+      /* نغمة عسل المكتبية الراقية: نفس توقيع نافذة الحضور حرفياً. */
+      master.gain.setValueAtTime(.68,now);
+      comp.threshold.setValueAtTime(-18,now);
+      comp.knee.setValueAtTime(20,now);
+      comp.ratio.setValueAtTime(3.2,now);
+      comp.attack.setValueAtTime(.008,now);
+      comp.release.setValueAtTime(.28,now);
       master.connect(comp);comp.connect(audioCtx.destination);chimeNodes.push(master,comp);
 
-      function knock(at,freq,accent){
-        var gMain=audioCtx.createGain(),gEdge=audioCtx.createGain(),gLow=audioCtx.createGain();
-        var oMain=audioCtx.createOscillator(),oEdge=audioCtx.createOscillator(),oLow=audioCtx.createOscillator();
-        oMain.type='triangle';oEdge.type='square';oLow.type='sine';
-        oMain.frequency.setValueAtTime(freq,at);
-        oMain.frequency.exponentialRampToValueAtTime(Math.max(180,freq*.84),at+.24);
-        oEdge.frequency.setValueAtTime(freq*1.82,at);
-        oLow.frequency.setValueAtTime(Math.max(150,freq*.34),at);
-        var mainPeak=accent?.36:.30,edgePeak=accent?.085:.065,lowPeak=accent?.12:.09;
-        gMain.gain.setValueAtTime(.0001,at);gMain.gain.exponentialRampToValueAtTime(mainPeak,at+.012);gMain.gain.exponentialRampToValueAtTime(.075,at+.15);gMain.gain.exponentialRampToValueAtTime(.0001,at+.34);
-        gEdge.gain.setValueAtTime(.0001,at);gEdge.gain.exponentialRampToValueAtTime(edgePeak,at+.008);gEdge.gain.exponentialRampToValueAtTime(.0001,at+.16);
-        gLow.gain.setValueAtTime(.0001,at);gLow.gain.exponentialRampToValueAtTime(lowPeak,at+.014);gLow.gain.exponentialRampToValueAtTime(.0001,at+.29);
-        oMain.connect(gMain);oEdge.connect(gEdge);oLow.connect(gLow);gMain.connect(master);gEdge.connect(master);gLow.connect(master);
-        oMain.start(at);oEdge.start(at);oLow.start(at);oMain.stop(at+.36);oEdge.stop(at+.18);oLow.stop(at+.31);
-        chimeNodes.push(gMain,gEdge,gLow,oMain,oEdge,oLow)
+      function officeBell(at,freq,strength){
+        var o1=audioCtx.createOscillator(),o2=audioCtx.createOscillator();
+        var g1=audioCtx.createGain(),g2=audioCtx.createGain(),low=audioCtx.createBiquadFilter();
+        o1.type='sine';o1.frequency.setValueAtTime(freq,at);
+        o2.type='triangle';o2.frequency.setValueAtTime(freq*1.5,at);
+        low.type='lowpass';low.frequency.setValueAtTime(2100,at);low.Q.setValueAtTime(.65,at);
+        g1.gain.setValueAtTime(.0001,at);g1.gain.exponentialRampToValueAtTime(.22*strength,at+.024);g1.gain.exponentialRampToValueAtTime(.09*strength,at+.24);g1.gain.exponentialRampToValueAtTime(.0001,at+.92);
+        g2.gain.setValueAtTime(.0001,at);g2.gain.exponentialRampToValueAtTime(.042*strength,at+.020);g2.gain.exponentialRampToValueAtTime(.0001,at+.58);
+        o1.connect(g1);o2.connect(g2);g1.connect(low);g2.connect(low);low.connect(master);
+        o1.start(at);o2.start(at);o1.stop(at+.96);o2.stop(at+.62);
+        chimeNodes.push(o1,o2,g1,g2,low)
       }
 
-      function connectedBurst(base){
-        /* التقارب يجعل الدكات مرتبطة ومستمرة سمعياً بدل ثلاث نغمات منفصلة. */
-        knock(base,720,true);
-        knock(base+.11,820,false);
-        knock(base+.23,760,false);
-        knock(base+.36,900,true);
-        knock(base+.50,800,false)
-      }
-
-      connectedBurst(now+.03);
-      connectedBurst(now+1.92);
-      chimeStopTimer=setTimeout(function(){if(current)playChime();else stopChime()},4100)
+      officeBell(now+.02,493.88,.94);
+      officeBell(now+.36,622.25,.90);
+      officeBell(now+.72,739.99,1.00);
+      chimeStopTimer=setTimeout(function(){if(current)playChime();else stopChime()},4000)
     }catch(_){stopChime()}
   }
 
@@ -86986,6 +87011,177 @@ body.assal-ledger-wa-auto-pdf-open{
 })();
 </script>
 
+<style id="assal-wholesale-bulk-delete-final-style">
+.assal-wholesale-bulk-delete-btn{
+  color:#fecaca!important;
+  border-color:rgba(239,68,68,.34)!important;
+  background:linear-gradient(145deg,rgba(127,29,29,.72),rgba(69,10,10,.74))!important;
+}
+.assal-wholesale-bulk-delete-btn:hover{
+  color:#fff!important;
+  border-color:rgba(248,113,113,.66)!important;
+  box-shadow:0 5px 14px rgba(127,29,29,.28)!important;
+}
+.assal-wholesale-bulk-delete-overlay{
+  position:fixed;inset:0;z-index:10080;display:none;place-items:center;padding:18px;
+  background:rgba(2,6,23,.82);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+}
+body.assal-wholesale-bulk-delete-open{overflow:hidden!important}
+.assal-wholesale-bulk-delete-overlay.show{display:grid}
+.assal-wholesale-bulk-delete-dialog{
+  width:min(560px,calc(100vw - 28px));max-height:min(690px,calc(100vh - 30px));overflow:auto;
+  border:1px solid rgba(248,113,113,.3);border-radius:22px;
+  background:linear-gradient(155deg,#111d35 0%,#091326 62%,#07101f 100%);
+  box-shadow:0 28px 80px rgba(0,0,0,.62),inset 0 1px 0 rgba(255,255,255,.045);
+  color:#f8fafc;direction:rtl;font-family:Cairo,Arial,sans-serif;
+}
+.assal-wholesale-bulk-delete-head{display:flex;align-items:center;gap:12px;padding:17px 18px;border-bottom:1px solid rgba(148,163,184,.14)}
+.assal-wholesale-bulk-delete-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:14px;color:#fecaca;background:linear-gradient(145deg,#991b1b,#450a0a);box-shadow:0 9px 22px rgba(127,29,29,.3);flex:0 0 auto}
+.assal-wholesale-bulk-delete-title{min-width:0;flex:1}.assal-wholesale-bulk-delete-title b{display:block;font-size:15px;font-weight:950}.assal-wholesale-bulk-delete-title span{display:block;margin-top:3px;color:#94a3b8;font-size:10.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.assal-wholesale-bulk-delete-close{width:34px;height:34px;border:1px solid rgba(148,163,184,.22);border-radius:11px;color:#cbd5e1;background:#0b1528;cursor:pointer;font-size:15px}
+.assal-wholesale-bulk-delete-close:hover{color:#fff;border-color:rgba(248,113,113,.5);background:#3f1118}
+.assal-wholesale-bulk-delete-body{padding:18px}
+.assal-wholesale-bulk-delete-label{display:block;margin-bottom:8px;color:#cbd5e1;font-size:11px;font-weight:900}
+.assal-wholesale-bulk-delete-input{
+  width:100%;height:48px;box-sizing:border-box;border:1px solid rgba(148,163,184,.27);border-radius:14px;
+  outline:0;padding:0 15px;background:rgba(2,6,23,.72);color:#fff;text-align:center;direction:ltr;
+  font:950 16px/1 Cairo,Arial,sans-serif;box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+}
+.assal-wholesale-bulk-delete-input:focus{border-color:rgba(248,113,113,.72);box-shadow:0 0 0 4px rgba(239,68,68,.12)}
+.assal-wholesale-bulk-delete-error{min-height:18px;margin-top:7px;text-align:center;color:#fca5a5;font-size:10.5px;font-weight:900}
+.assal-wholesale-bulk-delete-selected{margin-top:10px;min-height:92px;padding:12px;border:1px solid rgba(148,163,184,.14);border-radius:15px;background:rgba(2,6,23,.38)}
+.assal-wholesale-bulk-delete-empty{height:66px;display:grid;place-items:center;text-align:center;color:#64748b;font-size:11px;font-weight:850}
+.assal-wholesale-bulk-delete-chips{display:flex;flex-wrap:wrap;gap:9px;align-items:center;justify-content:center}
+.assal-wholesale-bulk-delete-chip{position:relative;min-width:38px;height:34px;display:grid;place-items:center;padding:0 10px;border:1px solid rgba(248,113,113,.34);border-radius:10px;color:#fee2e2;background:linear-gradient(145deg,#7f1d1d,#450a0a);box-shadow:0 6px 14px rgba(69,10,10,.24);font:950 12px/1 Cairo,Arial,sans-serif;cursor:default}
+.assal-wholesale-bulk-delete-chip-remove{position:absolute;inset-block-start:-7px;inset-inline-start:-7px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;padding:0;border:2px solid #0b1528;border-radius:50%;opacity:0;transform:scale(.7);color:#fff;background:#ef4444;cursor:pointer;line-height:1;text-align:center;transition:opacity .12s ease,transform .12s ease}
+.assal-wholesale-bulk-delete-chip-remove i{display:block;margin:0;padding:0;font-size:8px;line-height:1}
+.assal-wholesale-bulk-delete-chip:hover .assal-wholesale-bulk-delete-chip-remove,.assal-wholesale-bulk-delete-chip:focus-within .assal-wholesale-bulk-delete-chip-remove{opacity:1;transform:scale(1)}
+.assal-wholesale-bulk-delete-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-top:1px solid rgba(148,163,184,.14);background:rgba(2,6,23,.32)}
+.assal-wholesale-bulk-delete-count{color:#94a3b8;font-size:11px;font-weight:900}.assal-wholesale-bulk-delete-count b{color:#fecaca;font-size:13px}
+.assal-wholesale-bulk-delete-actions{display:flex;align-items:center;gap:8px}
+.assal-wholesale-bulk-delete-clear{height:40px;padding:0 13px;border:1px solid rgba(148,163,184,.25);border-radius:12px;color:#cbd5e1;background:#0b1528;cursor:pointer;font:900 10.5px/1 Cairo,Arial,sans-serif}
+.assal-wholesale-bulk-delete-clear:hover{color:#fff;border-color:rgba(148,163,184,.48);background:#13203a}
+.assal-wholesale-bulk-delete-clear:disabled{opacity:.4;cursor:not-allowed}
+.assal-wholesale-bulk-delete-confirm{min-width:150px;height:40px;border:0;border-radius:12px;color:#fff;background:linear-gradient(135deg,#dc2626,#991b1b);box-shadow:0 8px 20px rgba(153,27,27,.3);cursor:pointer;font:950 11px/1 Cairo,Arial,sans-serif}
+.assal-wholesale-bulk-delete-confirm:disabled{opacity:.42;cursor:not-allowed;box-shadow:none}
+@media(max-width:560px){.assal-wholesale-bulk-delete-overlay{padding:8px}.assal-wholesale-bulk-delete-dialog{width:calc(100vw - 16px);border-radius:17px}.assal-wholesale-bulk-delete-head,.assal-wholesale-bulk-delete-body,.assal-wholesale-bulk-delete-foot{padding:13px}.assal-wholesale-bulk-delete-foot{flex-direction:column}.assal-wholesale-bulk-delete-actions{width:100%}.assal-wholesale-bulk-delete-confirm{flex:1}.assal-wholesale-bulk-delete-clear{flex:0 0 auto}}
+</style>
+<style id="assal-all-invoices-line-sequence-final-style">
+.card .item{
+  grid-template-columns:auto auto auto minmax(78px,.82fr) minmax(176px,1.82fr) minmax(86px,.82fr) minmax(48px,.45fr) minmax(72px,.62fr) auto auto auto !important;
+}
+.card .item .assal-wholesale-line-sequence{
+  position:static;z-index:auto;align-self:center;justify-self:center;
+  width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+  flex:0 0 28px;box-sizing:border-box;margin:0;padding:0;
+  border:1px solid rgba(96,165,250,.42);border-radius:8px;
+  color:#dbeafe;background:linear-gradient(180deg,#12305f,#0b1f3c);
+  box-shadow:0 4px 11px rgba(15,45,90,.30);font:950 9px/1 Cairo,Arial,sans-serif;
+  text-align:center;transform:none;pointer-events:none;
+}
+</style>
+<script id="assal-wholesale-bulk-delete-final-script">
+(function(){
+  'use strict';
+  if(window.__ASSAL_WHOLESALE_BULK_DELETE_INSTALLED__) return;
+  window.__ASSAL_WHOLESALE_BULK_DELETE_INSTALLED__ = true;
+  var STORAGE_KEY='ASSAL_WHOLESALE_BULK_DELETE_SELECTIONS_V1';
+  var state = {open:false,busy:false,day:'',cardId:'',card:null,trigger:null,rows:[],selected:new Map()};
+  function safe(v){return String(v==null?'':v);}
+  function esc(v){return safe(v).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];});}
+  function activeLines(card){return (card&&Array.isArray(card.lines)?card.lines:[]).filter(function(line){return line&&!line.deletedAt;});}
+  function lineId(line){
+    try{return safe(typeof assalInlineEditLineId==='function'?assalInlineEditLineId(line):(line&&line.lineId));}catch(_){return safe(line&&line.lineId);}
+  }
+  function cardDay(card){return safe(card&&card.__day||((typeof selectedDay==='string')?selectedDay:''));}
+  function cardId(card){return safe(card&&(card.id||card.createdAt||card.at));}
+  function selectionKey(){return safe(state.day)+'::'+safe(state.cardId);}
+  function readSelections(){try{var data=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');return data&&typeof data==='object'&&!Array.isArray(data)?data:{};}catch(_){return {};}}
+  function persistSelected(){
+    try{
+      var data=readSelections(),key=selectionKey(),ids=[];
+      state.selected.forEach(function(row){var id=safe(row&&row.lineId);if(id&&ids.indexOf(id)<0)ids.push(id);});
+      if(ids.length)data[key]=ids;else delete data[key];
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+    }catch(_){ }
+  }
+  function restoreSelected(){
+    var saved=[];try{saved=readSelections()[selectionKey()]||[];}catch(_){saved=[];}
+    var wanted=new Set(Array.isArray(saved)?saved.map(safe):[]);state.selected=new Map();
+    state.rows.forEach(function(row){if(row&&row.lineId&&wanted.has(safe(row.lineId)))state.selected.set(row.seq,row);});
+    persistSelected();
+  }
+  function el(id){return document.getElementById(id);}
+  function ensure(){
+    var overlay=el('assalWholesaleBulkDeleteOverlay');if(overlay)return overlay;
+    overlay=document.createElement('div');overlay.id='assalWholesaleBulkDeleteOverlay';overlay.className='assal-wholesale-bulk-delete-overlay';overlay.setAttribute('aria-hidden','true');
+    overlay.innerHTML='<section class="assal-wholesale-bulk-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="assalWholesaleBulkDeleteTitle"><div class="assal-wholesale-bulk-delete-head"><span class="assal-wholesale-bulk-delete-icon"><i class="fa-solid fa-list-check"></i></span><div class="assal-wholesale-bulk-delete-title"><b id="assalWholesaleBulkDeleteTitle">الحذف الجماعي</b><span id="assalWholesaleBulkDeleteSub">حدد تسلسلات المواد المراد حذفها</span></div><button id="assalWholesaleBulkDeleteClose" class="assal-wholesale-bulk-delete-close" type="button" aria-label="إغلاق"><i class="fa-solid fa-xmark"></i></button></div><div class="assal-wholesale-bulk-delete-body"><label class="assal-wholesale-bulk-delete-label" for="assalWholesaleBulkDeleteInput">تسلسل المادة</label><input id="assalWholesaleBulkDeleteInput" class="assal-wholesale-bulk-delete-input" type="text" inputmode="numeric" autocomplete="off" placeholder="اكتب تسلسل الايتم واضغط Enter"><div id="assalWholesaleBulkDeleteError" class="assal-wholesale-bulk-delete-error"></div><div class="assal-wholesale-bulk-delete-selected"><div id="assalWholesaleBulkDeleteChips"></div></div></div><div class="assal-wholesale-bulk-delete-foot"><span class="assal-wholesale-bulk-delete-count">المحدد: <b id="assalWholesaleBulkDeleteCount">0</b></span><div class="assal-wholesale-bulk-delete-actions"><button id="assalWholesaleBulkDeleteClear" class="assal-wholesale-bulk-delete-clear" type="button" disabled><i class="fa-solid fa-eraser"></i> إلغاء التحديد</button><button id="assalWholesaleBulkDeleteConfirm" class="assal-wholesale-bulk-delete-confirm" type="button" disabled><i class="fa-solid fa-trash-can"></i> حذف المواد المحددة</button></div></div></section>';
+    document.body.appendChild(overlay);
+    el('assalWholesaleBulkDeleteClose').addEventListener('click',close);
+    el('assalWholesaleBulkDeleteInput').addEventListener('input',function(ev){ev.target.value=safe(ev.target.value).replace(/[^0-9]/g,'').slice(0,6);setError('');});
+    el('assalWholesaleBulkDeleteInput').addEventListener('keydown',function(ev){if(ev.key==='Enter'){ev.preventDefault();ev.stopPropagation();addCurrent();}});
+    el('assalWholesaleBulkDeleteChips').addEventListener('click',function(ev){var btn=ev.target&&ev.target.closest?ev.target.closest('[data-assal-bulk-remove]'):null;if(!btn)return;ev.preventDefault();ev.stopPropagation();state.selected.delete(Number(btn.getAttribute('data-assal-bulk-remove')));persistSelected();renderSelected();focusInput();});
+    el('assalWholesaleBulkDeleteClear').addEventListener('click',function(){if(state.busy)return;state.selected.clear();persistSelected();setError('');renderSelected();focusInput();});
+    el('assalWholesaleBulkDeleteConfirm').addEventListener('click',commit);
+    /* الضغط على الخلفية لا يغلق النافذة ولا ينفذ أي إجراء. */
+    overlay.addEventListener('pointerdown',function(ev){if(ev.target===overlay){ev.preventDefault();ev.stopPropagation();}});
+    document.addEventListener('keydown',function(ev){if(!state.open)return;if(ev.key==='Escape'){ev.preventDefault();ev.stopPropagation();close();}} ,true);
+    return overlay;
+  }
+  function setError(msg){var n=el('assalWholesaleBulkDeleteError');if(n)n.textContent=msg||'';}
+  function focusInput(){setTimeout(function(){try{var input=el('assalWholesaleBulkDeleteInput');if(input)input.focus();}catch(_){ }},0);}
+  function renderSelected(){
+    var host=el('assalWholesaleBulkDeleteChips'),count=el('assalWholesaleBulkDeleteCount'),confirmBtn=el('assalWholesaleBulkDeleteConfirm'),clearBtn=el('assalWholesaleBulkDeleteClear');if(!host)return;
+    var nums=Array.from(state.selected.keys()).sort(function(a,b){return a-b;});
+    host.innerHTML=nums.length?'<div class="assal-wholesale-bulk-delete-chips">'+nums.map(function(num){var row=state.selected.get(num)||{};return '<span class="assal-wholesale-bulk-delete-chip" title="'+esc(row.item||'')+'"><span>'+num+'</span><button type="button" class="assal-wholesale-bulk-delete-chip-remove" data-assal-bulk-remove="'+num+'" aria-label="إزالة التسلسل '+num+'"><i class="fa-solid fa-xmark"></i></button></span>';}).join('')+'</div>':'<div class="assal-wholesale-bulk-delete-empty">لم تحدد أي تسلسل بعد</div>';
+    if(count)count.textContent=String(nums.length);if(confirmBtn)confirmBtn.disabled=state.busy||nums.length<1;if(clearBtn)clearBtn.disabled=state.busy||nums.length<1;
+  }
+  function addCurrent(){
+    if(state.busy)return;var input=el('assalWholesaleBulkDeleteInput'),raw=safe(input&&input.value).trim();if(!raw){setError('اكتب رقم التسلسل أولاً');return;}
+    var num=Number(raw);if(!Number.isInteger(num)||num<1||num>state.rows.length){setError('هذا التسلسل غير موجود في الفاتورة');if(input){input.select();}return;}
+    if(state.selected.has(num)){setError('هذا التسلسل مضاف مسبقاً');if(input){input.value='';}focusInput();return;}
+    var row=state.rows[num-1];if(!row||!row.lineId){setError('تعذر تثبيت هوية هذه المادة');return;}
+    state.selected.set(num,row);persistSelected();if(input)input.value='';setError('');renderSelected();focusInput();
+  }
+  function realCard(){
+    try{var list=Array.isArray(days&&days[state.day])?days[state.day]:[];return list.find(function(card){return card&&cardId(card)===state.cardId;})||null;}catch(_){return null;}
+  }
+  function close(){
+    if(state.busy)return;var overlay=el('assalWholesaleBulkDeleteOverlay');if(overlay){overlay.classList.remove('show');overlay.setAttribute('aria-hidden','true');}
+    document.body.classList.remove('assal-wholesale-bulk-delete-open');state.open=false;var trigger=state.trigger;state.trigger=null;try{if(trigger&&trigger.isConnected)trigger.focus({preventScroll:true});}catch(_){ }
+  }
+  function open(card,trigger){
+    if(!card||!(typeof isWholesaleCard==='function'&&isWholesaleCard(card)))return;
+    if(typeof assalInlineEditIsOpen==='function'&&assalInlineEditIsOpen()){try{showToast('warn','أنهِ تعديل السطر الحالي أولاً');}catch(_){ }return;}
+    var rows=activeLines(card).map(function(line,index){return {seq:index+1,lineId:lineId(line),item:safe(line&&line.item)};});
+    if(!rows.length){try{showToast('warn','لا توجد مواد قابلة للحذف في هذه الفاتورة');}catch(_){ }return;}
+    var overlay=ensure();state.open=true;state.busy=false;state.day=cardDay(card);state.cardId=cardId(card);state.card=card;state.trigger=trigger||null;state.rows=rows;restoreSelected();
+    el('assalWholesaleBulkDeleteSub').textContent=safe(card.customer||'فاتورة جملة')+' • '+rows.length+' مادة';el('assalWholesaleBulkDeleteInput').value='';setError('');renderSelected();overlay.classList.add('show');overlay.setAttribute('aria-hidden','false');document.body.classList.add('assal-wholesale-bulk-delete-open');focusInput();
+  }
+  function commit(){
+    if(state.busy||!state.selected.size)return;var card=realCard();if(!card){setError('تعذر العثور على بطاقة الجملة');return;}
+    var chosen=Array.from(state.selected.values()),all=Array.isArray(card.lines)?card.lines:[],targets=[];
+    chosen.forEach(function(entry){var hit=all.find(function(line){return line&&!line.deletedAt&&lineId(line)===entry.lineId;});if(hit&&!targets.some(function(x){return x.line===hit;}))targets.push({line:hit,index:all.indexOf(hit),before:JSON.parse(JSON.stringify(hit))});});
+    if(!targets.length){setError('لم تعد المواد المحددة متاحة للحذف');return;}
+    var undoToken=null;
+    try{
+      if(typeof window.ASSAL_WHOLESALE_CARD_UNDO_BEGIN_LINE==='function'){
+        undoToken=window.ASSAL_WHOLESALE_CARD_UNDO_BEGIN_LINE(card,state.day);
+      }
+    }catch(_){undoToken=null;}
+    state.busy=true;renderSelected();var stamp=(typeof nowISO==='function')?nowISO():new Date().toISOString(),oldCardUpdated=card.updatedAt;
+    targets.forEach(function(target){target.line.deletedAt=stamp;target.line.updatedAt=stamp;});card.updatedAt=stamp;
+    var result;try{result=(typeof save==='function')?save():{ok:true};}catch(_){result={ok:false};}
+    if(result&&result.ok===false){targets.forEach(function(target){Object.keys(target.line).forEach(function(k){delete target.line[k];});Object.assign(target.line,JSON.parse(JSON.stringify(target.before)));});card.updatedAt=oldCardUpdated;try{if(typeof window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE==='function')window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE(undoToken,false);}catch(_){ }state.busy=false;renderSelected();setError('تعذر الحفظ؛ لم تُحذف أي مادة');return;}
+    targets.forEach(function(target){try{if(window.assalCardAuditRecordDelete){window.assalCardAuditRecordDelete(card,target.line,target.before,window.assalCardAuditFullLineSnapshot?window.assalCardAuditFullLineSnapshot(target.line):JSON.parse(JSON.stringify(target.line)),Math.max(0,target.index),stamp,state.day);}}catch(_){ }});
+    try{if(typeof window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE==='function')window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE(undoToken,true);}catch(_){ }
+    state.busy=false;var deletedCount=targets.length;state.selected.clear();persistSelected();close();try{if(typeof renderBoard==='function')renderBoard();}catch(_){ }try{if(typeof renderRail==='function')renderRail();}catch(_){ }try{if(typeof refreshStats==='function')refreshStats();}catch(_){ }try{window.assalInvalidateDebtBadgeCache&&window.assalInvalidateDebtBadgeCache();}catch(_){ }try{showToast('success','تم حذف '+deletedCount+' مواد من فاتورة الجملة');}catch(_){ }
+  }
+  window.ASSAL_WHOLESALE_BULK_DELETE_OPEN=open;
+  ensure();
+})();
+</script>
+
 <style id="assal-wholesale-card-undo-counter-final-style">
 .assal-wholesale-card-undo-wrap{
   position:relative;
@@ -87382,6 +87578,75 @@ body.assal-ledger-wa-auto-pdf-open{
   setTimeout(function(){
     try{if(typeof renderBoard === 'function') renderBoard();}catch(_){ }
   },0);
+})();
+</script>
+
+<style id="assal-previous-invoices-right-scroll-final-style">
+/* واجهة فقط: تثبيت لوحة الفواتير السابقة وحصر التمرير داخل قائمة الأيام. */
+@media (min-width:981px){
+  html body .layout > .rail{
+    height:calc(100vh - var(--hdr-h) - var(--footer-h) - 74px) !important;
+    height:calc(100dvh - var(--hdr-h) - var(--footer-h) - 74px) !important;
+    max-height:calc(100vh - var(--hdr-h) - var(--footer-h) - 74px) !important;
+    max-height:calc(100dvh - var(--hdr-h) - var(--footer-h) - 74px) !important;
+    min-height:230px;
+    overflow:hidden !important;
+  }
+}
+html body .layout > .rail > h3,
+html body .layout > .rail > .search,
+html body .layout > .rail > .assal-debt-transfer-rail-summary{
+  flex:0 0 auto;
+}
+html body .layout > .rail > #rail.timeline{
+  flex:0 1 auto;
+  min-height:0;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  direction:ltr;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+  scrollbar-width:thin;
+  scrollbar-color:#31517d #081120;
+  padding-inline-end:4px;
+}
+html body .layout > .rail > #rail.timeline > *{
+  direction:rtl;
+}
+html body .layout > .rail > #rail.timeline::-webkit-scrollbar{
+  width:7px;
+}
+html body .layout > .rail > #rail.timeline::-webkit-scrollbar-track{
+  background:#081120;
+  border-radius:999px;
+}
+html body .layout > .rail > #rail.timeline::-webkit-scrollbar-thumb{
+  background:linear-gradient(180deg,#31517d,#1e3658);
+  border:1px solid #081120;
+  border-radius:999px;
+}
+html body .layout > .rail > #rail.timeline::-webkit-scrollbar-thumb:hover{
+  background:linear-gradient(180deg,#4775ad,#294b77);
+}
+html body .layout > .rail > .assal-debt-transfer-rail-summary.assal-day-search-hide-transfer{
+  display:none !important;
+}
+</style>
+
+<script id="assal-day-search-hide-transfer-badge-final-script">
+(function(){
+  'use strict';
+  if(window.__ASSAL_DAY_SEARCH_HIDE_TRANSFER_BADGE_INSTALLED__) return;
+  window.__ASSAL_DAY_SEARCH_HIDE_TRANSFER_BADGE_INSTALLED__=true;
+  var input=document.getElementById('dayFilter');
+  var badge=document.getElementById('assalDebtTransferRailSummary');
+  if(!input||!badge) return;
+  function sync(){
+    badge.classList.toggle('assal-day-search-hide-transfer',String(input.value||'').trim().length>0);
+  }
+  input.addEventListener('input',sync,{passive:true});
+  input.addEventListener('change',sync,{passive:true});
+  sync();
 })();
 </script>
 
