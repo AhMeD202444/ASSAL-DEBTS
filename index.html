@@ -79197,6 +79197,33 @@ body.assal-debt-transfer-day-locked .assal-customer-rename-btn,
   function isCardLocked(day, cardId) {
     var d = safe(day).trim(), c = safe(cardId).trim();
     if (!isDayLocked(d)) return false;
+
+    // فواتير الجملة مستثناة بالكامل من قفل بطاقات نقل الدين.
+    // الاستثناء يخص البطاقة فقط ولا يغيّر قفل اليوم أو أي نوع فاتورة آخر.
+    try {
+      var arr = (typeof days === 'object' && days && Array.isArray(days[d])) ? days[d] : [];
+      var wholesaleCard = null;
+      for (var i = 0; i < arr.length; i++) {
+        if (arr[i] && safe(arr[i].id).trim() === c) {
+          wholesaleCard = arr[i];
+          break
+
+        }
+
+      }
+      if (wholesaleCard) {
+        if (typeof isWholesaleCard === 'function' && isWholesaleCard(wholesaleCard)) return false;
+        var rawType = safe(wholesaleCard.billType || wholesaleCard.type || wholesaleCard.kind).trim();
+        if (rawType === 'جملة' || rawType.toUpperCase() === 'WHOLESALE') return false;
+        var lines = Array.isArray(wholesaleCard.lines) ? wholesaleCard.lines : [];
+        for (var j = 0; j < lines.length; j++) {
+          if (lines[j] && !lines[j].deletedAt && safe(lines[j].type || lines[j].billType).trim() === 'جملة') return false;
+        }
+      }
+    } catch (_) {
+
+    }
+
     var k = cardUnlockKey(d, c);
     return !(k && viewState.unlockedCardKey === k)
 
