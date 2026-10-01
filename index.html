@@ -38490,7 +38490,7 @@ async function smartImportFromServer(options){
       });
     }else{
       emit('fetch-start', {mode:subMode ? 'sub' : 'main'});
-      server = await serverGetBackup();
+      server = await serverGetBackup(options?.signal);
       emit('fetch-done', {
         mode:subMode ? 'sub' : 'main',
         days:Object.keys((server && server.days) || {}).length,
@@ -38605,7 +38605,14 @@ async function smartImportFromServer(options){
       try{
         const __assalAuditDay = (typeof selectedDay === 'string' && selectedDay) ? selectedDay : '';
         if(__assalAuditDay && typeof window.assalCardAuditFetchServerCardDay === 'function'){
-          await window.assalCardAuditFetchServerCardDay(__assalAuditDay, true);
+          const __assalAuditPullPromise = window.assalCardAuditFetchServerCardDay(__assalAuditDay, true);
+          if(options?.skipAuditWait === true){
+            if(__assalAuditPullPromise && typeof __assalAuditPullPromise.catch === 'function'){
+              __assalAuditPullPromise.catch(function(err){console.warn('[ASSAL card audit] background pull refresh skipped', err);});
+            }
+          }else{
+            await __assalAuditPullPromise;
+          }
         }
       }catch(__assalAuditPullErr){
         console.warn('[ASSAL card audit] pull refresh skipped', __assalAuditPullErr);
@@ -38708,7 +38715,14 @@ async function smartImportFromServer(options){
     try{
       const __assalAuditDay = (typeof selectedDay === 'string' && selectedDay) ? selectedDay : '';
       if(__assalAuditDay && typeof window.assalCardAuditFetchServerCardDay === 'function'){
-        await window.assalCardAuditFetchServerCardDay(__assalAuditDay, true);
+        const __assalAuditPullPromise = window.assalCardAuditFetchServerCardDay(__assalAuditDay, true);
+        if(options?.skipAuditWait === true){
+          if(__assalAuditPullPromise && typeof __assalAuditPullPromise.catch === 'function'){
+            __assalAuditPullPromise.catch(function(err){console.warn('[ASSAL card audit] background pull refresh skipped', err);});
+          }
+        }else{
+          await __assalAuditPullPromise;
+        }
       }
     }catch(__assalAuditPullErr){
       console.warn('[ASSAL card audit] pull refresh skipped', __assalAuditPullErr);
@@ -40232,6 +40246,28 @@ btnLogout?.addEventListener('click', async () => {
   }
 });
 
+/* تسريع فتح التطبيق فقط: حد أقصى 12 ثانية لانتظار GET الخارجي عند بدء الجلسة.
+   لا يمس تحميل IndexedDB المحلي، ولا السحب اليدوي، ولا الرفع، ولا حساب المالك. */
+const ASSAL_STARTUP_SERVER_TIMEOUT_MS = 12000;
+
+async function assalStartupPullServer(){
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    try{ controller.abort(); }catch(_){ }
+  }, ASSAL_STARTUP_SERVER_TIMEOUT_MS);
+  try{
+    const result = await smartImportFromServer({
+      signal: controller.signal,
+      skipAuditWait: true
+    });
+    return {ok:!!(result && result.ok), timedOut, result};
+  }finally{
+    clearTimeout(timer);
+  }
+}
+
 // مراقبة حالة المصادقة (واحد فقط)
 onAuthStateChanged(auth, async (user) => {
   const authVersion = assalInvalidateAuthAsync();
@@ -40306,7 +40342,7 @@ onAuthStateChanged(auth, async (user) => {
     await window.initAssalIndexedStorage?.();
 
     if (getDeviceRole() !== 'sub') {
-      await smartImportFromServer();
+      await assalStartupPullServer();
     } else {
       showToast('info', 'هذه الحاسبة فرعية: لا مزامنة تلقائية. استعمل زر "سحب النسخة" عند الحاجة.');
     }
@@ -87362,18 +87398,29 @@ body.assal-wholesale-bulk-delete-open{overflow:hidden!important}
     var chosen=Array.from(state.selected.values()),all=Array.isArray(card.lines)?card.lines:[],targets=[];
     chosen.forEach(function(entry){var hit=all.find(function(line){return line&&!line.deletedAt&&lineId(line)===entry.lineId;});if(hit&&!targets.some(function(x){return x.line===hit;}))targets.push({line:hit,index:all.indexOf(hit),before:JSON.parse(JSON.stringify(hit))});});
     if(!targets.length){setError('لم تعد المواد المحددة متاحة للحذف');return;}
-    var undoToken=null;
-    try{
-      if(typeof window.ASSAL_WHOLESALE_CARD_UNDO_BEGIN_LINE==='function'){
-        undoToken=window.ASSAL_WHOLESALE_CARD_UNDO_BEGIN_LINE(card,state.day);
-      }
-    }catch(_){undoToken=null;}
+    var undoTokens=[];
     state.busy=true;renderSelected();var stamp=(typeof nowISO==='function')?nowISO():new Date().toISOString(),oldCardUpdated=card.updatedAt;
-    targets.forEach(function(target){target.line.deletedAt=stamp;target.line.updatedAt=stamp;});card.updatedAt=stamp;
+    /* الحذف يبقى بحفظ ذري واحد، لكن التراجع يُسجّل مادةً مادةً حسب ترتيب التحديد.
+       نظام بطاقة الجملة الحالي يحتفظ بآخر خمس حالات، لذلك نلتقط فقط آخر خمس مواد قابلة للتراجع. */
+    var undoLimit=5;
+    var undoStartAt=Math.max(0,targets.length-undoLimit);
+    targets.forEach(function(target,targetIndex){
+      var token=null;
+      if(targetIndex>=undoStartAt){
+        try{
+          if(typeof window.ASSAL_WHOLESALE_CARD_UNDO_BEGIN_LINE==='function'){
+            token=window.ASSAL_WHOLESALE_CARD_UNDO_BEGIN_LINE(card,state.day);
+          }
+        }catch(_){token=null;}
+        if(token)undoTokens.push(token);
+      }
+      target.line.deletedAt=stamp;
+      target.line.updatedAt=stamp;
+    });card.updatedAt=stamp;
     var result;try{result=(typeof save==='function')?save():{ok:true};}catch(_){result={ok:false};}
-    if(result&&result.ok===false){targets.forEach(function(target){Object.keys(target.line).forEach(function(k){delete target.line[k];});Object.assign(target.line,JSON.parse(JSON.stringify(target.before)));});card.updatedAt=oldCardUpdated;try{if(typeof window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE==='function')window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE(undoToken,false);}catch(_){ }state.busy=false;renderSelected();setError('تعذر الحفظ؛ لم تُحذف أي مادة');return;}
+    if(result&&result.ok===false){targets.forEach(function(target){Object.keys(target.line).forEach(function(k){delete target.line[k];});Object.assign(target.line,JSON.parse(JSON.stringify(target.before)));});card.updatedAt=oldCardUpdated;undoTokens.forEach(function(token){try{if(typeof window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE==='function')window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE(token,false);}catch(_){ }});state.busy=false;renderSelected();setError('تعذر الحفظ؛ لم تُحذف أي مادة');return;}
     targets.forEach(function(target){try{if(window.assalCardAuditRecordDelete){window.assalCardAuditRecordDelete(card,target.line,target.before,window.assalCardAuditFullLineSnapshot?window.assalCardAuditFullLineSnapshot(target.line):JSON.parse(JSON.stringify(target.line)),Math.max(0,target.index),stamp,state.day);}}catch(_){ }});
-    try{if(typeof window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE==='function')window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE(undoToken,true);}catch(_){ }
+    undoTokens.forEach(function(token){try{if(typeof window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE==='function')window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE(token,true);}catch(_){ }});
     state.busy=false;var deletedCount=targets.length;state.selected.clear();persistSelected();close();try{if(typeof renderBoard==='function')renderBoard();}catch(_){ }try{if(typeof renderRail==='function')renderRail();}catch(_){ }try{if(typeof refreshStats==='function')refreshStats();}catch(_){ }try{window.assalInvalidateDebtBadgeCache&&window.assalInvalidateDebtBadgeCache();}catch(_){ }try{showToast('success','تم حذف '+deletedCount+' مواد من فاتورة الجملة');}catch(_){ }
   }
   window.ASSAL_WHOLESALE_BULK_DELETE_OPEN=open;
