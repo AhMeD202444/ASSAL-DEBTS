@@ -26330,8 +26330,22 @@ function assalInlineEditSafeId(v){
 }
 
 function assalInlineEditDayOf(card){
- return assalInlineEditSafeId((card && card.__day) || selectedDay);
- 
+  const explicitDay = assalInlineEditSafeId(card && card.__day).trim();
+  if(explicitDay) return explicitDay;
+
+  /* ASSAL WHOLESALE SEQUENTIAL CROSS-DAY FIX:
+     البطاقة الأصلية داخل days لا تحمل __day دائماً. أثناء جلسة التعديل المتتابع
+     نثبت يوم البطاقة من نفس الجلسة بدل الرجوع إلى selectedDay الذي قد يتغير
+     عند انتقال يوم/شهر أو تحديث الواجهة. هذا لا يضيف أي حقل إلى البيانات المخزنة. */
+  try{
+    const seq = window.__assalWholesaleSequentialEdit;
+    const cardId = assalInlineEditSafeId(card && card.id);
+    if(seq && seq.active && seq.day && cardId && assalInlineEditSafeId(seq.cardId) === cardId){
+      return assalInlineEditSafeId(seq.day);
+    }
+  }catch(_){ }
+
+  return assalInlineEditSafeId(selectedDay);
 }
 
 function assalInlineEditCardId(card){
@@ -38476,18 +38490,12 @@ async function smartImportFromServer(options){
       });
     }else{
       emit('fetch-start', {mode:subMode ? 'sub' : 'main'});
-      server = await serverGetBackup(options?.signal);
+      server = await serverGetBackup();
       emit('fetch-done', {
         mode:subMode ? 'sub' : 'main',
         days:Object.keys((server && server.days) || {}).length,
         names:Array.isArray(server?.names) ? server.names.length : 0
       });
-    }
-
-    /* إعادة المحاولة الخلفية لا تطبق أي دمج إذا بدأ المستخدم عملاً أثناء انتظار الشبكة. */
-    if(typeof options?.beforeApply === 'function' && options.beforeApply() !== true){
-      const err = progressError('تأجل تطبيق نسخة السيرفر لوجود تعديل أو نافذة مفتوحة', 'BACKGROUND_PULL_DEFERRED');
-      return {ok:false, deferred:true, error:err};
     }
 
     if(!server || !server.days){
@@ -38597,14 +38605,7 @@ async function smartImportFromServer(options){
       try{
         const __assalAuditDay = (typeof selectedDay === 'string' && selectedDay) ? selectedDay : '';
         if(__assalAuditDay && typeof window.assalCardAuditFetchServerCardDay === 'function'){
-          const __assalAuditPullPromise = window.assalCardAuditFetchServerCardDay(__assalAuditDay, true);
-          if(options?.skipAuditWait === true){
-            if(__assalAuditPullPromise && typeof __assalAuditPullPromise.catch === 'function'){
-              __assalAuditPullPromise.catch(function(err){console.warn('[ASSAL card audit] background pull refresh skipped', err);});
-            }
-          }else{
-            await __assalAuditPullPromise;
-          }
+          await window.assalCardAuditFetchServerCardDay(__assalAuditDay, true);
         }
       }catch(__assalAuditPullErr){
         console.warn('[ASSAL card audit] pull refresh skipped', __assalAuditPullErr);
@@ -38707,14 +38708,7 @@ async function smartImportFromServer(options){
     try{
       const __assalAuditDay = (typeof selectedDay === 'string' && selectedDay) ? selectedDay : '';
       if(__assalAuditDay && typeof window.assalCardAuditFetchServerCardDay === 'function'){
-        const __assalAuditPullPromise = window.assalCardAuditFetchServerCardDay(__assalAuditDay, true);
-        if(options?.skipAuditWait === true){
-          if(__assalAuditPullPromise && typeof __assalAuditPullPromise.catch === 'function'){
-            __assalAuditPullPromise.catch(function(err){console.warn('[ASSAL card audit] background pull refresh skipped', err);});
-          }
-        }else{
-          await __assalAuditPullPromise;
-        }
+        await window.assalCardAuditFetchServerCardDay(__assalAuditDay, true);
       }
     }catch(__assalAuditPullErr){
       console.warn('[ASSAL card audit] pull refresh skipped', __assalAuditPullErr);
@@ -40062,49 +40056,6 @@ function setSignedOutUI() {
   showToast?.('info', 'تم تسجيل الخروج');
 }
 
-/* مهلات تشغيل آمنة: لا نتجاوز صلاحية الحساب أو التخزين المحلي،
-   ونستخدم الإلغاء فقط مع طلب سحب السيرفر الخارجي. */
-const ASSAL_AUTH_CHECK_TIMEOUT_MS = 15000;
-const ASSAL_LOCAL_STORAGE_TIMEOUT_MS = 20000;
-const ASSAL_STARTUP_SERVER_TIMEOUT_MS = 12000;
-
-function assalStartupError(code, message) {
-  const err = new Error(message || code || 'STARTUP_TIMEOUT');
-  err.code = code || 'STARTUP_TIMEOUT';
-  return err;
-}
-
-function assalAwaitDeadline(promise, timeoutMs, code, onTimeout) {
-  let timer = null;
-  const timeout = new Promise((_, reject) => {
-    timer = setTimeout(() => {
-      try { if (typeof onTimeout === 'function') onTimeout(); } catch (_) {}
-      reject(assalStartupError(code, code));
-    }, Math.max(1000, Number(timeoutMs) || 10000));
-  });
-  return Promise.race([Promise.resolve(promise), timeout]).finally(() => clearTimeout(timer));
-}
-
-async function assalStartupPullServer() {
-  const controller = new AbortController();
-  let timedOut = false;
-  const timer = setTimeout(() => {
-    timedOut = true;
-    try { controller.abort(); } catch (_) {}
-  }, ASSAL_STARTUP_SERVER_TIMEOUT_MS);
-  try {
-    const result = await smartImportFromServer({
-      signal: controller.signal,
-      skipAuditWait: true,
-      __assalPullProgressV1: false,
-      suppressToasts: false
-    });
-    return { ok: !!(result && result.ok), timedOut, result };
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 // allowlist من Firestore
 async function isAllowed(email) {
   try {
@@ -40177,11 +40128,7 @@ btnEl?.addEventListener('click', async () => {
     // بعد خفوت البوابة
 
     const {user} = await signInWithEmailAndPassword(auth, email, pass);
-    const allowed = await assalAwaitDeadline(
-      isAllowed(user.email),
-      ASSAL_AUTH_CHECK_TIMEOUT_MS,
-      'AUTH_ALLOWLIST_TIMEOUT'
-    );
+    const allowed = await isAllowed(user.email);
     if (!auth.currentUser || String(auth.currentUser.uid || '') !== String(user.uid || '')) {
       assalFinalizeSignedOutGate('');
       return;
@@ -40313,21 +40260,7 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  let ok = false;
-  try {
-    ok = await assalAwaitDeadline(
-      isAllowed(user.email),
-      ASSAL_AUTH_CHECK_TIMEOUT_MS,
-      'AUTH_ALLOWLIST_TIMEOUT'
-    );
-  } catch (authCheckError) {
-    if (!assalAuthUserStillCurrent(authVersion, user)) return;
-    console.error('[ASSAL AUTH CHECK TIMEOUT]', authCheckError);
-    assalAuthBootFinish();
-    hideSplash();
-    showGate('تعذر التحقق من صلاحية الحساب. تحقق من الإنترنت ثم أعد المحاولة.');
-    return;
-  }
+  const ok = await isAllowed(user.email);
   // إذا حدث خروج/تبدّل جلسة أثناء انتظار Firestore، تجاهل هذا الرد القديم بالكامل.
   if (!assalAuthUserStillCurrent(authVersion, user)) return;
   if (!ok) {
@@ -40370,24 +40303,10 @@ onAuthStateChanged(auth, async (user) => {
   // بقية الحسابات تبقى على سلوكها الأصلي نفسه.
   assalAuthBootFinish();
   try {
-    try {
-      await assalAwaitDeadline(
-        window.initAssalIndexedStorage?.(),
-        ASSAL_LOCAL_STORAGE_TIMEOUT_MS,
-        'LOCAL_STORAGE_TIMEOUT'
-      );
-    } catch (storageError) {
-      console.error('[ASSAL LOCAL STORAGE STARTUP]', storageError);
-      assalAuthBootFinish();
-      showGate('تعذر فتح التخزين المحلي بأمان. لم يتم تغيير أي بيانات؛ أغلق التبويبات الأخرى ثم أعد المحاولة.');
-      return;
-    }
+    await window.initAssalIndexedStorage?.();
 
     if (getDeviceRole() !== 'sub') {
-      const startupPull = await assalStartupPullServer();
-      if (!startupPull.ok) {
-        try { showToast('warn', startupPull.timedOut ? 'تأخر السيرفر؛ تم فتح النسخة المحلية المكتملة بأمان' : 'تعذر جلب نسخة السيرفر حالياً؛ تم فتح النسخة المحلية بأمان'); } catch (_) {}
-      }
+      await smartImportFromServer();
     } else {
       showToast('info', 'هذه الحاسبة فرعية: لا مزامنة تلقائية. استعمل زر "سحب النسخة" عند الحاجة.');
     }
@@ -44912,6 +44831,14 @@ onAuthStateChanged(auth, async (user) => {
 
       // إذا اختلف تاريخ اليوم عن آخر يوم شغال عندنا → نحدّث selectedDay فقط
       if (today !== __lastSeenDay__) {
+        /* لا نبدّل اليوم من تحت جلسة تعديل مفتوحة.
+           نبقي __lastSeenDay__ كما هو حتى يعيد المؤقت المحاولة بعد انتهاء الجلسة. */
+        const __assalEditingNow = !!(
+          (window.__assalInlineLineEdit && window.__assalInlineLineEdit.key) ||
+          (window.__assalWholesaleSequentialEdit && window.__assalWholesaleSequentialEdit.active)
+        );
+        if (__assalEditingNow) return;
+
         __lastSeenDay__ = today;
         // لا نقترب من TODAY حتى لو كانت const
         if (typeof selectedDay === 'undefined') {
@@ -79197,33 +79124,6 @@ body.assal-debt-transfer-day-locked .assal-customer-rename-btn,
   function isCardLocked(day, cardId) {
     var d = safe(day).trim(), c = safe(cardId).trim();
     if (!isDayLocked(d)) return false;
-
-    // فواتير الجملة مستثناة بالكامل من قفل بطاقات نقل الدين.
-    // الاستثناء يخص البطاقة فقط ولا يغيّر قفل اليوم أو أي نوع فاتورة آخر.
-    try {
-      var arr = (typeof days === 'object' && days && Array.isArray(days[d])) ? days[d] : [];
-      var wholesaleCard = null;
-      for (var i = 0; i < arr.length; i++) {
-        if (arr[i] && safe(arr[i].id).trim() === c) {
-          wholesaleCard = arr[i];
-          break
-
-        }
-
-      }
-      if (wholesaleCard) {
-        if (typeof isWholesaleCard === 'function' && isWholesaleCard(wholesaleCard)) return false;
-        var rawType = safe(wholesaleCard.billType || wholesaleCard.type || wholesaleCard.kind).trim();
-        if (rawType === 'جملة' || rawType.toUpperCase() === 'WHOLESALE') return false;
-        var lines = Array.isArray(wholesaleCard.lines) ? wholesaleCard.lines : [];
-        for (var j = 0; j < lines.length; j++) {
-          if (lines[j] && !lines[j].deletedAt && safe(lines[j].type || lines[j].billType).trim() === 'جملة') return false;
-        }
-      }
-    } catch (_) {
-
-    }
-
     var k = cardUnlockKey(d, c);
     return !(k && viewState.unlockedCardKey === k)
 
@@ -80263,27 +80163,16 @@ body.assal-debt-transfer-day-locked .assal-customer-rename-btn,
     }, 0);
   }
 
-  function clearInlineEdit(options) {
-    options = options && typeof options === 'object' ? options : {};
-    var had = false, hadSequential = false;
+  function clearInlineEdit() {
+    var had = false;
     try {
       had = !!(window.__assalInlineLineEdit && window.__assalInlineLineEdit.key);
-      hadSequential = !!(window.__assalWholesaleSequentialEdit && window.__assalWholesaleSequentialEdit.active);
-
-      /* إذا بقيت جلسة الجملة على يومها وما زال اليوم قابلاً للتعديل،
-         لا تسمح لمزامنة قفل الدين الخلفية بهدم السطر المفتوح. */
-      if (had && hadSequential && options.preserveSequential === true) return false;
-
-      if (had) window.__assalInlineLineEdit = null;
-
-      /* عند الإغلاق الحقيقي (انتقال يوم أو أصبح اليوم مقفولاً) نغلق الحالتين معاً،
-         حتى لا يبقى زر التعديل المتسلسل فعالاً بلا سطر مفتوح. */
-      if (hadSequential) window.__assalWholesaleSequentialEdit = null
+      if (had) window.__assalInlineLineEdit = null
 
     } catch (_) {
 
     }
-    if ((had || hadSequential) && !viewState.renderQueued) {
+    if (had && !viewState.renderQueued) {
       viewState.renderQueued = true;
       setTimeout(function() {
         viewState.renderQueued = false;
@@ -80297,7 +80186,6 @@ body.assal-debt-transfer-day-locked .assal-customer-rename-btn,
       }, 0)
 
     }
-    return !!(had || hadSequential)
   }
 
   function syncLockUi(reason) {
@@ -80310,30 +80198,10 @@ body.assal-debt-transfer-day-locked .assal-customer-rename-btn,
     var existingHost = byId('assalDebtTransferLockHost');
     if (existingHost) mountLockPanel(existingHost);
     var day = selectedDayValue(), lockDay = validDay(localState.lockDay) ? localState.lockDay : '';
-    var dayChanged = day !== viewState.selectedDay, lockChanged = lockDay !== viewState.lockDay;
-    var changed = dayChanged || lockChanged;
+    var changed = day !== viewState.selectedDay || lockDay !== viewState.lockDay;
     if (changed) {
-      var seq = window.__assalWholesaleSequentialEdit;
-      var inline = window.__assalInlineLineEdit;
-      var seqDay = safe(seq && seq.day).trim();
-      var sameSequentialDay = !!(seq && seq.active && inline && inline.key && validDay(seqDay) && seqDay === day);
-      var sequentialEditableAfterSync = false;
-
-      if (sameSequentialDay) {
-        if (lockChanged) {
-          /* تغيّر حد القفل يلغي أي فتح مؤقت؛ تبقى الجلسة فقط إذا يومها خارج القفل الجديد. */
-          sequentialEditableAfterSync = !(validDay(lockDay) && seqDay <= lockDay)
-
-        } else {
-          /* تغيّر كاش العرض وحده ليس انتقالاً حقيقياً ما دام يوم الجلسة هو اليوم الظاهر. */
-          sequentialEditableAfterSync = !isDayLocked(seqDay)
-
-        }
-      }
-
-      var preserveSequential = sameSequentialDay && sequentialEditableAfterSync;
-      clearInlineEdit({preserveSequential: preserveSequential});
-      if (dayChanged && !preserveSequential) {
+      clearInlineEdit();
+      if (day !== viewState.selectedDay) {
         viewState.unlockedDay = '';
         viewState.unlockedCardKey = '';
         viewState.promptDay = '';
@@ -80342,7 +80210,7 @@ body.assal-debt-transfer-day-locked .assal-customer-rename-btn,
         viewState.actionCardId = ''
 
       }
-      if (lockChanged) {
+      if (lockDay !== viewState.lockDay) {
         viewState.unlockedDay = '';
         viewState.unlockedCardKey = '';
         viewState.promptCardKey = '';
@@ -87494,29 +87362,18 @@ body.assal-wholesale-bulk-delete-open{overflow:hidden!important}
     var chosen=Array.from(state.selected.values()),all=Array.isArray(card.lines)?card.lines:[],targets=[];
     chosen.forEach(function(entry){var hit=all.find(function(line){return line&&!line.deletedAt&&lineId(line)===entry.lineId;});if(hit&&!targets.some(function(x){return x.line===hit;}))targets.push({line:hit,index:all.indexOf(hit),before:JSON.parse(JSON.stringify(hit))});});
     if(!targets.length){setError('لم تعد المواد المحددة متاحة للحذف');return;}
-    var undoTokens=[];
-    state.busy=true;renderSelected();var stamp=(typeof nowISO==='function')?nowISO():new Date().toISOString(),oldCardUpdated=card.updatedAt;
-    /* الحذف يبقى بحفظ ذري واحد، لكن آخر حركاته تُسجل مادةً مادةً.
-       لا ننسخ البطاقة لكل المواد إذا كانت الفاتورة كبيرة؛ نلتقط فقط الحد المتاح للتراجع. */
-    var undoLimit=Math.max(1,Number(window.ASSAL_WHOLESALE_CARD_UNDO_LIMIT)||10);
-    var undoStartAt=Math.max(0,targets.length-undoLimit);
-    targets.forEach(function(target,targetIndex){
-      var token=null;
-      if(targetIndex>=undoStartAt){
-        try{
-          if(typeof window.ASSAL_WHOLESALE_CARD_UNDO_BEGIN_LINE==='function'){
-            token=window.ASSAL_WHOLESALE_CARD_UNDO_BEGIN_LINE(card,state.day);
-          }
-        }catch(_){token=null;}
-        if(token)undoTokens.push(token);
+    var undoToken=null;
+    try{
+      if(typeof window.ASSAL_WHOLESALE_CARD_UNDO_BEGIN_LINE==='function'){
+        undoToken=window.ASSAL_WHOLESALE_CARD_UNDO_BEGIN_LINE(card,state.day);
       }
-      target.line.deletedAt=stamp;
-      target.line.updatedAt=stamp;
-    });card.updatedAt=stamp;
+    }catch(_){undoToken=null;}
+    state.busy=true;renderSelected();var stamp=(typeof nowISO==='function')?nowISO():new Date().toISOString(),oldCardUpdated=card.updatedAt;
+    targets.forEach(function(target){target.line.deletedAt=stamp;target.line.updatedAt=stamp;});card.updatedAt=stamp;
     var result;try{result=(typeof save==='function')?save():{ok:true};}catch(_){result={ok:false};}
-    if(result&&result.ok===false){targets.forEach(function(target){Object.keys(target.line).forEach(function(k){delete target.line[k];});Object.assign(target.line,JSON.parse(JSON.stringify(target.before)));});card.updatedAt=oldCardUpdated;undoTokens.forEach(function(token){try{if(typeof window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE==='function')window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE(token,false);}catch(_){ }});state.busy=false;renderSelected();setError('تعذر الحفظ؛ لم تُحذف أي مادة');return;}
+    if(result&&result.ok===false){targets.forEach(function(target){Object.keys(target.line).forEach(function(k){delete target.line[k];});Object.assign(target.line,JSON.parse(JSON.stringify(target.before)));});card.updatedAt=oldCardUpdated;try{if(typeof window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE==='function')window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE(undoToken,false);}catch(_){ }state.busy=false;renderSelected();setError('تعذر الحفظ؛ لم تُحذف أي مادة');return;}
     targets.forEach(function(target){try{if(window.assalCardAuditRecordDelete){window.assalCardAuditRecordDelete(card,target.line,target.before,window.assalCardAuditFullLineSnapshot?window.assalCardAuditFullLineSnapshot(target.line):JSON.parse(JSON.stringify(target.line)),Math.max(0,target.index),stamp,state.day);}}catch(_){ }});
-    undoTokens.forEach(function(token){try{if(typeof window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE==='function')window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE(token,true);}catch(_){ }});
+    try{if(typeof window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE==='function')window.ASSAL_WHOLESALE_CARD_UNDO_END_LINE(undoToken,true);}catch(_){ }
     state.busy=false;var deletedCount=targets.length;state.selected.clear();persistSelected();close();try{if(typeof renderBoard==='function')renderBoard();}catch(_){ }try{if(typeof renderRail==='function')renderRail();}catch(_){ }try{if(typeof refreshStats==='function')refreshStats();}catch(_){ }try{window.assalInvalidateDebtBadgeCache&&window.assalInvalidateDebtBadgeCache();}catch(_){ }try{showToast('success','تم حذف '+deletedCount+' مواد من فاتورة الجملة');}catch(_){ }
   }
   window.ASSAL_WHOLESALE_BULK_DELETE_OPEN=open;
@@ -87602,8 +87459,7 @@ body.assal-wholesale-bulk-delete-open{overflow:hidden!important}
   if(window.__ASSAL_WHOLESALE_CARD_UNDO5_INSTALLED__) return;
   window.__ASSAL_WHOLESALE_CARD_UNDO5_INSTALLED__ = true;
 
-  var LIMIT = 10;
-  window.ASSAL_WHOLESALE_CARD_UNDO_LIMIT = LIMIT;
+  var LIMIT = 5;
   var histories = new Map();
   var baselines = new Map();
   var suspended = false;
