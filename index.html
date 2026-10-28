@@ -15469,6 +15469,8 @@ html.assal-attendance-locked,
   var PHOTO_STORE = 'photos';
   var cameraStream = null;
   var captureBusy = false;
+  var attendanceCloseTimer = 0;
+  var attendanceCaptureGeneration = 0;
   var attendanceAlertCtx = null;
   var attendanceAlertTimer = 0;
   var attendanceAlertNodes = [];
@@ -15878,6 +15880,99 @@ html.assal-attendance-locked,
 
   }
 
+  function attendanceSessionBusy() {
+    var panel = $('attCameraPanel');
+    return !!(isGateOpen() || captureBusy || cameraStream || (panel && panel.classList.contains('is-active')));
+
+  }
+
+  function clearAttendanceCloseTimer() {
+    if (!attendanceCloseTimer) return;
+    clearTimeout(attendanceCloseTimer);
+    attendanceCloseTimer = 0;
+
+  }
+
+  function scheduleAttendanceClose(record, delay) {
+    clearAttendanceCloseTimer();
+    attendanceCloseTimer = setTimeout(function() {
+      attendanceCloseTimer = 0;
+      if (captureBusy) return;
+      closeGate(record);
+
+    }, Math.max(0, Number(delay) || 0));
+
+  }
+
+  function openAttendanceCameraStream(constraints, timeoutMs) {
+    return new Promise(function(resolve, reject) {
+      var settled = false;
+      var timer = setTimeout(function() {
+        if (settled) return;
+        settled = true;
+        var err = new Error('CAMERA_OPEN_TIMEOUT');
+        err.name = 'TimeoutError';
+        reject(err);
+
+      }, Math.max(1000, Number(timeoutMs) || 8000));
+      navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
+        if (settled) {
+          try {
+            stream.getTracks().forEach(function(track) { track.stop(); });
+
+          } catch (_) {
+
+          }
+          return;
+        }
+        settled = true;
+        clearTimeout(timer);
+        resolve(stream);
+
+      }).catch(function(err) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        reject(err);
+
+      });
+    });
+
+  }
+
+  function waitForAttendanceVideoReady(video, timeoutMs) {
+    return new Promise(function(resolve, reject) {
+      var done = false, poll = 0, timer = 0;
+      function cleanup() {
+        clearInterval(poll);
+        clearTimeout(timer);
+        try { video.removeEventListener('loadedmetadata', check); } catch (_) {}
+        try { video.removeEventListener('canplay', check); } catch (_) {}
+      }
+      function finish(ok) {
+        if (done) return;
+        done = true;
+        cleanup();
+        if (ok) {
+          resolve(true);
+        } else {
+          var err = new Error('CAMERA_READY_TIMEOUT');
+          err.name = 'TimeoutError';
+          reject(err);
+        }
+      }
+      function check() {
+        if (video && video.videoWidth > 0 && video.videoHeight > 0 && video.readyState >= 2) finish(true);
+      }
+      try { video.addEventListener('loadedmetadata', check); } catch (_) {}
+      try { video.addEventListener('canplay', check); } catch (_) {}
+      poll = setInterval(check, 80);
+      timer = setTimeout(function() { finish(false); }, Math.max(1000, Number(timeoutMs) || 6000));
+      check();
+    });
+
+  }
+
   function normalizeCode(v) {
     return String(v || '').trim().toLowerCase();
 
@@ -15990,6 +16085,9 @@ html.assal-attendance-locked,
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return 'المتصفح لا يدعم فتح الكاميرا من هذه الصفحة. شغّل التطبيق عبر HTTPS أو localhost.';
     if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') return 'الكاميرا تحتاج تشغيل التطبيق عبر HTTPS أو localhost حتى يسمح المتصفح بفتحها.';
     var specialMsg = err && err.message ? String(err.message) : '';
+    if (specialMsg === 'CAMERA_OPEN_TIMEOUT') return 'تأخر فتح الكاميرا أكثر من اللازم. أغلق أي برنامج يستخدم الكاميرا ثم حاول مرة أخرى.';
+    if (specialMsg === 'CAMERA_READY_TIMEOUT') return 'فتحت الكاميرا لكن الفيديو لم يصبح جاهزاً للالتقاط. حاول مرة أخرى.';
+    if (specialMsg === 'ATTENDANCE_CAPTURE_CANCELLED') return 'تم إلغاء محاولة التصوير السابقة بأمان.';
     if (specialMsg.indexOf('ATTENDANCE_FRAME_CHECK_FAILED:') === 0) return specialMsg.replace('ATTENDANCE_FRAME_CHECK_FAILED:', '');
     var name = err && err.name;
     if (name === 'NotAllowedError' || name === 'PermissionDeniedError') return 'تم رفض صلاحية الكاميرا. لا يمكن تسجيل الحضور إلا بعد السماح بالكاميرا.';
@@ -16161,12 +16259,18 @@ html.assal-attendance-locked,
   }
 
   async function capturePhotoForEmployee(emp) {
+    clearAttendanceCloseTimer();
+    var captureGeneration = ++attendanceCaptureGeneration;
     setCaptureLock(true);
     resetCameraPanel();
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('NO_CAMERA_API');
-      setCameraStatus('requesting', emp.name, 'سيظهر طلب السماح بالكاميرا من المتصفح أو ويندوز. اضغط سماح حتى تبدأ نافذة التصوير.', 'سماح');
-      var stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'user', width: {ideal: 960}, height: {ideal: 720}}, audio: false});
+      setCameraStatus('requesting', emp.name, 'جاري فتح الكاميرا. انتظر لحظات ولا تغلق نافذة الحضور.', 'فتح');
+      var stream = await openAttendanceCameraStream({video: {facingMode: 'user', width: {ideal: 960}, height: {ideal: 720}}, audio: false}, 8000);
+      if (captureGeneration !== attendanceCaptureGeneration) {
+        try { stream.getTracks().forEach(function(track) { track.stop(); }); } catch (_) {}
+        throw new Error('ATTENDANCE_CAPTURE_CANCELLED');
+      }
       cameraStream = stream;
       var video = $('attCameraVideo');
       if (!video) throw new Error('NO_VIDEO_ELEMENT');
@@ -16177,28 +16281,29 @@ html.assal-attendance-locked,
       } catch (_) {
 
       }
-      setCameraStatus('live', emp.name, 'قف أمام الكاميرا وخلي الشخص واضح داخل المربع. لن يتم تسجيل الحضور إذا كانت الصورة فارغة.', '3');
-      await wait(850);
-      setCameraStatus('live', emp.name, 'يتم فحص الإضاءة ووضوح الصورة. ثبت مكانك داخل الإطار.', '2');
-      await wait(850);
-      setCameraStatus('live', emp.name, 'جاهز للفحص والالتقاط. لا تتحرك الآن.', '1');
-      await wait(850);
+      await waitForAttendanceVideoReady(video, 6000);
+      if (captureGeneration !== attendanceCaptureGeneration) throw new Error('ATTENDANCE_CAPTURE_CANCELLED');
+      setCameraStatus('live', emp.name, 'الكاميرا جاهزة. ثبت وجهك داخل الإطار للحظة.', 'جاهز');
+      await wait(800);
       var canvas = $('attCameraCanvas');
       var frame = null, check = null;
       for (var attempt = 1; attempt <= 3; attempt++) {
+        if (captureGeneration !== attendanceCaptureGeneration) throw new Error('ATTENDANCE_CAPTURE_CANCELLED');
+        setCameraStatus('live', emp.name, attempt === 1 ? 'جاري التحقق من الإضاءة والوضوح… لا تتحرك.' : 'إعادة تحقق سريعة من الصورة… ثبت مكانك.', String(attempt));
         frame = drawAttendanceFrame(video, canvas);
         check = assessAttendanceFrame(frame.ctx, frame.width, frame.height);
         if (check && check.ok) break;
         if (attempt < 3) {
           var reason = (check && check.reason) ? check.reason : 'الصورة غير واضحة. اقترب من الكاميرا.';
-          setCameraStatus('live', emp.name, reason + ' سنحاول مرة أخرى.', 'تحقق');
-          await wait(1150);
+          setCameraStatus('live', emp.name, reason + ' سنعيد الفحص مرة أخرى فقط.', 'تحقق');
+          await wait(700);
         }
       }
       if (!check || !check.ok) {
         var finalReason = (check && check.reason) ? check.reason : 'لم يتم رصد صورة واضحة لشخص أمام الكاميرا.';
         throw new Error('ATTENDANCE_FRAME_CHECK_FAILED:' + finalReason);
       }
+      if (captureGeneration !== attendanceCaptureGeneration) throw new Error('ATTENDANCE_CAPTURE_CANCELLED');
       var dataUrl = canvas.toDataURL('image/jpeg', 0.78);
       stopCamera();
       var img = $('attCameraPhoto');
@@ -16211,7 +16316,7 @@ html.assal-attendance-locked,
       setCameraStatus('error', emp.name, msg, '!');
       throw new Error(msg);
     } finally {
-      setCaptureLock(false);
+      if (captureGeneration === attendanceCaptureGeneration) setCaptureLock(false);
     }
   }
 
@@ -16561,16 +16666,10 @@ html.assal-attendance-locked,
     queueServerSync('attendance-leave');
     if (isCompleteToday()) {
       nextPromptAt = Infinity;
-      setTimeout(function() {
-        closeGate(null);
-
-      }, 650);
+      scheduleAttendanceClose(null, 650);
     } else {
       nextPromptAt = Date.now() + RETRY_MS;
-      setTimeout(function() {
-        closeGate(null);
-
-      }, 750);
+      scheduleAttendanceClose(null, 750);
     }
   }
 
@@ -16612,16 +16711,10 @@ html.assal-attendance-locked,
     queueServerSync('attendance-duty');
     if (isCompleteToday()) {
       nextPromptAt = Infinity;
-      setTimeout(function() {
-        closeGate(null);
-
-      }, 650);
+      scheduleAttendanceClose(null, 650);
     } else {
       nextPromptAt = Date.now() + RETRY_MS;
-      setTimeout(function() {
-        closeGate(null);
-
-      }, 750);
+      scheduleAttendanceClose(null, 750);
     }
   }
 
@@ -16733,16 +16826,10 @@ html.assal-attendance-locked,
     queueServerSync('attendance');
     if (isCompleteToday()) {
       nextPromptAt = Infinity;
-      setTimeout(function() {
-        closeGate(rec.employees[emp.name]);
-
-      }, 650);
+      scheduleAttendanceClose(rec.employees[emp.name], 650);
     } else {
       nextPromptAt = Date.now() + RETRY_MS;
-      setTimeout(function() {
-        closeGate(rec.employees[emp.name]);
-
-      }, 750);
+      scheduleAttendanceClose(rec.employees[emp.name], 750);
     }
   }
 
@@ -17186,6 +17273,8 @@ html.assal-attendance-locked,
     if (window.__ASSAL_SINGLE_WINDOW_LOCKED__) return;
     var gate = $('assalAttendanceGate');
     if (!gate) return;
+    if (attendanceSessionBusy()) return;
+    clearAttendanceCloseTimer();
     switchView('main');
     resetCameraPanel();
     setMsg('', true);
@@ -17220,6 +17309,9 @@ html.assal-attendance-locked,
   }
 
   function closeGate(record) {
+    if (captureBusy) return false;
+    clearAttendanceCloseTimer();
+    attendanceCaptureGeneration++;
     var gate = $('assalAttendanceGate');
     stopAttendanceAlert();
     attendanceAlertManual = false;
@@ -17257,6 +17349,8 @@ html.assal-attendance-locked,
       }
 
     }
+    return true;
+
   }
 
   function openAfterAnyConfirmed() {
@@ -17270,7 +17364,7 @@ html.assal-attendance-locked,
   }
 
   function noteActivity() {
-    if (!isGateOpen()) lastActivityAt = Date.now();
+    if (!attendanceSessionBusy()) lastActivityAt = Date.now();
 
   }
 
@@ -17589,7 +17683,7 @@ html.assal-attendance-locked,
     var completedCount = completedCountToday(map);
     var missingCount = missingCountToday(map);
     if (missingCount <= 0) return false;
-    if (isGateOpen()) return false;
+    if (attendanceSessionBusy()) return false;
     // إذا لا يوجد أي حضور/مجاز/واجب اليوم، لا ننتظر دورة الـ10 دقائق؛ النافذة واجبة الظهور بعد هدوء قصير فقط.
     if (completedCount > 0 && Date.now() < nextPromptAt) return false;
     var neededIdle = completedCount === 0 ? Math.min(3000, IDLE_MS) : IDLE_MS;
@@ -17598,6 +17692,9 @@ html.assal-attendance-locked,
   }
 
   function nudgeAutoPrompt() {
+    if (attendanceSessionBusy()) return;
+    var completedCount = completedCountToday(todayMap());
+    if (completedCount > 0 && Date.now() < nextPromptAt) return;
     nextPromptAt = 0;
     lastActivityAt = Date.now() - IDLE_MS - 1;
     setTimeout(function() {
