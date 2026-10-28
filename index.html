@@ -15463,6 +15463,7 @@ html.assal-attendance-locked,
   var autoTimer = null;
   var serverSyncTimer = null;
   var serverSyncBusy = false;
+  var serverSyncPendingReason = '';
   var nextPromptAt = 0;
   var lastActivityAt = Date.now() - IDLE_MS - 1;
   var PHOTO_DB_NAME = 'assal_attendance_photos_db_v1';
@@ -15880,9 +15881,14 @@ html.assal-attendance-locked,
 
   }
 
-  function attendanceSessionBusy() {
+  function attendanceCameraBusy() {
     var panel = $('attCameraPanel');
-    return !!(isGateOpen() || captureBusy || cameraStream || (panel && panel.classList.contains('is-active')));
+    return !!(captureBusy || cameraStream || (panel && panel.classList.contains('is-active')));
+
+  }
+
+  function attendanceSessionBusy() {
+    return !!(isGateOpen() || attendanceCameraBusy());
 
   }
 
@@ -16410,29 +16416,38 @@ html.assal-attendance-locked,
   }
 
   function queueServerSync(reason) {
+    var why = String(reason || 'attendance');
+    serverSyncPendingReason = why;
     clearTimeout(serverSyncTimer);
+    serverSyncTimer = null;
+    if (serverSyncBusy) return;
     serverSyncTimer = setTimeout(function() {
-      pushAttendanceToServer(reason);
+      serverSyncTimer = null;
+      var pending = serverSyncPendingReason || why;
+      serverSyncPendingReason = '';
+      pushAttendanceToServer(pending);
 
     }, 1600);
   }
 
   async function pushAttendanceToServer(reason) {
-    if (serverSyncBusy) return;
+    if (serverSyncBusy) {
+      serverSyncPendingReason = String(reason || serverSyncPendingReason || 'attendance');
+      return;
+
+    }
     if (!navigator.onLine) return;
     if (window.__ASSAL_SINGLE_WINDOW_LOCKED__) return;
     if (typeof window.serverGetBackup !== 'function' || typeof window.serverPostBackup !== 'function') return;
     if (window.IS_SIGNED_IN !== true) return;
     serverSyncBusy = true;
-    var localBefore = exportAttendance();
     try {
       var server = await window.serverGetBackup();
-      if (!server || typeof server !== 'object' || !server.days) {
-        serverSyncBusy = false;
-        return;
+      if (!server || typeof server !== 'object' || !server.days) return;
 
-      }
-      var mergedAttendance = mergeAttendance(server.attendance || emptyState(), localBefore);
+      // مهم: نأخذ أحدث حالة محلية بعد رجوع GET، لأن موظفاً ثانياً قد يسجل أثناء انتظار السيرفر.
+      var localLatest = exportAttendance();
+      var mergedAttendance = mergeAttendance(server.attendance || emptyState(), localLatest);
       var payload = Object.assign({}, server, {attendance: mergedAttendance, exportedAt: new Date().toISOString(), attendanceUpdatedAt: new Date().toISOString()});
       await window.serverPostBackup(payload);
       try {
@@ -16447,7 +16462,17 @@ html.assal-attendance-locked,
     }
     finally {
       serverSyncBusy = false;
+      // إذا وصل تسجيل/تعديل جديد أثناء الرفع السابق، لا نهمله: نرفعه مباشرة بعد انتهاء العملية الحالية.
+      if (serverSyncPendingReason) {
+        var pending = serverSyncPendingReason;
+        serverSyncPendingReason = '';
+        clearTimeout(serverSyncTimer);
+        serverSyncTimer = setTimeout(function() {
+          serverSyncTimer = null;
+          pushAttendanceToServer(pending);
 
+        }, 250);
+      }
     }
   }
 
@@ -16780,13 +16805,18 @@ html.assal-attendance-locked,
     }
 
     setMsg('الرمز صحيح. سيتم فتح الكاميرا لتوثيق حضور ' + emp.name + '.', true);
-    var d = new Date();
-    var photoKey = 'att_photo_' + todayKey(d) + '_' + encodeURIComponent(emp.name) + '_' + Date.now().toString(36);
-    var photoData;
+    // أثناء الكاميرا نوقف صوت تنبيه الحضور حتى لا يبدو وكأن نافذة تلقائية جديدة ظهرت.
+    var alertWasActive = attendanceAlertActive;
+    stopAttendanceAlert();
+    var photoData, photoKey, attendanceAt;
     try {
       photoData = await capturePhotoForEmployee(emp);
-      await saveAttendancePhoto(photoKey, photoData, {employee: emp.name, day: todayKey(d), time: time12(d), at: d.toISOString(), source: 'local-camera'});
+      // نعتمد وقت الحضور بعد نجاح الصورة، لا قبل انتظار الكاميرا.
+      attendanceAt = new Date();
+      photoKey = 'att_photo_' + todayKey(attendanceAt) + '_' + encodeURIComponent(emp.name) + '_' + Date.now().toString(36);
+      await saveAttendancePhoto(photoKey, photoData, {employee: emp.name, day: todayKey(attendanceAt), time: time12(attendanceAt), at: attendanceAt.toISOString(), source: 'local-camera'});
     } catch (err) {
+      restoreAttendanceAlertAfterCapture(alertWasActive);
       setMsg((err && err.message) ? err.message : 'لم يتم تسجيل الحضور لأن صورة الكاميرا لم تُحفظ.', false);
       try {
         input && input.focus({preventScroll: true});
@@ -16800,12 +16830,16 @@ html.assal-attendance-locked,
     st = readState();
     rec = todayRec(st);
     if (isLeaveRecord(rec.employees[emp.name])) {
+      resetCameraPanel();
+      restoreAttendanceAlertAfterCapture(alertWasActive);
       setMsg(emp.name + ' محدد مجاز اليوم. ألغِ المجاز أولاً إذا تريد تسجيل الحضور.', false);
       syncPersonVisuals();
       return;
 
     }
     if (isDutyRecord(rec.employees[emp.name])) {
+      resetCameraPanel();
+      restoreAttendanceAlertAfterCapture(alertWasActive);
       setMsg(emp.name + ' محدد في واجب اليوم. ألغِ الواجب أولاً إذا تريد تسجيل الحضور.', false);
       syncPersonVisuals();
       return;
@@ -16814,22 +16848,41 @@ html.assal-attendance-locked,
     if (isPresentRecord(rec.employees[emp.name])) {
       setMsg('حضور ' + emp.name + ' مسجل مسبقاً اليوم.', true);
       syncPersonVisuals();
+      refreshReport();
+      if (isCompleteToday()) {
+        nextPromptAt = Infinity;
+        scheduleAttendanceClose(rec.employees[emp.name], 650);
+      } else {
+        nextPromptAt = Date.now() + RETRY_MS;
+        scheduleAttendanceClose(rec.employees[emp.name], 750);
+      }
       return;
 
     }
     if (rec.employees[emp.name] && !isCompletedRecord(rec.employees[emp.name])) delete rec.employees[emp.name];
-    rec.employees[emp.name] = {employee: emp.name, present: true, day: todayKey(d), time: time12(d), at: d.toISOString(), source: 'local-code-camera', photoKey: photoKey, photoSaved: true, photoLocalOnly: true};
+    rec.employees[emp.name] = {employee: emp.name, present: true, day: todayKey(attendanceAt), time: time12(attendanceAt), at: attendanceAt.toISOString(), source: 'local-code-camera', photoKey: photoKey, photoSaved: true, photoLocalOnly: true};
     saveState(st);
-    setMsg('تم تسجيل حضور ' + emp.name + ' بالصورة • ' + time12(d), true);
+
+    // تحقق فوري من أن نفس الحضور ثبت محلياً قبل أي رفع أو إغلاق للنافذة.
+    var stored = todayRec(readState()).employees[emp.name];
+    if (!isPresentRecord(stored) || String(stored.photoKey || '') !== String(photoKey)) {
+      resetCameraPanel();
+      restoreAttendanceAlertAfterCapture(alertWasActive);
+      setMsg('تعذر تثبيت حضور ' + emp.name + ' محلياً. لم يتم الإغلاق أو الرفع؛ حاول مرة أخرى.', false);
+      return;
+
+    }
+
+    setMsg('تم تسجيل حضور ' + emp.name + ' بالصورة • ' + normalizeAnyTime(stored.time || time12(attendanceAt)), true);
     syncPersonVisuals();
     refreshReport();
     queueServerSync('attendance');
     if (isCompleteToday()) {
       nextPromptAt = Infinity;
-      scheduleAttendanceClose(rec.employees[emp.name], 650);
+      scheduleAttendanceClose(stored, 650);
     } else {
       nextPromptAt = Date.now() + RETRY_MS;
-      scheduleAttendanceClose(rec.employees[emp.name], 750);
+      scheduleAttendanceClose(stored, 750);
     }
   }
 
@@ -17142,7 +17195,7 @@ html.assal-attendance-locked,
   function scheduleAttendanceAlert() {
     clearTimeout(attendanceAlertTimer);
     attendanceAlertTimer = 0;
-    if (!attendanceAlertActive || attendanceAlertMuted || !attendanceGateVisible()) return;
+    if (!attendanceAlertActive || attendanceAlertMuted || !attendanceGateVisible() || attendanceCameraBusy()) return;
     var ctx = attendanceAlertContext();
     if (!ctx) return;
 
@@ -17151,7 +17204,7 @@ html.assal-attendance-locked,
         var resumed = ctx.resume();
         if (resumed && typeof resumed.then === 'function') {
           resumed.then(function() {
-            if (attendanceAlertActive && !attendanceAlertMuted && attendanceGateVisible()) scheduleAttendanceAlert();
+            if (attendanceAlertActive && !attendanceAlertMuted && attendanceGateVisible() && !attendanceCameraBusy()) scheduleAttendanceAlert();
           }).catch(function() {});
         }
       } catch (_) {
@@ -17215,7 +17268,7 @@ html.assal-attendance-locked,
 
       // تكرار هادئ يلفت الانتباه من دون إزعاج.
       attendanceAlertTimer = setTimeout(function() {
-        if (attendanceAlertActive && !attendanceAlertMuted && attendanceGateVisible()) {
+        if (attendanceAlertActive && !attendanceAlertMuted && attendanceGateVisible() && !attendanceCameraBusy()) {
           scheduleAttendanceAlert();
         } else {
           stopAttendanceAlert();
@@ -17236,6 +17289,14 @@ html.assal-attendance-locked,
     scheduleAttendanceAlert();
   }
 
+  function restoreAttendanceAlertAfterCapture(wasActive) {
+    if (!wasActive || !isGateOpen()) return;
+    attendanceAlertActive = true;
+    syncAttendanceMuteButton();
+    if (!attendanceAlertMuted && !attendanceCameraBusy()) scheduleAttendanceAlert();
+
+  }
+
   function toggleAttendanceAlertMute() {
     if (!attendanceAlertManual) return;
     attendanceAlertMuted = !attendanceAlertMuted;
@@ -17251,7 +17312,7 @@ html.assal-attendance-locked,
   }
 
   function nudgeAttendanceAudioFromGesture() {
-    if (!attendanceAlertActive || attendanceAlertMuted || !attendanceGateVisible()) return;
+    if (!attendanceAlertActive || attendanceAlertMuted || !attendanceGateVisible() || attendanceCameraBusy()) return;
     var ctx = attendanceAlertContext();
     if (!ctx) return;
     try {
@@ -17761,6 +17822,7 @@ html.assal-attendance-locked,
 
       }
       resetCameraPanel();
+      if (attendanceAlertActive && !attendanceAlertMuted) scheduleAttendanceAlert();
       var firstOpen = EMPLOYEES.map(function(e) {
         return $(e.input);
 
