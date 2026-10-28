@@ -5739,6 +5739,150 @@ body{
   
 }
 
+#storageModal .storage-memory-split{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+  margin:0 0 14px;
+}
+
+#storageModal .storage-memory-card{
+  position:relative;
+  overflow:hidden;
+  min-height:154px;
+  padding:14px 15px 13px;
+  border-radius:20px;
+  background:linear-gradient(180deg,rgba(15,23,42,.82),rgba(7,13,27,.78));
+  border:1px solid rgba(148,163,184,.16);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 14px 30px rgba(0,0,0,.20);
+}
+
+#storageModal .storage-memory-card::after{
+  content:'';
+  position:absolute;
+  width:130px;
+  height:130px;
+  inset-inline-end:-54px;
+  bottom:-66px;
+  border-radius:999px;
+  pointer-events:none;
+  opacity:.7;
+}
+
+#storageModal .storage-memory-local::after{
+  background:radial-gradient(circle,rgba(34,211,238,.18),transparent 68%);
+}
+
+#storageModal .storage-memory-idb::after{
+  background:radial-gradient(circle,rgba(139,92,246,.21),transparent 68%);
+}
+
+#storageModal .storage-memory-head{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:10px;
+}
+
+#storageModal .storage-memory-icon{
+  width:38px;
+  height:38px;
+  border-radius:13px;
+  display:grid;
+  place-items:center;
+  font-size:16px;
+  color:#f8fafc;
+  background:linear-gradient(145deg,rgba(14,165,233,.88),rgba(124,58,237,.90));
+  border:1px solid rgba(255,255,255,.10);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14);
+}
+
+#storageModal .storage-memory-title{
+  color:#f8fafc;
+  font-weight:950;
+  font-size:14px;
+  direction:ltr;
+  text-align:start;
+}
+
+#storageModal .storage-memory-caption{
+  margin-top:2px;
+  color:#94a3b8;
+  font-size:11px;
+  line-height:1.45;
+}
+
+#storageModal .storage-memory-status{
+  padding:4px 8px;
+  border-radius:999px;
+  font-size:10.5px;
+  font-weight:950;
+  white-space:nowrap;
+  border:1px solid transparent;
+}
+
+#storageModal .storage-memory-status.is-safe{
+  color:#bbf7d0;
+  background:rgba(22,163,74,.10);
+  border-color:rgba(34,197,94,.28);
+}
+
+#storageModal .storage-memory-status.is-warn{
+  color:#fde68a;
+  background:rgba(245,158,11,.10);
+  border-color:rgba(245,158,11,.30);
+}
+
+#storageModal .storage-memory-status.is-danger{
+  color:#fecaca;
+  background:rgba(239,68,68,.12);
+  border-color:rgba(239,68,68,.34);
+}
+
+#storageModal .storage-memory-value{
+  margin-top:13px;
+  font-size:24px;
+  line-height:1.05;
+  font-weight:950;
+  color:#fff;
+  direction:ltr;
+  unicode-bidi:plaintext;
+}
+
+#storageModal .storage-memory-meta{
+  margin-top:7px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  color:#94a3b8;
+  font-size:10.5px;
+}
+
+#storageModal .storage-memory-meta span:first-child{
+  color:#e2e8f0;
+  font-weight:900;
+  direction:ltr;
+}
+
+#storageModal .storage-memory-bar{
+  height:7px;
+  margin-top:9px;
+  border-radius:999px;
+  overflow:hidden;
+  background:rgba(2,6,23,.72);
+  border:1px solid rgba(148,163,184,.12);
+}
+
+#storageModal .storage-memory-bar span{
+  display:block;
+  width:0;
+  height:100%;
+  border-radius:inherit;
+  background:linear-gradient(90deg,#22c55e,#10b981 45%,#f59e0b 76%,#ef4444);
+  transition:width .58s cubic-bezier(.22,1,.36,1);
+}
+
 #storageModal .storage-stats{
   border-radius:17px;
   padding:13px 15px;
@@ -5963,6 +6107,20 @@ body{
     
   }
   
+}
+
+@media (max-width:720px){
+  #storageModal .storage-memory-split{
+    grid-template-columns:1fr;
+    gap:9px;
+  }
+  #storageModal .storage-memory-card{
+    min-height:140px;
+    padding:12px 13px;
+  }
+  #storageModal .storage-memory-value{
+    font-size:21px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce){
@@ -15450,6 +15608,13 @@ html.assal-attendance-locked,
 /* JS 03 — [حساس] الحضور والبصمة — التسجيل والكاميرا */
 (function() {
   var STATE_KEY = 'assal_attendance_state_v2';
+  var ATT_STATE_DB_NAME = 'assal_attendance_state_db_v1';
+  var ATT_STATE_STORE = 'state';
+  var ATT_STATE_RECORD_KEY = 'current';
+  var attendanceStateCache = null;
+  var attendanceStateReady = false;
+  var attendanceStateInitPromise = null;
+  var attendanceStatePersistChain = Promise.resolve(true);
   var LEGACY_ATT_KEY = 'assal_attendance_test_log_v1';
   var LEGACY_TIMEOUT_KEY = 'assal_attendance_timeout_log_v1';
   var START_HOUR = 8;
@@ -15647,11 +15812,92 @@ html.assal-attendance-locked,
   function writeJSON(key, obj) {
     try {
       localStorage.setItem(key, JSON.stringify(obj));
+      return true;
 
-    } catch (_) {
+    } catch (err) {
+      try { console.warn('[ASSAL attendance] localStorage write skipped:', err); } catch (_) {}
+      return false;
 
     }
 
+  }
+
+  function cloneAttendanceState(value) {
+    try {
+      return JSON.parse(JSON.stringify(value));
+
+    } catch (_) {
+      return value;
+
+    }
+  }
+
+  function openAttendanceStateDB() {
+    return new Promise(function(resolve, reject) {
+      if (!window.indexedDB) {
+        reject(new Error('NO_INDEXEDDB'));
+        return;
+      }
+      var req = indexedDB.open(ATT_STATE_DB_NAME, 1);
+      req.onupgradeneeded = function() {
+        var db = req.result;
+        if (!db.objectStoreNames.contains(ATT_STATE_STORE)) db.createObjectStore(ATT_STATE_STORE, {keyPath: 'key'});
+      };
+      req.onsuccess = function() { resolve(req.result); };
+      req.onerror = function() { reject(req.error || new Error('ATT_STATE_DB_OPEN_FAILED')); };
+      req.onblocked = function() { reject(new Error('ATT_STATE_DB_BLOCKED')); };
+    });
+  }
+
+  function readAttendanceStateIDB() {
+    return openAttendanceStateDB().then(function(db) {
+      return new Promise(function(resolve, reject) {
+        var tx = db.transaction(ATT_STATE_STORE, 'readonly');
+        var req = tx.objectStore(ATT_STATE_STORE).get(ATT_STATE_RECORD_KEY);
+        req.onsuccess = function() {
+          var row = req.result;
+          try { db.close(); } catch (_) {}
+          resolve(row && row.value ? row.value : null);
+        };
+        req.onerror = function() {
+          try { db.close(); } catch (_) {}
+          reject(req.error || new Error('ATT_STATE_DB_READ_FAILED'));
+        };
+      });
+    });
+  }
+
+  function writeAttendanceStateIDB(state) {
+    var snapshot = cloneAttendanceState(state);
+    return openAttendanceStateDB().then(function(db) {
+      return new Promise(function(resolve, reject) {
+        var tx = db.transaction(ATT_STATE_STORE, 'readwrite');
+        tx.objectStore(ATT_STATE_STORE).put({key: ATT_STATE_RECORD_KEY, value: snapshot, updatedAt: Date.now()});
+        tx.oncomplete = function() {
+          try { db.close(); } catch (_) {}
+          resolve(true);
+        };
+        tx.onerror = function() {
+          try { db.close(); } catch (_) {}
+          reject(tx.error || new Error('ATT_STATE_DB_WRITE_FAILED'));
+        };
+        tx.onabort = function() {
+          try { db.close(); } catch (_) {}
+          reject(tx.error || new Error('ATT_STATE_DB_WRITE_ABORTED'));
+        };
+      });
+    });
+  }
+
+  function queueAttendanceStatePersist(state) {
+    var snapshot = cloneAttendanceState(state);
+    attendanceStatePersistChain = attendanceStatePersistChain.catch(function() { return false; }).then(function() {
+      return writeAttendanceStateIDB(snapshot);
+    });
+    return attendanceStatePersistChain.then(function() { return true; }).catch(function(err) {
+      try { console.warn('[ASSAL attendance] IndexedDB state write skipped:', err); } catch (_) {}
+      return false;
+    });
   }
 
   function emptyState() {
@@ -15713,15 +15959,74 @@ html.assal-attendance-locked,
   }
 
   function readState() {
-    return migrateLegacyIfNeeded(normalizeState(readJSON(STATE_KEY, emptyState())));
+    if (attendanceStateCache && typeof attendanceStateCache === 'object') {
+      return migrateLegacyIfNeeded(normalizeState(cloneAttendanceState(attendanceStateCache)));
+    }
+    var local = migrateLegacyIfNeeded(normalizeState(readJSON(STATE_KEY, emptyState())));
+    attendanceStateCache = cloneAttendanceState(local);
+    return cloneAttendanceState(local);
 
   }
 
+  function prepareAttendanceState(st) {
+    var snapshot = normalizeState(cloneAttendanceState(st));
+    snapshot.updatedAt = new Date().toISOString();
+    attendanceStateCache = cloneAttendanceState(snapshot);
+    return snapshot;
+  }
+
   function saveState(st) {
-    st = normalizeState(st);
-    st.updatedAt = new Date().toISOString();
-    writeJSON(STATE_KEY, st);
-    return st;
+    var snapshot = prepareAttendanceState(st);
+    writeJSON(STATE_KEY, snapshot); // مرآة توافقية فقط؛ IndexedDB هو الاحتياط الدائم.
+    queueAttendanceStatePersist(snapshot);
+    return cloneAttendanceState(snapshot);
+
+  }
+
+  async function saveStateDurable(st) {
+    var snapshot = prepareAttendanceState(st);
+    var localOk = writeJSON(STATE_KEY, snapshot);
+    var idbOk = await queueAttendanceStatePersist(snapshot);
+    return {ok: !!(localOk || idbOk), state: cloneAttendanceState(snapshot), localOk: !!localOk, idbOk: !!idbOk};
+
+  }
+
+  function initAttendanceStateStore() {
+    if (attendanceStateInitPromise) return attendanceStateInitPromise;
+    var localAtStart = migrateLegacyIfNeeded(normalizeState(readJSON(STATE_KEY, emptyState())));
+    if (!attendanceStateCache) attendanceStateCache = cloneAttendanceState(localAtStart);
+    attendanceStateInitPromise = (async function() {
+      var idbState = null;
+      try {
+        idbState = await readAttendanceStateIDB();
+      } catch (err) {
+        try { console.warn('[ASSAL attendance] IndexedDB state read skipped:', err); } catch (_) {}
+      }
+
+      // قد تكون وصلت مزامنة/تعديلات أثناء انتظار IndexedDB؛ ندمج مع أحدث Cache وليس مع لقطة البداية فقط.
+      var current = attendanceStateCache && attendanceStateCache.days ? cloneAttendanceState(attendanceStateCache) : cloneAttendanceState(localAtStart);
+      var merged = current;
+      if (idbState && idbState.days) merged = mergeAttendance(idbState, current);
+      merged = migrateLegacyIfNeeded(normalizeState(merged));
+      attendanceStateCache = cloneAttendanceState(merged);
+      writeJSON(STATE_KEY, merged);
+      await queueAttendanceStatePersist(merged);
+      attendanceStateReady = true;
+      try {
+        syncPersonVisuals();
+        refreshReport();
+        syncHalfDayAdminUi();
+      } catch (_) {}
+      setTimeout(function() {
+        try { nudgeAutoPrompt(); } catch (_) {}
+      }, 300);
+      return true;
+    })().catch(function(err) {
+      attendanceStateReady = true;
+      try { console.warn('[ASSAL attendance] state init fallback:', err); } catch (_) {}
+      return false;
+    });
+    return attendanceStateInitPromise;
 
   }
 
@@ -16861,11 +17166,11 @@ html.assal-attendance-locked,
     }
     if (rec.employees[emp.name] && !isCompletedRecord(rec.employees[emp.name])) delete rec.employees[emp.name];
     rec.employees[emp.name] = {employee: emp.name, present: true, day: todayKey(attendanceAt), time: time12(attendanceAt), at: attendanceAt.toISOString(), source: 'local-code-camera', photoKey: photoKey, photoSaved: true, photoLocalOnly: true};
-    saveState(st);
+    var durableSave = await saveStateDurable(st);
 
-    // تحقق فوري من أن نفس الحضور ثبت محلياً قبل أي رفع أو إغلاق للنافذة.
+    // لا نعتمد الحضور إلا إذا ثبت في localStorage أو IndexedDB، ثم نتحقق من نفس السجل من الـCache الموحد.
     var stored = todayRec(readState()).employees[emp.name];
-    if (!isPresentRecord(stored) || String(stored.photoKey || '') !== String(photoKey)) {
+    if (!durableSave.ok || !isPresentRecord(stored) || String(stored.photoKey || '') !== String(photoKey)) {
       resetCameraPanel();
       restoreAttendanceAlertAfterCapture(alertWasActive);
       setMsg('تعذر تثبيت حضور ' + emp.name + ' محلياً. لم يتم الإغلاق أو الرفع؛ حاول مرة أخرى.', false);
@@ -17736,6 +18041,7 @@ html.assal-attendance-locked,
   }
 
   function shouldAutoOpen() {
+    if (!attendanceStateReady) return false;
     if (window.ASSAL_IS_ADMIN_DEBTS === true) return false;
     if (typeof isSubDevice === 'function' && isSubDevice()) return false;
     if (!appReadyForAttendance()) return false;
@@ -18014,6 +18320,7 @@ html.assal-attendance-locked,
     syncPersonVisuals();
     refreshReport();
     syncHalfDayAdminUi();
+    initAttendanceStateStore();
     installServerHooks();
     startAutoPromptLoop();
   }
@@ -18945,7 +19252,7 @@ html.assal-attendance-locked,
               حجم تخزين المتصفح
             </div>
             <div class="storage-subtitle">
-              نظرة عامة على استخدام <span class="code-chip">localStorage</span> لهذا الجهاز.
+              فحص منفصل لـ <span class="code-chip">localStorage</span> و <span class="code-chip">IndexedDB</span> مع إجمالي مساحة الموقع.
             </div>
           </div>
         </div>
@@ -18958,6 +19265,42 @@ html.assal-attendance-locked,
       <div class="modal-body storage-body">
         <div class="storage-bar-outer">
           <div id="storageUsageBar" class="storage-bar-inner"></div>
+        </div>
+
+        <div class="storage-memory-split">
+          <div class="storage-memory-card storage-memory-local">
+            <div class="storage-memory-head">
+              <div class="storage-memory-icon"><i class="fa-solid fa-box-archive"></i></div>
+              <div>
+                <div class="storage-memory-title">localStorage</div>
+                <div class="storage-memory-caption">الإعدادات والسجلات الصغيرة</div>
+              </div>
+              <span id="storageLocalStatus" class="storage-memory-status is-safe">ممتاز</span>
+            </div>
+            <div class="storage-memory-value" id="storageLocalUsed">-</div>
+            <div class="storage-memory-meta">
+              <span id="storageLocalPct">-</span>
+              <span id="storageLocalLimit">من حد تقريبي -</span>
+            </div>
+            <div class="storage-memory-bar"><span id="storageLocalBar"></span></div>
+          </div>
+
+          <div class="storage-memory-card storage-memory-idb">
+            <div class="storage-memory-head">
+              <div class="storage-memory-icon"><i class="fa-solid fa-layer-group"></i></div>
+              <div>
+                <div class="storage-memory-title">IndexedDB</div>
+                <div class="storage-memory-caption" id="storageIdbCaption">البيانات الكبيرة وصور/حالة الحضور</div>
+              </div>
+              <span id="storageIdbStatus" class="storage-memory-status is-safe">ممتاز</span>
+            </div>
+            <div class="storage-memory-value" id="storageIdbUsed">-</div>
+            <div class="storage-memory-meta">
+              <span id="storageIdbPct">-</span>
+              <span id="storageIdbDetail">من مساحة الموقع المتاحة</span>
+            </div>
+            <div class="storage-memory-bar"><span id="storageIdbBar"></span></div>
+          </div>
         </div>
 
         <div class="storage-grid">
@@ -18979,8 +19322,8 @@ html.assal-attendance-locked,
         <div id="storageUsageMore" class="storage-stats storage-more"></div>
 
         <div class="storage-footer-note">
-          القيم تقريبية وقد تختلف من متصفح لآخر. النسخ الاحتياطية على السيرفر تبقى آمنة دائماً حتى
-          لو وصل المتصفح للحد الأقصى.
+          <strong>ملاحظة:</strong> حجم <span class="code-chip">localStorage</span> يُحسب مباشرة من المفاتيح والقيم.
+          حجم <span class="code-chip">IndexedDB</span> يُعرض منفصلاً عندما يدعمه المتصفح، وإلا يظهر كتقدير من استخدام مساحة الموقع ويُعلَّم بوضوح بأنه تقريبي. لا يتم حذف أو تعديل أي بيانات أثناء الفحص.
         </div>
       </div>
 
@@ -30786,59 +31129,104 @@ async function openStorageUsageModal(){
 
   const estimate   = await getBrowserStorageEstimate();
   const lsBytes    = getLocalStorageUsageBytes();
-  const usedBytes  = Math.max(Number(estimate?.usage || 0), lsBytes);
-  const limitBytes = Number(estimate?.quota || 0) || APPROX_LOCALSTORAGE_LIMIT_BYTES;
-  const pctRaw     = limitBytes ? (usedBytes / limitBytes) * 100 : 0;
-  const pct        = Math.max(0, Math.min(100, Math.round(pctRaw)));
-  const leftBytes  = Math.max(0, limitBytes - usedBytes);
+  const quotaBytes = Number(estimate?.quota || 0) || APPROX_LOCALSTORAGE_LIMIT_BYTES;
+  const totalUsed  = Math.max(0, Number(estimate?.usage || 0));
+  const totalPctRaw= quotaBytes ? (totalUsed / quotaBytes) * 100 : 0;
+  const totalPct   = Math.max(0, Math.min(100, Math.round(totalPctRaw)));
+  const leftBytes  = Math.max(0, quotaBytes - totalUsed);
+
+  // localStorage له حد منفصل أصغر من حصة الموقع العامة.
+  const lsLimitBytes = APPROX_LOCALSTORAGE_LIMIT_BYTES;
+  const lsPctRaw = lsLimitBytes ? (lsBytes / lsLimitBytes) * 100 : 0;
+  const lsPct = Math.max(0, Math.min(100, Math.round(lsPctRaw)));
+
+  // بعض المتصفحات (Chromium غالباً) ترجع usageDetails.indexedDB مباشرة.
+  // Firefox قد لا يرجع هذا التفصيل؛ عندها نعرض تقدير مساحة الموقع كبديل واضح وموسوم "تقريبي".
+  const usageDetails = estimate && estimate.usageDetails ? estimate.usageDetails : null;
+  const hasDirectIdb = !!(usageDetails && Number.isFinite(Number(usageDetails.indexedDB)));
+  const directIdbBytes = hasDirectIdb ? Math.max(0, Number(usageDetails.indexedDB)) : 0;
+  const idbBytes = hasDirectIdb ? directIdbBytes : totalUsed;
+  const idbPctRaw = quotaBytes ? (idbBytes / quotaBytes) * 100 : 0;
+  const idbPct = Math.max(0, Math.min(100, Math.round(idbPctRaw)));
 
   const bar        = document.getElementById('storageUsageBar');
   const txtMain    = document.getElementById('storageUsageMain');
   const txtMore    = document.getElementById('storageUsageMore');
-
   const usedKpi    = document.getElementById('storageUsedKpi');
   const leftKpi    = document.getElementById('storageLeftKpi');
   const pctKpi     = document.getElementById('storagePctKpi');
   const badge      = document.getElementById('storageBadge');
 
-  // شريط النسبة - حركة فتح خفيفة فقط، بدون تغيير الحساب
-  if(bar){
-    bar.style.width = '0%';
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
- bar.style.width = pct + '%';
- 
-});
-    });
+  const localUsed  = document.getElementById('storageLocalUsed');
+  const localPctEl = document.getElementById('storageLocalPct');
+  const localLimit = document.getElementById('storageLocalLimit');
+  const localBar   = document.getElementById('storageLocalBar');
+  const localStatus= document.getElementById('storageLocalStatus');
+
+  const idbUsed    = document.getElementById('storageIdbUsed');
+  const idbPctEl   = document.getElementById('storageIdbPct');
+  const idbDetail  = document.getElementById('storageIdbDetail');
+  const idbBar     = document.getElementById('storageIdbBar');
+  const idbStatus  = document.getElementById('storageIdbStatus');
+  const idbCaption = document.getElementById('storageIdbCaption');
+
+  function animateBar(el, pct){
+    if(!el) return;
+    el.style.width = '0%';
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{ el.style.width = pct + '%'; }));
   }
 
-  // KPIs رقمية
-  if(usedKpi) usedKpi.textContent = formatBytesNice(usedBytes);
+  function setMiniStatus(el, pct){
+    if(!el) return;
+    el.classList.remove('is-safe','is-warn','is-danger');
+    let label='ممتاز', cls='is-safe';
+    if(pct >= 90){ label='حرج'; cls='is-danger'; }
+    else if(pct >= 75){ label='انتباه'; cls='is-warn'; }
+    el.textContent=label;
+    el.classList.add(cls);
+  }
+
+  animateBar(bar, totalPct);
+  animateBar(localBar, lsPct);
+  animateBar(idbBar, idbPct);
+
+  if(usedKpi) usedKpi.textContent = formatBytesNice(totalUsed);
   if(leftKpi) leftKpi.textContent = formatBytesNice(leftBytes);
-  if(pctKpi)  pctKpi.textContent  = pct + '٪';
+  if(pctKpi)  pctKpi.textContent  = totalPct + '٪';
 
-  // نص مختصر
+  if(localUsed) localUsed.textContent = formatBytesNice(lsBytes);
+  if(localPctEl) localPctEl.textContent = lsPct + '٪';
+  if(localLimit) localLimit.textContent = 'من حد تقريبي ' + formatBytesNice(lsLimitBytes);
+  setMiniStatus(localStatus, lsPct);
+
+  if(idbUsed) idbUsed.textContent = formatBytesNice(idbBytes);
+  if(idbPctEl) idbPctEl.textContent = idbPct + '٪';
+  if(idbDetail) idbDetail.textContent = hasDirectIdb ? 'من حصة الموقع — قياس IndexedDB مباشر' : 'من حصة الموقع — تقدير شامل';
+  if(idbCaption) idbCaption.textContent = hasDirectIdb ? 'البيانات الكبيرة وصور/حالة الحضور' : 'تقريبي: IndexedDB + بيانات الموقع التي يحسبها المتصفح';
+  setMiniStatus(idbStatus, idbPct);
+
   if(txtMain){
-    txtMain.textContent =
-      `مستعمل تقريباً ${formatBytesNice(usedBytes)} من ${formatBytesNice(limitBytes)} (${pct}٪ من مساحة تخزين المتصفح المتاحة للموقع).`;
+    txtMain.innerHTML =
+      `<strong>الإجمالي العام للموقع:</strong> ${formatBytesNice(totalUsed)} من ${formatBytesNice(quotaBytes)} (${totalPct}٪). ` +
+      `المتبقي التقريبي ${formatBytesNice(leftBytes)}.`;
   }
 
-  // حالة + تفاصيل + ألوان البادج
   if(badge){
     badge.classList.remove('storage-badge-safe','storage-badge-warn','storage-badge-danger');
 
+    const worstPct = Math.max(totalPct, lsPct, idbPct);
     let statusLabel = 'حالة آمنة';
     let statusClass = 'storage-badge-safe';
-    let statusText  = 'الوضع ممتاز، ماكو أي خطر حاليًا من امتلاء تخزين المتصفح.';
+    let statusText  = 'الوضع ممتاز في الذاكرتين، ولا توجد إشارة حالية لاقتراب التخزين من الحد.';
 
-    if(pct >= 75 && pct < 90){
-      statusLabel = 'قريب من الحد';
+    if(worstPct >= 75 && worstPct < 90){
+      statusLabel = 'يحتاج انتباه';
       statusClass = 'storage-badge-warn';
-      statusText  = 'الاستخدام بدأ يقترب من الحد التقريبي. يُفضّل تصدير نسخة احتياطية والتأكد من مزامنة السيرفر، بدون حذف تلقائي لأي بيانات.';
-    }else if(pct >= 90){
-      statusLabel = 'على وشك الامتلاء';
+      statusText  = 'واحدة من طبقات التخزين بدأت تقترب من الحد. لا يوجد حذف تلقائي لأي بيانات؛ راقب النسب وخذ نسخة احتياطية دورياً.';
+    }else if(worstPct >= 90){
+      statusLabel = 'قريب جداً من الحد';
       statusClass = 'storage-badge-danger';
-      statusText  = 'التخزين قرّب يمتلئ. النظام لن يحذف أي بيانات تلقائياً؛ خذ نسخة احتياطية وتأكد من مساحة الجهاز/المتصفح.';
+      statusText  = 'إحدى طبقات التخزين قريبة جداً من الامتلاء. النظام لا يحذف أي بيانات تلقائياً؛ تأكد من النسخة الاحتياطية قبل أي تنظيف يدوي.';
     }
 
     badge.textContent = statusLabel;
@@ -30848,19 +31236,18 @@ async function openStorageUsageModal(){
       txtMore.innerHTML =
         `<div class="storage-more-text">${statusText}</div>
          <ul class="storage-list">
-           <li>المتبقي التقريبي قبل الوصول للحد: <strong>${formatBytesNice(leftBytes)}</strong>.</li>
-           <li>المساحة هنا تشمل IndexedDB وبيانات الموقع، وهي أكبر بكثير من localStorage القديم.</li>
-           <li>ينصح دائماً بالاعتماد على النسخ الاحتياطية على السيرفر وعدم الاعتماد على هذا المتصفح فقط.</li>
+           <li><strong>localStorage:</strong> ${formatBytesNice(lsBytes)} (${lsPct}٪ من حد تقريبي ${formatBytesNice(lsLimitBytes)}).</li>
+           <li><strong>IndexedDB:</strong> ${formatBytesNice(idbBytes)} (${idbPct}٪ من حصة الموقع)${hasDirectIdb ? ' — قياس منفصل من المتصفح.' : ' — تقدير لأن المتصفح لا يوفّر تفصيلاً منفصلاً.'}</li>
+           <li><strong>الإجمالي:</strong> ${formatBytesNice(totalUsed)} من ${formatBytesNice(quotaBytes)}.</li>
+           <li>الفحص قراءة فقط؛ لا يحذف ولا يعدّل أي سجل أو صورة أو دين.</li>
          </ul>`;
     }
   }
 
-  // عرض المودال
   backdrop.classList.add('active');
   modal.classList.add('active');
   document.body.classList.add('modal-open');
 }
-
 
 function closeStorageUsageModal(){
   const backdrop = document.getElementById('storageModalBackdrop');
