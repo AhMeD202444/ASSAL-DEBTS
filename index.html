@@ -16011,6 +16011,14 @@ html.assal-attendance-locked,
       attendanceStateCache = cloneAttendanceState(merged);
       writeJSON(STATE_KEY, merged);
       await queueAttendanceStatePersist(merged);
+      // تنظيف آمن لسجلات الحضور القديمة فقط بعد إثبات أن الحالة المدمجة موجودة في IndexedDB.
+      try {
+        var persistedAttendance = await readAttendanceStateIDB();
+        if (persistedAttendance && persistedAttendance.days && typeof persistedAttendance.days === 'object') {
+          try { localStorage.removeItem(LEGACY_ATT_KEY); } catch (_) {}
+          try { localStorage.removeItem(LEGACY_TIMEOUT_KEY); } catch (_) {}
+        }
+      } catch (_) {}
       attendanceStateReady = true;
       try {
         syncPersonVisuals();
@@ -22156,6 +22164,412 @@ async function assalIDBSet(key, value){
   });
 }
 
+
+/* =========================================================
+   ASSAL SAFE GROWING STORAGE MIGRATION V1
+   - ينقل فقط المخازن الثقيلة/المتنامية المثبتة إلى IndexedDB.
+   - لا يلمس مفاتيح التشغيل الفوري: قفل التبويب، هوية الحاسبة،
+     قائد المزامنة، قفل نقل الدين، أو أي مفتاح يحتاج قراءة قبل الإقلاع.
+   - كل مفتاح: كتابة IDB -> قراءة تحقق -> بعدها فقط حذف localStorage.
+   - القراءة بعد النقل تبقى متزامنة من Cache محمّل قبل إظهار واجهة التطبيق.
+========================================================= */
+const ASSAL_MANAGED_STORAGE_SIGNAL_KEY = 'ASSAL_MANAGED_STORAGE_SIGNAL_V1';
+const ASSAL_MANAGED_EXACT_KEYS = new Set([
+  'ASSAL_ADVANCED_SERVER_UPLOAD_ARCHIVE_V1',
+  'ASSAL_DEBTS_OPENING_BALANCE_HISTORY_V1',
+  'ASSAL_CARD_ACTION_DAYS_V1',
+  'ASSAL_CARD_AUDIT_SERVER_QUEUE_V1'
+]);
+const ASSAL_MANAGED_PREFIXES = [
+  'ASSAL_CARD_ACTION_DAY_V1::',
+  'ASSAL_CARD_ACTION_CARD_V1::'
+];
+const ASSAL_MANAGED_CACHE = window.__ASSAL_MANAGED_CACHE || (window.__ASSAL_MANAGED_CACHE = Object.create(null));
+const ASSAL_MANAGED_PRESENT = window.__ASSAL_MANAGED_PRESENT || (window.__ASSAL_MANAGED_PRESENT = new Set());
+const ASSAL_MANAGED_WRITE_CHAINS = window.__ASSAL_MANAGED_WRITE_CHAINS || (window.__ASSAL_MANAGED_WRITE_CHAINS = new Map());
+let ASSAL_MANAGED_INIT_PROMISE = null;
+let ASSAL_MANAGED_READY_RESOLVE = null;
+if(!window.ASSAL_MANAGED_STORAGE_READY){
+  window.ASSAL_MANAGED_STORAGE_READY = new Promise(resolve=>{ ASSAL_MANAGED_READY_RESOLVE = resolve; });
+}
+
+function assalManagedIsKey(key){
+  key = String(key || '');
+  return ASSAL_MANAGED_EXACT_KEYS.has(key) || ASSAL_MANAGED_PREFIXES.some(prefix=> key.indexOf(prefix) === 0);
+}
+
+function assalManagedParseRaw(raw, fallback){
+  try{
+    if(raw == null || raw === '') return fallback;
+    return JSON.parse(raw);
+  }catch(_){
+    return fallback;
+  }
+}
+
+function assalManagedStamp(v){
+  try{
+    const s = String((v && (v.undoneAt || v.updatedAt || v.at || v.queuedAt || v.uploadedAt || v.savedAt)) || '');
+    const t = Date.parse(s);
+    return Number.isFinite(t) ? t : 0;
+  }catch(_){ return 0; }
+}
+
+function assalManagedMergeActions(a, b){
+  const map = new Map();
+  function put(x){
+    if(!x || !x.id) return;
+    const id = String(x.id);
+    if(!map.has(id)){
+      map.set(id, cloneDataSafe(x));
+      return;
+    }
+    const old = map.get(id) || {};
+    const oldStamp = assalManagedStamp(old), newStamp = assalManagedStamp(x);
+    const winner = newStamp >= oldStamp ? Object.assign({}, old, cloneDataSafe(x)) : Object.assign({}, cloneDataSafe(x), old);
+    if(String(old.status || '') === 'undone' || String(x.status || '') === 'undone'){
+      winner.status = 'undone';
+      winner.undoneAt = String((assalManagedStamp(x) >= assalManagedStamp(old) ? x.undoneAt : old.undoneAt) || x.undoneAt || old.undoneAt || '');
+      winner.undoId = String(x.undoId || old.undoId || '');
+    }
+    map.set(id, winner);
+  }
+  (Array.isArray(a) ? a : []).forEach(put);
+  (Array.isArray(b) ? b : []).forEach(put);
+  return Array.from(map.values()).sort((x,y)=> String(x && x.at || '').localeCompare(String(y && y.at || '')));
+}
+
+function assalManagedMergeAuditRecord(idbValue, localValue){
+  const A = (idbValue && typeof idbValue === 'object') ? cloneDataSafe(idbValue) : {};
+  const B = (localValue && typeof localValue === 'object') ? cloneDataSafe(localValue) : {};
+  const out = Object.assign({}, A, B);
+  out.actions = assalManagedMergeActions(A.actions, B.actions);
+  if(A.meta || B.meta) out.meta = Object.assign({}, A.meta || {}, B.meta || {});
+  const ua = String(A.updatedAt || ''), ub = String(B.updatedAt || '');
+  out.updatedAt = ub >= ua ? ub : ua;
+  return out;
+}
+
+function assalManagedQueueIdentity(item){
+  try{
+    if(item && item.type === 'action') return 'a:' + String(item.payload && item.payload.id || '');
+    if(item && item.type === 'meta') return 'm:' + String(item.payload && item.payload.cardDay || '') + ':' + String(item.payload && item.payload.cardId || '');
+    return 'x:' + JSON.stringify(item || {});
+  }catch(_){ return 'x:' + String(Math.random()); }
+}
+
+function assalManagedMergeQueue(idbValue, localValue){
+  const map = new Map();
+  (Array.isArray(idbValue) ? idbValue : []).concat(Array.isArray(localValue) ? localValue : []).forEach(item=>{
+    const k = assalManagedQueueIdentity(item);
+    if(!map.has(k) || assalManagedStamp(item) >= assalManagedStamp(map.get(k))) map.set(k, cloneDataSafe(item));
+  });
+  return Array.from(map.values()).sort((a,b)=> assalManagedStamp(a) - assalManagedStamp(b));
+}
+
+function assalManagedMergeOpeningHistory(idbValue, localValue){
+  const A = (idbValue && typeof idbValue === 'object') ? cloneDataSafe(idbValue) : {};
+  const B = (localValue && typeof localValue === 'object') ? cloneDataSafe(localValue) : {};
+  const out = Object.assign({}, A, B, {customers:{}});
+  const keys = new Set(Object.keys(A.customers || {}).concat(Object.keys(B.customers || {})));
+  keys.forEach(key=>{
+    const map = new Map();
+    function put(row){
+      if(!row || typeof row !== 'object') return;
+      const sig = [String(row.updatedISO || ''), String(Math.round(Number(row.balance) || 0)), String(row.name || '')].join('|');
+      if(!map.has(sig) || assalManagedStamp(row) >= assalManagedStamp(map.get(sig))) map.set(sig, cloneDataSafe(row));
+    }
+    (Array.isArray(A.customers && A.customers[key]) ? A.customers[key] : []).forEach(put);
+    (Array.isArray(B.customers && B.customers[key]) ? B.customers[key] : []).forEach(put);
+    out.customers[key] = Array.from(map.values()).sort((x,y)=>{
+      const a = String(x.updatedISO || ''), b = String(y.updatedISO || '');
+      if(a !== b) return a.localeCompare(b);
+      return String(x.savedAt || '').localeCompare(String(y.savedAt || ''));
+    });
+  });
+  out.updatedAt = String(B.updatedAt || '') >= String(A.updatedAt || '') ? String(B.updatedAt || '') : String(A.updatedAt || '');
+  return out;
+}
+
+function assalManagedMergeAdvancedArchive(idbValue, localValue){
+  const A = (idbValue && typeof idbValue === 'object') ? cloneDataSafe(idbValue) : {days:{}};
+  const B = (localValue && typeof localValue === 'object') ? cloneDataSafe(localValue) : {days:{}};
+  const out = Object.assign({}, A, B, {days:{}});
+  const days = new Set(Object.keys(A.days || {}).concat(Object.keys(B.days || {})));
+  days.forEach(day=>{
+    const map = new Map();
+    function put(row){
+      if(!row || typeof row !== 'object') return;
+      const sig = String(row.id || '') || [String(row.hash || ''), String(row.uploadedAt || ''), String(row.size || '')].join('|');
+      if(!map.has(sig) || assalManagedStamp(row) >= assalManagedStamp(map.get(sig))) map.set(sig, cloneDataSafe(row));
+    }
+    (Array.isArray(A.days && A.days[day]) ? A.days[day] : []).forEach(put);
+    (Array.isArray(B.days && B.days[day]) ? B.days[day] : []).forEach(put);
+    out.days[day] = Array.from(map.values()).sort((x,y)=> assalManagedStamp(x) - assalManagedStamp(y));
+  });
+  out.updatedAt = String(B.updatedAt || '') >= String(A.updatedAt || '') ? String(B.updatedAt || '') : String(A.updatedAt || '');
+  return out;
+}
+
+function assalManagedMergeValue(key, idbValue, localValue){
+  key = String(key || '');
+  if(idbValue == null) return cloneDataSafe(localValue);
+  if(localValue == null) return cloneDataSafe(idbValue);
+  if(key === 'ASSAL_CARD_ACTION_DAYS_V1'){
+    return Array.from(new Set((Array.isArray(idbValue)?idbValue:[]).concat(Array.isArray(localValue)?localValue:[]).map(x=>String(x||'')).filter(Boolean))).sort().reverse();
+  }
+  if(key === 'ASSAL_CARD_AUDIT_SERVER_QUEUE_V1') return assalManagedMergeQueue(idbValue, localValue);
+  if(key.indexOf('ASSAL_CARD_ACTION_DAY_V1::') === 0 || key.indexOf('ASSAL_CARD_ACTION_CARD_V1::') === 0) return assalManagedMergeAuditRecord(idbValue, localValue);
+  if(key === 'ASSAL_DEBTS_OPENING_BALANCE_HISTORY_V1') return assalManagedMergeOpeningHistory(idbValue, localValue);
+  if(key === 'ASSAL_ADVANCED_SERVER_UPLOAD_ARCHIVE_V1') return assalManagedMergeAdvancedArchive(idbValue, localValue);
+  return cloneDataSafe(localValue);
+}
+
+async function assalIDBDelete(key){
+  const db = await assalOpenIDB();
+  return await new Promise((resolve,reject)=>{
+    const tx = db.transaction(ASSAL_IDB_STORE, 'readwrite');
+    tx.objectStore(ASSAL_IDB_STORE).delete(key);
+    tx.oncomplete = ()=>resolve(true);
+    tx.onerror = ()=>reject(tx.error || new Error('فشل حذف سجل IndexedDB'));
+    tx.onabort = ()=>reject(tx.error || new Error('تم إلغاء حذف سجل IndexedDB'));
+  });
+}
+
+async function assalIDBListKeys(){
+  const db = await assalOpenIDB();
+  return await new Promise((resolve,reject)=>{
+    const tx = db.transaction(ASSAL_IDB_STORE, 'readonly');
+    const store = tx.objectStore(ASSAL_IDB_STORE);
+    const out = [];
+    const req = (typeof store.openKeyCursor === 'function') ? store.openKeyCursor() : store.openCursor();
+    req.onsuccess = ()=>{
+      const cur = req.result;
+      if(cur){ out.push(String(cur.key)); cur.continue(); }
+    };
+    req.onerror = ()=>reject(req.error || new Error('فشل قراءة مفاتيح IndexedDB'));
+    tx.oncomplete = ()=>resolve(out);
+    tx.onerror = ()=>reject(tx.error || new Error('فشل إكمال قراءة مفاتيح IndexedDB'));
+  });
+}
+
+async function assalManagedDigest(value){
+  const raw = JSON.stringify(value == null ? null : value);
+  try{
+    if(window.crypto && crypto.subtle && typeof TextEncoder !== 'undefined'){
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
+      return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    }
+  }catch(_){ }
+  return raw;
+}
+
+async function assalManagedVerifiedSet(key, value){
+  await assalIDBSet(key, value);
+  const check = await assalIDBGet(key, null);
+  const a = await assalManagedDigest(value), b = await assalManagedDigest(check);
+  if(a !== b) throw new Error('فشل تحقق IndexedDB للمفتاح: ' + key);
+  return true;
+}
+
+function assalManagedGetJSON(key, fallback){
+  key = String(key || '');
+  if(ASSAL_MANAGED_PRESENT.has(key)) return cloneDataSafe(ASSAL_MANAGED_CACHE[key]);
+  return readLocalJSONSafe(key, fallback);
+}
+
+function assalManagedNotifyRemote(key, removed){
+  const msg = {key:String(key||''), removed:!!removed, at:Date.now(), nonce:Math.random().toString(36).slice(2)};
+  try{
+    if(window.__ASSAL_MANAGED_BC__) window.__ASSAL_MANAGED_BC__.postMessage(msg);
+  }catch(_){ }
+  try{
+    localStorage.setItem(ASSAL_MANAGED_STORAGE_SIGNAL_KEY, JSON.stringify(msg));
+  }catch(_){ }
+}
+
+async function assalManagedReloadRemote(key, removed){
+  key = String(key || '');
+  if(!assalManagedIsKey(key)) return;
+  try{
+    if(removed){
+      ASSAL_MANAGED_PRESENT.delete(key);
+      delete ASSAL_MANAGED_CACHE[key];
+    }else{
+      const value = await assalIDBGet(key, null);
+      if(value == null){
+        ASSAL_MANAGED_PRESENT.delete(key);
+        delete ASSAL_MANAGED_CACHE[key];
+      }else{
+        ASSAL_MANAGED_CACHE[key] = cloneDataSafe(value);
+        ASSAL_MANAGED_PRESENT.add(key);
+      }
+    }
+    try{ window.dispatchEvent(new CustomEvent('assal:managed-storage-changed',{detail:{key:key,removed:!!removed}})); }catch(_){ }
+  }catch(err){
+    try{ console.warn('[ASSAL managed storage] remote reload skipped',err); }catch(_){ }
+  }
+}
+
+function assalManagedQueueSet(key, value){
+  key = String(key || '');
+  const snapshot = cloneDataSafe(value);
+  ASSAL_MANAGED_CACHE[key] = snapshot;
+  ASSAL_MANAGED_PRESENT.add(key);
+  const prev = ASSAL_MANAGED_WRITE_CHAINS.get(key) || Promise.resolve(true);
+  const next = prev.catch(()=>false).then(async()=>{
+    await assalManagedVerifiedSet(key, snapshot);
+    try{ localStorage.removeItem(key); }catch(_){ }
+    assalManagedNotifyRemote(key, false);
+    return true;
+  }).catch(err=>{
+    // إذا تعذر IndexedDB لسبب استثنائي، جرّب إبقاء التغيير في localStorage بدل فقده.
+    // هذا fallback فقط؛ المسار الطبيعي لا يعيد البيانات الثقيلة إلى localStorage.
+    var localFallbackOk = false;
+    try{
+      localStorage.setItem(key, JSON.stringify(snapshot));
+      localFallbackOk = true;
+    }catch(_){ }
+    if(!localFallbackOk) handleIDBSaveFailure(err);
+    else { try{ console.warn('[ASSAL managed storage] IDB write failed; local fallback retained for', key); }catch(_){} }
+    return localFallbackOk;
+  });
+  ASSAL_MANAGED_WRITE_CHAINS.set(key, next);
+  return next;
+}
+
+function assalManagedSetJSON(key, value){
+  if(!assalManagedIsKey(key)) return false;
+  try{ assalManagedQueueSet(key, value); return true; }
+  catch(err){ handleIDBSaveFailure(err); return false; }
+}
+
+async function assalManagedSetJSONDurable(key, value){
+  if(!assalManagedIsKey(key)) return false;
+  return await assalManagedQueueSet(key, value);
+}
+
+function assalManagedRemove(key){
+  key = String(key || '');
+  if(!assalManagedIsKey(key)) return false;
+  ASSAL_MANAGED_PRESENT.delete(key);
+  delete ASSAL_MANAGED_CACHE[key];
+  const prev = ASSAL_MANAGED_WRITE_CHAINS.get(key) || Promise.resolve(true);
+  const next = prev.catch(()=>false).then(async()=>{
+    await assalIDBDelete(key);
+    try{ localStorage.removeItem(key); }catch(_){ }
+    assalManagedNotifyRemote(key, true);
+    return true;
+  }).catch(err=>{ handleIDBSaveFailure(err); return false; });
+  ASSAL_MANAGED_WRITE_CHAINS.set(key, next);
+  return true;
+}
+
+async function initAssalManagedStorage(){
+  if(ASSAL_MANAGED_INIT_PROMISE) return ASSAL_MANAGED_INIT_PROMISE;
+  ASSAL_MANAGED_INIT_PROMISE = (async()=>{
+    const status = {ok:true,startedAt:new Date().toISOString(),finishedAt:'',migratedKeys:0,migratedBytes:0,leftLocalKeys:0,errors:[]};
+    try{
+      const idbKeys = await assalIDBListKeys();
+      for(const key of idbKeys){
+        if(!assalManagedIsKey(key)) continue;
+        try{
+          const v = await assalIDBGet(key, null);
+          if(v != null){ ASSAL_MANAGED_CACHE[key] = cloneDataSafe(v); ASSAL_MANAGED_PRESENT.add(key); }
+        }catch(err){ status.errors.push('IDB read ' + key + ': ' + String(err && err.message || err)); }
+      }
+
+      const localItems = [];
+      try{
+        const enc = new TextEncoder();
+        for(let i=0;i<localStorage.length;i++){
+          const key = localStorage.key(i);
+          if(!key || !assalManagedIsKey(key)) continue;
+          const raw = localStorage.getItem(key);
+          if(raw == null) continue;
+          localItems.push({key:key,raw:raw,bytes:enc.encode(key).length + enc.encode(raw).length});
+        }
+      }catch(err){ status.errors.push('local scan: ' + String(err && err.message || err)); }
+      localItems.sort((a,b)=>b.bytes-a.bytes);
+
+      for(const item of localItems){
+        const key = item.key;
+        try{
+          const localValue = assalManagedParseRaw(item.raw, null);
+          const idbValue = ASSAL_MANAGED_PRESENT.has(key) ? cloneDataSafe(ASSAL_MANAGED_CACHE[key]) : null;
+          const merged = assalManagedMergeValue(key, idbValue, localValue);
+          await assalManagedVerifiedSet(key, merged);
+          ASSAL_MANAGED_CACHE[key] = cloneDataSafe(merged);
+          ASSAL_MANAGED_PRESENT.add(key);
+          try{ localStorage.removeItem(key); }catch(_){ }
+          if(localStorage.getItem(key) == null){
+            status.migratedKeys++;
+            status.migratedBytes += item.bytes;
+          }else{
+            status.leftLocalKeys++;
+            status.errors.push('local remove skipped: ' + key);
+          }
+        }catch(err){
+          status.ok = false;
+          status.leftLocalKeys++;
+          // عند فشل النقل نبقي الأصل في localStorage، ونضع دمجاً آمناً في Cache للجلسة الحالية.
+          try{
+            const localFallback = assalManagedParseRaw(item.raw, null);
+            const idbFallback = ASSAL_MANAGED_PRESENT.has(key) ? cloneDataSafe(ASSAL_MANAGED_CACHE[key]) : null;
+            const mergedFallback = assalManagedMergeValue(key, idbFallback, localFallback);
+            if(mergedFallback != null){
+              ASSAL_MANAGED_CACHE[key] = cloneDataSafe(mergedFallback);
+              ASSAL_MANAGED_PRESENT.add(key);
+            }
+          }catch(_){ }
+          status.errors.push(key + ': ' + String(err && err.message || err));
+        }
+      }
+
+      status.finishedAt = new Date().toISOString();
+      window.ASSAL_STORAGE_MIGRATION_STATUS = status;
+      try{ await assalIDBSet('ASSAL_SAFE_GROWING_STORAGE_MIGRATION_STATUS_V1', status); }catch(_){ }
+      return status.ok;
+    }catch(err){
+      status.ok = false;
+      status.finishedAt = new Date().toISOString();
+      status.errors.push(String(err && err.message || err));
+      window.ASSAL_STORAGE_MIGRATION_STATUS = status;
+      return false;
+    }finally{
+      try{ if(ASSAL_MANAGED_READY_RESOLVE) ASSAL_MANAGED_READY_RESOLVE(true); }catch(_){ }
+    }
+  })();
+  return ASSAL_MANAGED_INIT_PROMISE;
+}
+
+try{
+  if('BroadcastChannel' in window && !window.__ASSAL_MANAGED_BC__){
+    window.__ASSAL_MANAGED_BC__ = new BroadcastChannel('assal-debts-managed-storage-v1');
+    window.__ASSAL_MANAGED_BC__.onmessage = ev=>{
+      const d = ev && ev.data;
+      if(d && d.key) assalManagedReloadRemote(d.key, d.removed);
+    };
+  }
+}catch(_){ }
+try{
+  window.addEventListener('storage', ev=>{
+    if(ev && ev.key === ASSAL_MANAGED_STORAGE_SIGNAL_KEY && ev.newValue){
+      try{
+        const d = JSON.parse(ev.newValue);
+        if(d && d.key) assalManagedReloadRemote(d.key, d.removed);
+      }catch(_){ }
+    }
+  });
+}catch(_){ }
+
+window.assalManagedStorageOwnsKey = assalManagedIsKey;
+window.assalManagedStorageGetJSON = assalManagedGetJSON;
+window.assalManagedStorageSetJSON = assalManagedSetJSON;
+window.assalManagedStorageSetJSONDurable = assalManagedSetJSONDurable;
+window.assalManagedStorageRemove = assalManagedRemove;
+window.initAssalManagedStorage = initAssalManagedStorage;
+
 function assalIsQuotaError(e){
   try{
     const n = (e && e.name) ? String(e.name) : '';
@@ -22225,6 +22639,9 @@ async function initAssalIndexedStorage(){
   if(window.__ASSAL_IDB_INIT_PROMISE) return window.__ASSAL_IDB_INIT_PROMISE;
 
   window.__ASSAL_IDB_INIT_PROMISE = (async()=>{
+    // حرر المخازن الثقيلة المتنامية أولاً. أي فشل لا يوقف التطبيق ولا يحذف الأصل.
+    try{ await initAssalManagedStorage(); }catch(err){ try{ console.warn('[ASSAL managed storage] init fallback', err); }catch(_){} }
+
     const localDays  = readLocalJSONSafe(STORAGE, {});
     const localNames = readLocalJSONSafe(NAMES, []);
     const localPays  = readLocalJSONSafe(PAYMENTS_STORE_KEY, {});
@@ -31122,6 +31539,24 @@ function formatBytesNice(bytes){
   return mb.toFixed(2) + ' MB';
 }
 
+
+function getLargestLocalStorageEntries(limit = 8){
+  const rows = [];
+  try{
+    const enc = new TextEncoder();
+    for(let i=0;i<localStorage.length;i++){
+      const key = localStorage.key(i) || '';
+      const val = localStorage.getItem(key) || '';
+      rows.push({key, bytes:enc.encode(key).length + enc.encode(val).length});
+    }
+  }catch(_){ return []; }
+  return rows.sort((a,b)=>b.bytes-a.bytes).slice(0, Math.max(1, Number(limit)||8));
+}
+
+function storageEscHtml(v){
+  return String(v == null ? '' : v).replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
 async function openStorageUsageModal(){
   const backdrop = document.getElementById('storageModalBackdrop');
   const modal    = document.getElementById('storageModal');
@@ -31240,7 +31675,10 @@ async function openStorageUsageModal(){
            <li><strong>IndexedDB:</strong> ${formatBytesNice(idbBytes)} (${idbPct}٪ من حصة الموقع)${hasDirectIdb ? ' — قياس منفصل من المتصفح.' : ' — تقدير لأن المتصفح لا يوفّر تفصيلاً منفصلاً.'}</li>
            <li><strong>الإجمالي:</strong> ${formatBytesNice(totalUsed)} من ${formatBytesNice(quotaBytes)}.</li>
            <li>الفحص قراءة فقط؛ لا يحذف ولا يعدّل أي سجل أو صورة أو دين.</li>
-         </ul>`;
+         </ul>
+         <div style="margin-top:10px;font-weight:900">أكبر مفاتيح localStorage حالياً</div>
+         <ul class="storage-list">${getLargestLocalStorageEntries(8).map(x=>`<li><strong>${storageEscHtml(x.key)}</strong>: ${formatBytesNice(x.bytes)}</li>`).join('') || '<li>لا توجد مفاتيح محلية.</li>'}</ul>
+         ${window.ASSAL_STORAGE_MIGRATION_STATUS ? `<div class="storage-more-text"><strong>نقل آمن إلى IndexedDB:</strong> ${Number(window.ASSAL_STORAGE_MIGRATION_STATUS.migratedKeys||0)} مفتاح • ${formatBytesNice(Number(window.ASSAL_STORAGE_MIGRATION_STATUS.migratedBytes||0))} تم تحريرها من localStorage${window.ASSAL_STORAGE_MIGRATION_STATUS.errors?.length ? ' • توجد عناصر بقيت محلياً لأن التحقق لم ينجح، ولم تُحذف.' : ''}</div>` : ''}`;
     }
   }
 
@@ -35042,6 +35480,33 @@ function assalFullExportFindIDBValue(idbDump, key, fallback){
   return rec && Object.prototype.hasOwnProperty.call(rec,'value') ? assalFullExportClone(rec.value) : fallback;
 }
 
+
+function assalFullExportApplyManagedIDB(structured, idbDump){
+  const out = assalFullExportClone(structured || {}) || {};
+  const records = Array.isArray(idbDump && idbDump.records) ? idbDump.records : [];
+  const byKey = new Map();
+  records.forEach(rec=>{ if(rec && rec.key != null) byKey.set(String(rec.key), rec.value); });
+
+  if(byKey.has('ASSAL_DEBTS_OPENING_BALANCE_HISTORY_V1')) out.openingBalanceHistory = assalFullExportClone(byKey.get('ASSAL_DEBTS_OPENING_BALANCE_HISTORY_V1'));
+  if(byKey.has('ASSAL_ADVANCED_SERVER_UPLOAD_ARCHIVE_V1')) out.advancedServerUploadArchive = assalFullExportClone(byKey.get('ASSAL_ADVANCED_SERVER_UPLOAD_ARCHIVE_V1'));
+
+  const audit = out.cardAudit && typeof out.cardAudit === 'object' ? out.cardAudit : {};
+  if(byKey.has('ASSAL_CARD_ACTION_DAYS_V1')) audit.dayIndex = assalFullExportClone(byKey.get('ASSAL_CARD_ACTION_DAYS_V1')) || [];
+  if(byKey.has('ASSAL_CARD_AUDIT_SERVER_QUEUE_V1')) audit.serverQueue = assalFullExportClone(byKey.get('ASSAL_CARD_AUDIT_SERVER_QUEUE_V1')) || [];
+  const dayMap = new Map(), cardMap = new Map();
+  (Array.isArray(audit.dayRecords) ? audit.dayRecords : []).forEach(x=>{ if(x && x.key) dayMap.set(String(x.key), x); });
+  (Array.isArray(audit.cardRecords) ? audit.cardRecords : []).forEach(x=>{ if(x && x.key) cardMap.set(String(x.key), x); });
+  records.forEach(rec=>{
+    const key = String(rec && rec.key || '');
+    if(key.indexOf('ASSAL_CARD_ACTION_DAY_V1::') === 0) dayMap.set(key,{key:key,value:assalFullExportClone(rec.value)});
+    else if(key.indexOf('ASSAL_CARD_ACTION_CARD_V1::') === 0) cardMap.set(key,{key:key,value:assalFullExportClone(rec.value)});
+  });
+  audit.dayRecords = Array.from(dayMap.values()).sort((a,b)=>String(a.key).localeCompare(String(b.key)));
+  audit.cardRecords = Array.from(cardMap.values()).sort((a,b)=>String(a.key).localeCompare(String(b.key)));
+  out.cardAudit = audit;
+  return out;
+}
+
 async function assalFullExportDownload(payload, filename){
   const text = JSON.stringify(payload);
   const blob = new Blob([text], {type:'application/json;charset=utf-8'});
@@ -35402,7 +35867,7 @@ async function exportInvoices(){
 
     assalFullExportCurrentStage = 'جمع البطاقات والحسابات والحضور';
     const localStorageRaw = assalFullExportKnownLocalStorage();
-    const localStructured = assalFullExportStructuredLocalStorage(localStorageRaw);
+    let localStructured = assalFullExportStructuredLocalStorage(localStorageRaw);
     const localCore = assalFullExportCoreSnapshot(localStorageRaw);
     assalFullExportProgressSet({
       step:2, percent:15,
@@ -35420,6 +35885,8 @@ async function exportInvoices(){
       icon:'fa-solid fa-hard-drive'
     });
     const mainIDB = await assalFullExportReadIDBStore('ASSAL_DEBTS_LOCAL_DB_V1','kv');
+    // بعد نقل الأرشيفات الثقيلة إلى IndexedDB، أعِد تركيب القسم المنظم منها حتى تبقى النسخة الشاملة كاملة.
+    localStructured = assalFullExportApplyManagedIDB(localStructured, mainIDB);
     assalFullExportProgressSet({
       step:3, percent:29,
       title:'اكتملت قراءة مخزن النظام المحلي',
@@ -36111,6 +36578,14 @@ function assalAdvClone(v){
 
 async function assalAdvReadArchive(){
   try{
+    if(typeof assalManagedStorageGetJSON === 'function'){
+      const data = assalManagedStorageGetJSON(ASSAL_ADV_ARCHIVE_KEY, null);
+      if(data && typeof data === 'object') return data;
+    }
+  }catch(_e){
+
+}
+  try{
     if(typeof assalIDBGet === 'function'){
       const data = await assalIDBGet(ASSAL_ADV_ARCHIVE_KEY, { days:{} });
       return (data && typeof data === 'object') ? data : { days:{} };
@@ -36129,20 +36604,30 @@ async function assalAdvReadArchive(){
 async function assalAdvWriteArchive(data){
   const safe = data && typeof data === 'object' ? data : { days:{} };
   try{
-    if(typeof assalIDBSet === 'function'){
-      await assalIDBSet(ASSAL_ADV_ARCHIVE_KEY, safe);
-      return true;
+    if(typeof assalManagedStorageSetJSONDurable === 'function'){
+      return await assalManagedStorageSetJSONDurable(ASSAL_ADV_ARCHIVE_KEY, safe);
     }
   }catch(_e){
 
 }
   try{
- localStorage.setItem(ASSAL_ADV_ARCHIVE_KEY, JSON.stringify(safe));
- 
-}catch(_e){
+    if(typeof assalIDBSet === 'function'){
+      await assalIDBSet(ASSAL_ADV_ARCHIVE_KEY, safe);
+      const verify = await assalIDBGet(ASSAL_ADV_ARCHIVE_KEY, null);
+      if(verify && typeof verify === 'object'){
+        try{ localStorage.removeItem(ASSAL_ADV_ARCHIVE_KEY); }catch(_){ }
+        return true;
+      }
+    }
+  }catch(_e){
 
 }
-  return true;
+  try{
+    localStorage.setItem(ASSAL_ADV_ARCHIVE_KEY, JSON.stringify(safe));
+    return true;
+  }catch(_e){
+    return false;
+  }
 }
 
 function assalAdvSummarizePayload(payload){
@@ -54377,8 +54862,11 @@ body.assal-ledger-return-debt-followup .assal-ledger-results-backdrop{
 
   function readArchive() {
     try {
-      var raw = localStorage.getItem(KEY);
-      var obj = raw ? JSON.parse(raw) : null;
+      var obj = (typeof window.assalManagedStorageGetJSON === 'function') ? window.assalManagedStorageGetJSON(KEY, null) : null;
+      if (!obj || typeof obj !== 'object') {
+        var raw = localStorage.getItem(KEY);
+        obj = raw ? JSON.parse(raw) : null;
+      }
       if (!obj || typeof obj !== 'object') obj = {};
       if (!obj.customers || typeof obj.customers !== 'object') obj.customers = {};
       return obj;
@@ -54391,6 +54879,10 @@ body.assal-ledger-return-debt-followup .assal-ledger-results-backdrop{
   function writeArchive(obj) {
     try {
       obj.updatedAt = new Date().toISOString();
+      if (typeof window.assalManagedStorageSetJSON === 'function' && window.assalManagedStorageOwnsKey && window.assalManagedStorageOwnsKey(KEY)) {
+        if (!window.assalManagedStorageSetJSON(KEY, obj)) throw new Error('MANAGED_IDB_QUEUE_FAILED');
+        return;
+      }
       localStorage.setItem(KEY, JSON.stringify(obj));
 
     } catch (e) {
@@ -54524,15 +55016,23 @@ body.assal-ledger-return-debt-followup .assal-ledger-results-backdrop{
     }
   }
 
-  setTimeout(function() {
-    archiveCurrent('تشغيل التطبيق');
-
-  }, 0);
-  document.addEventListener('DOMContentLoaded', function() {
+  function archiveWhenStorageReady(source, delay) {
     setTimeout(function() {
-      archiveCurrent('فتح التطبيق');
+      try {
+        Promise.resolve(window.ASSAL_MANAGED_STORAGE_READY || true).then(function() {
+          archiveCurrent(source);
+        }).catch(function() {
+          archiveCurrent(source);
+        });
+      } catch (_) {
+        archiveCurrent(source);
+      }
+    }, Math.max(0, Number(delay) || 0));
+  }
 
-    }, 250);
+  archiveWhenStorageReady('تشغيل التطبيق', 0);
+  document.addEventListener('DOMContentLoaded', function() {
+    archiveWhenStorageReady('فتح التطبيق', 250);
 
   });
 })();
@@ -60061,6 +60561,9 @@ html body .card .item.assal-smart-added-item-safe-final{
 
   function readJSON(key, fallback) {
     try {
+      if (typeof window.assalManagedStorageGetJSON === 'function' && window.assalManagedStorageOwnsKey && window.assalManagedStorageOwnsKey(key)) {
+        return window.assalManagedStorageGetJSON(key, fallback);
+      }
       var raw = localStorage.getItem(key);
       return raw ? JSON.parse(raw) : fallback;
 
@@ -60072,6 +60575,11 @@ html body .card .item.assal-smart-added-item-safe-final{
 
   function writeJSON(key, value, quiet) {
     try {
+      if (typeof window.assalManagedStorageSetJSON === 'function' && window.assalManagedStorageOwnsKey && window.assalManagedStorageOwnsKey(key)) {
+        var ok = window.assalManagedStorageSetJSON(key, value);
+        if (!ok) throw new Error('MANAGED_IDB_QUEUE_FAILED');
+        return true;
+      }
       localStorage.setItem(key, JSON.stringify(value));
       return true;
 
@@ -61350,6 +61858,13 @@ html body .card .item.assal-smart-added-item-safe-final{
       if (ev.key.indexOf(CARD_PREFIX) === 0) cardCache.clear();
       if (ev.key === SERVER_QUEUE_KEY) scheduleFlush(300);
     });
+    window.addEventListener('assal:managed-storage-changed', function(ev) {
+      var key = ev && ev.detail && ev.detail.key ? String(ev.detail.key) : '';
+      if (!key) return;
+      if (key.indexOf(DAY_PREFIX) === 0) dayCache.delete(key.slice(DAY_PREFIX.length));
+      if (key.indexOf(CARD_PREFIX) === 0) cardCache.clear();
+      if (key === SERVER_QUEUE_KEY) scheduleFlush(300);
+    });
     window.addEventListener('online', function() {
       scheduleFlush(100);
       fetchServerCardDay(currentSelectedDay(), true).then(function() {
@@ -61428,7 +61943,15 @@ html body .card .item.assal-smart-added-item-safe-final{
   window.assalCardAuditFetchServerDay = fetchServerDay;
   window.assalCardAuditFetchServerCardDay = fetchServerCardDay;
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind); else bind();
+  function bindAfterManagedStorage() {
+    var go = function() { try { bind(); } catch (err) { try { console.warn('[ASSAL card audit] bind fallback', err); } catch (_) {} } };
+    try {
+      Promise.resolve(window.ASSAL_MANAGED_STORAGE_READY || true).then(go).catch(go);
+    } catch (_) {
+      go();
+    }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindAfterManagedStorage); else bindAfterManagedStorage();
 })();
 </script>
 
