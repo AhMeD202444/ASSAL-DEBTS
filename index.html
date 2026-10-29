@@ -17965,17 +17965,22 @@ html.assal-attendance-locked,
       var btn = document.querySelector('#assalAttendanceGate .att-halfday-btn[data-emp="' + emp.name + '"]');
       if (!btn) return;
       var rec = attendanceDayRecord(halfDaySelectedDay, emp.name), status = halfDayRequestStatus(halfDaySelectedDay, emp.name) || {};
-      var state = String(status.status || ''), draft = state === 'draft', pending = state === 'pending_review' || state === 'approved_pending_upload', applied = isHalfDayRecord(rec) || state === 'applied';
+      var state = String(status.status || ''), draft = state === 'draft', pending = state === 'pending_review' || state === 'approved_pending_upload';
+      var targetHalfDay = status.targetHalfDay !== false;
+      /* حالة الطلب المطبقة هي المرجع عند تأخر مزامنة حضور الأدمن: إلغاء مطبق = غير معتمد، تفعيل مطبق = معتمد. */
+      var applied = (state === 'applied' && !targetHalfDay) ? false : (isHalfDayRecord(rec) || (state === 'applied' && targetHalfDay));
+      var revertDraft = draft && !targetHalfDay, revertPending = pending && !targetHalfDay;
       btn.classList.toggle('is-selected', draft);
       btn.classList.toggle('is-pending', pending);
-      btn.classList.toggle('is-applied', applied);
-      btn.disabled = !!(pending || applied || captureBusy);
-      btn.setAttribute('aria-pressed', draft ? 'true' : 'false');
+      btn.classList.toggle('is-applied', applied && !draft && !pending);
+      /* المعتمد يبقى قابلاً للضغط حتى يمكن إنشاء طلب إلغاء رسمي. القيد الوحيد هو طلب جارٍ أو التقاط صورة. */
+      btn.disabled = !!(pending || captureBusy);
+      btn.setAttribute('aria-pressed', (draft || applied) ? 'true' : 'false');
       var sp = btn.querySelector('span');
-      if (sp) sp.textContent = applied ? 'نصف يوم معتمد' : (pending ? 'قيد المراجعة' : 'نصف يوم');
+      if (sp) sp.textContent = revertDraft ? 'إلغاء نصف اليوم محدد' : (revertPending ? 'إلغاء قيد المراجعة' : (draft ? 'نصف يوم محدد' : (pending ? 'قيد المراجعة' : (applied ? 'نصف يوم معتمد' : 'نصف يوم'))));
       var icon = btn.querySelector('i');
-      if (icon) icon.className = applied ? 'fa-solid fa-circle-check' : (pending ? 'fa-solid fa-clock' : 'fa-solid fa-circle-half-stroke');
-      btn.title = (applied ? 'دوام نصف يوم معتمد' : (pending ? 'يوجد طلب نصف يوم قيد المتابعة' : (draft ? 'تم تحديد نصف يوم — اضغط مرة ثانية لإلغاء التحديد' : 'تحديد دوام نصف يوم'))) + ' • ' + emp.name + ' • ' + halfDaySelectedDay;
+      if (icon) icon.className = revertDraft ? 'fa-solid fa-rotate-left' : (pending ? 'fa-solid fa-clock' : (applied ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-half-stroke'));
+      btn.title = (revertDraft ? 'تم تحديد إلغاء نصف اليوم — اضغط مرة ثانية لإلغاء المسودة قبل إرسالها' : (revertPending ? 'طلب إلغاء نصف اليوم قيد المراجعة' : (draft ? 'تم تحديد نصف يوم — اضغط مرة ثانية لإلغاء التحديد قبل الإرسال' : (pending ? 'يوجد طلب نصف يوم قيد المتابعة' : (applied ? 'دوام نصف يوم معتمد — اضغط لإنشاء طلب إلغاء رسمي' : 'تحديد دوام نصف يوم'))))) + ' • ' + emp.name + ' • ' + halfDaySelectedDay;
       btn.setAttribute('aria-label', btn.title);
     });
     syncHalfDayHistoricalAttendancePreview();
@@ -18013,7 +18018,7 @@ html.assal-attendance-locked,
       return;
 
     }
-    var day = clampPastOrTodayDay(halfDaySelectedDay), status = halfDayRequestStatus(day, employee) || {}, state = String(status.status || '');
+    var day = clampPastOrTodayDay(halfDaySelectedDay), status = halfDayRequestStatus(day, employee) || {}, state = String(status.status || ''), targetHalfDay = status.targetHalfDay !== false;
     if (state === 'draft') {
       var cancelBridge = window.ASSAL_CANCEL_ATTENDANCE_HALF_DAY_DRAFT;
       if (typeof cancelBridge !== 'function') {
@@ -18024,26 +18029,40 @@ html.assal-attendance-locked,
       try {
         var cancelled = await cancelBridge({employee: employee, day: day, id: String(status.id || '')});
         if (cancelled && cancelled.ok) {
-          setMsg('تم إلغاء تحديد نصف اليوم لـ ' + employee + ' بتاريخ ' + day + '.', true);
+          setMsg(targetHalfDay ? ('تم إلغاء تحديد نصف اليوم لـ ' + employee + ' بتاريخ ' + day + '.') : ('تم إلغاء مسودة إلغاء نصف اليوم لـ ' + employee + ' بتاريخ ' + day + '.'), true);
           syncHalfDayAdminUi();
 
         }
-        else setMsg((cancelled && cancelled.message) || 'تعذر إلغاء تحديد نصف اليوم.', false);
+        else setMsg((cancelled && cancelled.message) || 'تعذر إلغاء المسودة.', false);
       } catch (err) {
-        setMsg((err && err.message) || 'تعذر إلغاء تحديد نصف اليوم.', false);
+        setMsg((err && err.message) || 'تعذر إلغاء المسودة.', false);
 
       }
       return;
     }
     if (state === 'pending_review' || state === 'approved_pending_upload') {
-      setMsg('طلب نصف اليوم لهذا الموظف والتاريخ قيد المراجعة ولا يمكن إلغاؤه من الزر.', false);
+      setMsg(targetHalfDay ? 'طلب نصف اليوم لهذا الموظف والتاريخ قيد المراجعة ولا يمكن تغييره من الزر.' : 'طلب إلغاء نصف اليوم لهذا الموظف والتاريخ قيد المراجعة ولا يمكن تغييره من الزر.', false);
       return;
 
     }
-    if (state === 'applied' || isHalfDayRecord(attendanceDayRecord(day, employee))) {
-      setMsg('دوام نصف اليوم معتمد مسبقاً لهذا الموظف والتاريخ.', false);
+    var actualHalfDay = isHalfDayRecord(attendanceDayRecord(day, employee));
+    var appliedHalfDayByRequest = state === 'applied' && targetHalfDay;
+    if (actualHalfDay || appliedHalfDayByRequest) {
+      var revertBridge = window.ASSAL_CREATE_ATTENDANCE_HALF_DAY_REVERT_REQUEST;
+      if (typeof revertBridge !== 'function') {
+        setMsg('نظام طلب إلغاء نصف اليوم لم يكتمل تحميله بعد. انتظر لحظات ثم أعد المحاولة.', false);
+        return;
+      }
+      try {
+        var reverted = await revertBridge({employee: employee, day: day});
+        if (reverted && reverted.ok) {
+          setMsg('تم إنشاء طلب إلغاء نصف اليوم لـ ' + employee + ' بتاريخ ' + day + ' داخل خانة طلبات التعديل. اضغط الزر مرة ثانية لإلغاء المسودة قبل الإرسال.', true);
+          syncHalfDayAdminUi();
+        } else setMsg((reverted && reverted.message) || 'تعذر إنشاء طلب إلغاء نصف اليوم.', false);
+      } catch (err) {
+        setMsg((err && err.message) || 'تعذر إنشاء طلب إلغاء نصف اليوم.', false);
+      }
       return;
-
     }
     await createHalfDayRequest(employee);
   }
@@ -18337,6 +18356,19 @@ html.assal-attendance-locked,
   window.showAssalAttendanceGate = openGate;
   window.ASSAL_ATTENDANCE_EXPORT = exportAttendance;
   window.ASSAL_ATTENDANCE_IMPORT = importAttendance;
+  window.ASSAL_ATTENDANCE_REPLACE_STATE = function(state, opts) {
+    try {
+      if (!state || typeof state !== 'object') return {ok: false, message: 'حالة الحضور غير صالحة'};
+      var saved = saveState(state);
+      syncPersonVisuals();
+      refreshReport();
+      syncHalfDayAdminUi();
+      return {ok: true, state: saved};
+    } catch (err) {
+      try { console.warn('[ASSAL attendance] replace state failed:', err); } catch (_) {}
+      return {ok: false, message: (err && err.message) ? err.message : 'تعذر حفظ حالة الحضور'};
+    }
+  };
   window.ASSAL_ATTENDANCE_AUTO_CHECK = nudgeAutoPrompt;
   window.ASSAL_ATTENDANCE_REFRESH = function() {
     syncPersonVisuals();
@@ -63714,23 +63746,45 @@ html body .card .item.assal-smart-added-item-safe-final{
 
   }
 
-  function latestAttendanceHalfDayRequest(day, employee) {
-    var key = attendanceHalfDayKey(day, employee), all = [];
-    state.drafts.forEach(function(x) {
-      if (isAttendanceHalfDayRequest(x) && safe(x.cardId) === key) all.push(x);
-
-    });
-    state.archive.forEach(function(x) {
-      if (isAttendanceHalfDayRequest(x) && safe(x.cardId) === key) all.push(x);
-
-    });
-    requestCache.forEach(function(x) {
-      if (isAttendanceHalfDayRequest(x) && safe(x.cardId) === key) all.push(x);
-
-    });
-    all.sort(function(a, b) {
+  function attendanceHalfDayRequests(day, employee) {
+    var key = attendanceHalfDayKey(day, employee), byId = new Map();
+    function take(x) {
+      if (!isAttendanceHalfDayRequest(x) || safe(x.cardId) !== key) return;
+      var rid = safe(x.id) || ('anon:' + attendanceRequestTime(x));
+      var prev = byId.get(rid);
+      if (!prev || attendanceRequestTime(prev).localeCompare(attendanceRequestTime(x)) <= 0) byId.set(rid, x);
+    }
+    state.drafts.forEach(take);
+    state.archive.forEach(take);
+    requestCache.forEach(take);
+    return Array.from(byId.values()).sort(function(a, b) {
       return attendanceRequestTime(a).localeCompare(attendanceRequestTime(b));
+    });
+  }
 
+  function latestAttendanceHalfDayRequest(day, employee) {
+    var all = attendanceHalfDayRequests(day, employee);
+    return all.length ? all[all.length - 1] : null;
+  }
+
+  function attendanceHalfDayTargetIsHalfDay(rec) {
+    var field = attendanceHalfDayField(rec) || {}, after = field.after;
+    return !!(after && !after.__assalMissing && (after.halfDay === true || safe(after.status) === 'half-day'));
+  }
+
+  function attendanceHalfDaySnapshotLabel(snapshot) {
+    var x = snapshot && typeof snapshot === 'object' ? snapshot : {__assalMissing: true};
+    if (x.__assalMissing) return 'لا يوجد تسجيل';
+    if (x.halfDay === true || safe(x.status) === 'half-day') return 'دوام نصف يوم' + (x.time ? ' • ' + safe(x.time) : '');
+    if (x.leave === true || safe(x.status) === 'leave') return 'مجاز' + (x.time ? ' • ' + safe(x.time) : '');
+    if (x.duty === true || safe(x.status) === 'duty') return 'واجب' + (x.time ? ' • ' + safe(x.time) : '');
+    if (x.present === true) return 'حاضر' + (x.time ? ' • ' + safe(x.time) : '');
+    return 'لا يوجد تسجيل';
+  }
+
+  function latestAppliedAttendanceHalfDayEnableRequest(day, employee) {
+    var all = attendanceHalfDayRequests(day, employee).filter(function(rec) {
+      return safe(rec && rec.status) === 'applied' && attendanceHalfDayTargetIsHalfDay(rec);
     });
     return all.length ? all[all.length - 1] : null;
   }
@@ -65592,12 +65646,12 @@ html body .card .item.assal-smart-added-item-safe-final{
 
   function attendanceHalfDayRequestHtml(rec) {
     var field = attendanceHalfDayField(rec) || {}, before = field.before || {}, after = field.after || {}, employee = safe(rec.customer || after.employee || before.employee || '—'), day = safe(rec.cardDay || after.day || before.day || '—');
-    var beforeText = safe(rec.attendanceBeforeLabel || '');
-    if (!beforeText) {
-      if (before && before.__assalMissing) beforeText = 'لا يوجد تسجيل'; else if (before.halfDay || before.status === 'half-day') beforeText = 'دوام نصف يوم'; else if (before.leave || before.status === 'leave') beforeText = 'مجاز'; else if (before.duty || before.status === 'duty') beforeText = 'واجب'; else if (before.present) beforeText = 'حاضر' + (before.time ? ' • ' + before.time : ''); else beforeText = 'لا يوجد تسجيل';
-
-    }
-    return '<div class="assal-cr-payment"><div class="assal-cr-payment-top"><div class="assal-cr-payment-title"><i class="fa-solid fa-circle-half-stroke"></i><span>طلب دوام نصف يوم</span></div><span class="assal-cr-payment-kind">حضور</span></div><div class="assal-cr-payment-grid"><div class="assal-cr-payment-cell"><span>الموظف</span><b>' + esc(employee) + '</b></div><div class="assal-cr-payment-cell"><span>التاريخ</span><b>' + esc(day) + '</b></div><div class="assal-cr-payment-cell assal-cr-payment-note"><span>الحالة الحالية</span><b>' + esc(beforeText) + '</b></div></div><div class="assal-cr-changes">' + changeHtml({scope: 'card', field: '__attendance_half_day__', before: beforeText, after: 'دوام نصف يوم'}) + '</div></div>';
+    var targetHalfDay = attendanceHalfDayTargetIsHalfDay(rec);
+    var beforeText = safe(rec.attendanceBeforeLabel || '') || attendanceHalfDaySnapshotLabel(before);
+    var afterText = safe(rec.attendanceAfterLabel || '') || attendanceHalfDaySnapshotLabel(after);
+    var title = targetHalfDay ? 'طلب دوام نصف يوم' : 'طلب إلغاء نصف يوم';
+    var icon = targetHalfDay ? 'fa-circle-half-stroke' : 'fa-rotate-left';
+    return '<div class="assal-cr-payment"><div class="assal-cr-payment-top"><div class="assal-cr-payment-title"><i class="fa-solid ' + icon + '"></i><span>' + esc(title) + '</span></div><span class="assal-cr-payment-kind">حضور</span></div><div class="assal-cr-payment-grid"><div class="assal-cr-payment-cell"><span>الموظف</span><b>' + esc(employee) + '</b></div><div class="assal-cr-payment-cell"><span>التاريخ</span><b>' + esc(day) + '</b></div><div class="assal-cr-payment-cell assal-cr-payment-note"><span>الحالة الحالية</span><b>' + esc(beforeText) + '</b></div></div><div class="assal-cr-changes">' + changeHtml({scope: 'card', field: '__attendance_half_day__', before: beforeText, after: afterText}) + '</div></div>';
   }
 
   function draftTargetKey(rec) {
@@ -66236,7 +66290,13 @@ html body .card .item.assal-smart-added-item-safe-final{
 
   function attendanceSnapshotFromLocal(day, employee) {
     try {
-      var raw = localStorage.getItem('assal_attendance_state_v2'), st = raw ? JSON.parse(raw) : {}, rec = st && st.days && st.days[day] && st.days[day].employees && st.days[day].employees[employee];
+      var st = null;
+      if (typeof window.ASSAL_ATTENDANCE_EXPORT === 'function') st = window.ASSAL_ATTENDANCE_EXPORT();
+      if (!st || typeof st !== 'object') {
+        var raw = localStorage.getItem('assal_attendance_state_v2');
+        st = raw ? JSON.parse(raw) : {};
+      }
+      var rec = st && st.days && st.days[day] && st.days[day].employees && st.days[day].employees[employee];
       if (!rec) return {__assalMissing: true};
       return {employee: employee, day: day, present: rec.present === true, leave: rec.leave === true, duty: rec.duty === true, halfDay: rec.halfDay === true || rec.status === 'half-day', status: safe(rec.status), time: safe(rec.time)};
 
@@ -66379,42 +66439,58 @@ html body .card .item.assal-smart-added-item-safe-final{
   }
 
   function applyAttendanceHalfDayRequest(req) {
-    var day = safe(req.cardDay), employee = safe(req.customer), field = attendanceHalfDayField(req) || {}, after = field.after || {};
+    var day = safe(req.cardDay), employee = safe(req.customer), field = attendanceHalfDayField(req) || {}, after = field.after && typeof field.after === 'object' ? field.after : {};
     if (!day || !employee) throw new Error('بيانات طلب نصف اليوم غير مكتملة');
     var st = {version: 2, updatedAt: '', days: {}};
     try {
-      var raw = localStorage.getItem('assal_attendance_state_v2');
-      if (raw) st = JSON.parse(raw) || st;
-
-    } catch (_) {
-
-    }
+      if (typeof window.ASSAL_ATTENDANCE_EXPORT === 'function') st = clone(window.ASSAL_ATTENDANCE_EXPORT()) || st;
+      else {
+        var raw = localStorage.getItem('assal_attendance_state_v2');
+        if (raw) st = JSON.parse(raw) || st;
+      }
+    } catch (_) {}
     if (!st.days || typeof st.days !== 'object') st.days = {};
     if (!st.days[day]) st.days[day] = {employees: {}, timeouts: []};
     if (!st.days[day].employees) st.days[day].employees = {};
     if (!Array.isArray(st.days[day].timeouts)) st.days[day].timeouts = [];
-    var current = st.days[day].employees[employee] || {}, stamp = now(), next = Object.assign({}, current);
-    next.employee = employee;
-    next.day = day;
-    next.present = true;
-    next.leave = false;
-    next.duty = false;
-    next.halfDay = true;
-    next.status = 'half-day';
-    next.time = safe(current.time || after.time || '');
-    next.originalAttendanceAt = safe(current.at || '');
-    next.at = stamp;
-    next.halfDayApprovedAt = stamp;
-    next.halfDayApprovedBy = email();
-    next.source = 'approved-attendance-half-day-request';
-    st.days[day].employees[employee] = next;
+    var current = st.days[day].employees[employee] || null, stamp = now();
+    if (after.__assalMissing) {
+      delete st.days[day].employees[employee];
+    } else {
+      /* نبدأ من السجل الحالي حتى لا تضيع photoKey أو بيانات توثيق البصمة القديمة عند إلغاء نصف اليوم. */
+      var next = Object.assign({}, current || {});
+      next.employee = employee;
+      next.day = day;
+      next.present = after.present === true;
+      next.leave = after.leave === true;
+      next.duty = after.duty === true;
+      next.halfDay = after.halfDay === true || safe(after.status) === 'half-day';
+      next.status = safe(after.status || (next.halfDay ? 'half-day' : (next.leave ? 'leave' : (next.duty ? 'duty' : (next.present ? 'present' : 'pending')))));
+      next.time = safe(after.time || '');
+      if (next.halfDay) {
+        next.originalAttendanceAt = safe((current && (current.originalAttendanceAt || current.at)) || '');
+        next.halfDayApprovedAt = stamp;
+        next.halfDayApprovedBy = email();
+        next.source = 'approved-attendance-half-day-request';
+      } else {
+        delete next.halfDayApprovedAt;
+        delete next.halfDayApprovedBy;
+        delete next.originalAttendanceAt;
+        next.source = 'approved-attendance-half-day-revert-request';
+      }
+      next.at = stamp;
+      st.days[day].employees[employee] = next;
+    }
     st.updatedAt = stamp;
-    localStorage.setItem('assal_attendance_state_v2', JSON.stringify(st));
-    try {
-      window.dispatchEvent(new StorageEvent('storage', {key: 'assal_attendance_state_v2', newValue: JSON.stringify(st)}));
-
-    } catch (_) {
-
+    var replace = window.ASSAL_ATTENDANCE_REPLACE_STATE;
+    if (typeof replace === 'function') {
+      var result = replace(st, {silent: true});
+      if (!result || result.ok !== true) throw new Error((result && result.message) || 'فشل حفظ حالة الحضور');
+    } else {
+      localStorage.setItem('assal_attendance_state_v2', JSON.stringify(st));
+      try {
+        window.dispatchEvent(new StorageEvent('storage', {key: 'assal_attendance_state_v2', newValue: JSON.stringify(st)}));
+      } catch (_) {}
     }
   }
 
@@ -66921,7 +66997,7 @@ html body .card .item.assal-smart-added-item-safe-final{
 
   window.ASSAL_ATTENDANCE_HALF_DAY_REQUEST_STATUS = function(day, employee) {
     var rec = latestAttendanceHalfDayRequest(safe(day), safe(employee));
-    return rec ? {id: safe(rec.id), status: safe(rec.status || 'draft'), updatedAt: attendanceRequestTime(rec)} : null;
+    return rec ? {id: safe(rec.id), status: safe(rec.status || 'draft'), updatedAt: attendanceRequestTime(rec), targetHalfDay: attendanceHalfDayTargetIsHalfDay(rec), action: attendanceHalfDayTargetIsHalfDay(rec) ? 'set' : 'revert'} : null;
 
   };
   window.ASSAL_ATTENDANCE_HALF_DAY_REQUESTS_FOR_MONTH = function(mk) {
@@ -66942,7 +67018,7 @@ html body .card .item.assal-smart-added-item-safe-final{
     requestCache.forEach(take);
     return Array.from(latest.values()).map(function(rec) {
       var field = attendanceHalfDayField(rec) || {}, after = field.after && typeof field.after === 'object' ? field.after : {};
-      return {id: safe(rec.id), day: safe(rec.cardDay || rec.afterDay || after.day), employee: safe(rec.customer || after.employee), status: safe(rec.status || 'draft'), updatedAt: attendanceRequestTime(rec)};
+      return {id: safe(rec.id), day: safe(rec.cardDay || rec.afterDay || after.day), employee: safe(rec.customer || after.employee), status: safe(rec.status || 'draft'), updatedAt: attendanceRequestTime(rec), targetHalfDay: attendanceHalfDayTargetIsHalfDay(rec), action: attendanceHalfDayTargetIsHalfDay(rec) ? 'set' : 'revert'};
     });
   };
   window.ASSAL_CANCEL_ATTENDANCE_HALF_DAY_DRAFT = async function(opts) {
@@ -66952,6 +67028,7 @@ html body .card .item.assal-smart-added-item-safe-final{
     var employee = safe(opts.employee).trim(), day = safe(opts.day).trim(), existing = latestAttendanceHalfDayRequest(day, employee), status = safe(existing && existing.status);
     if (!existing) return {ok: false, message: 'لا توجد مسودة نصف يوم لهذا الموظف والتاريخ'};
     if (status !== 'draft') return {ok: false, message: 'يمكن إلغاء التحديد من الزر قبل إرسال الطلب فقط'};
+    var reversing = !attendanceHalfDayTargetIsHalfDay(existing);
     var requestId = safe(existing.id), beforeLength = state.drafts.length;
     state.drafts = state.drafts.filter(function(x) {
       return safe(x.id) !== requestId;
@@ -66963,7 +67040,7 @@ html body .card .item.assal-smart-added-item-safe-final{
     if (isModalOpen()) renderModal();
     notifyAttendanceHalfDayUi();
     try {
-      showToast('info', 'تم إلغاء تحديد نصف اليوم من طلبات التعديل');
+      showToast('info', reversing ? 'تم إلغاء مسودة إلغاء نصف اليوم من طلبات التعديل' : 'تم إلغاء تحديد نصف اليوم من طلبات التعديل');
 
     } catch (_) {
 
@@ -66977,10 +67054,18 @@ html body .card .item.assal-smart-added-item-safe-final{
     var employee = safe(opts.employee).trim(), day = safe(opts.day).trim(), key = attendanceHalfDayKey(day, employee);
     if (!employee || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return {ok: false, message: 'اسم الموظف أو التاريخ غير صالح'};
     var existing = latestAttendanceHalfDayRequest(day, employee), status = safe(existing && existing.status);
-    if (existing && ['draft', 'pending_review', 'approved_pending_upload', 'applied'].indexOf(status) >= 0) return {ok: false, message: status === 'applied' ? 'دوام نصف اليوم معتمد مسبقاً لهذا الموظف والتاريخ' : 'يوجد طلب نصف يوم محفوظ أو قيد المراجعة لهذا الموظف والتاريخ'};
-    var stamp = now(), before = clone(opts.before) || {__assalMissing: true}, after = {employee: employee, day: day, present: true, leave: false, duty: false, halfDay: true, status: 'half-day', time: before && before.time && !before.__assalMissing ? safe(before.time) : ''};
+    if (existing && ['draft', 'pending_review', 'approved_pending_upload'].indexOf(status) >= 0) return {ok: false, message: 'يوجد طلب نصف يوم محفوظ أو قيد المراجعة لهذا الموظف والتاريخ'};
+    var currentSnapshot = attendanceSnapshotFromLocal(day, employee);
+    if (currentSnapshot && !currentSnapshot.__assalMissing && currentSnapshot.halfDay === true) {
+      /* بعد إلغاء مطبق قد تتأخر مزامنة حضور الأدمن؛ نأخذ هدف آخر طلب مطبق كحالة متوقعة بدل منع طلب جديد خطأً. */
+      if (existing && status === 'applied' && !attendanceHalfDayTargetIsHalfDay(existing)) {
+        var latestField = attendanceHalfDayField(existing) || {};
+        currentSnapshot = clone(latestField.after) || {__assalMissing: true};
+      } else return {ok: false, message: 'دوام نصف اليوم معتمد حالياً؛ استخدم نفس الزر لإنشاء طلب إلغاء'};
+    }
+    var stamp = now(), before = clone(currentSnapshot) || {__assalMissing: true}, beforeLabel = attendanceHalfDaySnapshotLabel(before), after = {employee: employee, day: day, present: true, leave: false, duty: false, halfDay: true, status: 'half-day', time: before && before.time && !before.__assalMissing ? safe(before.time) : ''};
     var op = {scope: 'card', action: 'patch', fields: [{field: '__attendance_half_day__', before: before, after: after}]};
-    var draft = {id: id(), version: VERSION, status: 'draft', specialType: 'attendance-half-day', createdAt: stamp, updatedAt: stamp, adminEmail: ADMIN_EMAIL, cardId: key, cardDay: day, beforeDay: day, afterDay: day, beforeIndex: -1, afterIndex: -1, customer: employee, billType: 'attendance-half-day', attendanceBeforeLabel: safe(opts.beforeLabel || ''), beforeCard: null, afterCard: null, ops: [op], changes: [{scope: 'card', field: '__attendance_half_day__', before: safe(opts.beforeLabel || 'لا يوجد تسجيل'), after: 'دوام نصف يوم', lineId: '', noteId: '', item: ''}]};
+    var draft = {id: id(), version: VERSION, status: 'draft', specialType: 'attendance-half-day', createdAt: stamp, updatedAt: stamp, adminEmail: ADMIN_EMAIL, cardId: key, cardDay: day, beforeDay: day, afterDay: day, beforeIndex: -1, afterIndex: -1, customer: employee, billType: 'attendance-half-day', attendanceBeforeLabel: beforeLabel, attendanceAfterLabel: 'دوام نصف يوم', beforeCard: null, afterCard: null, ops: [op], changes: [{scope: 'card', field: '__attendance_half_day__', before: beforeLabel, after: 'دوام نصف يوم', lineId: '', noteId: '', item: ''}]};
     state.drafts.push(draft);
     schedulePersist();
     updateButton();
@@ -66993,6 +67078,34 @@ html body .card .item.assal-smart-added-item-safe-final{
 
     }
     return {ok: true, id: draft.id, status: 'draft'};
+  };
+
+  window.ASSAL_CREATE_ATTENDANCE_HALF_DAY_REVERT_REQUEST = async function(opts) {
+    opts = opts || {};
+    if (!isAdmin()) return {ok: false, message: 'هذه العملية متاحة لحاسبة الأدمن فقط'};
+    if (!ready) return {ok: false, message: 'نظام طلبات التعديل لم يكتمل تحميله بعد'};
+    var employee = safe(opts.employee).trim(), day = safe(opts.day).trim(), key = attendanceHalfDayKey(day, employee);
+    if (!employee || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return {ok: false, message: 'اسم الموظف أو التاريخ غير صالح'};
+    var existing = latestAttendanceHalfDayRequest(day, employee), status = safe(existing && existing.status);
+    if (existing && ['draft', 'pending_review', 'approved_pending_upload'].indexOf(status) >= 0) return {ok: false, message: 'يوجد طلب نصف يوم أو إلغاء محفوظ أو قيد المراجعة لهذا الموظف والتاريخ'};
+    var source = latestAppliedAttendanceHalfDayEnableRequest(day, employee);
+    if (!source) return {ok: false, message: 'تعذر العثور على طلب نصف اليوم الأصلي؛ لن يتم إنشاء إلغاء بدون حالة رجوع مؤكدة'};
+    var sourceField = attendanceHalfDayField(source) || {}, expectedHalfDay = clone(sourceField.after), restore = clone(sourceField.before);
+    if (!expectedHalfDay || expectedHalfDay.__assalMissing || expectedHalfDay.halfDay !== true) return {ok: false, message: 'طلب نصف اليوم الأصلي لا يحتوي حالة اعتماد صالحة؛ تم إيقاف الإلغاء حفاظاً على السجل'};
+    if (!restore || typeof restore !== 'object') return {ok: false, message: 'الحالة الأصلية قبل نصف اليوم غير متوفرة؛ تم إيقاف الإلغاء حفاظاً على سجل الحضور'};
+    if (!restore.__assalMissing && (restore.halfDay === true || safe(restore.status) === 'half-day')) return {ok: false, message: 'الحالة الأصلية المسجلة هي نصف يوم أيضاً؛ تم إيقاف الإلغاء لمنع تغيير غير مؤكد'};
+    var stamp = now(), afterLabel = attendanceHalfDaySnapshotLabel(restore), beforeLabel = attendanceHalfDaySnapshotLabel(expectedHalfDay);
+    var op = {scope: 'card', action: 'patch', fields: [{field: '__attendance_half_day__', before: clone(expectedHalfDay), after: clone(restore)}]};
+    var draft = {id: id(), version: VERSION, status: 'draft', specialType: 'attendance-half-day-revert', createdAt: stamp, updatedAt: stamp, adminEmail: ADMIN_EMAIL, cardId: key, cardDay: day, beforeDay: day, afterDay: day, beforeIndex: -1, afterIndex: -1, customer: employee, billType: 'attendance-half-day', attendanceBeforeLabel: beforeLabel, attendanceAfterLabel: afterLabel, attendanceRevertOfRequestId: safe(source.id), beforeCard: null, afterCard: null, ops: [op], changes: [{scope: 'card', field: '__attendance_half_day__', before: beforeLabel, after: afterLabel, lineId: '', noteId: '', item: ''}]};
+    state.drafts.push(draft);
+    schedulePersist();
+    updateButton();
+    if (isModalOpen()) renderModal();
+    notifyAttendanceHalfDayUi();
+    try {
+      showToast('success', 'تمت إضافة طلب إلغاء نصف اليوم إلى خانة طلبات التعديل');
+    } catch (_) {}
+    return {ok: true, id: draft.id, status: 'draft', action: 'revert', restoreLabel: afterLabel};
   };
 
   async function init() {
