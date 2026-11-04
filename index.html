@@ -1066,7 +1066,7 @@ html,body{
   
 }
 
-/* تحويل فاتورة الجملة المدخلة خطأ إلى أجل — يظهر فقط لغير فروع عسل الثلاثة */
+/* تحويل فاتورة الجملة المدخلة خطأ إلى أجل — يظهر فقط لغير فروع عسل الأربعة */
 .assal-wholesale-to-credit-btn{
   height:28px;
   padding:0 11px;
@@ -20452,11 +20452,12 @@ function isCashCard(card){
   return saleTypes.length > 0 && saleTypes.every(t => t === 'نقدي');
 }
 
-/* ===== حماية فواتير الجملة: الجملة مسموحة فقط لفروع عسل الثلاثة ===== */
+/* ===== حماية فواتير الجملة: الجملة مسموحة فقط لفروع عسل الأربعة ===== */
 const ASSAL_WHOLESALE_ALLOWED_BRANCHES = [
   'مكتب عسل فرع الحي',
   'مكتب عسل فرع التحرير',
-  'مكتب عسل فرع بلدروز'
+  'مكتب عسل فرع بلدروز',
+  'مكتب عسل فرع الخالص'
 ] ;
 
 function assalWholesaleCustomerKey(rawName){
@@ -29239,7 +29240,7 @@ if(__assalCardAuditInfo && __assalCardAuditInfo.count > 0){
   custWrap.appendChild(__assalCardAuditBtn);
 }
 
-// زر تصحيح الفاتورة القديمة المدخلة جملة بالخطأ — لا يظهر لفروع عسل الثلاثة.
+// زر تصحيح الفاتورة القديمة المدخلة جملة بالخطأ — لا يظهر لفروع عسل الأربعة.
 if (badgeType === 'جملة' && !assalIsWholesaleAllowedCustomer(card.customer || '')) {
   const convertToCreditBtn = CE('button', 'assal-wholesale-to-credit-btn');
   convertToCreditBtn.type = 'button';
@@ -71977,6 +71978,7 @@ body.assal-ledger-owner-context .assal-ledger-results-body .assal-ledger-stat{
     return key === nrm('مكتب عسل فرع الحي') ||
       key === nrm('مكتب عسل فرع بلدروز') ||
       key === nrm('مكتب عسل فرع التحرير') ||
+      key === nrm('مكتب عسل فرع الخالص') ||
       key === nrm('اجور رواتب موظفي عسل');
   }
 
@@ -86825,7 +86827,7 @@ body.assal-ledger-wa-auto-pdf-open{
   function fmtDate(z){if(!/^\d{4}-\d{2}-\d{2}$/.test(safe(z)))return 'لا يوجد';var p=safe(z).split('-');return p[2]+'/'+p[1]+'/'+p[0]}
   function ageLabel(days){days=Number(days);if(!isFinite(days))return 'غير محدد';if(days<30)return String(days)+' يوم';var m=Math.floor(days/30),r=days%30;if(m<12)return m+' شهر'+(r?(' و '+r+' يوم'):'');var y=Math.floor(m/12),rm=m%12;return y+' سنة'+(rm?(' و '+rm+' شهر'):'')}
   function employeeLabel(name){var k=nrm(name);if(k===nrm('إسماعيل'))return 'سمعو';if(k===nrm('مصطفى'))return 'مصطفى';return safe(name).trim()||'زميلنا'}
-  function excludedName(name){var k=nrm(name);return k===nrm('مكتب عسل فرع الحي')||k===nrm('مكتب عسل فرع بلدروز')||k===nrm('مكتب عسل فرع التحرير')||k===nrm('اجور رواتب موظفي عسل')}
+  function excludedName(name){var k=nrm(name);return k===nrm('مكتب عسل فرع الحي')||k===nrm('مكتب عسل فرع بلدروز')||k===nrm('مكتب عسل فرع التحرير')||k===nrm('مكتب عسل فرع الخالص')||k===nrm('اجور رواتب موظفي عسل')}
   function workHours(){if(isAdmin())return true;var h=new Date().getHours();return h>=9&&h<19}
 
   function readAttendance(){
@@ -88037,7 +88039,8 @@ body.assal-ledger-wa-auto-pdf-open{
   var BRANCHES = {
     'yo1234':  'مكتب عسل فرع التحرير',
     'isl1234': 'مكتب عسل فرع الحي',
-    'bld1234': 'مكتب عسل فرع بلدروز'
+    'bld1234': 'مكتب عسل فرع بلدروز',
+    'kh778899':'مكتب عسل فرع الخالص'
   };
   var state = { invoices:[], busy:false, today:'', allowedDays:[], doneCount:0, changedCount:0 };
 
