@@ -60466,6 +60466,155 @@ html body .card .item.assal-smart-added-item-safe-final{
 
 
 
+<style id="assal-card-audit-global-search-style">
+/* ASSAL DAY ARCHIVE GLOBAL SEARCH — بحث قراءة فقط بكل أيام الأرشيف */
+.assal-card-audit-search-row{
+  width:min(700px,100%);
+  margin-inline:auto;
+}
+.assal-card-audit-search-box{
+  height:42px;
+  display:grid;
+  grid-template-columns:34px minmax(0,1fr) auto 34px;
+  align-items:center;
+  gap:6px;
+  padding:0 7px 0 9px;
+  border-radius:13px;
+  border:1px solid rgba(34,211,238,.22);
+  background:linear-gradient(135deg,rgba(5,18,40,.96),rgba(10,25,55,.96));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+}
+.assal-card-audit-search-box:focus-within{
+  border-color:rgba(34,211,238,.58);
+  box-shadow:0 0 0 3px rgba(34,211,238,.08),inset 0 1px 0 rgba(255,255,255,.03);
+}
+.assal-card-audit-search-icon{
+  display:grid;
+  place-items:center;
+  color:#67e8f9;
+  font-size:13px;
+}
+.assal-card-audit-search-input{
+  width:100%;
+  min-width:0;
+  height:38px;
+  border:0;
+  outline:0;
+  background:transparent;
+  color:#f8fafc;
+  font:inherit;
+  font-size:12.5px;
+  font-weight:850;
+  text-align:right;
+}
+.assal-card-audit-search-input::placeholder{color:#7183a0;font-weight:750}
+.assal-card-audit-search-scope{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  height:26px;
+  padding:0 9px;
+  border-radius:999px;
+  border:1px solid rgba(167,139,250,.22);
+  background:rgba(124,58,237,.10);
+  color:#c4b5fd;
+  font-size:10px;
+  font-weight:900;
+  white-space:nowrap;
+}
+.assal-card-audit-search-clear{
+  width:30px;
+  height:30px;
+  display:grid;
+  place-items:center;
+  border-radius:9px;
+  border:1px solid rgba(248,113,113,.20);
+  background:rgba(127,29,29,.22);
+  color:#fecaca;
+  cursor:pointer;
+}
+.assal-card-audit-search-clear[hidden]{display:none!important}
+.assal-card-audit-search-filters{
+  width:min(900px,100%);
+  margin:8px auto 0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  overflow-x:auto;
+  scrollbar-width:thin;
+  padding:1px 2px 3px;
+}
+.assal-card-audit-search-filters[hidden]{display:none!important}
+.assal-card-audit-filter-btn{
+  flex:0 0 auto;
+  min-height:30px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:0 10px;
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,.16);
+  background:rgba(15,23,42,.74);
+  color:#b7c6dd;
+  font-size:10.5px;
+  font-weight:900;
+  cursor:pointer;
+  transition:border-color .16s ease,background .16s ease,color .16s ease,transform .16s ease;
+}
+.assal-card-audit-filter-btn:hover{
+  border-color:rgba(34,211,238,.34);
+  color:#e0f2fe;
+}
+.assal-card-audit-filter-btn.is-active{
+  border-color:rgba(34,211,238,.58);
+  background:linear-gradient(135deg,rgba(8,145,178,.28),rgba(79,70,229,.22));
+  color:#ecfeff;
+  box-shadow:0 0 0 2px rgba(34,211,238,.06);
+}
+.assal-card-audit-filter-btn b{
+  min-width:19px;
+  height:19px;
+  padding:0 5px;
+  display:inline-grid;
+  place-items:center;
+  border-radius:999px;
+  background:rgba(148,163,184,.11);
+  color:#cbd5e1;
+  font-size:9.5px;
+  line-height:1;
+}
+.assal-card-audit-filter-btn.is-active b{
+  background:rgba(34,211,238,.15);
+  color:#cffafe;
+}
+.assal-card-audit-backdrop.is-global-search .assal-card-audit-date-nav{opacity:.58}
+.assal-card-audit-backdrop.is-global-search .assal-card-audit-row{
+  grid-template-columns:112px minmax(0,1fr);
+}
+.assal-card-audit-backdrop.is-global-search .assal-card-audit-timeline span{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  line-height:1.35;
+}
+.assal-card-audit-backdrop.is-global-search .assal-card-audit-timeline b{
+  color:#dbeafe;
+  font-size:10px;
+  font-weight:950;
+}
+.assal-card-audit-backdrop.is-global-search .assal-card-audit-timeline small{
+  color:#8fa5c4;
+  font-size:9.5px;
+  font-weight:800;
+}
+@media (max-width:700px){
+  .assal-card-audit-search-box{grid-template-columns:30px minmax(0,1fr) 30px}
+  .assal-card-audit-search-scope{display:none}
+  .assal-card-audit-backdrop.is-global-search .assal-card-audit-row{grid-template-columns:88px minmax(0,1fr)}
+}
+</style>
+
 <script id="assal-card-audit-server-sync-final-script">
 /* JS 36 — [حساس] مراجعة البطاقة — مزامنة السيرفر */
 (function() {
@@ -60487,7 +60636,15 @@ html body .card .item.assal-smart-added-item-safe-final{
   var serverCardDayBusy = new Map();
   var serverFlushBusy = false;
   var serverFlushTimer = 0;
-  var modalState = {mode: 'day', day: '', cardDay: '', cardId: '', customer: '', loading: false, serverError: ''};
+  var globalSearchTimer = 0;
+  var GLOBAL_SEARCH_RESULT_LIMIT = 500;
+  var GLOBAL_SEARCH_SERVER_TTL = 5 * 60 * 1000;
+  var globalSearchServerPromise = null;
+  var globalSearchServerLoadedAt = 0;
+  var globalSearchServerError = '';
+  var globalSearchServerDayFiles = 0;
+  var globalSearchServerProgress = {done: 0, total: 0};
+  var modalState = {mode: 'day', day: '', cardDay: '', cardId: '', customer: '', loading: false, serverError: '', searchQuery: '', searchFilter: 'all', searchMeta: null};
 
   function safe(v) {
     return String(v == null ? '' : v);
@@ -61494,6 +61651,20 @@ html body .card .item.assal-smart-added-item-safe-final{
   }
 
   function changeChips(a) {
+    if (a.kind === 'card-delete-match' || a.kind === 'card-delete') {
+      return auditInfoChip('الحالة', 'بطاقة محذوفة', 'fa-trash-can') +
+        auditInfoChip('عدد المواد', String(Math.max(0, Number(a.count) || 0)), 'fa-layer-group') +
+        auditInfoChip('المصدر', a.note || 'الفواتير الأصلية', 'fa-receipt');
+    }
+    if (a.kind === 'invoice-match') {
+      var src = (a.before && typeof a.before === 'object') ? a.before : {};
+      var bits = [];
+      if (a.cat || src.cat) bits.push(auditInfoChip('الصنف', a.cat || src.cat, 'fa-layer-group'));
+      if (src.qty != null && safe(src.qty) !== '') bits.push(auditInfoChip('العدد', safe(src.qty), 'fa-hashtag'));
+      if (src.price != null && Number(src.price || 0)) bits.push(auditInfoChip('السعر', val('price', src.price), 'fa-coins'));
+      if (a.note) bits.push(auditInfoChip('المصدر', a.note, 'fa-receipt'));
+      return bits.join('') || auditInfoChip('المصدر', 'مطابقة ضمن الفاتورة الأصلية', 'fa-receipt');
+    }
     if (a.kind === 'edit') {
       var out = [];
       ['cat', 'item', 'price', 'qty', 'note', 'type', 'billType', 'paid', 'returned'].forEach(function(k) {
@@ -61545,26 +61716,372 @@ html body .card .item.assal-smart-added-item-safe-final{
     }
   }
 
+  function normalizeAuditSearchText(v) {
+    return safe(v).toLowerCase()
+      .replace(/[\u064b-\u065f\u0670]/g, '')
+      .replace(/[أإآٱ]/g, 'ا')
+      .replace(/ى/g, 'ي')
+      .replace(/ة/g, 'ه')
+      .replace(/ؤ/g, 'و')
+      .replace(/ئ/g, 'ي')
+      // البحث فقط: الفواصل والشرطات تعتبر مسافات، بدون المساس بالنص المكتوب داخل الحقل.
+      .replace(/[\-–—_،,:;؛/\\|()[\]{}]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function isGlobalSearchActive() {
+    return modalState.mode === 'day' && !!normalizeAuditSearchText(modalState.searchQuery || '');
+  }
+
+  function allAuditDays() {
+    var idx = readJSON(DAYS_INDEX_KEY, []);
+    if (!Array.isArray(idx)) idx = [];
+    var seen = new Set(), out = [];
+    idx.concat([modalState.day || localDay()]).forEach(function(day) {
+      day = safe(day).trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || seen.has(day)) return;
+      seen.add(day);
+      out.push(day);
+    });
+    return out.sort().reverse();
+  }
+
+  function actionSearchText(a) {
+    a = a || {};
+    var before = a.before && typeof a.before === 'object' ? a.before : {};
+    var after = a.after && typeof a.after === 'object' ? a.after : {};
+    return normalizeAuditSearchText([
+      a.customer, a.item, a.cat,
+      before.item, before.cat,
+      after.item, after.cat
+    ].join(' '));
+  }
+
+  function globalSearchResultType(a) {
+    var kind = safe(a && a.kind);
+    if (kind === 'delete') return 'delete-line';
+    if (kind === 'card-delete-match' || kind === 'card-delete') return 'delete-card';
+    if (kind === 'line-add' || kind === 'note-add') return 'add';
+    if (kind === 'edit' || kind === 'type-change' || kind === 'state-change') return 'edit';
+    if (['pay-line','pay-all','partial-payment','pay-undo','payall-undo','return-mark','return-undo'].indexOf(kind) >= 0) return 'money';
+    if (kind === 'invoice-match') return 'invoice';
+    return 'other';
+  }
+
+  function globalSearchFilterLabel(key) {
+    return {
+      'all':'الكل',
+      'delete-line':'حذف مادة',
+      'delete-card':'حذف بطاقة',
+      'add':'إضافة',
+      'edit':'تعديل',
+      'money':'تسديد/راجع',
+      'invoice':'مطابقة بالفاتورة'
+    }[safe(key)] || 'الكل';
+  }
+
+  function globalSearchFilterCounts(actions) {
+    var counts = {'all':0,'delete-line':0,'delete-card':0,'add':0,'edit':0,'money':0,'invoice':0};
+    (Array.isArray(actions) ? actions : []).forEach(function(a) {
+      counts.all++;
+      var key = globalSearchResultType(a);
+      if (Object.prototype.hasOwnProperty.call(counts, key)) counts[key]++;
+    });
+    return counts;
+  }
+
+  function applyGlobalSearchResultFilter(actions, filterKey) {
+    filterKey = safe(filterKey || 'all');
+    if (filterKey === 'all') return (Array.isArray(actions) ? actions : []).slice();
+    return (Array.isArray(actions) ? actions : []).filter(function(a) {
+      return globalSearchResultType(a) === filterKey;
+    });
+  }
+
+  /*
+   * البحث العام لا يعتمد فقط على تاريخ بدء ميزة أرشيف الحركات.
+   * قاعدة window.days هي المصدر الأصلي لكل فواتير الأيام القديمة، لذلك نولد
+   * منها نتائج قراءة فقط حتى يكون البحث فعلاً عبر كل الأشهر والسنوات.
+   */
+  function invoiceSearchActions(query) {
+    var normalized = normalizeAuditSearchText(query), terms = normalized.split(' ').filter(Boolean);
+    if (!terms.length) return {actions: [], days: []};
+    var store = {};
+    try { store = (window.days && typeof window.days === 'object') ? window.days : {}; } catch (_) { store = {}; }
+    var out = [], hitDays = new Set();
+
+    Object.keys(store || {}).forEach(function(day) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
+      var cards = Array.isArray(store[day]) ? store[day] : [];
+      cards.forEach(function(card, cardIndex) {
+        if (!card || typeof card !== 'object') return;
+        var customer = safe(card.customer || card.name || card.client || card.customerName);
+        var customerHay = normalizeAuditSearchText(customer);
+        var customerHit = terms.every(function(term) { return customerHay.indexOf(term) >= 0; });
+        var lines = Array.isArray(card.lines) ? card.lines : [];
+        var cardId = safe(card.id || card.cardId || ('card_' + day + '_' + cardIndex));
+        var cardDeleted = !!card.deletedAt;
+        if (cardDeleted) {
+          var deletedHay = normalizeAuditSearchText([
+            customer,
+            safe(card.note || ''),
+            lines.map(function(line) {
+              return line && typeof line === 'object'
+                ? [safe(line.item || line.name || ''), safe(line.cat || line.category || ''), safe(line.note || '')].join(' ')
+                : '';
+            }).join(' ')
+          ].join(' '));
+          if (terms.every(function(term) { return deletedHay.indexOf(term) >= 0; })) {
+            var deletedAt = safe(card.deletedAt || card.updatedAt || card.createdAt || (day + 'T12:00:00'));
+            out.push({
+              id:'invoice_search_deleted_card::' + day + '::' + cardId,
+              kind:'card-delete-match', label:'حذف بطاقة', source:'invoice-day-search',
+              opDay:day, cardDay:day, cardId:cardId, lineId:'',
+              customer:customer, billType:safe(card.billType || card.type || ''), item:'البطاقة كاملة', cat:'',
+              at:deletedAt, count:lines.length,
+              note:'بطاقة محذوفة محفوظة ضمن الفواتير الأصلية',
+              before:{customer:customer,billType:safe(card.billType || card.type || ''),count:lines.length},
+              after:{deletedAt:deletedAt}
+            });
+            hitDays.add(day);
+          }
+          return;
+        }
+
+        if (customerHit) {
+          var firstLine = lines.find(function(line) { return line && typeof line === 'object' && !line.deletedAt; }) ||
+            lines.find(function(line) { return line && typeof line === 'object'; }) || {};
+          var firstItem = safe(firstLine.item || firstLine.name || '');
+          var at = safe(card.updatedAt || card.createdAt || firstLine.updatedAt || firstLine.createdAt || (day + 'T12:00:00'));
+          out.push({
+            id:'invoice_search_customer::' + day + '::' + cardId,
+            kind:'invoice-match', label:'مطابقة بالفاتورة', source:'invoice-day-search',
+            opDay:day, cardDay:day, cardId:cardId, lineId:safe(firstLine.lineId || firstLine.id || ''),
+            customer:customer, billType:safe(card.billType || card.type || ''), item:firstItem,
+            cat:safe(firstLine.cat || ''), at:at, count:lines.filter(function(x){ return x && !x.deletedAt; }).length,
+            note:'مطابقة باسم الزبون ضمن الفاتورة الأصلية', before:clone(firstLine) || {}, after:clone(firstLine) || {}
+          });
+          hitDays.add(day);
+          return;
+        }
+
+        lines.forEach(function(line, lineIndex) {
+          if (!line || typeof line !== 'object') return;
+          var item = safe(line.item || line.name || '');
+          var cat = safe(line.cat || line.category || '');
+          var hay = normalizeAuditSearchText([customer, item, cat, line.note].join(' '));
+          if (!terms.every(function(term) { return hay.indexOf(term) >= 0; })) return;
+          var lineId = safe(line.lineId || line.id || ('line_' + lineIndex));
+          var at = safe(line.updatedAt || line.createdAt || line.at || card.updatedAt || card.createdAt || (day + 'T12:00:00'));
+          out.push({
+            id:'invoice_search_line::' + day + '::' + cardId + '::' + lineId,
+            kind:'invoice-match', label:'مطابقة بالفاتورة', source:'invoice-day-search',
+            opDay:day, cardDay:day, cardId:cardId, lineId:lineId,
+            customer:customer, billType:safe(card.billType || card.type || ''), item:item, cat:cat,
+            at:at, note:safe(line.note || 'مطابقة باسم المادة ضمن الفاتورة الأصلية'),
+            before:clone(line) || {}, after:clone(line) || {}
+          });
+          hitDays.add(day);
+        });
+      });
+    });
+    return {actions:out, days:Array.from(hitDays)};
+  }
+
+  function searchAllAuditDays(query) {
+    var normalized = normalizeAuditSearchText(query), terms = normalized.split(' ').filter(Boolean);
+    if (!terms.length) return {actions: [], total: 0, matchedDays: 0, scannedDays: 0, limited: false, invoiceMatches:0, auditMatches:0};
+    var auditDays = allAuditDays(), found = new Map(), matchedDays = new Set(), auditCount = 0;
+    auditDays.forEach(function(day) {
+      var rec = getDayRecord(day, true), actions = Array.isArray(rec && rec.actions) ? rec.actions : [];
+      actions.forEach(function(a) {
+        if (!a) return;
+        var hay = actionSearchText(a);
+        if (!terms.every(function(term) { return hay.indexOf(term) >= 0; })) return;
+        var key = 'audit::' + (safe(a.id) || [safe(a.at), safe(a.cardId), safe(a.lineId), safe(a.customer), safe(a.item)].join('|'));
+        if (!found.has(key)) { found.set(key, a); auditCount++; }
+        matchedDays.add(safe(a.opDay || day));
+      });
+    });
+
+    var invoices = invoiceSearchActions(query);
+    (invoices.actions || []).forEach(function(a) {
+      var key = safe(a.id);
+      if (!found.has(key)) found.set(key, a);
+      matchedDays.add(safe(a.cardDay || a.opDay));
+    });
+
+    var all = Array.from(found.values()).sort(function(a, b) {
+      var byAt = safe(b.at).localeCompare(safe(a.at));
+      if (byAt) return byAt;
+      return safe(b.cardDay).localeCompare(safe(a.cardDay));
+    });
+    var filterKey = safe(modalState.searchFilter || 'all');
+    var filterCounts = globalSearchFilterCounts(all);
+    var filtered = applyGlobalSearchResultFilter(all, filterKey);
+    var filteredDays = new Set();
+    filtered.forEach(function(a) {
+      var day = safe(a && (a.opDay || a.cardDay));
+      if (day) filteredDays.add(day);
+    });
+    var storeDays = [];
+    try { storeDays = Object.keys((window.days && typeof window.days === 'object') ? window.days : {}).filter(function(day){ return /^\d{4}-\d{2}-\d{2}$/.test(day); }); } catch (_) {}
+    var scanned = new Set(auditDays.concat(storeDays));
+    return {
+      actions: filtered.slice(0, GLOBAL_SEARCH_RESULT_LIMIT),
+      total: filtered.length,
+      allTotal: all.length,
+      matchedDays: filteredDays.size,
+      scannedDays: scanned.size,
+      limited: filtered.length > GLOBAL_SEARCH_RESULT_LIMIT,
+      invoiceMatches: filtered.filter(function(a){ return a && a.kind === 'invoice-match'; }).length,
+      auditMatches: filtered.filter(function(a){ return a && a.source !== 'invoice-day-search'; }).length,
+      filterKey:filterKey,
+      filterLabel:globalSearchFilterLabel(filterKey),
+      filterCounts:filterCounts
+    };
+  }
+
+  async function globalSearchFetchManifest() {
+    // نفضّل مساعد التصدير الموجود، لكن عند أي تعارض نطاق نستعمل نفس endpoint مباشرة.
+    if (typeof assalFullExportFetchServerSection === 'function') {
+      return await assalFullExportFetchServerSection('audit-manifest');
+    }
+    if (!serverReady()) throw new Error('offline');
+    var base = safe(SYNC.BASE_URL), sep = base.indexOf('?') >= 0 ? '&' : '?';
+    var url = base + sep + [
+      'mode=' + encodeURIComponent('full-system-export'),
+      'section=' + encodeURIComponent('audit-manifest'),
+      'token=' + encodeURIComponent(SYNC.TOKEN),
+      '_=' + encodeURIComponent(Date.now())
+    ].join('&');
+    var resp = await fetch(url, {method:'GET', cache:'no-store'});
+    if (!resp.ok) throw new Error('audit manifest failed');
+    var json = await resp.json();
+    if (!json || json.status === 'error') throw new Error((json && json.message) || 'audit manifest error');
+    return json;
+  }
+
+  async function hydrateGlobalSearchFromServer(force) {
+    if (!serverReady()) {
+      globalSearchServerError = 'السيرفر غير متاح حالياً؛ البحث يعرض الأرشيف المحلي فقط';
+      globalSearchServerProgress = {done: 0, total: 0};
+      return false;
+    }
+    var now = Date.now();
+    if (!force && globalSearchServerLoadedAt && (now - globalSearchServerLoadedAt) < GLOBAL_SEARCH_SERVER_TTL) return true;
+    if (globalSearchServerPromise) return globalSearchServerPromise;
+    globalSearchServerError = '';
+    globalSearchServerProgress = {done: 0, total: 0};
+    globalSearchServerPromise = (async function() {
+      try {
+        var manifestRes = await globalSearchFetchManifest();
+        var manifest = Array.isArray(manifestRes && manifestRes.files) ? manifestRes.files : [];
+        // نحتاج ملفات اليوم فقط؛ cardday ليس مطلوباً للبحث لأن سجل اليوم يحمل customer/item لكل حركة.
+        var seen = new Set(), days = [];
+        manifest.forEach(function(file) {
+          if (!file || safe(file.type) !== 'day') return;
+          var day = safe(file.day).trim();
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || seen.has(day)) return;
+          seen.add(day);
+          days.push(day);
+        });
+        days.sort().reverse();
+        globalSearchServerProgress = {done: 0, total: days.length};
+        globalSearchServerDayFiles = 0;
+        if (isGlobalSearchActive()) { try { renderModal(); } catch (_) {} }
+
+        // نفس مسار audit-day المجرب في نافذة الأرشيف، بدفعات صغيرة حتى لا نضغط Apps Script.
+        var parallel = 4, failed = 0;
+        for (var offset = 0; offset < days.length; offset += parallel) {
+          var slice = days.slice(offset, offset + parallel);
+          var result = await Promise.all(slice.map(async function(day) {
+            try {
+              var json = await serverGet('audit-day', {day: day});
+              mergeRemoteDayPayload(json);
+              serverDayFetchedAt.set(day, Date.now());
+              return true;
+            } catch (err) {
+              try { console.warn('[ASSAL card audit global search] day fetch failed', day, err); } catch (_) {}
+              return false;
+            }
+          }));
+          result.forEach(function(ok) { if (ok) globalSearchServerDayFiles++; else failed++; });
+          globalSearchServerProgress = {done: Math.min(days.length, offset + slice.length), total: days.length};
+          if (isGlobalSearchActive()) {
+            modalState.searchMeta = null;
+            try { renderModal(); } catch (_) {}
+          }
+        }
+
+        if (days.length && failed >= days.length) throw new Error('ALL_AUDIT_DAYS_FAILED');
+        globalSearchServerLoadedAt = Date.now();
+        globalSearchServerError = failed
+          ? ('تم فحص أغلب الأيام، وتعذر جلب ' + failed + ' يوم حالياً')
+          : '';
+        return true;
+      } catch (err) {
+        globalSearchServerError = 'تعذر فحص كل أيام السيرفر حالياً؛ تظهر النتائج المحلية فقط';
+        try { console.warn('[ASSAL card audit global search] server archive load failed', err); } catch (_) {}
+        return false;
+      } finally {
+        globalSearchServerPromise = null;
+        if (isGlobalSearchActive()) {
+          modalState.searchMeta = null;
+          try { renderModal(); } catch (_) {}
+        }
+      }
+    })();
+    try { return await globalSearchServerPromise; } catch (_) { return false; }
+  }
+
+  function setGlobalSearchQuery(value) {
+    // مهم: لا نعمل trim للنص المخزون حتى لا تختفي المسافة أثناء كتابة اسم مركب.
+    // التطبيع/trim يحصل داخل normalizeAuditSearchText وقت المطابقة فقط.
+    modalState.searchQuery = safe(value);
+    modalState.searchMeta = null;
+    renderModal();
+    if (isGlobalSearchActive()) hydrateGlobalSearchFromServer(false);
+  }
+
+  function formatAuditSearchDay(day) {
+    day = safe(day);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return day;
+    try {
+      return new Date(day + 'T12:00:00').toLocaleDateString('ar-IQ', {year:'numeric', month:'2-digit', day:'2-digit'});
+    } catch (_) {
+      return day;
+    }
+  }
+
   function rowHtml(a) {
     var isCancel = (a.kind === 'pay-undo' || a.kind === 'payall-undo' || a.kind === 'return-undo');
-    var kind = isCancel ? 'cancel' : (a.kind === 'delete' ? 'delete' : (a.kind === 'undo' ? 'undo' : 'edit'));
+    var isCardDelete = (a.kind === 'card-delete-match' || a.kind === 'card-delete');
+    var kind = isCancel ? 'cancel' : ((a.kind === 'delete' || isCardDelete) ? 'delete' : (a.kind === 'undo' ? 'undo' : 'edit'));
     var movementLabels = {
       'return-mark':'تعليم مادة راجع', 'pay-line':'تسديد مادة', 'pay-all':'تسديد الكل',
       'partial-payment':'تسديد جزئي', 'line-add':'إضافة مادة', 'note-add':'إضافة ملاحظة',
-      'note-delete':'حذف ملاحظة', 'type-change':'تغيير نوع البطاقة', 'state-change':'تغيير حالة'
+      'note-delete':'حذف ملاحظة', 'type-change':'تغيير نوع البطاقة', 'state-change':'تغيير حالة',
+      'invoice-match':'مطابقة بالفاتورة'
     };
     var movementIcons = {
       'return-mark':'fa-rotate-left', 'pay-line':'fa-money-bill-wave', 'pay-all':'fa-money-bill-transfer',
       'partial-payment':'fa-coins', 'line-add':'fa-circle-plus', 'note-add':'fa-note-sticky',
-      'note-delete':'fa-note-sticky', 'type-change':'fa-arrow-right-arrow-left', 'state-change':'fa-sliders'
+      'note-delete':'fa-note-sticky', 'type-change':'fa-arrow-right-arrow-left', 'state-change':'fa-sliders',
+      'invoice-match':'fa-receipt'
     };
-    var label = a.kind === 'pay-undo' ? 'إلغاء تسديد مادة' : (a.kind === 'payall-undo' ? 'إلغاء تسديد الكل' : (a.kind === 'return-undo' ? 'إلغاء الراجع' : (kind === 'delete' ? 'حذف مادة' : (kind === 'undo' ? 'إعادة حركة' : (movementLabels[a.kind] || a.label || 'تعديل مادة')))));
-    var icon = a.kind === 'pay-undo' ? 'fa-money-bill-wave' : (a.kind === 'payall-undo' ? 'fa-money-bill-transfer' : (a.kind === 'return-undo' ? 'fa-arrow-rotate-left' : (kind === 'delete' ? 'fa-trash-can' : (kind === 'undo' ? 'fa-rotate-left' : (movementIcons[a.kind] || 'fa-pen-to-square')))));
-    var detailsTitle = isCancel ? 'تفاصيل الإلغاء' : (kind === 'delete' ? 'بيانات السطر المحذوف' : (kind === 'undo' ? 'تفاصيل الإعادة' : (a.kind === 'edit' ? 'التغييرات المسجلة' : 'تفاصيل الحركة')));
+    var label = isCardDelete ? 'حذف بطاقة' : (a.kind === 'pay-undo' ? 'إلغاء تسديد مادة' : (a.kind === 'payall-undo' ? 'إلغاء تسديد الكل' : (a.kind === 'return-undo' ? 'إلغاء الراجع' : (kind === 'delete' ? 'حذف مادة' : (kind === 'undo' ? 'إعادة حركة' : (movementLabels[a.kind] || a.label || 'تعديل مادة'))))));
+    var icon = isCardDelete ? 'fa-trash-can' : (a.kind === 'pay-undo' ? 'fa-money-bill-wave' : (a.kind === 'payall-undo' ? 'fa-money-bill-transfer' : (a.kind === 'return-undo' ? 'fa-arrow-rotate-left' : (kind === 'delete' ? 'fa-trash-can' : (kind === 'undo' ? 'fa-rotate-left' : (movementIcons[a.kind] || 'fa-pen-to-square'))))));
+    var detailsTitle = isCardDelete ? 'بيانات البطاقة المحذوفة' : (a.kind === 'invoice-match' ? 'بيانات السطر في الفاتورة' : (isCancel ? 'تفاصيل الإلغاء' : (kind === 'delete' ? 'بيانات السطر المحذوف' : (kind === 'undo' ? 'تفاصيل الإعادة' : (a.kind === 'edit' ? 'التغييرات المسجلة' : 'تفاصيل الحركة')))));
     var undone = a.status === 'undone';
-    var canUndo = (a.kind === 'edit' || a.kind === 'delete') && !undone && !isAuditReadOnlyDevice();
+    var globalSearch = isGlobalSearchActive();
+    var canUndo = (a.kind === 'edit' || a.kind === 'delete') && !undone && !isAuditReadOnlyDevice() && !globalSearch;
+    var timelineHtml = globalSearch
+      ? '<span><b>' + esc(formatAuditSearchDay(a.opDay || a.cardDay)) + '</b><small>' + esc(formatTimeOnly(a.at)) + '</small></span>'
+      : '<span>' + esc(formatTimeOnly(a.at)) + '</span>';
     return '<div class="assal-card-audit-row' + (undone ? ' is-undone' : '') + '" data-action-id="' + esc(a.id) + '">' +
-      '<div class="assal-card-audit-timeline"><span>' + esc(formatTimeOnly(a.at)) + '</span><div class="assal-card-audit-timeline-dot"></div></div>' +
+      '<div class="assal-card-audit-timeline">' + timelineHtml + '<div class="assal-card-audit-timeline-dot"></div></div>' +
       '<article class="assal-card-audit-event">' +
       '<div class="assal-card-audit-event-head">' +
       '<div class="assal-card-audit-badges">' +
@@ -61591,7 +62108,7 @@ html body .card .item.assal-smart-added-item-safe-final{
       '</section>' +
       '</div>' +
       '<div class="assal-card-audit-actions">' +
-      '<button type="button" class="assal-card-audit-open" data-open-card="1"><i class="fa-solid fa-arrow-up-right-from-square"></i>فتح البطاقة</button>' +
+      (!isCardDelete ? '<button type="button" class="assal-card-audit-open" data-open-card="1"><i class="fa-solid fa-arrow-up-right-from-square"></i>فتح البطاقة</button>' : '') +
       (canUndo ? '<button type="button" class="assal-card-audit-undo" data-undo-action="1"><i class="fa-solid fa-rotate-left"></i>إعادة الحركة</button>' : '') +
       '</div>' +
       '</article>' +
@@ -61605,7 +62122,7 @@ html body .card .item.assal-smart-added-item-safe-final{
     root.id = 'assalCardAuditBackdrop';
     root.className = 'assal-card-audit-backdrop';
     root.hidden = true;
-    root.innerHTML = '<section class="assal-card-audit-shell" role="dialog" aria-modal="true"><header class="assal-card-audit-head"><div class="assal-card-audit-mark"><i class="fa-solid fa-clock-rotate-left"></i></div><div class="assal-card-audit-titles"><b id="assalCardAuditTitle">أرشيف اليوم</b><span id="assalCardAuditSubtitle">سجل إعلامي محلي ومتزامن عبر ملف سيرفر مستقل</span></div><button type="button" class="assal-card-audit-close" id="assalCardAuditClose" title="إغلاق"><i class="fa-solid fa-xmark"></i></button></header><div class="assal-card-audit-toolbar" id="assalCardAuditToolbar"><div class="assal-card-audit-date-nav"><button type="button" class="assal-card-audit-nav" id="assalCardAuditPrev" title="اليوم السابق"><i class="fa-solid fa-chevron-right"></i></button><label class="assal-card-audit-date-wrap"><i class="fa-regular fa-calendar-days"></i><input type="date" class="assal-card-audit-date" id="assalCardAuditDate" aria-label="اختيار يوم الأرشيف"></label><button type="button" class="assal-card-audit-nav" id="assalCardAuditNext" title="اليوم التالي"><i class="fa-solid fa-chevron-left"></i></button></div><div class="assal-card-audit-mode-note" id="assalCardAuditModeNote"></div></div><div class="assal-card-audit-summary" id="assalCardAuditSummary"></div><div class="assal-card-audit-list" id="assalCardAuditList"></div></section>';
+    root.innerHTML = '<section class="assal-card-audit-shell" role="dialog" aria-modal="true"><header class="assal-card-audit-head"><div class="assal-card-audit-mark"><i class="fa-solid fa-clock-rotate-left"></i></div><div class="assal-card-audit-titles"><b id="assalCardAuditTitle">أرشيف اليوم</b><span id="assalCardAuditSubtitle">سجل إعلامي محلي ومتزامن عبر ملف سيرفر مستقل</span></div><button type="button" class="assal-card-audit-close" id="assalCardAuditClose" title="إغلاق"><i class="fa-solid fa-xmark"></i></button></header><div class="assal-card-audit-toolbar" id="assalCardAuditToolbar"><div class="assal-card-audit-date-nav"><button type="button" class="assal-card-audit-nav" id="assalCardAuditPrev" title="اليوم السابق"><i class="fa-solid fa-chevron-right"></i></button><label class="assal-card-audit-date-wrap"><i class="fa-regular fa-calendar-days"></i><input type="date" class="assal-card-audit-date" id="assalCardAuditDate" aria-label="اختيار يوم الأرشيف"></label><button type="button" class="assal-card-audit-nav" id="assalCardAuditNext" title="اليوم التالي"><i class="fa-solid fa-chevron-left"></i></button></div><div class="assal-card-audit-search-row"><div class="assal-card-audit-search-box"><span class="assal-card-audit-search-icon"><i class="fa-solid fa-magnifying-glass"></i></span><input type="search" class="assal-card-audit-search-input" id="assalCardAuditGlobalSearch" placeholder="بحث بكل الأيام: اسم الزبون أو المادة" autocomplete="off" spellcheck="false"><span class="assal-card-audit-search-scope"><i class="fa-solid fa-calendar-days"></i> كل الأيام</span><button type="button" class="assal-card-audit-search-clear" id="assalCardAuditSearchClear" title="مسح البحث" aria-label="مسح البحث" hidden><i class="fa-solid fa-xmark"></i></button></div><div class="assal-card-audit-search-filters" id="assalCardAuditSearchFilters" hidden><button type="button" class="assal-card-audit-filter-btn is-active" data-search-filter="all"><span>الكل</span><b>0</b></button><button type="button" class="assal-card-audit-filter-btn" data-search-filter="delete-line"><span>حذف مادة</span><b>0</b></button><button type="button" class="assal-card-audit-filter-btn" data-search-filter="delete-card"><span>حذف بطاقة</span><b>0</b></button><button type="button" class="assal-card-audit-filter-btn" data-search-filter="add"><span>إضافة</span><b>0</b></button><button type="button" class="assal-card-audit-filter-btn" data-search-filter="edit"><span>تعديل</span><b>0</b></button><button type="button" class="assal-card-audit-filter-btn" data-search-filter="money"><span>تسديد/راجع</span><b>0</b></button><button type="button" class="assal-card-audit-filter-btn" data-search-filter="invoice"><span>مطابقة بالفاتورة</span><b>0</b></button></div></div><div class="assal-card-audit-mode-note" id="assalCardAuditModeNote"></div></div><div class="assal-card-audit-summary" id="assalCardAuditSummary"></div><div class="assal-card-audit-list" id="assalCardAuditList"></div></section>';
     document.body.appendChild(root);
     root.addEventListener('click', function(ev) {
       if (ev.target === root) {
@@ -61630,7 +62147,41 @@ html body .card .item.assal-smart-added-item-safe-final{
       }
     });
     root.querySelector('#assalCardAuditClose').addEventListener('click', closeModal);
+    root.addEventListener('click', function(ev) {
+      var btn = ev.target && ev.target.closest ? ev.target.closest('[data-search-filter]') : null;
+      if (!btn) return;
+      ev.preventDefault();
+      modalState.searchFilter = safe(btn.getAttribute('data-search-filter') || 'all');
+      modalState.searchMeta = null;
+      renderModal();
+    });
+    var globalSearchInput = root.querySelector('#assalCardAuditGlobalSearch');
+    var globalSearchClear = root.querySelector('#assalCardAuditSearchClear');
+    if (globalSearchInput) {
+      globalSearchInput.addEventListener('input', function() {
+        var value = this.value;
+        clearTimeout(globalSearchTimer);
+        globalSearchTimer = setTimeout(function() { setGlobalSearchQuery(value); }, 180);
+      });
+      globalSearchInput.addEventListener('keydown', function(ev) {
+        if (ev.key !== 'Enter') return;
+        ev.preventDefault();
+        clearTimeout(globalSearchTimer);
+        setGlobalSearchQuery(globalSearchInput.value);
+      });
+    }
+    if (globalSearchClear) globalSearchClear.addEventListener('click', function(ev) {
+      ev.preventDefault();
+      clearTimeout(globalSearchTimer);
+      if (globalSearchInput) globalSearchInput.value = '';
+      modalState.searchFilter = 'all';
+      setGlobalSearchQuery('');
+      try { globalSearchInput && globalSearchInput.focus({preventScroll:true}); } catch (_) {}
+    });
     root.querySelector('#assalCardAuditDate').addEventListener('change', function() {
+      modalState.searchQuery = '';
+      modalState.searchFilter = 'all';
+      modalState.searchMeta = null;
       modalState.day = this.value || localDay();
       loadModalServer(true);
       renderModal();
@@ -61648,6 +62199,9 @@ html body .card .item.assal-smart-added-item-safe-final{
   }
 
   function moveDay(n) {
+    modalState.searchQuery = '';
+    modalState.searchFilter = 'all';
+    modalState.searchMeta = null;
     var d = new Date((modalState.day || localDay()) + 'T12:00:00');
     d.setDate(d.getDate() + n);
     modalState.day = localDay(d);
@@ -61684,6 +62238,7 @@ html body .card .item.assal-smart-added-item-safe-final{
   }
 
   function closeModal() {
+    clearTimeout(globalSearchTimer);
     var r = document.getElementById('assalCardAuditBackdrop');
     if (r) {
       r.hidden = true;
@@ -61697,10 +62252,24 @@ html body .card .item.assal-smart-added-item-safe-final{
 
   function selectedActions() {
     if (modalState.mode === 'card') return (getCardRecord(modalState.cardDay, modalState.cardId, true).actions || []).slice();
+    if (isGlobalSearchActive()) {
+      var result = searchAllAuditDays(modalState.searchQuery);
+      modalState.searchMeta = result;
+      return result.actions.slice();
+    }
+    modalState.searchMeta = null;
     return (getDayRecord(modalState.day || localDay(), true).actions || []).slice();
   }
 
   function summaryHtml(arr) {
+    if (isGlobalSearchActive()) {
+      var invoiceCount = arr.filter(function(a){ return a && a.kind === 'invoice-match'; }).length;
+      var auditCount = Math.max(0, arr.length - invoiceCount);
+      return '<div class="assal-card-audit-stat"><span><i class="fa-solid fa-magnifying-glass"></i>كل النتائج</span><b>' + arr.length + '</b></div>' +
+        '<div class="assal-card-audit-stat"><span><i class="fa-solid fa-receipt"></i>من الفواتير</span><b>' + invoiceCount + '</b></div>' +
+        '<div class="assal-card-audit-stat"><span><i class="fa-solid fa-clock-rotate-left"></i>من الأرشيف</span><b>' + auditCount + '</b></div>' +
+        '<div class="assal-card-audit-stat"><span><i class="fa-solid fa-calendar-days"></i>الأيام المطابقة</span><b>' + ((modalState.searchMeta && modalState.searchMeta.matchedDays) || 0) + '</b></div>';
+    }
     var edit = arr.filter(function(a) {
       return a.kind === 'edit';
 
@@ -61722,12 +62291,15 @@ html body .card .item.assal-smart-added-item-safe-final{
 
   function renderModal() {
     var root = ensureModal(), title = root.querySelector('#assalCardAuditTitle'), sub = root.querySelector('#assalCardAuditSubtitle'), toolbar = root.querySelector('#assalCardAuditToolbar'), date = root.querySelector('#assalCardAuditDate'), note = root.querySelector('#assalCardAuditModeNote'), list = root.querySelector('#assalCardAuditList'), sum = root.querySelector('#assalCardAuditSummary');
+    var searchInput = root.querySelector('#assalCardAuditGlobalSearch'), searchClear = root.querySelector('#assalCardAuditSearchClear'), searchFilters = root.querySelector('#assalCardAuditSearchFilters');
     var arr = selectedActions().sort(function(a, b) {
       return safe(b.at).localeCompare(safe(a.at));
 
     });
+    var globalSearch = isGlobalSearchActive();
     root.classList.toggle('is-card-mode', modalState.mode === 'card');
     root.classList.toggle('is-day-mode', modalState.mode !== 'card');
+    root.classList.toggle('is-global-search', globalSearch);
     if (modalState.mode === 'card') {
       title.textContent = 'أرشيف البطاقة';
       sub.textContent = (modalState.customer || 'سجل البطاقة') + (isAuditReadOnlyDevice() ? ' • عرض فقط على حاسبة الأدمن' : ' • كل حركات البطاقة • محلي ومتزامن من السيرفر');
@@ -61736,15 +62308,46 @@ html body .card .item.assal-smart-added-item-safe-final{
       root.setAttribute('data-card-id', modalState.cardId);
     } else {
       title.textContent = 'أرشيف اليوم';
-      sub.textContent = isAuditReadOnlyDevice() ? 'كل تعديلات وحذف وإلغاءات واستعادة أسطر المواد • عرض وسحب فقط' : 'كل تعديلات وحذف وإلغاءات واستعادة أسطر المواد حسب وقت تنفيذ الحركة';
+      sub.textContent = globalSearch ? 'بحث قراءة فقط في كل فواتير الأيام + أرشيف الحركات باسم الزبون أو المادة' : (isAuditReadOnlyDevice() ? 'كل تعديلات وحذف وإلغاءات واستعادة أسطر المواد • عرض وسحب فقط' : 'كل تعديلات وحذف وإلغاءات واستعادة أسطر المواد حسب وقت تنفيذ الحركة');
       toolbar.style.display = 'flex';
       date.value = modalState.day || localDay();
-      note.textContent = modalState.loading ? 'جارٍ جلب أرشيف السيرفر…' : (modalState.serverError || (arr.length ? 'يعرض ' + arr.length + ' حركة في اليوم المختار' : 'لا توجد حركات في اليوم المختار'));
+      if (searchInput && searchInput.value !== safe(modalState.searchQuery)) searchInput.value = safe(modalState.searchQuery);
+      if (searchClear) searchClear.hidden = !globalSearch;
+      if (searchFilters) {
+        searchFilters.hidden = !globalSearch;
+        var counts = (modalState.searchMeta && modalState.searchMeta.filterCounts) || {'all':0,'delete-line':0,'delete-card':0,'add':0,'edit':0,'money':0,'invoice':0};
+        Array.prototype.slice.call(searchFilters.querySelectorAll('[data-search-filter]')).forEach(function(btn) {
+          var key = safe(btn.getAttribute('data-search-filter') || 'all');
+          btn.classList.toggle('is-active', key === safe(modalState.searchFilter || 'all'));
+          var countEl = btn.querySelector('b');
+          if (countEl) countEl.textContent = String(Number(counts[key] || 0));
+        });
+      }
+      if (globalSearch) {
+        var meta = modalState.searchMeta || {total:arr.length, allTotal:arr.length, matchedDays:0, scannedDays:0, limited:false, filterLabel:globalSearchFilterLabel(modalState.searchFilter || 'all')};
+        if (globalSearchServerPromise) {
+          var progress = globalSearchServerProgress || {done:0,total:0};
+          var progressText = progress.total ? (' • ' + progress.done + ' من ' + progress.total + ' يوم') : '';
+          note.textContent = 'جارٍ فحص كل أيام الأرشيف من السيرفر…' + progressText + (meta.total ? (' • نتائج مؤقتة: ' + meta.total) : '');
+        } else if (globalSearchServerError) {
+          note.textContent = globalSearchServerError + (meta.total ? (' • نتائج محلية: ' + meta.total) : '');
+        } else if (globalSearchServerLoadedAt) {
+          note.textContent = meta.total
+            ? ('نتائج البحث: ' + meta.total + ' نتيجة' + (safe(modalState.searchFilter || 'all') !== 'all' ? (' • فلتر: ' + globalSearchFilterLabel(modalState.searchFilter)) : '') + (Number(meta.allTotal || 0) > Number(meta.total || 0) ? (' • من أصل ' + meta.allTotal) : '') + ' • ' + meta.matchedDays + ' يوم • فواتير كل الأيام + أرشيف السيرفر' + (globalSearchServerDayFiles ? (' (' + globalSearchServerDayFiles + ' ملف أرشيف)') : '') + (meta.limited ? ' • يعرض أول ' + GLOBAL_SEARCH_RESULT_LIMIT + ' نتيجة' : ''))
+            : ('لا توجد نتيجة ضمن فلتر «' + globalSearchFilterLabel(modalState.searchFilter || 'all') + '» للبحث «' + safe(modalState.searchQuery) + '» بعد فحص ' + meta.scannedDays + ' يوم');
+        } else {
+          note.textContent = meta.total
+            ? ('نتائج البحث المحلية: ' + meta.total + ' حركة • جاري تجهيز بحث كل الأيام')
+            : ('جارٍ تجهيز البحث بكل الأيام عن «' + safe(modalState.searchQuery) + '»');
+        }
+      } else {
+        note.textContent = modalState.loading ? 'جارٍ جلب أرشيف السيرفر…' : (modalState.serverError || (arr.length ? 'يعرض ' + arr.length + ' حركة في اليوم المختار' : 'لا توجد حركات في اليوم المختار'));
+      }
       root.removeAttribute('data-card-day');
       root.removeAttribute('data-card-id');
     }
     sum.innerHTML = summaryHtml(arr);
-    list.innerHTML = arr.length ? arr.map(rowHtml).join('') : '<div class="assal-card-audit-empty"><div><i class="fa-regular fa-folder-open"></i>لا توجد حركات محفوظة ضمن هذا العرض.</div></div>';
+    list.innerHTML = arr.length ? arr.map(rowHtml).join('') : '<div class="assal-card-audit-empty"><div><i class="fa-regular fa-folder-open"></i>' + (globalSearch ? ('لا توجد نتائج ضمن فلتر «' + esc(globalSearchFilterLabel(modalState.searchFilter || 'all')) + '» لهذا البحث.') : 'لا توجد حركات محفوظة ضمن هذا العرض.') + '</div></div>';
   }
 
   async function loadModalServer(force) {
@@ -61758,7 +62361,7 @@ html body .card .item.assal-smart-added-item-safe-final{
   }
 
   function openDayAudit(day) {
-    modalState = {mode: 'day', day: safe(day || localDay()), cardDay: '', cardId: '', customer: '', loading: false, serverError: ''};
+    modalState = {mode: 'day', day: safe(day || localDay()), cardDay: '', cardId: '', customer: '', loading: false, serverError: '', searchQuery: '', searchFilter: 'all', searchMeta: null};
     var r = ensureModal();
     renderModal();
     showModalRoot(r);
@@ -61773,7 +62376,7 @@ html body .card .item.assal-smart-added-item-safe-final{
   }
 
   function openCardAudit(card) {
-    modalState = {mode: 'card', day: '', cardDay: cardDayOf(card), cardId: cardIdOf(card), customer: safe(card && card.customer), loading: false, serverError: ''};
+    modalState = {mode: 'card', day: '', cardDay: cardDayOf(card), cardId: cardIdOf(card), customer: safe(card && card.customer), loading: false, serverError: '', searchQuery: '', searchFilter: 'all', searchMeta: null};
     var r = ensureModal();
     renderModal();
     showModalRoot(r);
@@ -87992,6 +88595,7 @@ body.assal-ledger-wa-auto-pdf-open{
 .assal-bi-close{width:40px;height:40px;border:1px solid rgba(148,163,184,.22);border-radius:13px;background:rgba(15,23,42,.72);color:#e5e7eb;cursor:pointer;transition:.18s}.assal-bi-close:hover{color:#fff;border-color:#f59e0b;background:rgba(245,158,11,.13);transform:rotate(4deg)}
 .assal-bi-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:15px 18px 6px}
 .assal-bi-stat{position:relative;overflow:hidden;padding:11px 12px;border:1px solid rgba(148,163,184,.15);border-radius:15px;background:linear-gradient(145deg,rgba(30,41,59,.76),rgba(15,23,42,.56));text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.13)}.assal-bi-stat:before{content:'';position:absolute;inset:0 auto 0 0;width:3px;background:linear-gradient(#fbbf24,#f97316)}.assal-bi-stat span{display:block;color:#9eabc0;font-size:10px}.assal-bi-stat b{display:block;margin-top:3px;font-size:17px;color:#fff}
+.assal-bi-filter{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;padding:8px 18px 4px}.assal-bi-filter-label{color:#aebbd0;font-size:10px;font-weight:900}.assal-bi-date{height:38px;min-width:160px;padding:0 10px;border:1px solid rgba(100,116,139,.4);border-radius:11px;background:#081122;color:#f8fafc;font-family:inherit;font-weight:850;text-align:center;outline:none;color-scheme:dark}.assal-bi-date:focus{border-color:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.12)}.assal-bi-filter-btn{height:38px;padding:0 13px;border:1px solid rgba(96,165,250,.24);border-radius:11px;background:rgba(30,64,175,.16);color:#bfdbfe;font-family:inherit;font-size:10px;font-weight:900;cursor:pointer}.assal-bi-filter-btn:hover{border-color:rgba(96,165,250,.48);background:rgba(30,64,175,.28)}.assal-bi-filter-btn.is-active{border-color:rgba(245,158,11,.5);background:rgba(120,53,15,.25);color:#fde68a}.assal-bi-filter-note{width:100%;text-align:center;color:#7f8ca2;font-size:9px;line-height:1.5}
 .assal-bi-body{overflow:auto;padding:11px 18px 18px;scrollbar-width:thin;scrollbar-color:#475569 transparent}
 .assal-bi-message{padding:24px;border:1px dashed rgba(148,163,184,.28);border-radius:18px;text-align:center;color:#b5c0d1;line-height:1.9;background:rgba(15,23,42,.38)}
 .assal-bi-card{margin-bottom:14px;border:1px solid rgba(100,116,139,.28);border-radius:19px;overflow:hidden;background:linear-gradient(145deg,rgba(16,28,50,.96),rgba(9,18,34,.96));box-shadow:0 14px 35px rgba(0,0,0,.19);transition:.2s}.assal-bi-card:hover{border-color:rgba(245,158,11,.3);transform:translateY(-1px)}
@@ -88008,20 +88612,27 @@ body.assal-ledger-wa-auto-pdf-open{
 .assal-bi-price{width:calc(100% - 16px);height:38px;border:1px solid rgba(100,116,139,.45);border-radius:11px;background:#081122;color:#f8fafc;padding:5px 8px;text-align:center;outline:none;font-family:inherit;font-weight:900;transition:.18s}.assal-bi-price:focus{border-color:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.12)}.assal-bi-price.zero{border-color:rgba(245,158,11,.38);color:#fbbf24;background:rgba(120,53,15,.13)}
 .assal-bi-foot{display:flex;align-items:center;gap:12px;padding:14px 18px;border-top:1px solid rgba(148,163,184,.14);background:rgba(8,17,31,.92)}.assal-bi-status{flex:1;color:#aeb8c8;font-size:11px;line-height:1.7;text-align:center}.assal-bi-status.error{color:#fca5a5}.assal-bi-status.ok{color:#6ee7b7}
 .assal-bi-import{min-width:190px;height:44px;border:0;border-radius:13px;background:linear-gradient(135deg,#f59e0b,#ea580c);color:#fff;font-family:inherit;font-weight:900;cursor:pointer;box-shadow:0 12px 28px rgba(234,88,12,.24);transition:.18s}.assal-bi-import:not(:disabled):hover{transform:translateY(-1px);box-shadow:0 15px 32px rgba(234,88,12,.32)}.assal-bi-import:disabled{opacity:.42;cursor:not-allowed;box-shadow:none}
-@media(max-width:620px){#assalBranchImportModal{padding:8px}.assal-bi-shell{width:100%;max-height:96vh;border-radius:21px}.assal-bi-head{padding:13px}.assal-bi-mark{width:42px;height:42px}.assal-bi-title{padding-right:0}.assal-bi-title span{display:none}.assal-bi-summary{gap:6px;padding:10px 10px 4px}.assal-bi-stat{padding:8px 5px}.assal-bi-body{padding:8px 10px 12px}.assal-bi-card-head .branch{padding-right:0}.assal-bi-card-head{flex-wrap:wrap}.assal-bi-lines{padding:8px}.assal-bi-table{min-width:520px}.assal-bi-table-head,.assal-bi-line{grid-template-columns:92px minmax(210px,1fr) 64px 96px}.assal-bi-item b{font-size:10px}.assal-bi-price{height:34px}.assal-bi-foot{flex-direction:column;padding:10px}.assal-bi-status{width:100%}.assal-bi-import{width:100%;min-width:0}}
+@media(max-width:620px){#assalBranchImportModal{padding:8px}.assal-bi-shell{width:100%;max-height:96vh;border-radius:21px}.assal-bi-head{padding:13px}.assal-bi-mark{width:42px;height:42px}.assal-bi-title{padding-right:0}.assal-bi-title span{display:none}.assal-bi-summary{gap:6px;padding:10px 10px 4px}.assal-bi-stat{padding:8px 5px}.assal-bi-filter{padding:7px 10px 3px;gap:6px}.assal-bi-date{min-width:145px;flex:1}.assal-bi-filter-btn{padding:0 9px}.assal-bi-body{padding:8px 10px 12px}.assal-bi-card-head .branch{padding-right:0}.assal-bi-card-head{flex-wrap:wrap}.assal-bi-lines{padding:8px}.assal-bi-table{min-width:520px}.assal-bi-table-head,.assal-bi-line{grid-template-columns:92px minmax(210px,1fr) 64px 96px}.assal-bi-item b{font-size:10px}.assal-bi-price{height:34px}.assal-bi-foot{flex-direction:column;padding:10px}.assal-bi-status{width:100%}.assal-bi-import{width:100%;min-width:0}}
 </style>
 
 <div id="assalBranchImportModal" aria-hidden="true">
   <section class="assal-bi-shell" role="dialog" aria-modal="true" aria-labelledby="assalBranchImportTitle">
     <header class="assal-bi-head">
       <div class="assal-bi-mark"><i class="fa-solid fa-file-import"></i></div>
-      <div class="assal-bi-title"><b id="assalBranchImportTitle">استيراد فواتير الفروع</b><span>يعرض فواتير اليوم ويومين سابقين، ويحفظ كل فاتورة في تاريخ إرسالها الأصلي.</span></div>
+      <div class="assal-bi-title"><b id="assalBranchImportTitle">استيراد فواتير الفروع</b><span>افتراضياً آخر 3 أيام فقط، ويمكن اختيار تاريخ قديم محدد دون إظهار بقية الأرشيف.</span></div>
       <button type="button" class="assal-bi-close" id="assalBranchImportClose" aria-label="إغلاق"><i class="fa-solid fa-xmark"></i></button>
     </header>
     <div class="assal-bi-summary">
-      <div class="assal-bi-stat"><span>فواتير 3 أيام</span><b id="assalBiTotal">—</b></div>
-      <div class="assal-bi-stat"><span>الجديدة</span><b id="assalBiNew">—</b></div>
-      <div class="assal-bi-stat"><span>المستوردة سابقاً</span><b id="assalBiDone">—</b></div>
+      <div class="assal-bi-stat"><span>ضمن الفلتر</span><b id="assalBiTotal">—</b></div>
+      <div class="assal-bi-stat"><span>غير المستوردة</span><b id="assalBiNew">—</b></div>
+      <div class="assal-bi-stat"><span>مستوردة سابقاً</span><b id="assalBiDone">—</b></div>
+    </div>
+    <div class="assal-bi-filter">
+      <span class="assal-bi-filter-label">عرض:</span>
+      <button type="button" class="assal-bi-filter-btn is-active" id="assalBiRecentBtn">آخر 3 أيام</button>
+      <input type="date" class="assal-bi-date" id="assalBiExactDate" aria-label="اختيار تاريخ فاتورة قديمة">
+      <button type="button" class="assal-bi-filter-btn" id="assalBiExactBtn">عرض التاريخ</button>
+      <div class="assal-bi-filter-note">الفاتورة لا تُعد مستوردة إلا بعد نجاح زر «اعتماد الاستيراد».</div>
     </div>
     <div class="assal-bi-body" id="assalBranchImportBody"><div class="assal-bi-message">جاري قراءة فواتير الفروع…</div></div>
     <footer class="assal-bi-foot">
@@ -88040,13 +88651,15 @@ body.assal-ledger-wa-auto-pdf-open{
     'yo1234':  'مكتب عسل فرع التحرير',
     'isl1234': 'مكتب عسل فرع الحي',
     'bld1234': 'مكتب عسل فرع بلدروز',
-    'kh778899':'مكتب عسل فرع الخالص'
+    'khalis':  'مكتب عسل فرع الخالص',
+    'kh778899':'مكتب عسل فرع الخالص' // توافق احتياطي لأي سجل قديم استعمل كلمة السر ككود
   };
-  var state = { invoices:[], busy:false, today:'', allowedDays:[], doneCount:0, changedCount:0 };
+  var state = { invoices:[], allKnown:[], busy:false, today:'', allowedDays:[], doneCount:0, changedCount:0, scopeMode:'recent', exactDate:'' };
 
   function el(id){ return document.getElementById(id); }
   function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
   function clean(v){ return String(v == null ? '' : v).trim(); }
+  function sourceBranchCode(raw){ return clean(raw&&raw.senderCode || raw&&raw.ownerCode || raw&&raw.branchCode).toLowerCase(); }
   function num(v){ var n=Number(String(v==null?'':v).replace(/[^0-9.]/g,'')); return Number.isFinite(n)?Math.round(n):0; }
   function isoNow(){ return new Date().toISOString(); }
   function uid(){ try{return typeof genId==='function'?String(genId()):String(Date.now())+'-'+Math.random().toString(36).slice(2,9);}catch(_){return String(Date.now())+'-'+Math.random().toString(36).slice(2,9);} }
@@ -88101,9 +88714,9 @@ body.assal-ledger-wa-auto-pdf-open{
   function importedMeta(){
     var map=new Map();
     allCards().forEach(function(card){
-      if(!card||card.deletedAt)return;
-      var activeLines=Array.isArray(card.lines)?card.lines.filter(function(line){return line&&!line.deletedAt;}):[];
-      if(!activeLines.length)return;
+      if(!card)return;
+      // تعتبر الفاتورة مستوردة فقط إذا توجد بطاقة أنشأها اعتماد الاستيراد فعلياً.
+      // نبقي هوية المصدر محسوبة حتى لو حُذفت البطاقة أو كل سطورها لاحقاً، حتى لا تعود كفاتورة جديدة بالخطأ.
       var meta=card&&card.assalBranchInvoiceImport;
       var key=clean(meta&&meta.sourceServerKey || card&&card.sourceBranchInvoiceKey);
       if(key)map.set(key,meta||{});
@@ -88178,7 +88791,7 @@ body.assal-ledger-wa-auto-pdf-open{
     return 0;
   }
   function normalizeSource(key,raw,done){
-    var code=clean(raw&&raw.senderCode || raw&&raw.ownerCode).toLowerCase();
+    var code=sourceBranchCode(raw);
     var uploadedRaw=raw&&raw.uploadedAt;
     var uploaded=/^\d+$/.test(String(uploadedRaw==null?'':uploadedRaw).trim())?Number(uploadedRaw):new Date(uploadedRaw||0).getTime();
     if(!Number.isFinite(uploaded))uploaded=0;
@@ -88200,10 +88813,22 @@ body.assal-ledger-wa-auto-pdf-open{
     };
   }
   function validSource(raw){
-    var code=clean(raw&&raw.senderCode || raw&&raw.ownerCode).toLowerCase();
-    var role=clean(raw&&raw.senderRole || raw&&raw.ownerRole).toLowerCase();
+    var code=sourceBranchCode(raw);
     var sourceDay=baghdadDay(raw&&raw.uploadedAt);
-    return !!BRANCHES[code] && role==='user' && state.allowedDays.indexOf(sourceDay)>=0;
+    // كود الفرع المعروف هو شرط المصدر. فلترة التاريخ تتم لاحقاً: آخر 3 أيام افتراضياً أو تاريخ محدد يختاره المستخدم.
+    return !!BRANCHES[code] && !!sourceDay;
+  }
+  function applyScope(){
+    var scoped=state.allKnown.slice();
+    if(state.scopeMode==='date' && /^\d{4}-\d{2}-\d{2}$/.test(state.exactDate)){
+      scoped=scoped.filter(function(x){return x.sourceDay===state.exactDate;});
+    }else{
+      scoped=scoped.filter(function(x){return state.allowedDays.indexOf(x.sourceDay)>=0;});
+    }
+    state.doneCount=scoped.filter(function(x){return x.done;}).length;
+    state.changedCount=scoped.filter(function(x){return x.done&&x.changed;}).length;
+    // لا تظهر المستوردة سابقاً. مجرد السحب/العرض لا يغيّر حالتها؛ الاعتماد الناجح فقط ينشئ هوية الاستيراد.
+    state.invoices=scoped.filter(function(x){return !x.done;});
   }
   async function fetchToday(){
     state.today=baghdadDay();
@@ -88212,16 +88837,14 @@ body.assal-ledger-wa-auto-pdf-open{
     if(!resp.ok)throw new Error('SOURCE_HTTP_'+resp.status);
     var data=await resp.json(); data=(data&&typeof data==='object')?data:{};
     var done=importedMeta();
-    var withinWindow=Object.keys(data).map(function(k){return {key:k,raw:data[k]||{}};}).filter(function(x){return validSource(x.raw);}).map(function(x){return normalizeSource(x.key,x.raw,done);}).filter(function(x){return x.items.length>0;}).sort(function(a,b){return a.uploadedAt-b.uploadedAt;});
-    state.doneCount=withinWindow.filter(function(x){return x.done;}).length;
-    state.changedCount=withinWindow.filter(function(x){return x.done&&x.changed;}).length;
-    state.invoices=withinWindow.filter(function(x){return !x.done;});
+    state.allKnown=Object.keys(data).map(function(k){return {key:k,raw:data[k]||{}};}).filter(function(x){return validSource(x.raw);}).map(function(x){return normalizeSource(x.key,x.raw,done);}).filter(function(x){return x.items.length>0;}).sort(function(a,b){return a.uploadedAt-b.uploadedAt;});
+    applyScope();
   }
   function fmtTime(ts){try{return new Intl.DateTimeFormat('ar-IQ',{timeZone:'Asia/Baghdad',hour:'2-digit',minute:'2-digit'}).format(new Date(ts));}catch(_){return '—';}}
   function render(){
     var body=el('assalBranchImportBody'), list=state.invoices, fresh=list.filter(function(x){return !x.done;});
     el('assalBiTotal').textContent=String(list.length+state.doneCount);el('assalBiNew').textContent=String(fresh.length);el('assalBiDone').textContent=String(state.doneCount);
-    if(!list.length){body.innerHTML='<div class="assal-bi-message"><i class="fa-solid fa-circle-check"></i><br>لا توجد فواتير جديدة غير مستوردة خلال اليوم ويومين سابقين.</div>';setStatus(state.changedCount?('توجد '+state.changedCount+' فاتورة مستوردة تغيّرت في المصدر؛ لم تُستبدل الذمم تلقائياً.'):'كل فواتير الأيام الثلاثة مستوردة سابقاً أو لا توجد فواتير جديدة.',state.changedCount?'error':'ok');setBusy(false);return;}
+    if(!list.length){body.innerHTML='<div class="assal-bi-message"><i class="fa-solid fa-circle-check"></i><br>لا توجد فواتير غير مستوردة ضمن الفلتر الحالي.</div>';setStatus(state.changedCount?('توجد '+state.changedCount+' فاتورة مستوردة تغيّرت في المصدر؛ لم تُستبدل الذمم تلقائياً.'):'لا توجد فواتير غير مستوردة ضمن الفلتر الحالي.',state.changedCount?'error':'ok');setBusy(false);return;}
     body.innerHTML=list.map(function(inv){
       var missing=inv.items.filter(function(it){return !(num(it.price)>0);}).length;
       var badge=inv.done?(inv.changed?'<span class="assal-bi-badge warn">تغيّرت بعد الاستيراد</span>':'<span class="assal-bi-badge done">مستوردة سابقاً</span>'):(missing?'<span class="assal-bi-badge warn">'+missing+' بسعر صفر</span>':'<span class="assal-bi-badge">جاهزة</span>');
@@ -88249,7 +88872,7 @@ body.assal-ledger-wa-auto-pdf-open{
     var btn=el('assalBranchImportConfirm');if(btn)btn.disabled=state.busy||!canCommit();
     var changed=state.changedCount;
     if(!fresh.length&&changed)setStatus('توجد '+changed+' فاتورة تغيّرت في المصدر بعد استيرادها. لم تُستبدل البطاقة المالية تلقائياً ولم تُكرر.','error');
-    else if(!fresh.length)setStatus('كل فواتير الأيام الثلاثة مستوردة سابقاً؛ لن يُنشأ أي تكرار.','ok');
+    else if(!fresh.length)setStatus('كل الفواتير ضمن الفلتر الحالي مستوردة سابقاً؛ لن يُنشأ أي تكرار.','ok');
     else if(missing)setStatus('جاهز للاستيراد: '+missing+' مادة بلا سعر ستُحفظ بسعر صفر، ويمكنك تعديلها الآن أو لاحقاً.','ok');
     else setStatus('جاهز لإضافة '+fresh.length+' فاتورة كبطاقات جملة مستقلة.','ok');
   }
@@ -88281,7 +88904,7 @@ body.assal-ledger-wa-auto-pdf-open{
       if(!actually.length){state.invoices.forEach(function(x){x.done=true;});state.doneCount+=state.invoices.length;state.invoices=[];render();return;}
       for(var i=actually.length-1;i>=0;i--){
         var invoice=actually[i],invoiceDay=clean(invoice&&invoice.sourceDay);
-        if(state.allowedDays.indexOf(invoiceDay)<0)throw new Error('SOURCE_DAY_OUTSIDE_WINDOW');
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(invoiceDay))throw new Error('SOURCE_DAY_INVALID');
         if(!Array.isArray(days[invoiceDay]))days[invoiceDay]=[];
         days[invoiceDay].unshift(makeCard(invoice));
       }
@@ -88316,8 +88939,11 @@ body.assal-ledger-wa-auto-pdf-open{
   async function open(){
     if(!canImportHere()){toast('warn','استيراد فواتير الفروع متاح لحاسبة الأدمن والحاسبة الرئيسية فقط');return;}
     if(!adminRequestsReady()){toast('warn','انتظر اكتمال تحميل نظام طلبات التعديل ثم حاول مجدداً');return;}
+    state.scopeMode='recent';state.exactDate='';
+    var dateInput=el('assalBiExactDate');if(dateInput)dateInput.value='';
+    var recentBtn=el('assalBiRecentBtn'),exactBtn=el('assalBiExactBtn');if(recentBtn)recentBtn.classList.add('is-active');if(exactBtn)exactBtn.classList.remove('is-active');
     var modal=el('assalBranchImportModal');modal.classList.add('show');modal.setAttribute('aria-hidden','false');
-    el('assalBranchImportBody').innerHTML='<div class="assal-bi-message"><i class="fa-solid fa-spinner fa-spin"></i><br>جاري قراءة فواتير اليوم ويومين سابقين…</div>';
+    el('assalBranchImportBody').innerHTML='<div class="assal-bi-message"><i class="fa-solid fa-spinner fa-spin"></i><br>جاري قراءة فواتير آخر 3 أيام من السيرفر…</div>';
     el('assalBiTotal').textContent=el('assalBiNew').textContent=el('assalBiDone').textContent='—';setStatus('اتصال آمن بسيرفر الفواتير…','');setBusy(true);
     try{
       if(typeof database==='undefined'||!database||!Object.keys(database).length)throw new Error('PRICE_DATABASE_NOT_READY');
@@ -88329,16 +88955,35 @@ body.assal-ledger-wa-auto-pdf-open{
       setStatus('لم تُضف أو تتغير أي بطاقة.','error');refreshCommitState();
     }
   }
+  function showRecent(){
+    if(state.busy)return;
+    state.scopeMode='recent';state.exactDate='';
+    var input=el('assalBiExactDate');if(input)input.value='';
+    var recent=el('assalBiRecentBtn'),exact=el('assalBiExactBtn');if(recent)recent.classList.add('is-active');if(exact)exact.classList.remove('is-active');
+    applyScope();render();
+  }
+  function showExactDate(){
+    if(state.busy)return;
+    var input=el('assalBiExactDate'),day=clean(input&&input.value);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(day)){toast('warn','اختر تاريخاً صحيحاً أولاً');return;}
+    state.scopeMode='date';state.exactDate=day;
+    var recent=el('assalBiRecentBtn'),exact=el('assalBiExactBtn');if(recent)recent.classList.remove('is-active');if(exact)exact.classList.add('is-active');
+    applyScope();render();
+    if(!state.invoices.length)setStatus('لا توجد فواتير غير مستوردة بتاريخ '+fmtDay(day)+'.','ok');
+  }
   function close(){if(state.busy)return;var m=el('assalBranchImportModal');m.classList.remove('show');m.setAttribute('aria-hidden','true');}
   function bind(){
     var host=el('assalHeaderActions'),closeTools=el('btnHeaderToolsClose');
     if(host&&!el('btnBranchWholesaleImport')){
-      var btn=document.createElement('button');btn.type='button';btn.id='btnBranchWholesaleImport';btn.className='icon assal-tool-action';btn.title='استيراد فواتير الفروع لآخر ثلاثة أيام';btn.setAttribute('aria-label',btn.title);btn.innerHTML='<i class="fa-solid fa-file-circle-plus"></i>';
+      var btn=document.createElement('button');btn.type='button';btn.id='btnBranchWholesaleImport';btn.className='icon assal-tool-action';btn.title='استيراد فواتير الفروع غير المستوردة';btn.setAttribute('aria-label',btn.title);btn.innerHTML='<i class="fa-solid fa-file-circle-plus"></i>';
       host.insertBefore(btn,closeTools||el('btnLogout')||el('btnHeaderToolsToggle'));
       btn.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();host.classList.remove('assal-tools-open');var t=el('btnHeaderToolsToggle');if(t)t.setAttribute('aria-expanded','false');open();});
     }
     el('assalBranchImportClose').addEventListener('click',close);
     el('assalBranchImportConfirm').addEventListener('click',commit);
+    el('assalBiRecentBtn').addEventListener('click',showRecent);
+    el('assalBiExactBtn').addEventListener('click',showExactDate);
+    el('assalBiExactDate').addEventListener('change',function(){if(this.value)showExactDate();});
     el('assalBranchImportModal').addEventListener('click',function(ev){if(ev.target===ev.currentTarget)close();});
     document.addEventListener('keydown',function(ev){if(ev.key==='Escape'&&el('assalBranchImportModal').classList.contains('show'))close();});
   }
